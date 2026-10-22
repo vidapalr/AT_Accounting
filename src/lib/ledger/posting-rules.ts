@@ -30,6 +30,7 @@ export const ACCOUNT = {
   INVESTOR_CAPITAL: "3200",
   SALES: "4000",
   SETUP_COSTS: "6900",
+  SETUP_ASSET: "1320",
   SALES_DISCOUNTS: "4200",
   SALES_RETURNS: "4210",
   COGS: "5000",
@@ -62,7 +63,8 @@ export type SourceType =
   | "DEPOSIT_REFUND"
   | "SALES_RETURN"
   | "SALES_REFUND"
-  | "STOCK_DAMAGE";
+  | "STOCK_DAMAGE"
+  | "SETUP_CAPITALISATION";
 
 export type Dimensions = {
   divisionId: number | null;
@@ -303,6 +305,26 @@ export function expenseEntry(expense: {
   return makeDraft("EXPENSE", expense.id, expense.date, memo, [
     debit(expenseAccount, amount, expense.dims, memo),
     credit(ACCOUNT.ACCRUED_EXPENSES, amount, expense.dims, memo),
+  ]);
+}
+
+/**
+ * Moves a set-up cost out of expenses and into an asset, so it does not
+ * reduce profit. Posted after the expense itself, keyed by the expense.
+ */
+export function setupCapitalisationEntry(expense: {
+  id: number;
+  expenseNo: string;
+  date: string;
+  amount: string;
+  dims: Dimensions;
+}): JournalDraft {
+  const amount = parseMoney(expense.amount);
+  const memo = `Set-up cost ${expense.expenseNo} carried as an asset`;
+
+  return makeDraft("SETUP_CAPITALISATION", expense.id, expense.date, memo, [
+    debit(ACCOUNT.SETUP_ASSET, amount, expense.dims, memo),
+    credit(ACCOUNT.SETUP_COSTS, amount, expense.dims, memo),
   ]);
 }
 

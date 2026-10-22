@@ -18,6 +18,7 @@ import type {
 
 import {
   salesRefundEntry,
+  setupCapitalisationEntry,
   salesReturnEntry,
   stockDamageEntry,
   depositPaidEntry,
@@ -65,6 +66,7 @@ const SOURCE_ORDER: SourceType[] = [
   "DEPOSIT_PAID",
   "DEPOSIT_REFUND",
   "EXPENSE",
+  "SETUP_CAPITALISATION",
   "EXPENSE_PAYMENT",
   "PURCHASE_RECEIPT",
   "PURCHASE_PAYMENT",
@@ -509,6 +511,17 @@ export async function buildLedgerDrafts(
         isSetupCost: Number(e.is_setup_cost) === 1,
       })
     );
+    if (Number(e.is_setup_cost) === 1) {
+      add(`Set-up cost ${str(e.expense_no)}`, () =>
+        setupCapitalisationEntry({
+          id: Number(e.id),
+          expenseNo: str(e.expense_no),
+          date: str(e.d),
+          amount: str(e.amount),
+          dims: dims(e.division_id, e.branch_id),
+        })
+      );
+    }
   }
 
   const expensePayments = await select(

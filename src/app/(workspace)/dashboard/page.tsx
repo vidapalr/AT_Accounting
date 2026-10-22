@@ -79,6 +79,7 @@ async function DashboardContent({ searchParams }: Props) {
   const payables = byCode("2000") ? -net(byCode("2000")!) : 0n;
   const stock = byCode("1200") ? net(byCode("1200")!) : 0n;
   const investorMoney = byCode("3200") ? -net(byCode("3200")!) : 0n;
+  const setupAsset = byCode("1320") ? net(byCode("1320")!) : 0n;
   const refundsOwed = BigInt(Math.round(Number(owed[0][0]?.owed ?? 0) * 100));
 
   const businessHeld = [...positions.banks, ...positions.cash];
@@ -178,11 +179,16 @@ async function DashboardContent({ searchParams }: Props) {
                 <span>{e.name} (one-off costs of starting)</span>{money(e.amount)}
               </li>
             ))}
-            {setup.length === 0 && <li className={styles.minus}><span>Set-up costs</span>{money(0n)}</li>}
             <li className={`${styles.result} ${styles.resultFinal}`}>
               <span>Net profit</span>{money(f.net)}
             </li>
           </ul>
+          {setupAsset > 0n && (
+            <p className={styles.cardHint} style={{ marginTop: 10 }}>
+              Starting costs of {inr(setupAsset)} are carried as an asset on the balance sheet,
+              so they are not taken off profit.
+            </p>
+          )}
         </article>
 
         <article className={styles.card}>

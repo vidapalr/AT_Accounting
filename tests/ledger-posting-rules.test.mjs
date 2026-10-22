@@ -347,3 +347,16 @@ test("damaged stock write-off reduces inventory and gross profit", () => {
   assert.equal(a["5150"].debit, 195000n);
   assert.equal(a["1200"].credit, 195000n);
 });
+
+import { setupCapitalisationEntry } from "../src/lib/ledger/posting-rules.ts";
+
+test("set-up costs move from expense to an asset so profit is not reduced", () => {
+  const drafts = [
+    expenseEntry({ id: 1, expenseNo: "E1", date: "2026-10-12", category: "MISCELLANEOUS", description: "", amount: "25000.00", dims, isSetupCost: true }),
+    setupCapitalisationEntry({ id: 1, expenseNo: "E1", date: "2026-10-12", amount: "25000.00", dims }),
+  ];
+  const tb = Object.fromEntries(trialBalance(drafts).map((r) => [r.accountCode, r.debit - r.credit]));
+  assert.equal(tb["1320"], 2500000n);   // carried as an asset
+  assert.equal(tb["6900"], 0n);          // nothing left in expenses
+  assert.equal(tb["2200"], -2500000n);   // still owed to whoever paid
+});

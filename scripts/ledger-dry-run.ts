@@ -103,7 +103,7 @@ async function main() {
     console.log("-".repeat(78));
     console.log(`${pad("Gross profit (sales after discounts - cost of goods)", 60)} ${rpad(inr(gross), 14)}`);
     console.log(`${pad("Operating profit (after running expenses)", 60)} ${rpad(inr(operating), 14)}`);
-    console.log(`${pad("Net profit (after set-up costs)", 60)} ${rpad(inr(operating - setup), 14)}`);
+    console.log(`${pad("Net profit (set-up costs are carried as an asset, not charged)", 60)} ${rpad(inr(operating - setup), 14)}`);
 
     // ---------------------------------------- independent tie-outs (raw SQL)
     const one = async (sql: string): Promise<bigint> => {
@@ -134,6 +134,9 @@ async function main() {
       `SELECT COALESCE(SUM(p.amount),0) FROM acct_purchase_payments p
          JOIN acct_purchase_headers h ON h.id=p.purchase_id AND h.legal_business_id=p.legal_business_id
         WHERE p.legal_business_id=? AND p.status='VERIFIED' AND h.status='POSTED'`
+    );
+    const setupTotal = await one(
+      `SELECT COALESCE(SUM(amount),0) FROM acct_expenses WHERE legal_business_id=? AND status='CONFIRMED' AND is_setup_cost=1`
     );
     const expensesTotal = await one(
       `SELECT COALESCE(SUM(amount),0) FROM acct_expenses WHERE legal_business_id=? AND status='CONFIRMED'`
@@ -182,13 +185,14 @@ async function main() {
       ["Receivables (1100) = invoiced - received - returns + refunds", bal("1100"), salesTotal - salesPaid - returnsValue + refundsPaid],
       ["Payables (2000) = bought - paid", -bal("2000"), purchasesTotal - purchasesPaid],
       ["Accrued expenses (2200) = expenses - paid", -bal("2200"), expensesTotal - expensesPaid],
+      ["Set-up costs asset (1320) = set-up expenses", bal("1320"), setupTotal],
       ["Inventory (1200) = stock ledger value", bal("1200"), stockValue + openingInventory],
       ["COGS (5000) = cost on invoice lines - returned cost", bal("5000"), cogs - returnedCost],
       ["Damaged stock (5150) = damaged returns + shop damages", bal("5150"), damagedReturnCost + damagesCost],
       [
         "Net profit = (sales - discounts) - COGS - expenses",
         -(sumPrefix("4") + sumPrefix("5") + sumPrefix("6")),
-        (salesTotal - returnsValue) - (cogs - returnedCost) - (damagedReturnCost + damagesCost) - expensesTotal,
+        (salesTotal - returnsValue) - (cogs - returnedCost) - (damagedReturnCost + damagesCost) - (expensesTotal - setupTotal),
       ],
       [
         "Assets = liabilities + capital + profit",
