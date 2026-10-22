@@ -292,3 +292,58 @@ test("set-up costs go to their own account, not the category account", () => {
   assert.equal(a["6070"], undefined);
   assert.equal(a[ACCOUNT.ACCRUED_EXPENSES].credit, 440000n);
 });
+
+import { salesReturnEntry, salesRefundEntry, stockDamageEntry } from "../src/lib/ledger/posting-rules.ts";
+
+test("return of resellable goods: sale reversed, stock restored, cost reversed", () => {
+  // 2 pieces sold at 700 gross, 8% of the invoice was discount -> customer paid 1288
+  const d = salesReturnEntry({
+    id: 1, returnNo: "R1", invoiceNo: "I1", date: "2026-10-23", dims,
+    grossValue: "1400.00", refundValue: "1288.00",
+    restockCost: "780.00", damagedCost: "0.00",
+  });
+  const a = byAccount(d);
+  assert.equal(a["4210"].debit, 140000n);
+  assert.equal(a["4200"].credit, 11200n);
+  assert.equal(a["1100"].credit, 128800n);
+  assert.equal(a["1200"].debit, 78000n);
+  assert.equal(a["5000"].credit, 78000n);
+  assert.equal(a["5150"], undefined);
+});
+
+test("return of damaged goods: cost moves from cost of goods to damaged stock, no restock", () => {
+  const a = byAccount(
+    salesReturnEntry({
+      id: 1, returnNo: "R2", invoiceNo: "I1", date: "2026-10-23", dims,
+      grossValue: "700.00", refundValue: "700.00",
+      restockCost: "0.00", damagedCost: "390.00",
+    })
+  );
+  assert.equal(a["5150"].debit, 39000n);
+  assert.equal(a["5000"].credit, 39000n);
+  assert.equal(a["1200"], undefined);
+});
+
+test("a refund larger than the selling value is refused", () => {
+  assert.throws(() =>
+    salesReturnEntry({
+      id: 1, returnNo: "R3", invoiceNo: "I1", date: "2026-10-23", dims,
+      grossValue: "100.00", refundValue: "101.00", restockCost: "0.00", damagedCost: "0.00",
+    })
+  );
+});
+
+test("refund pays the customer back from the right source", () => {
+  const out = (settlement) =>
+    byAccount(salesRefundEntry({ id: 1, returnNo: "R1", date: "2026-10-23", amount: "500.00", dims, settlement }));
+  assert.equal(out(bank)["1100"].debit, 50000n);
+  assert.equal(out(bank)["1010"].credit, 50000n);
+  assert.equal(out({ kind: "INVESTOR" })["3200"].credit, 50000n);
+  assert.throws(() => out({ kind: "OWNER" }));
+});
+
+test("damaged stock write-off reduces inventory and gross profit", () => {
+  const a = byAccount(stockDamageEntry({ id: 1, date: "2026-10-23", reason: "DAMAGED", cost: "1950.00", dims }));
+  assert.equal(a["5150"].debit, 195000n);
+  assert.equal(a["1200"].credit, 195000n);
+});

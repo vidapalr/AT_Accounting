@@ -135,6 +135,11 @@ const navigation = [
         href: "/accounting/reports",
         enabled: true,
       },
+      {
+        label: "Returns, Refunds, Damaged Stock",
+        href: "/accounting/returns",
+        enabled: true,
+      },
       
       
     ],

@@ -17,6 +17,9 @@ import type {
 } from "mysql2/promise";
 
 import {
+  salesRefundEntry,
+  salesReturnEntry,
+  stockDamageEntry,
   depositPaidEntry,
   depositRefundEntry,
   expenseEntry,
@@ -67,6 +70,9 @@ const SOURCE_ORDER: SourceType[] = [
   "PURCHASE_PAYMENT",
   "SALES_INVOICE",
   "SALES_RECEIPT",
+  "SALES_RETURN",
+  "SALES_REFUND",
+  "STOCK_DAMAGE",
 ];
 
 const str = (v: unknown): string => String(v ?? "");
@@ -314,6 +320,96 @@ export async function buildLedgerDrafts(
         settlement,
       });
     });
+  }
+
+  // ------------------------------------------- returns, refunds, damages
+  const returns = await select(
+    conn,
+    `SELECT r.id, r.return_no, DATE_FORMAT(r.return_date, '%Y-%m-%d') AS d,
+            r.division_id, r.branch_id, r.gross_value, r.refund_value,
+            s.invoice_no,
+            COALESCE(SUM(CASE WHEN l.item_condition = 'RESELLABLE' THEN l.total_cost END), 0) AS restock_cost,
+            COALESCE(SUM(CASE WHEN l.item_condition = 'DAMAGED' THEN l.total_cost END), 0) AS damaged_cost
+     FROM acct_sales_returns r
+     JOIN acct_sales_headers s
+       ON s.legal_business_id = r.legal_business_id AND s.id = r.sale_id
+     LEFT JOIN acct_sales_return_lines l
+       ON l.legal_business_id = r.legal_business_id AND l.return_id = r.id
+     WHERE r.legal_business_id = ? AND r.status = 'POSTED'
+     GROUP BY r.id, r.return_no, r.return_date, r.division_id, r.branch_id,
+              r.gross_value, r.refund_value, s.invoice_no
+     ORDER BY r.return_date, r.id`,
+    [businessId]
+  );
+
+  const returnById = new Map<number, Row>();
+  for (const r of returns) {
+    returnById.set(Number(r.id), r);
+    add(`Return ${str(r.return_no)}`, () =>
+      salesReturnEntry({
+        id: Number(r.id),
+        returnNo: str(r.return_no),
+        invoiceNo: str(r.invoice_no),
+        date: str(r.d),
+        dims: dims(r.division_id, r.branch_id),
+        grossValue: str(r.gross_value),
+        refundValue: str(r.refund_value),
+        restockCost: str(r.restock_cost),
+        damagedCost: str(r.damaged_cost),
+      })
+    );
+  }
+
+  const refunds = await select(
+    conn,
+    `SELECT f.id, f.return_id, DATE_FORMAT(f.refund_date, '%Y-%m-%d') AS d,
+            f.amount, f.bank_account_id, f.cash_account_id
+     FROM acct_sales_refunds f
+     JOIN acct_sales_returns r
+       ON r.legal_business_id = f.legal_business_id AND r.id = f.return_id
+     WHERE f.legal_business_id = ? AND f.status = 'RECORDED' AND r.status = 'POSTED'
+     ORDER BY f.refund_date, f.id`,
+    [businessId]
+  );
+
+  for (const f of refunds) {
+    const ret = returnById.get(Number(f.return_id));
+    const label = `Refund ${str(f.id)} for return ${ret ? str(ret.return_no) : str(f.return_id)}`;
+    add(label, () => {
+      if (!ret) throw new Error("its return is not posted");
+      const settlement = settle(label, null, f.bank_account_id, f.cash_account_id);
+      if (!settlement) return null;
+      return salesRefundEntry({
+        id: Number(f.id),
+        returnNo: str(ret.return_no),
+        date: str(f.d),
+        amount: str(f.amount),
+        dims: dims(ret.division_id, ret.branch_id),
+        settlement,
+      });
+    });
+  }
+
+  const damages = await select(
+    conn,
+    `SELECT id, division_id, branch_id, reason, total_cost,
+            DATE_FORMAT(damage_date, '%Y-%m-%d') AS d
+     FROM acct_stock_damages
+     WHERE legal_business_id = ? AND status = 'POSTED'
+     ORDER BY damage_date, id`,
+    [businessId]
+  );
+
+  for (const m of damages) {
+    add(`Stock damage ${str(m.id)}`, () =>
+      stockDamageEntry({
+        id: Number(m.id),
+        date: str(m.d),
+        reason: str(m.reason),
+        cost: str(m.total_cost),
+        dims: dims(m.division_id, m.branch_id),
+      })
+    );
   }
 
   // ----------------------------------------------------------- purchases

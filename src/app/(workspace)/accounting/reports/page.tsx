@@ -191,7 +191,7 @@ async function ReportsContent({ searchParams }: Props) {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              {["", "Sales", "Discounts", "Cost of goods", "Gross profit", "Gross %", "Running expenses",
+              {["", "Sales", "Discounts and returns", "Cost of goods", "Gross profit", "Gross %", "Running expenses",
                 "Operating profit", "Set-up costs", "Net profit"].map((h) => (
                 <th key={h} style={h ? cell : left}>{h}</th>
               ))}

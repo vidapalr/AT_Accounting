@@ -31,7 +31,9 @@ export const ACCOUNT = {
   SALES: "4000",
   SETUP_COSTS: "6900",
   SALES_DISCOUNTS: "4200",
+  SALES_RETURNS: "4210",
   COGS: "5000",
+  DAMAGED_STOCK: "5150",
 } as const;
 
 export const EXPENSE_ACCOUNT_BY_CATEGORY: Record<string, string> = {
@@ -57,7 +59,10 @@ export type SourceType =
   | "EXPENSE"
   | "EXPENSE_PAYMENT"
   | "DEPOSIT_PAID"
-  | "DEPOSIT_REFUND";
+  | "DEPOSIT_REFUND"
+  | "SALES_RETURN"
+  | "SALES_REFUND"
+  | "STOCK_DAMAGE";
 
 export type Dimensions = {
   divisionId: number | null;
@@ -352,6 +357,83 @@ export function depositRefundEntry(refund: {
   return makeDraft("DEPOSIT_REFUND", refund.id, refund.date, memo, [
     debit(settlementAccount(refund.settlement), amount, refund.dims, memo),
     credit(ACCOUNT.DEPOSITS, amount, refund.dims, memo),
+  ]);
+}
+
+/**
+ * A customer brings goods back.
+ *   Sales Returns takes back the sale at its selling price; the part of the
+ *   invoice discount that belonged to those pieces is given back too, so the
+ *   customer is credited only what they actually paid for them.
+ *   Resellable pieces go back into stock at their original cost; damaged
+ *   pieces do not, and their cost becomes a damaged-stock loss.
+ */
+export function salesReturnEntry(ret: {
+  id: number;
+  returnNo: string;
+  invoiceNo: string;
+  date: string;
+  dims: Dimensions;
+  grossValue: string;
+  refundValue: string;
+  restockCost: string;
+  damagedCost: string;
+}): JournalDraft {
+  const gross = parseMoney(ret.grossValue);
+  const refund = parseMoney(ret.refundValue);
+  const restock = parseMoney(ret.restockCost);
+  const damaged = parseMoney(ret.damagedCost);
+  const memo = `Return ${ret.returnNo} against invoice ${ret.invoiceNo}`;
+
+  if (refund > gross) {
+    throw new Error(`Return ${ret.returnNo}: refund value exceeds the selling value`);
+  }
+
+  return makeDraft("SALES_RETURN", ret.id, ret.date, memo, [
+    debit(ACCOUNT.SALES_RETURNS, gross, ret.dims, memo),
+    credit(ACCOUNT.SALES_DISCOUNTS, gross - refund, ret.dims, memo),
+    credit(ACCOUNT.RECEIVABLES, refund, ret.dims, memo),
+    debit(ACCOUNT.INVENTORY, restock, ret.dims, memo),
+    debit(ACCOUNT.DAMAGED_STOCK, damaged, ret.dims, memo),
+    credit(ACCOUNT.COGS, restock + damaged, ret.dims, memo),
+  ]);
+}
+
+/** Money paid back to the customer for a return. */
+export function salesRefundEntry(refund: {
+  id: number;
+  returnNo: string;
+  date: string;
+  amount: string;
+  dims: Dimensions;
+  settlement: Settlement;
+}): JournalDraft {
+  if (refund.settlement.kind === "OWNER") {
+    throw new Error(`Refund ${refund.id}: pay refunds from a business or investor account`);
+  }
+  const amount = parseMoney(refund.amount);
+  const memo = `Refund for return ${refund.returnNo}`;
+
+  return makeDraft("SALES_REFUND", refund.id, refund.date, memo, [
+    debit(ACCOUNT.RECEIVABLES, amount, refund.dims, memo),
+    credit(settlementAccount(refund.settlement), amount, refund.dims, memo),
+  ]);
+}
+
+/** Stock damaged or lost in the shop or warehouse. */
+export function stockDamageEntry(damage: {
+  id: number;
+  date: string;
+  reason: string;
+  cost: string;
+  dims: Dimensions;
+}): JournalDraft {
+  const cost = parseMoney(damage.cost);
+  const memo = `Stock ${damage.reason.toLowerCase()} (record ${damage.id})`;
+
+  return makeDraft("STOCK_DAMAGE", damage.id, damage.date, memo, [
+    debit(ACCOUNT.DAMAGED_STOCK, cost, damage.dims, memo),
+    credit(ACCOUNT.INVENTORY, cost, damage.dims, memo),
   ]);
 }
 

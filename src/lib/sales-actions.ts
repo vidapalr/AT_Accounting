@@ -823,8 +823,20 @@ export async function updateSaleAction(
     );
     const header = headers[0];
 
+    const [inLedger] = header
+      ? await conn.execute<RowDataPacket[]>(
+          `SELECT id FROM acct_journal_entries
+           WHERE legal_business_id = ? AND source_type = 'SALES_INVOICE'
+             AND source_id = ? AND status IN ('POSTED', 'REVERSED') LIMIT 1`,
+          [businessId, saleId]
+        )
+      : [[] as RowDataPacket[]];
+
     if (!header || !["DRAFT", "POSTED"].includes(header.status)) {
       result = "not-editable";
+    } else if (inLedger.length > 0) {
+      // Posted journals are permanent. Corrections go through a return.
+      result = "in-ledger";
     } else if (
       Number(header.branch_id) !== branchId ||
       (header.status === "POSTED" &&

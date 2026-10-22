@@ -22,6 +22,7 @@ export type SyncStatus = {
 const OUR_SOURCES = [
   "DEPOSIT_PAID", "DEPOSIT_REFUND", "EXPENSE", "EXPENSE_PAYMENT",
   "PURCHASE_RECEIPT", "PURCHASE_PAYMENT", "SALES_INVOICE", "SALES_RECEIPT",
+  "SALES_RETURN", "SALES_REFUND", "STOCK_DAMAGE",
 ];
 
 type Row = RowDataPacket & Record<string, unknown>;

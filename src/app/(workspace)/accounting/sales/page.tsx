@@ -36,6 +36,8 @@ const messages: Record<string, string> = {
   invalid: "Check the invoice details.",
   "invalid-edit": "The invoice edit details are invalid.",
   "not-editable": "Only draft or posted invoices can be edited.",
+  "in-ledger":
+    "This invoice is already in the ledger and can no longer be edited. Use Returns, Refunds and Damaged Stock to correct it.",
   "insufficient-stock":
     "The corrected quantities exceed available branch stock.",
   "valuation-invalid":

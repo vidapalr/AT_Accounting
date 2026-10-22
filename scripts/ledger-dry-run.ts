@@ -148,6 +148,27 @@ async function main() {
          JOIN acct_sales_headers s ON s.id=l.sale_id AND s.legal_business_id=l.legal_business_id
         WHERE l.legal_business_id=? AND s.status='POSTED'`
     );
+    const returnsValue = await one(
+      `SELECT COALESCE(SUM(refund_value),0) FROM acct_sales_returns WHERE legal_business_id=? AND status='POSTED'`
+    );
+    const returnedCost = await one(
+      `SELECT COALESCE(SUM(l.total_cost),0) FROM acct_sales_return_lines l
+         JOIN acct_sales_returns r ON r.id=l.return_id AND r.legal_business_id=l.legal_business_id
+        WHERE l.legal_business_id=? AND r.status='POSTED'`
+    );
+    const damagedReturnCost = await one(
+      `SELECT COALESCE(SUM(l.total_cost),0) FROM acct_sales_return_lines l
+         JOIN acct_sales_returns r ON r.id=l.return_id AND r.legal_business_id=l.legal_business_id
+        WHERE l.legal_business_id=? AND r.status='POSTED' AND l.item_condition='DAMAGED'`
+    );
+    const refundsPaid = await one(
+      `SELECT COALESCE(SUM(f.amount),0) FROM acct_sales_refunds f
+         JOIN acct_sales_returns r ON r.id=f.return_id AND r.legal_business_id=f.legal_business_id
+        WHERE f.legal_business_id=? AND f.status='RECORDED' AND r.status='POSTED'`
+    );
+    const damagesCost = await one(
+      `SELECT COALESCE(SUM(total_cost),0) FROM acct_stock_damages WHERE legal_business_id=? AND status='POSTED'`
+    );
     // Stock value straight from the stock ledger (units moved x cost).
     const stockValue = await signed(
       `SELECT COALESCE(SUM(CASE WHEN quantity_change < 0 THEN -total_cost ELSE total_cost END),0)
@@ -158,15 +179,16 @@ async function main() {
     const openingInventory = 0n; // stock was entered through purchases, not opening balances
     const checks: [string, bigint, bigint][] = [
       ["Trial balance: debits = credits", td, tc],
-      ["Receivables (1100) = invoiced - received", bal("1100"), salesTotal - salesPaid],
+      ["Receivables (1100) = invoiced - received - returns + refunds", bal("1100"), salesTotal - salesPaid - returnsValue + refundsPaid],
       ["Payables (2000) = bought - paid", -bal("2000"), purchasesTotal - purchasesPaid],
       ["Accrued expenses (2200) = expenses - paid", -bal("2200"), expensesTotal - expensesPaid],
       ["Inventory (1200) = stock ledger value", bal("1200"), stockValue + openingInventory],
-      ["COGS (5000) = cost on invoice lines", bal("5000"), cogs],
+      ["COGS (5000) = cost on invoice lines - returned cost", bal("5000"), cogs - returnedCost],
+      ["Damaged stock (5150) = damaged returns + shop damages", bal("5150"), damagedReturnCost + damagesCost],
       [
         "Net profit = (sales - discounts) - COGS - expenses",
         -(sumPrefix("4") + sumPrefix("5") + sumPrefix("6")),
-        salesTotal - cogs - expensesTotal,
+        (salesTotal - returnsValue) - (cogs - returnedCost) - (damagedReturnCost + damagesCost) - expensesTotal,
       ],
       [
         "Assets = liabilities + capital + profit",
