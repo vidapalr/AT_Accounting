@@ -6,9 +6,14 @@ import {
 } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
+  const publicOrigin =
+    process.env.NODE_ENV === "production"
+      ? "https://accounting.abhiraminc.com"
+      : request.nextUrl.origin;
+
   const origin = request.headers.get("origin");
 
-  if (!origin || origin !== request.nextUrl.origin) {
+  if (!origin || origin !== publicOrigin) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 
@@ -17,7 +22,7 @@ export async function POST(request: NextRequest) {
   const email = String(form.get("email") ?? "");
   const password = String(form.get("password") ?? "");
 
-  const loginUrl = new URL("/login", request.url);
+  const loginUrl = new URL("/login", publicOrigin);
 
   if (
     email.length > 190 ||

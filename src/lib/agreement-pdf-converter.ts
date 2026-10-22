@@ -55,7 +55,8 @@ export async function convertAgreementToPdf(
         input,
       ];
 
-      const child = spawn(executable, args, {
+      // LibreOffice is installed on the host, not bundled with the application.
+      const child = spawn(/* turbopackIgnore: true */ executable, args, {
         shell: false,
         windowsHide: true,
         stdio: ["ignore", "pipe", "pipe"],

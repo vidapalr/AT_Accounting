@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { unstable_rethrow } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
@@ -69,6 +70,8 @@ export async function GET(request: NextRequest) {
       })),
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    // Let Next.js handle prerender interruptions and authentication redirects.
+    unstable_rethrow(error);
     console.error("Inventory history error", error);
     return NextResponse.json({ error: "Unable to load stock history" }, { status: 500 });
   }
