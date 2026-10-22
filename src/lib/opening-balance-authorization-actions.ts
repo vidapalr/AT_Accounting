@@ -187,7 +187,7 @@ export async function authorizeOpeningBalancesAction(
                FROM acct_journal_entries
                WHERE legal_business_id = ?
                  AND status = 'POSTED'
-                 AND entry_date <= ?`,
+                 AND entry_date < ?`,
               [businessId, batch.opening_date]
             );
 

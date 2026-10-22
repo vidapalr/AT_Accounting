@@ -307,7 +307,7 @@ async function ReviewContent({
      FROM acct_journal_entries
      WHERE legal_business_id = ?
        AND status = 'POSTED'
-       AND entry_date <= ?
+       AND entry_date < ?
        AND (
          source_type IS NULL
          OR source_type <> 'OPENING_BALANCE'
@@ -544,7 +544,7 @@ async function ReviewContent({
 
   if (Number(activity[0]?.journal_count ?? 0) > 0) {
     errors.push(
-      "Existing posted journal activity on or before the cutover date requires reconciliation."
+      "Existing posted journal activity before the opening date requires reconciliation."
     );
   }
 

@@ -269,7 +269,7 @@ export async function postOpeningBalancesAction(
                        AND status = 'POSTED'
                        AND (
                          source_type = 'OPENING_BALANCE'
-                         OR entry_date <= ?
+                         OR entry_date < ?
                        )
                      LIMIT 1`,
                     [businessId, date]
