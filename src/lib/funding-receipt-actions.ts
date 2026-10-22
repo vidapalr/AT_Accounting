@@ -220,7 +220,7 @@ export async function createFundingReceiptAction(
             AND fp.legal_business_id = v.legal_business_id
            WHERE v.agreement_id = ?
              AND v.legal_business_id = ?
-             AND v.version_no = 1
+             -- Current approved version; amendments supersede v1.
              AND v.version_status = 'APPROVED'
              AND fp.policy_status = 'CONFIRMED'
            LIMIT 1`,

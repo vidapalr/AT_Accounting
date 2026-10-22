@@ -1,7 +1,6 @@
 
 import "server-only";
 
-import { db } from "@/lib/db";
 import type {
   PoolConnection,
 } from "mysql2/promise";
