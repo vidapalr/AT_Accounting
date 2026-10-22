@@ -32,6 +32,8 @@ export type AgreementVersion = Place & {
   agreementId: number;
   agreementNo: string;
   partyName: string;
+  /** The investor, where known (used to build one investor's statement). */
+  partyId?: number;
   versionNo: number;
   basis: Basis;
   basisText: string;

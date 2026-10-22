@@ -31,7 +31,7 @@ export async function loadShares(db: Executor, businessId: number): Promise<Load
 
   const [rows] = await db.execute<Row[]>(
     `SELECT a.id AS agreement_id, a.agreement_no, a.division_id AS a_div, a.branch_id AS a_branch,
-            p.full_name AS party_name,
+            p.full_name AS party_name, a.party_id,
             v.version_no,
             DATE_FORMAT(v.effective_from, '%Y-%m-%d') AS eff_from,
             DATE_FORMAT(v.effective_to, '%Y-%m-%d') AS eff_to,
@@ -85,6 +85,7 @@ export async function loadShares(db: Executor, businessId: number): Promise<Load
       agreementId: Number(r.agreement_id),
       agreementNo: String(r.agreement_no),
       partyName: String(r.party_name),
+      partyId: Number(r.party_id),
       versionNo: Number(r.version_no),
       divisionId: branchId !== null && divisionId === null ? null : divisionId,
       branchId,

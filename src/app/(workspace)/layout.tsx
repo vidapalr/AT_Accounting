@@ -144,6 +144,11 @@ const navigation = [
         enabled: true,
       },
       {
+        label: "WhatsApp Reports",
+        href: "/accounting/whatsapp",
+        enabled: true,
+      },
+      {
         label: "Investor Profit Shares",
         href: "/accounting/investor-shares",
         enabled: true,
