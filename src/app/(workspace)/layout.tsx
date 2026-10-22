@@ -143,6 +143,11 @@ const navigation = [
         enabled: true,
       },
       {
+        label: "Investor Profit Shares",
+        href: "/accounting/investor-shares",
+        enabled: true,
+      },
+      {
         label: "Returns, Refunds, Damaged Stock",
         href: "/accounting/returns",
         enabled: true,
