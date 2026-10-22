@@ -275,3 +275,20 @@ test("books always satisfy: assets = liabilities + capital + profit", () => {
   // Profit = sales 850 - discounts already netted via 4200 - cost 500 - packing 120
   assert.equal(profit, parseMoney("230.00"));
 });
+
+test("set-up costs go to their own account, not the category account", () => {
+  const d = expenseEntry({
+    id: 1,
+    expenseNo: "E1",
+    date: "2026-10-12",
+    category: "OFFICE_SUPPLIES",
+    description: "fit-out",
+    amount: "4400.00",
+    dims,
+    isSetupCost: true,
+  });
+  const a = byAccount(d);
+  assert.equal(a["6900"].debit, 440000n);
+  assert.equal(a["6070"], undefined);
+  assert.equal(a[ACCOUNT.ACCRUED_EXPENSES].credit, 440000n);
+});

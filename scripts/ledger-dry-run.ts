@@ -9,6 +9,7 @@
  * DB_SOCKET) from the environment. Exits 1 if any check fails or any
  * record could not be turned into a valid entry.
  */
+import * as nextEnvModule from "@next/env";
 import mysql from "mysql2/promise";
 
 import { buildLedgerDrafts } from "../src/lib/ledger/source-events.ts";
@@ -17,6 +18,10 @@ import {
   parseMoney,
   trialBalance,
 } from "../src/lib/ledger/posting-rules.ts";
+
+// @next/env is CommonJS; the loader exposes it differently under tsx and node.
+const nextEnv = (nextEnvModule as unknown as { default?: typeof nextEnvModule }).default ?? nextEnvModule;
+nextEnv.loadEnvConfig(process.cwd());
 
 const arg = (name: string, fallback: string) =>
   process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=")[1] ?? fallback;
@@ -29,6 +34,13 @@ const rpad = (s: string, n: number) => s.padStart(n);
 const inr = (v: bigint) => formatMoney(v);
 
 async function main() {
+  for (const key of ["DB_HOST", "DB_DATABASE", "DB_USERNAME", "DB_PASSWORD"]) {
+    if (!process.env[key] && !(key === "DB_HOST" && process.env.DB_SOCKET)) {
+      throw new Error(
+        `Missing ${key}. Put it in .env.local (same values the app uses) or set it in the shell.`
+      );
+    }
+  }
   const conn = await mysql.createConnection({
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT || 3306),
@@ -82,6 +94,16 @@ async function main() {
     const bal = (code: string) => net.get(code) ?? 0n;
     const sumPrefix = (p: string) =>
       [...net.entries()].filter(([c]) => c.startsWith(p)).reduce((s, [, v]) => s + v, 0n);
+
+    // ------------------------------------------------------ profit levels
+    const gross = -(sumPrefix("4") + sumPrefix("5"));
+    const setup = bal("6900");
+    const operating = gross - (sumPrefix("6") - setup);
+    console.log("\nPROFIT");
+    console.log("-".repeat(78));
+    console.log(`${pad("Gross profit (sales after discounts - cost of goods)", 60)} ${rpad(inr(gross), 14)}`);
+    console.log(`${pad("Operating profit (after running expenses)", 60)} ${rpad(inr(operating), 14)}`);
+    console.log(`${pad("Net profit (after set-up costs)", 60)} ${rpad(inr(operating - setup), 14)}`);
 
     // ---------------------------------------- independent tie-outs (raw SQL)
     const one = async (sql: string): Promise<bigint> => {
