@@ -5,40 +5,15 @@ import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 import { postPendingEntriesAction } from "@/lib/ledger-sync-actions";
 import { getSyncStatus } from "@/lib/ledger/sync-status";
-import {
-  balanceSheet,
-  profitByScope,
-  type LedgerTotal,
-} from "@/lib/reports/profit-levels";
+import { getBalanceReport, getProfitReport } from "@/lib/reports/report-data";
+import { inr, isDate, percent, todayInIndia } from "@/lib/reports/money";
+import PrintButton from "@/components/PrintButton";
 
 type Props = {
   searchParams: Promise<{ from?: string; to?: string; posted?: string; error?: string }>;
 };
 
 type Row = RowDataPacket & Record<string, string | number | null>;
-
-const isDate = (v: string | undefined): v is string =>
-  !!v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
-
-function toPaise(value: string | number | null): bigint {
-  const text = String(value ?? "0");
-  const negative = text.startsWith("-");
-  const [whole, fraction = ""] = text.replace("-", "").split(".");
-  const paise = BigInt(whole || "0") * 100n + BigInt(fraction.padEnd(2, "0").slice(0, 2));
-  return negative ? -paise : paise;
-}
-
-function inr(paise: bigint): string {
-  const negative = paise < 0n;
-  const abs = negative ? -paise : paise;
-  const decimals = String(abs % 100n).padStart(2, "0");
-  return `${negative ? "-" : ""}₹${(abs / 100n).toLocaleString("en-IN")}.${decimals}`;
-}
-
-function percent(part: bigint, whole: bigint): string {
-  if (whole <= 0n) return "—";
-  return `${(Number((part * 10000n) / whole) / 100).toFixed(1)}%`;
-}
 
 const cell: React.CSSProperties = {
   padding: "10px 12px",
@@ -53,7 +28,7 @@ async function ReportsContent({ searchParams }: Props) {
   const businessId = user.legal_business_id;
   const query = await searchParams;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayInIndia();
   const [years] = await db.execute<Row[]>(
     `SELECT DATE_FORMAT(starts_on, '%Y-%m-%d') AS starts_on
      FROM acct_financial_years
@@ -68,72 +43,14 @@ async function ReportsContent({ searchParams }: Props) {
   const needsReview =
     sync.changedAfterPosting.length + sync.noLongerValid.length + sync.problems.length;
 
-  const [divisionRows] = await db.execute<Row[]>(
-    `SELECT id, name FROM acct_divisions WHERE legal_business_id = ?`,
-    [businessId]
-  );
-  const [branchRows] = await db.execute<Row[]>(
-    `SELECT id, division_id, branch_name FROM acct_branches WHERE legal_business_id = ?`,
-    [businessId]
-  );
-  const divisionName = new Map(divisionRows.map((d) => [Number(d.id), String(d.name)]));
-  const branchName = new Map(branchRows.map((b) => [Number(b.id), String(b.branch_name)]));
-  const divisionOfBranch = new Map(branchRows.map((b) => [Number(b.id), Number(b.division_id)]));
-
-  // Profit: posted journals inside the chosen dates.
-  const [profitRows] = await db.execute<Row[]>(
-    `SELECT a.account_code, l.division_id, l.branch_id,
-            SUM(l.debit) AS debit, SUM(l.credit) AS credit
-     FROM acct_journal_lines l
-     JOIN acct_journal_entries j
-       ON j.id = l.journal_entry_id AND j.legal_business_id = l.legal_business_id
-     JOIN acct_chart_of_accounts a
-       ON a.id = l.account_id AND a.legal_business_id = l.legal_business_id
-     WHERE l.legal_business_id = ? AND j.status = 'POSTED'
-       AND j.entry_date BETWEEN ? AND ?
-       AND a.account_code >= '4'
-     GROUP BY a.account_code, l.division_id, l.branch_id`,
-    [businessId, from, to]
-  );
-  const lines: LedgerTotal[] = profitRows.map((r) => ({
-    accountCode: String(r.account_code),
-    divisionId: r.division_id === null ? null : Number(r.division_id),
-    branchId: r.branch_id === null ? null : Number(r.branch_id),
-    debit: toPaise(r.debit),
-    credit: toPaise(r.credit),
-  }));
-  const scopes = profitByScope(lines, divisionOfBranch);
-
-  // Balance sheet and trial balance: everything posted up to the end date.
-  const [balanceRows] = await db.execute<Row[]>(
-    `SELECT a.account_code, a.account_name,
-            SUM(l.debit) AS debit, SUM(l.credit) AS credit
-     FROM acct_journal_lines l
-     JOIN acct_journal_entries j
-       ON j.id = l.journal_entry_id AND j.legal_business_id = l.legal_business_id
-     JOIN acct_chart_of_accounts a
-       ON a.id = l.account_id AND a.legal_business_id = l.legal_business_id
-     WHERE l.legal_business_id = ? AND j.status = 'POSTED' AND j.entry_date <= ?
-     GROUP BY a.account_code, a.account_name
-     ORDER BY a.account_code`,
-    [businessId, to]
-  );
-  const accountName = new Map(balanceRows.map((r) => [String(r.account_code), String(r.account_name)]));
-  const totals = balanceRows.map((r) => ({
-    accountCode: String(r.account_code),
-    debit: toPaise(r.debit),
-    credit: toPaise(r.credit),
-  }));
-  const sheet = balanceSheet(totals);
+  const scopes = await getProfitReport(db, businessId, from, to);
+  const { accounts, names: accountName, sheet } = await getBalanceReport(db, businessId, to);
+  const totals = accounts.map((a) => ({ accountCode: a.code, debit: a.debit, credit: a.credit }));
   const tbDebit = totals.reduce((s, t) => s + t.debit, 0n);
   const tbCredit = totals.reduce((s, t) => s + t.credit, 0n);
 
   const scopeLabel = (s: (typeof scopes)[number]) =>
-    s.scope === "GROUP"
-      ? "Group (all)"
-      : s.scope === "DIVISION"
-        ? `Division: ${divisionName.get(s.divisionId!) ?? s.divisionId}`
-        : `  Branch: ${branchName.get(s.branchId!) ?? s.branchId}`;
+    s.depth === 2 ? `\u00A0\u00A0${s.label}` : s.label;
 
   const section = (title: string, rows: { code: string; amount: bigint }[]) => (
     <>
@@ -149,6 +66,7 @@ async function ReportsContent({ searchParams }: Props) {
 
   return (
     <main style={{ padding: 24 }}>
+      <style>{`@media print { aside, form, section[data-noprint] { display: none !important; } main { padding: 0 !important; } }`}</style>
       <h1>Reports</h1>
       <p style={{ color: "#64748b" }}>
         From posted journals only. Dividing profit into gross, operating and net:
@@ -161,7 +79,7 @@ async function ReportsContent({ searchParams }: Props) {
       )}
       {query.error && <p style={{ color: "#b91c1c" }}>{query.error.slice(0, 300)}</p>}
 
-      <section style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, margin: "12px 0" }}>
+      <section data-noprint style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, margin: "12px 0" }}>
         <strong>Ledger status:</strong>{" "}
         {sync.pending.length === 0 && needsReview === 0
           ? "Up to date. Every sale, purchase, payment and expense is in the ledger."
@@ -184,6 +102,8 @@ async function ReportsContent({ searchParams }: Props) {
         <label>From<br /><input type="date" name="from" defaultValue={from} /></label>
         <label>To<br /><input type="date" name="to" defaultValue={to} /></label>
         <button type="submit">Show</button>
+        <PrintButton />
+        <a href={`/api/reports/export?from=${from}&to=${to}`}>Download Excel</a>
       </form>
 
       <h2>Profit — {from} to {to}</h2>

@@ -15,6 +15,7 @@
     "bcryptjs": "^3.0.3",
     "docx": "^9.12.0",
     "docxtemplater": "^3.71.1",
+    "exceljs": "^4.4.0",
     "lucide-react": "^1.59.0",
     "mammoth": "^1.13.0",
     "mysql2": "^3.24.6",
