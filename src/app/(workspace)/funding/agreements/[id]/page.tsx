@@ -1,5 +1,6 @@
 
 import Link from "next/link";
+import { BASIS_OPTIONS } from "@/lib/investor-shares/engine";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { requireGroupOwner } from "@/lib/auth";
@@ -232,7 +233,7 @@ async function AgreementDetailsContent({
               "invalid-share":
                 "The original profit-sharing percentage is missing.",
               "share-exceeded":
-                "Activation rejected. Profit-sharing percentages exceed 100% during an overlapping effective period.",
+                "Activation rejected. Profit shares on the same profit basis would pass 100% for this place, or group-level investors would pass the limit that keeps the owner at 51%. See Accounting → Investor Profit Shares.",
               failed:
                 "Agreement activation failed. Review the server logs.",
             } as Record<string, string>)[query.activation] ??
@@ -949,7 +950,7 @@ async function AgreementDetailsContent({
               "evidence-mismatch":
                 "The signed document no longer matches its verified SHA-256 fingerprint.",
               overallocated:
-                "The proposed participation exceeds 100% during an affected period.",
+                "Approval rejected. Profit shares on the same profit basis would pass 100% for this place, or group-level investors would pass the limit that keeps the owner at 51%. See Accounting → Investor Profit Shares.",
               failed:
                 "Approval could not be completed. Check the server logs.",
             } as Record<string, string>)[query.approval] ??
@@ -1160,12 +1161,23 @@ async function AgreementDetailsContent({
             {!isLoan && (
               <label>
                 Profit Calculation Basis
-                <input
+                <select
                   name="profit_basis"
-                  defaultValue={terms.profit_basis ?? ""}
-                  maxLength={100}
+                  defaultValue={terms.profit_basis ?? "Net Profit"}
                   required
-                />
+                >
+                  {[
+                    ...BASIS_OPTIONS,
+                    ...(terms.profit_basis &&
+                    !(BASIS_OPTIONS as readonly string[]).includes(terms.profit_basis)
+                      ? [terms.profit_basis]
+                      : []),
+                  ].map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               </label>
             )}
 

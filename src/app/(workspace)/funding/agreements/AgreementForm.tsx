@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BASIS_OPTIONS } from "@/lib/investor-shares/engine";
 import { createFundingAgreementAction } from
   "@/lib/funding-agreement-actions";
 import styles from "../funding.module.css";
@@ -214,18 +215,14 @@ export default function AgreementForm({
           <Field label="Profit Calculation Basis">
             <select
               name="profit_basis"
-              defaultValue="Distributable Net Profit"
+              defaultValue="Net Profit"
               required
             >
-              <option value="Distributable Net Profit">
-                Distributable Net Profit
-              </option>
-              <option value="Net Profit After Tax">
-                Net Profit After Tax
-              </option>
-              <option value="Operating Profit">
-                Operating Profit
-              </option>
+              {BASIS_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
             </select>
           </Field>
         </>

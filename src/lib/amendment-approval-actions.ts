@@ -2,6 +2,7 @@
 "use server";
 
 import { createHash } from "node:crypto";
+import { checkAgreementFit } from "@/lib/investor-shares/fit";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
@@ -10,7 +11,6 @@ import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 import { readPrivateDocument } from "@/lib/document-preview";
 import {
-  checkProposedShareCapacity,
 } from "@/lib/effective-share-capacity";
 import {
   isValidSqlDate,
@@ -403,29 +403,29 @@ async function changeAmendmentStatus(
               ) {
                 outcome = "evidence-mismatch";
               } else {
-                const capacity =
-                  await checkProposedShareCapacity(
-                    connection,
-                    {
-                      businessId,
-                      agreementId,
-                      pool: {
-                        divisionId:
-                          amendment.division_id == null
-                            ? null
-                            : Number(amendment.division_id),
-                        branchId:
-                          amendment.branch_id == null
-                            ? null
-                            : Number(amendment.branch_id),
-                      },
-                      effectiveFrom,
-                      effectiveTo,
-                      proposedPercentage: String(
-                        proposedTerms.profit_share_percentage
-                      ),
-                    }
-                  );
+                const capacity = await checkAgreementFit(
+                  connection,
+                  {
+                    businessId,
+                    agreementId,
+                    divisionId:
+                      amendment.division_id == null
+                        ? null
+                        : Number(amendment.division_id),
+                    branchId:
+                      amendment.branch_id == null
+                        ? null
+                        : Number(amendment.branch_id),
+                    percentage: String(
+                      proposedTerms.profit_share_percentage
+                    ),
+                    basisText: String(
+                      proposedTerms.profit_basis ?? ""
+                    ),
+                    from: effectiveFrom,
+                    to: effectiveTo,
+                  }
+                );
 
                 if (!capacity.valid) {
                   outcome = "overallocated";
@@ -509,8 +509,9 @@ async function changeAmendmentStatus(
                         signed_document_id:
                           evidence.signed_document_id,
                         verified_sha256: actualHash,
-                        capacity_checked_dates:
-                          capacity.checkedDates,
+                        capacity_rule:
+                          "shared 100% per profit basis; group 49%",
+                        capacity_result: capacity.message,
                       }),
                     ]
                   );

@@ -21,6 +21,9 @@ export const FULL_SHARE = 100 * SHARE_SCALE;
 
 export type Basis = "GROSS" | "OPERATING" | "NET";
 
+/** What an agreement can share. The text is what is stored on the agreement. */
+export const BASIS_OPTIONS = ["Gross Profit", "Operating Profit", "Net Profit"] as const;
+
 export type Figures = { gross: bigint; operating: bigint; net: bigint };
 
 export type Place = { divisionId: number | null; branchId: number | null };

@@ -1,6 +1,8 @@
 import "server-only";
 
-import type { Pool, RowDataPacket } from "mysql2/promise";
+import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
+
+type Executor = Pool | PoolConnection;
 
 import { getProfitReport } from "@/lib/reports/report-data";
 import {
@@ -24,7 +26,7 @@ export type LoadedShares = {
 
 const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
 
-export async function loadShares(db: Pool, businessId: number): Promise<LoadedShares> {
+export async function loadShares(db: Executor, businessId: number): Promise<LoadedShares> {
   const problems: string[] = [];
 
   const [rows] = await db.execute<Row[]>(

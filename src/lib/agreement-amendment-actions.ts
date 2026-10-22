@@ -2,6 +2,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { parseBasis } from "@/lib/investor-shares/engine";
 import { redirect } from "next/navigation";
 import type {
   ResultSetHeader,
@@ -167,7 +168,7 @@ export async function proposeAgreementAmendment(
                 .includes(interestMethod)) ||
             (!isLoan &&
               (Number(percentage) <= 0 ||
-               basis.length < 5 ||
+               !parseBasis(basis).recognised ||
                basis.length > 100))
           ) {
             outcome = "invalid";

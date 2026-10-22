@@ -2,6 +2,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { parseBasis } from "@/lib/investor-shares/engine";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
@@ -105,7 +106,7 @@ export async function createFundingAgreementAction(
       ? (
           validRate(profitRate) &&
           Number(profitRate) > 0 &&
-          profitBasis.length >= 5 &&
+          parseBasis(profitBasis).recognised &&
           profitBasis.length <= 100 &&
           interestRate === "" &&
           interestMethod === ""

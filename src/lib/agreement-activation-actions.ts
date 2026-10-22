@@ -2,13 +2,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { checkAgreementFit } from "@/lib/investor-shares/fit";
 import { redirect } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 import {
-  validateProfitShareCapacity,
 } from "@/lib/profit-share-validator";
 
 interface AgreementRow extends RowDataPacket {
@@ -217,28 +217,19 @@ export async function activateFundingAgreementAction(
                     result = "invalid-share";
                     permitted = false;
                   } else {
-                    const validation =
-                      await validateProfitShareCapacity(
-                        connection,
-                        {
-                          businessId:
-                            user.legal_business_id,
-                          excludeAgreementId:
-                            agreementId,
-                          pool: {
-                            divisionId:
-                              agreement.division_id,
-                            branchId:
-                              agreement.branch_id,
-                          },
-                          percentage:
-                            String(percentage),
-                          effectiveFrom:
-                            initial.effective_from,
-                          effectiveTo:
-                            initial.effective_to,
-                        }
-                      );
+                    const validation = await checkAgreementFit(
+                      connection,
+                      {
+                        businessId: user.legal_business_id,
+                        agreementId,
+                        divisionId: agreement.division_id,
+                        branchId: agreement.branch_id,
+                        percentage: String(percentage),
+                        basisText: String(terms.profit_basis ?? ""),
+                        from: initial.effective_from,
+                        to: initial.effective_to,
+                      }
+                    );
 
                     if (!validation.valid) {
                       result = "share-exceeded";
