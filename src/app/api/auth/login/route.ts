@@ -31,7 +31,10 @@ export async function POST(request: NextRequest) {
     !password
   ) {
     loginUrl.searchParams.set("error", "1");
-    return NextResponse.redirect(loginUrl, 303);
+    return NextResponse.redirect(
+      new URL("/dashboard", publicOrigin),
+      303
+    );
   }
 
   try {
