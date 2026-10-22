@@ -130,6 +130,11 @@ const navigation = [
         href: "/accounting/account-balances",
         enabled: true,
       },
+      {
+        label: "Reports (Profit, Balance Sheet)",
+        href: "/accounting/reports",
+        enabled: true,
+      },
       
       
     ],
