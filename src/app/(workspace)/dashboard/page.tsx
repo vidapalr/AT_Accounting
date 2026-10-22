@@ -8,6 +8,7 @@ import { getSyncStatus } from "@/lib/ledger/sync-status";
 import {
   getAccountPositions,
   getBalanceReport,
+  getCashByPlace,
   getDailySeries,
   getExpenseBreakdown,
   getProfitReport,
@@ -68,6 +69,12 @@ async function DashboardContent({ searchParams }: Props) {
       [businessId]
     ),
   ]);
+
+  const pendingOpeningHeld = [...positions.banks, ...positions.cash].reduce(
+    (s, a) => s + a.openingPending,
+    0n
+  );
+  const byPlace = await getCashByPlace(db, businessId, today, pendingOpeningHeld);
 
   const period_ = scopes[0].figures;
   const day = todayScopes[0].figures;
@@ -199,22 +206,55 @@ async function DashboardContent({ searchParams }: Props) {
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
-                <tr><th>Account</th><th>Balance</th></tr>
+                <tr><th>Account</th><th>Opening balance</th><th>Trading since opening</th><th>Balance now</th></tr>
               </thead>
               <tbody>
-                {positions.banks.map((a) => (
-                  <tr key={`b${a.id}`}>
-                    <td>{a.label}<span className={styles.sub}>{a.detail}{a.openingPending !== 0n ? ` · includes opening ${inr(a.openingPending)} not yet posted` : ""}</span></td>
+                {[...positions.banks.map((a) => ({ key: `b${a.id}`, a })), ...positions.cash.map((a) => ({ key: `c${a.id}`, a }))].map(({ key, a }) => (
+                  <tr key={key}>
+                    <td>{a.label}<span className={styles.sub}>{a.detail}{a.openingPending !== 0n ? " · opening not yet posted" : ""}</span></td>
+                    <td>{money(a.opening)}</td>
+                    <td>{money(a.trading)}</td>
                     <td>{money(a.balance)}</td>
                   </tr>
                 ))}
-                {positions.cash.map((a) => (
-                  <tr key={`c${a.id}`}>
-                    <td>{a.label}<span className={styles.sub}>{a.detail}</span></td>
-                    <td>{money(a.balance)}</td>
+                <tr className={styles.totalRow}>
+                  <td>Total cash and bank</td>
+                  <td>{money(businessHeld.reduce((s, a) => s + a.opening, 0n))}</td>
+                  <td>{money(businessHeld.reduce((s, a) => s + a.trading, 0n))}</td>
+                  <td>{money(totalHeld)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className={styles.cardHint} style={{ marginTop: 6 }}>
+            Opening balance = what the business started with on the opening date. Trading = money in
+            from sales less money out for purchases, expenses and refunds since then.
+          </p>
+
+          <h4 style={{ margin: "18px 0 4px", fontSize: 14 }}>Cash and bank by place</h4>
+          <p className={styles.cardHint}>
+            Which part of the group, division or branch the money belongs to. Opening balances sit at group level.
+          </p>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr><th>Place</th><th>Opening balance</th><th>Trading since opening</th><th>Balance now</th></tr>
+              </thead>
+              <tbody>
+                {byPlace.map((r, i) => (
+                  <tr key={i}>
+                    <td style={{ paddingLeft: 8 + r.depth * 18 }}>{r.label}</td>
+                    <td>{money(r.opening)}</td>
+                    <td>{money(r.trading)}</td>
+                    <td>{money(r.balance)}</td>
                   </tr>
                 ))}
-                <tr className={styles.totalRow}><td>Total cash and bank</td><td>{money(totalHeld)}</td></tr>
+                <tr className={styles.totalRow}>
+                  <td>Total</td>
+                  <td>{money(byPlace.reduce((s, r) => s + r.opening, 0n))}</td>
+                  <td>{money(byPlace.reduce((s, r) => s + r.trading, 0n))}</td>
+                  <td>{money(byPlace.reduce((s, r) => s + r.balance, 0n))}</td>
+                </tr>
               </tbody>
             </table>
           </div>

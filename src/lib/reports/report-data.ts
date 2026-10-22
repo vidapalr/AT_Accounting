@@ -183,6 +183,10 @@ export type AccountPosition = {
   openingPending: bigint;
   /** What is really there now: posted plus pending opening. */
   balance: bigint;
+  /** Part of the balance that came from the opening balance (posted or pending). */
+  opening: bigint;
+  /** Part of the balance that came from trading since opening: sales, purchases, expenses. */
+  trading: bigint;
 };
 
 export type InvestorBankPosition = {
@@ -225,6 +229,17 @@ export async function getAccountPositions(
     [businessId, asOf]
   );
 
+  const postedOpening = await one(
+    `SELECT l.account_id AS k, SUM(l.debit) - SUM(l.credit) AS v
+     FROM acct_journal_lines l
+     JOIN acct_journal_entries j
+       ON j.id = l.journal_entry_id AND j.legal_business_id = l.legal_business_id
+     WHERE l.legal_business_id = ? AND j.status = 'POSTED' AND j.entry_date <= ?
+       AND j.source_type = 'OPENING_BALANCE'
+     GROUP BY l.account_id`,
+    [businessId, asOf]
+  );
+
   const [batches] = await db.execute<Row[]>(
     `SELECT id, status FROM acct_opening_balance_batches
      WHERE legal_business_id = ? AND status NOT IN ('CANCELLED', 'REJECTED', 'VOID')`,
@@ -248,7 +263,17 @@ export async function getAccountPositions(
   const position = (glId: number | null, label: string, detail: string, id: number): AccountPosition => {
     const p = glId === null ? 0n : posted.get(glId) ?? 0n;
     const o = glId === null ? 0n : pending.get(glId) ?? 0n;
-    return { id, label, detail, posted: p, openingPending: o, balance: p + o };
+    const op = glId === null ? 0n : postedOpening.get(glId) ?? 0n;
+    return {
+      id,
+      label,
+      detail,
+      posted: p,
+      openingPending: o,
+      balance: p + o,
+      opening: op + o,
+      trading: p - op,
+    };
   };
 
   const [bankRows] = await db.execute<Row[]>(
@@ -352,4 +377,101 @@ export async function getAccountPositions(
     openingBatchPosted,
     openingPendingTotal: [...pending.values()].reduce((s, v) => s + (v > 0n ? v : 0n), 0n),
   };
+}
+
+export type PlaceCash = {
+  label: string;
+  depth: 0 | 1 | 2;
+  opening: bigint;
+  trading: bigint;
+  balance: bigint;
+};
+
+/**
+ * Money held in business bank and cash accounts, split by the place that
+ * earned or spent it (Group, Division, Branch), and into opening balance
+ * versus trading since opening. Pending (unposted) opening balances count as
+ * Group opening.
+ */
+export async function getCashByPlace(
+  db: Pool,
+  businessId: number,
+  asOf: string,
+  pendingOpening: bigint
+): Promise<PlaceCash[]> {
+  const [divisionRows] = await db.execute<Row[]>(
+    `SELECT id, name FROM acct_divisions WHERE legal_business_id = ?`,
+    [businessId]
+  );
+  const [branchRows] = await db.execute<Row[]>(
+    `SELECT id, division_id, branch_name FROM acct_branches WHERE legal_business_id = ?`,
+    [businessId]
+  );
+  const divisionName = new Map(divisionRows.map((d) => [Number(d.id), String(d.name)]));
+  const branchName = new Map(branchRows.map((b) => [Number(b.id), String(b.branch_name)]));
+  const divisionOfBranch = new Map(branchRows.map((b) => [Number(b.id), Number(b.division_id)]));
+
+  const [rows] = await db.execute<Row[]>(
+    `SELECT l.division_id, l.branch_id,
+            SUM(CASE WHEN j.source_type = 'OPENING_BALANCE' THEN l.debit - l.credit ELSE 0 END) AS opening,
+            SUM(CASE WHEN j.source_type = 'OPENING_BALANCE' THEN 0 ELSE l.debit - l.credit END) AS trading
+     FROM acct_journal_lines l
+     JOIN acct_journal_entries j
+       ON j.id = l.journal_entry_id AND j.legal_business_id = l.legal_business_id
+     WHERE l.legal_business_id = ? AND j.status = 'POSTED' AND j.entry_date <= ?
+       AND l.account_id IN (
+         SELECT gl_account_id FROM acct_bank_accounts
+          WHERE legal_business_id = ? AND ownership_type = 'BUSINESS' AND gl_account_id IS NOT NULL
+         UNION
+         SELECT gl_account_id FROM acct_cash_accounts
+          WHERE legal_business_id = ? AND gl_account_id IS NOT NULL
+       )
+     GROUP BY l.division_id, l.branch_id`,
+    [businessId, asOf, businessId, businessId]
+  );
+
+  type Acc = { opening: bigint; trading: bigint };
+  const group: Acc = { opening: pendingOpening, trading: 0n };
+  const divisions = new Map<number, Acc>();
+  const branches = new Map<number, Acc>();
+  const add = (acc: Acc, r: Row) => {
+    acc.opening += toPaise(r.opening);
+    acc.trading += toPaise(r.trading);
+  };
+  const bucket = (m: Map<number, Acc>, id: number) => {
+    let v = m.get(id);
+    if (!v) m.set(id, (v = { opening: 0n, trading: 0n }));
+    return v;
+  };
+  for (const r of rows) {
+    if (r.branch_id !== null) {
+      const b = Number(r.branch_id);
+      add(bucket(branches, b), r);
+      const d = divisionOfBranch.get(b);
+      if (d !== undefined) bucket(divisions, d);
+    } else if (r.division_id !== null) add(bucket(divisions, Number(r.division_id)), r);
+    else add(group, r);
+  }
+
+  const out: PlaceCash[] = [
+    { label: "Group (opening balances and group-level money)", depth: 0, ...group, balance: group.opening + group.trading },
+  ];
+  for (const [d, acc] of divisions) {
+    out.push({
+      label: `Division: ${divisionName.get(d) ?? d}`,
+      depth: 1,
+      ...acc,
+      balance: acc.opening + acc.trading,
+    });
+    for (const [b, bacc] of branches) {
+      if (divisionOfBranch.get(b) !== d) continue;
+      out.push({
+        label: `Branch: ${branchName.get(b) ?? b}`,
+        depth: 2,
+        ...bacc,
+        balance: bacc.opening + bacc.trading,
+      });
+    }
+  }
+  return out.filter((r) => r.depth === 0 || r.opening !== 0n || r.trading !== 0n);
 }
