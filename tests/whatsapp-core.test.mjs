@@ -48,3 +48,32 @@ test("scope values", () => {
   assert.equal(parseScope("B:7").branchId, 7);
   assert.equal(parseScope("X:1"), null);
 });
+
+import { composeMessage, whatsappLink } from "../src/lib/whatsapp/core.ts";
+
+test("tap-to-send message holds the key figures and no PDF promise", () => {
+  const daily = {
+    type: "DAILY_SALES", title: "Daily Sales Summary", subtitle: "Whole group - 20 Oct 2026",
+    params: ["20 Oct 2026", "Whole group", "3", "₹71,650", "₹49,650", "₹24,115"],
+    sections: [
+      { heading: "Profit for the day", columns: ["", "Amount"], rows: [["Sales", "₹76,100.00"], ["Gross profit", "₹24,115.00"]] },
+      { heading: "Invoices", columns: ["Invoice", "Customer", "Total"], rows: [["A1", "X", "₹1"]] },
+    ],
+  };
+  const text = composeMessage(daily, "Owner");
+  assert.match(text, /\*Abhiram Group\* - Daily Sales Summary/);
+  assert.match(text, /Gross profit: ₹24,115.00/);
+  assert.doesNotMatch(text, /Invoices|attached/);
+
+  const inv = composeMessage({ type: "INVESTOR_STATEMENT", title: "t", subtitle: "s", params: ["Test Investor", "October 2026", "₹16,235.00", "1"], sections: [] }, "Test Investor");
+  assert.match(inv, /Dear Test Investor/);
+  assert.match(inv, /₹16,235.00/);
+
+  const stock = composeMessage({ type: "STOCK_DAILY", title: "Daily Stock Report", subtitle: "s", params: ["d", "p", "22", "1122.5", "31"], sections: [] }, "O");
+  assert.match(stock, /Items in stock: 22/);
+});
+
+test("whatsapp link uses digits only and encodes the text", () => {
+  const url = whatsappLink("+919876543210", "Hi & bye\nline 2");
+  assert.equal(url, "https://wa.me/919876543210?text=Hi%20%26%20bye%0Aline%202");
+});

@@ -174,3 +174,45 @@ export function parseScope(value: string): { divisionId: number | null; branchId
   const id = Number(m[2]);
   return m[1] === "D" ? { divisionId: id, branchId: null } : { divisionId: null, branchId: id, divisionOfBranch: true };
 }
+
+const MAX_TABLE_ROWS = 12;
+
+/**
+ * Plain-text message for sending by hand (tap-to-send). WhatsApp links cannot
+ * carry a PDF, so the message holds the key figures and the PDF can be
+ * attached separately.
+ */
+export function composeMessage(content: ReportContent, recipientName: string): string {
+  const lines: string[] = [];
+  const p = content.params;
+
+  if (content.type === "INVESTOR_STATEMENT") {
+    lines.push(`Dear ${recipientName},`);
+    lines.push(`Your Abhiram Group profit statement for ${p[1]}:`);
+    lines.push(`Your share for the month: *${p[2]}*`);
+    lines.push(`Agreements covered: ${p[3]}`);
+    return lines.join("\n");
+  }
+
+  lines.push(`*Abhiram Group* - ${content.title}`);
+  lines.push(content.subtitle);
+
+  if (content.type === "STOCK_DAILY" || content.type === "STOCK_MONTHLY") {
+    lines.push("", `Items in stock: ${p[2]}`, `Total units: ${p[3]}`, `Low or out-of-stock items: ${p[4]}`);
+  } else if (content.type === "ALERTS") {
+    lines.push("", `Low or out-of-stock items: ${p[2]}`, `Customers owing: ${p[3]} (total ${p[4]})`, `Suppliers to pay: ${p[5]}`);
+  } else {
+    for (const section of content.sections) {
+      if (section.columns.length !== 2 || section.rows.length > MAX_TABLE_ROWS) continue;
+      lines.push("", `*${section.heading}*`);
+      for (const [label, value] of section.rows) lines.push(`${label}: ${value}`);
+    }
+  }
+  if (content.footnote) lines.push("", `_${content.footnote}_`);
+  return lines.join("\n");
+}
+
+/** The tap-to-send address: opens WhatsApp with the text ready for this number. */
+export function whatsappLink(phoneE164: string, text: string): string {
+  return `https://wa.me/${phoneE164.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
+}

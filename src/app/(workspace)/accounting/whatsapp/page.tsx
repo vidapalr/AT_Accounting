@@ -6,6 +6,7 @@ import { requireGroupOwner } from "@/lib/auth";
 import {
   addRecipientAction,
   addSubscriptionAction,
+  markSentAction,
   removeRecipientAction,
   removeSubscriptionAction,
   retryFailedAction,
@@ -13,7 +14,9 @@ import {
   setRecipientStatusAction,
   setSubscriptionStatusAction,
 } from "@/lib/whatsapp-actions";
-import { REPORT_LABELS, REPORT_TYPES, TEMPLATES, type ReportType } from "@/lib/whatsapp/core";
+import { REPORT_LABELS, REPORT_TYPES, TEMPLATES, composeMessage, reportPeriod, whatsappLink, type ReportType } from "@/lib/whatsapp/core";
+import { buildReport } from "@/lib/whatsapp/reports";
+import { todayInIndia } from "@/lib/reports/money";
 import { getProvider } from "@/lib/whatsapp/provider";
 import styles from "../accounting.module.css";
 
@@ -63,26 +66,91 @@ async function Content({ searchParams }: Props) {
 
   const hasFailed = log.some((l) => l.status === "FAILED");
 
+  // Today's worklist: what to send by hand right now.
+  const today = todayInIndia();
+  const worklist = [];
+  for (const s of subs) {
+    const r = recipients.find((x) => Number(x.id) === Number(s.recipient_id));
+    if (!r || String(r.status) !== "ACTIVE" || String(s.status) !== "ACTIVE") continue;
+    const type = String(s.report_type) as ReportType;
+    const period = reportPeriod(type, today);
+    const [done] = await db.execute<RowDataPacket[]>(
+      `SELECT DATE_FORMAT(CONVERT_TZ(sent_at, '+00:00', '+05:30'), '%d %b %H:%i') AS at FROM acct_whatsapp_outbox WHERE subscription_id = ? AND period_key = ? AND status = 'SENT'`,
+      [Number(s.id), period.key]
+    );
+    let text = "";
+    let empty = false;
+    let problem = "";
+    try {
+      const content = await buildReport({
+        db,
+        businessId,
+        type,
+        place: { divisionId: s.division_id === null ? null : Number(s.division_id), branchId: s.branch_id === null ? null : Number(s.branch_id) },
+        today,
+        investor: r.investor_party_id === null ? null : { partyId: Number(r.investor_party_id), name: String(r.full_name) },
+      });
+      empty = !!content.empty;
+      text = composeMessage(content, String(r.full_name));
+    } catch (error) {
+      problem = error instanceof Error ? error.message : "Could not build this report.";
+    }
+    worklist.push({ s, r, type, period: period.key, sentAt: done[0]?.at ? String(done[0].at) : null, text, empty, problem });
+  }
+
   return (
     <main className={styles.page}>
       <h1>WhatsApp Reports</h1>
       <p>
-        Choose who receives which report and for which place. Reports go out automatically: daily reports at 9 PM, stock and dues
-        alerts at 8 AM, and monthly statements and stock on the 1st.
+        Choose who receives which report and for which place. Each day this page lists what to send. Daily reports are for the
+        evening, alerts are best sent in the morning, and monthly statements and stock go out on the 1st.
       </p>
 
       {query.done && <p role="status" style={{ color: "#166534" }}>{query.done}</p>}
       {query.error && <p role="alert" style={{ color: "#b91c1c" }}>{query.error}</p>}
 
-      <section style={{ background: provider.configured ? "#f0fdf4" : "#fffbeb", border: "1px solid #e2e8f0", borderRadius: 10, padding: 14, margin: "12px 0" }}>
-        <strong>{provider.configured ? "WhatsApp is connected." : "WhatsApp is not connected yet."}</strong>
-        {!provider.configured && (
-          <p style={{ margin: "6px 0 0" }}>
-            You can already add people and use <em>Preview</em> to see each report. Messages will start flowing once the
-            WhatsApp Business details are added to the server (see &quot;Setting up the connection&quot; below).
+      <h2>Send today&apos;s reports</h2>
+      {worklist.length === 0 ? (
+        <p>Nothing to send yet. Add a person and choose their reports below.</p>
+      ) : (
+        <>
+          <p>
+            Tap <strong>Open WhatsApp</strong> for each line. WhatsApp opens with the message ready for that person; tap Send there,
+            then come back and tap <strong>Mark as sent</strong>. To include the full report, use <strong>Download PDF</strong> and attach
+            it in the chat.
           </p>
-        )}
-      </section>
+          <div style={{ display: "grid", gap: 10 }}>
+            {worklist.map(({ s, r, type, period, sentAt, text, empty, problem }) => (
+              <div key={String(s.id)} style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 12, background: sentAt ? "#f0fdf4" : "#fff" }}>
+                <div>
+                  <strong>{String(r.full_name)}</strong> · {REPORT_LABELS[type]}
+                  <div style={{ color: "#64748b", fontSize: 13 }}>
+                    {type === "INVESTOR_STATEMENT" ? "Their own agreements" : place(s)} · {period}
+                  </div>
+                </div>
+                {problem ? (
+                  <p role="alert" style={{ color: "#b91c1c" }}>{problem}</p>
+                ) : empty ? (
+                  <p style={{ color: "#64748b" }}>Nothing to report today, so there is nothing to send.</p>
+                ) : (
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
+                    <a href={whatsappLink(String(r.phone_e164), text)} target="_blank" rel="noreferrer"><strong>Open WhatsApp</strong></a>
+                    <a href={`/api/whatsapp/preview?subscription=${s.id}`} target="_blank" rel="noreferrer">Download PDF</a>
+                    {sentAt ? (
+                      <span style={{ color: "#166534" }}>Sent {sentAt}</span>
+                    ) : (
+                      <form action={markSentAction}>
+                        <input type="hidden" name="subscription_id" value={String(s.id)} />
+                        <button type="submit">Mark as sent</button>
+                      </form>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <h2>People and their reports</h2>
       {recipients.length === 0 && <p>Nobody added yet. Add the first person below.</p>}
@@ -124,10 +192,12 @@ async function Content({ searchParams }: Props) {
                         <td>
                           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                             <a href={`/api/whatsapp/preview?subscription=${s.id}`} target="_blank" rel="noreferrer">Preview PDF</a>
-                            <form action={sendNowAction}>
-                              <input type="hidden" name="subscription_id" value={String(s.id)} />
-                              <button type="submit">Send now</button>
-                            </form>
+                            {provider.configured && (
+                              <form action={sendNowAction}>
+                                <input type="hidden" name="subscription_id" value={String(s.id)} />
+                                <button type="submit">Send now</button>
+                              </form>
+                            )}
                             <form action={setSubscriptionStatusAction}>
                               <input type="hidden" name="subscription_id" value={String(s.id)} />
                               <input type="hidden" name="status" value={subPaused ? "ACTIVE" : "PAUSED"} />
@@ -219,7 +289,8 @@ async function Content({ searchParams }: Props) {
         </table>
       )}
 
-      <h2>Setting up the connection</h2>
+      <details style={{ marginTop: 24 }}>
+      <summary><strong>Automatic sending (optional, needs a paid WhatsApp Business account)</strong></summary>
       <ol>
         <li>Create a WhatsApp Business account with Meta (or your chosen provider) and verify the sending number.</li>
         <li>
@@ -245,6 +316,7 @@ async function Content({ searchParams }: Props) {
           </ul>
         </li>
       </ol>
+      </details>
     </main>
   );
 }

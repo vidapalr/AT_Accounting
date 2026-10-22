@@ -176,3 +176,25 @@ export async function retryFailedAction() {
     return sent > 0 ? `${sent} message(s) sent.` : "Nothing was waiting to be sent.";
   }, "Retry failed.");
 }
+
+/** After the owner has tapped Send in WhatsApp: record it so the list and log stay accurate. */
+export async function markSentAction(form: FormData) {
+  const owner = await requireGroupOwner();
+  await run(async () => {
+    const id = Number(form.get("subscription_id"));
+    const [rows] = await db.execute<RowDataPacket[]>(
+      `SELECT s.report_type, s.recipient_id FROM acct_whatsapp_subscriptions s WHERE s.legal_business_id = ? AND s.id = ?`,
+      [owner.legal_business_id, id]
+    );
+    if (rows.length !== 1) throw new UserError("That report was not found.");
+    const type = String(rows[0].report_type) as ReportType;
+    const key = reportPeriod(type, todayInIndia()).key;
+    await db.execute(
+      `INSERT INTO acct_whatsapp_outbox (legal_business_id, subscription_id, recipient_id, report_type, period_key, status, attempts, provider_message_id, sent_at)
+       VALUES (?, ?, ?, ?, ?, 'SENT', 1, 'manual', UTC_TIMESTAMP())
+       ON DUPLICATE KEY UPDATE status = 'SENT', provider_message_id = 'manual', error_text = NULL, sent_at = UTC_TIMESTAMP()`,
+      [owner.legal_business_id, id, Number(rows[0].recipient_id), type, key]
+    );
+    return "Marked as sent.";
+  }, "Could not mark it as sent.");
+}
