@@ -1,0 +1,245 @@
+
+.workspace {
+  min-height: 100vh;
+  display: flex;
+  background: #f5f7fb;
+  color: #17253d;
+}
+
+.sidebar {
+  width: 245px;
+  flex-shrink: 0;
+  background: #142c50;
+  color: #fff;
+  padding: 24px 14px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px 28px;
+}
+
+.brandIcon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #fff;
+  color: #142c50;
+  font-weight: 800;
+}
+
+.brand strong,
+.brand span {
+  display: block;
+}
+
+.brand strong {
+  font-size: 14px;
+}
+
+.brand span {
+  color: #b9cce7;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.navGroup {
+  min-width: 0;
+}
+
+.navGroupSummary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.navGroupSummary::-webkit-details-marker {
+  display: none;
+}
+
+.navGroupSummary:hover {
+  background: #29486e;
+}
+
+.navGroupChevron {
+  margin-left: auto;
+  transition: transform 150ms ease;
+}
+
+.navGroup[open] .navGroupChevron {
+  transform: rotate(180deg);
+}
+
+.subNavigation {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 6px 42px;
+}
+
+.subNavLink {
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: #b9cce7;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.subNavLink:hover {
+  background: #29486e;
+  color: #fff;
+}
+
+.navLink,
+.disabled {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.navLink {
+  color: #fff;
+  text-decoration: none;
+}
+
+.navLink:hover {
+  background: #29486e;
+}
+
+.disabled {
+  color: #8198b7;
+  cursor: not-allowed;
+}
+
+.disabled small {
+  margin-left: auto;
+  font-size: 10px;
+}
+
+.mainArea {
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar {
+  min-height: 76px;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 28px;
+}
+
+.topbar strong,
+.topbar small {
+  display: block;
+}
+
+.topbar small {
+  color: #64748b;
+  margin-top: 5px;
+}
+
+.userArea {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 13px;
+}
+
+.userArea button {
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #17253d;
+  border-radius: 7px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.content {
+  padding: 28px;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+@media (max-width: 800px) {
+  .workspace {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    padding: 12px;
+  }
+
+  .brand {
+    padding-bottom: 12px;
+  }
+
+  .navigation {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .navLink,
+  .disabled {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .navGroup {
+    flex-shrink: 0;
+  }
+
+  .navGroup[open] {
+    flex-shrink: 0;
+  }
+
+  .subNavigation {
+    margin-bottom: 0;
+  }
+
+  .subNavLink {
+    white-space: nowrap;
+  }
+
+  .disabled small {
+    display: none;
+  }
+
+  .topbar {
+    padding: 14px 18px;
+    flex-wrap: wrap;
+  }
+
+  .content {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .userArea {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

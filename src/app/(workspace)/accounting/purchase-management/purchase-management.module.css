@@ -1,0 +1,266 @@
+.page {
+  width: min(100%, 1500px);
+  margin: 0 auto;
+  padding: 28px clamp(16px, 3vw, 32px) 48px;
+  color: #172033;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.eyebrow {
+  margin-bottom: 7px;
+  color: #315db5;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pageHeader h1 {
+  color: #172033;
+  font-size: clamp(1.7rem, 3vw, 2.25rem);
+  letter-spacing: -0.035em;
+}
+
+.description,
+.registerHeader p {
+  margin-top: 7px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.primaryLink,
+.smallLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.primaryLink {
+  min-height: 42px;
+  flex: 0 0 auto;
+  padding: 10px 15px;
+  border: 1px solid #244b9b;
+  background: #315db5;
+  color: #fff;
+}
+
+.primaryLink:hover {
+  background: #244b9b;
+}
+
+.notice {
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 16px;
+}
+
+.summaryCard,
+.register,
+.actionPanel {
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 4%);
+}
+
+.summaryCard {
+  padding: 18px;
+}
+
+.summaryLabel {
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.summaryCard h2 {
+  margin-top: 8px;
+  color: #172033;
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.register {
+  margin-top: 22px;
+  padding: clamp(16px, 2vw, 24px);
+}
+
+.registerHeader {
+  margin-bottom: 16px;
+}
+
+.registerHeader h2 {
+  color: #172033;
+  font-size: 1.2rem;
+}
+
+.registerHeader p {
+  font-size: 0.9rem;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.table {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.tableHeading {
+  padding: 12px 14px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tableCell,
+.emptyCell {
+  padding: 12px 14px;
+  border-top: 1px solid #e8edf3;
+  color: #334155;
+  vertical-align: top;
+}
+
+.tableCell a {
+  color: #3157a4;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tableCell a:hover {
+  text-decoration: underline;
+}
+
+.tableRow:nth-child(even) {
+  background: #fbfdff;
+}
+
+.tableRow:hover {
+  background: #f5f8fc;
+}
+
+.secondaryText {
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.received {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.notReceived {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.smallLink {
+  margin-top: 7px;
+  padding: 6px 9px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #3157a4;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.smallLink:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.actionSummary {
+  color: #1d4ed8;
+  cursor: pointer;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.actionPanel {
+  min-width: 450px;
+  margin-top: 10px;
+  padding: 16px;
+  box-shadow: 0 10px 28px rgb(15 23 42 / 10%);
+}
+
+.actionPanel h3 {
+  margin: 18px 0 12px;
+  color: #172033;
+}
+
+.actionPanel button {
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 1px solid #244b9b;
+  border-radius: 7px;
+  background: #315db5;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+}
+
+.actionPanel button:hover {
+  background: #244b9b;
+}
+
+.emptyCell {
+  color: #64748b;
+  text-align: center;
+}
+
+@media (max-width: 680px) {
+  .pageHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .primaryLink {
+    width: 100%;
+  }
+
+  .actionPanel {
+    min-width: min(450px, calc(100vw - 72px));
+  }
+}

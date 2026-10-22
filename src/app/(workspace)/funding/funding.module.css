@@ -1,0 +1,274 @@
+
+.page {
+  color: #17253d;
+}
+
+.heading {
+  margin-bottom: 24px;
+}
+
+.heading h1 {
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.heading p {
+  color: #64748b;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metric,
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.metric {
+  padding: 22px;
+}
+
+.metric span {
+  display: block;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.metric strong {
+  display: block;
+  font-size: 28px;
+  margin-top: 10px;
+}
+
+.card {
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.card h2 {
+  font-size: 18px;
+  font-weight: 650;
+  margin-bottom: 22px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.field span {
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  color: #17253d;
+  font: inherit;
+  font-size: 14px;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: end;
+}
+
+.primary {
+  border: none;
+  border-radius: 8px;
+  background: #142c50;
+  color: white;
+  padding: 12px 18px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.primary:hover {
+  background: #234a7e;
+}
+
+.tableScroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 750px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.table th {
+  background: #f8fafc;
+  padding: 13px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.table td {
+  padding: 15px 13px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 13px;
+  vertical-align: top;
+}
+
+.table td small {
+  display: block;
+  color: #64748b;
+  margin-top: 5px;
+}
+
+.active,
+.inactive {
+  display: inline-block;
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.active {
+  background: #e7f7ee;
+  color: #166534;
+}
+
+.inactive {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.editDetails summary {
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.editForm {
+  display: grid;
+  gap: 13px;
+  min-width: 235px;
+  max-width: 300px;
+  background: #f8fafc;
+  padding: 15px;
+  margin-top: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.success,
+.error {
+  padding: 14px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.success {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.error {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.note {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+@media (max-width: 760px) {
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .formActions {
+    justify-content: stretch;
+  }
+
+  .formActions button {
+    width: 100%;
+  }
+
+  .card {
+    padding: 18px;
+  }
+}
+
+.linkRow {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.primaryLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #142c50;
+  padding: 11px 16px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.primaryLink:hover {
+  background: #234a7e;
+}
+
+.primaryLink:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.agreementLink {
+  font-weight: 700;
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.agreementLink:hover {
+  text-decoration: underline;
+}

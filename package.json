@@ -1,0 +1,35 @@
+{
+  "name": "abhiram-accounting",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.7.3",
+    "@next/env": "^16.4.2",
+    "bcryptjs": "^3.0.3",
+    "docx": "^9.12.0",
+    "docxtemplater": "^3.71.1",
+    "lucide-react": "^1.59.0",
+    "mammoth": "^1.13.0",
+    "mysql2": "^3.24.6",
+    "next": "16.4.2",
+    "pizzip": "^3.3.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "sanitize-html": "^2.18.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/sanitize-html": "^2.16.2",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.2",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,223 @@
+.page {
+  --accounting-ink: #17253d;
+  --accounting-muted: #64748b;
+  --accounting-border: #dbe3ed;
+  --accounting-primary: #1d4ed8;
+
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  color: var(--accounting-ink);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.page :global(h1) {
+  margin: 0 0 8px;
+  color: #102341;
+  font-size: clamp(1.65rem, 2.4vw, 2.15rem);
+  font-weight: 750;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+}
+
+.page :global(h2) {
+  margin: 0 0 12px;
+  color: #17345c;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.35;
+}
+
+.page :global(h3) {
+  margin: 0 0 10px;
+  color: #243b5a;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.page :global(h4) {
+  margin: 16px 0 8px;
+  color: #334155;
+  font-size: 0.92rem;
+}
+
+.page :global(p) {
+  margin-block: 8px;
+  color: #475569;
+}
+
+.page > :global(nav) {
+  margin-top: 16px;
+}
+
+.page :global(a) {
+  color: var(--accounting-primary);
+  font-weight: 600;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+
+.page :global(a:hover) {
+  color: #1e40af;
+  text-decoration: underline;
+}
+
+.page :global(section) {
+  padding: 20px;
+  border: 1px solid var(--accounting-border);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgb(15 35 65 / 4%);
+}
+
+.page :global(section section) {
+  padding: 16px;
+  margin-top: 12px;
+  border-color: #e7edf4;
+  border-radius: 9px;
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+.page :global(form) {
+  color: var(--accounting-ink);
+}
+
+.page :global(label) {
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.page :global(input:not([type="checkbox"]):not([type="radio"])),
+.page :global(select),
+.page :global(textarea) {
+  max-width: 100%;
+  color: #17253d;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.page :global(input:not([type="checkbox"]):not([type="radio"])),
+.page :global(select) {
+  min-height: 42px;
+}
+
+.page :global(textarea) {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.page :global(input[type="checkbox"]),
+.page :global(input[type="radio"]) {
+  accent-color: var(--accounting-primary);
+  vertical-align: middle;
+}
+
+.page :global(input:focus-visible),
+.page :global(select:focus-visible),
+.page :global(textarea:focus-visible),
+.page :global(button:focus-visible),
+.page :global(a:focus-visible) {
+  outline: 3px solid rgb(59 130 246 / 30%);
+  outline-offset: 2px;
+}
+
+.page :global(button) {
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid #1d4ed8;
+  border-radius: 7px;
+  color: #fff;
+  background: #1d4ed8;
+  font: inherit;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.page :global(button:hover:not(:disabled)) {
+  border-color: #1e40af;
+  background: #1e40af;
+  box-shadow: 0 2px 5px rgb(30 64 175 / 18%);
+}
+
+.page :global(button:disabled) {
+  border-color: #cbd5e1;
+  color: #64748b;
+  background: #e2e8f0;
+  cursor: not-allowed;
+}
+
+.page :global([role="status"]),
+.page :global([role="alert"]) {
+  padding: 12px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1e3a8a;
+  background: #eff6ff;
+}
+
+.page :global([role="alert"]) {
+  border-color: #fecaca;
+  color: #991b1b;
+  background: #fef2f2;
+}
+
+.page :global(table) {
+  width: 100%;
+  min-width: 700px;
+  color: #334155;
+  font-size: 0.84rem;
+}
+
+.page :global(th) {
+  color: #334155;
+  background: #f1f5f9;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  white-space: nowrap;
+}
+
+.page :global(td) {
+  line-height: 1.45;
+}
+
+.page :global(tbody tr:nth-child(even)) {
+  background: #fafcff;
+}
+
+.page :global(tbody tr:hover) {
+  background: #f1f7ff;
+}
+
+.page :global(ul) {
+  padding-left: 22px;
+  color: #475569;
+}
+
+.page :global(li + li) {
+  margin-top: 5px;
+}
+
+@media (max-width: 640px) {
+  .page :global(section) {
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .page :global(section section) {
+    padding: 12px;
+  }
+}
