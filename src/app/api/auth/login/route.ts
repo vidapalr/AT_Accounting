@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import {
   verifyCredentials,
@@ -31,10 +30,7 @@ export async function POST(request: NextRequest) {
     !password
   ) {
     loginUrl.searchParams.set("error", "1");
-    return NextResponse.redirect(
-      new URL("/dashboard", publicOrigin),
-      303
-    );
+    return NextResponse.redirect(loginUrl, 303);
   }
 
   try {
@@ -48,7 +44,7 @@ export async function POST(request: NextRequest) {
     await createSession(user.id);
 
     return NextResponse.redirect(
-      new URL("/dashboard", request.url),
+      new URL("/dashboard", publicOrigin),
       303
     );
   } catch (error) {
