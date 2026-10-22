@@ -9,7 +9,7 @@
  * DB_SOCKET) from the environment. Exits 1 if any check fails or any
  * record could not be turned into a valid entry.
  */
-import nextEnv from "@next/env";
+import * as nextEnvModule from "@next/env";
 import mysql from "mysql2/promise";
 
 import { buildLedgerDrafts } from "../src/lib/ledger/source-events.ts";
@@ -19,6 +19,8 @@ import {
   trialBalance,
 } from "../src/lib/ledger/posting-rules.ts";
 
+// @next/env is CommonJS; the loader exposes it differently under tsx and node.
+const nextEnv = (nextEnvModule as unknown as { default?: typeof nextEnvModule }).default ?? nextEnvModule;
 nextEnv.loadEnvConfig(process.cwd());
 
 const arg = (name: string, fallback: string) =>
