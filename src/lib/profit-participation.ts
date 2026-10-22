@@ -50,7 +50,7 @@ export async function getProfitParticipations(
      JOIN acct_agreement_versions v
        ON v.agreement_id = a.id
       AND v.legal_business_id = a.legal_business_id
-      AND v.version_no = 1
+      -- Current approved version; amendments supersede v1.
       AND v.version_status = 'APPROVED'
      LEFT JOIN acct_divisions d
        ON d.id = a.division_id

@@ -143,7 +143,9 @@ export async function getReceiptAgreements(
      JOIN acct_agreement_versions v
        ON v.agreement_id = a.id
       AND v.legal_business_id = a.legal_business_id
-      AND v.version_no = 1
+      -- Exactly one version per agreement is APPROVED:
+      -- approving an amendment supersedes the previous one.
+      -- Do not pin version_no = 1, or amended agreements vanish.
       AND v.version_status = 'APPROVED'
 
      JOIN acct_agreement_funding_policies fp

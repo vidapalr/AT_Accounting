@@ -19,6 +19,8 @@ interface BoundaryRow extends RowDataPacket {
 
 export type CapacityCheck = {
   valid: boolean;
+  /** Highest combined allocation (percentage units) on any checked date. */
+  maximumUnits: number;
   checkedDates: string[];
   conflicts: Array<{
     date: string;
@@ -153,6 +155,7 @@ export async function checkProposedShareCapacity(
   const orderedDates = Array.from(dates).sort();
 
   const conflicts: CapacityCheck["conflicts"] = [];
+  let maximumUnits = 0;
 
   for (const date of orderedDates) {
     const effective = await getEffectiveAgreements(
@@ -202,6 +205,10 @@ export async function checkProposedShareCapacity(
 
     const total = othersTotal + selectedUnits;
 
+    if (total > maximumUnits) {
+      maximumUnits = total;
+    }
+
     if (total > FULL_SHARE) {
       conflicts.push({
         date,
@@ -213,6 +220,7 @@ export async function checkProposedShareCapacity(
 
   return {
     valid: conflicts.length === 0,
+    maximumUnits,
     checkedDates: orderedDates,
     conflicts,
   };
