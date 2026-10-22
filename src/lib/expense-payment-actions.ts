@@ -287,6 +287,7 @@ export async function recordExpensePaymentAction(
     revalidatePath("/accounting/expenses");
     revalidatePath(returnUrl);
     revalidatePath("/accounting/account-balances");
+    revalidatePath("/accounting/sales-purchase-report");
   }
 
   redirect(`${returnUrl}?result=${encodeURIComponent(result)}`);
