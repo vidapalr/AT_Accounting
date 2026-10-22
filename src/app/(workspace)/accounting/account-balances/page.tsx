@@ -5,6 +5,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
+import { expenseAccountKey, expensePaymentPaise } from "@/lib/expense-money-flow";
 
 type Props = {
   searchParams: Promise<{ account?: string }>;
@@ -47,10 +48,21 @@ type PurchasePaymentRow = RowDataPacket & {
   source_cash_account_id: number | null;
 };
 
+type ExpensePaymentRow = RowDataPacket & {
+  id: number;
+  expense_no: string;
+  payment_date: string;
+  payment_method: string;
+  payment_source: string;
+  amount: string;
+  bank_account_id: number | null;
+  cash_account_id: number | null;
+};
+
 type Account = {
   key: string;
   name: string;
-  category: "GROUP_BANK" | "INVESTOR_BANK" | "CASH" | "UNALLOCATED";
+  category: "GROUP_BANK" | "INVESTOR_BANK" | "CASH" | "UNALLOCATED" | "EXTERNAL";
 };
 
 type Movement = {
@@ -174,6 +186,24 @@ async function AccountBalancesContent({
       [businessId]
     );
 
+  const [expensePayments] = await db.execute<ExpensePaymentRow[]>(
+    `SELECT ep.id, e.expense_no,
+       DATE_FORMAT(ep.payment_date, '%Y-%m-%d') AS payment_date,
+       ep.payment_method, ep.payment_source, ep.amount,
+       ep.bank_account_id, ep.cash_account_id
+     FROM acct_expense_payments ep
+     JOIN acct_expenses e
+       ON e.legal_business_id = ep.legal_business_id
+      AND e.id = ep.expense_id
+      AND e.division_id <=> ep.division_id
+     WHERE ep.legal_business_id = ?
+       AND (e.division_id = 1 OR e.division_id IS NULL)
+       AND ep.status = 'RECORDED'
+       AND e.status = 'CONFIRMED'
+     ORDER BY ep.payment_date, ep.id`,
+    [businessId]
+  );
+
   const accounts: Account[] = [
     ...banks.map(bank => ({
       key: `BANK:${bank.id}`,
@@ -187,6 +217,11 @@ async function AccountBalancesContent({
       name: `${cash.cash_name} (${cash.cash_code})`,
       category: "CASH" as const,
     })),
+    {
+      key: "EXTERNAL",
+      name: "Expenses paid personally by owner / investor cash",
+      category: "EXTERNAL",
+    },
     {
       key: "UNALLOCATED",
       name: "Unallocated Transactions",
@@ -270,6 +305,21 @@ async function AccountBalancesContent({
     });
   }
 
+  const bankOwnership = new Map(banks.map(bank => [Number(bank.id), bank.ownership_type]));
+  const cashAccountIds = new Set(cashAccounts.map(cash => Number(cash.id)));
+  for (const payment of expensePayments) {
+    addMovement({
+      key: `EXPENSE:${payment.id}`,
+      accountKey: expenseAccountKey(payment, bankOwnership, cashAccountIds),
+      date: payment.payment_date,
+      reference: payment.expense_no,
+      purpose: "Expense payment",
+      method: payment.payment_method,
+      credit: 0n,
+      debit: expensePaymentPaise(payment.amount),
+    });
+  }
+
   movements.sort(
     (a, b) =>
       a.date.localeCompare(b.date) ||
@@ -340,7 +390,8 @@ async function AccountBalancesContent({
 
       <p>
         Abhiram Textiles — recorded sales collections
-        and verified supplier payments by account.
+        verified supplier payments and recorded expense payments
+        by account. Includes Textiles expenses and Group overheads.
       </p>
 
       <nav style={{
@@ -441,8 +492,9 @@ async function AccountBalancesContent({
       <p style={{ color: "#64748b", fontSize: 13 }}>
         Net Movement = Recorded Credits − Recorded Debits.
         This is not yet an actual bank or cash closing
-        balance. Opening balances, expenses, transfers
-        and funding movements will be integrated next.
+        balance. Opening balances, transfers and funding movements
+        are not included. Owner personal and investor cash expense
+        payments appear separately and do not reduce Group cash.
         Investor accounts display Textiles-related activity,
         not personal account balances.
       </p>

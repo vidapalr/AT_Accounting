@@ -423,6 +423,8 @@ export async function createExpenseAction(
 
   if (outcome === "created") {
     revalidatePath(PAGE);
+    revalidatePath("/accounting/account-balances");
+    revalidatePath("/accounting/sales-purchase-report");
   }
 
   redirect(
