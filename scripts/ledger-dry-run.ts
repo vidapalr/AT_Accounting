@@ -9,6 +9,7 @@
  * DB_SOCKET) from the environment. Exits 1 if any check fails or any
  * record could not be turned into a valid entry.
  */
+import nextEnv from "@next/env";
 import mysql from "mysql2/promise";
 
 import { buildLedgerDrafts } from "../src/lib/ledger/source-events.ts";
@@ -17,6 +18,8 @@ import {
   parseMoney,
   trialBalance,
 } from "../src/lib/ledger/posting-rules.ts";
+
+nextEnv.loadEnvConfig(process.cwd());
 
 const arg = (name: string, fallback: string) =>
   process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=")[1] ?? fallback;
@@ -29,6 +32,13 @@ const rpad = (s: string, n: number) => s.padStart(n);
 const inr = (v: bigint) => formatMoney(v);
 
 async function main() {
+  for (const key of ["DB_HOST", "DB_DATABASE", "DB_USERNAME", "DB_PASSWORD"]) {
+    if (!process.env[key] && !(key === "DB_HOST" && process.env.DB_SOCKET)) {
+      throw new Error(
+        `Missing ${key}. Put it in .env.local (same values the app uses) or set it in the shell.`
+      );
+    }
+  }
   const conn = await mysql.createConnection({
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT || 3306),
