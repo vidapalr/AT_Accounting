@@ -2,6 +2,7 @@ import "server-only";
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+// @ts-ignore pdfkit may be installed without TypeScript declarations.
 import PDFDocument from "pdfkit";
 
 import type { ReportContent } from "./core";
