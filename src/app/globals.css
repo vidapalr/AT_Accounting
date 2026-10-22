@@ -47,3 +47,20 @@ a {
     color-scheme: dark;
   }
 }
+
+/* Letterhead and print layout */
+.print-only {
+  display: none;
+}
+
+@media print {
+  .print-only {
+    display: block !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+  }
+}

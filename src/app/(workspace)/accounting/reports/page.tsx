@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import PrintHeader from "@/components/PrintHeader";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
@@ -67,6 +68,7 @@ async function ReportsContent({ searchParams }: Props) {
   return (
     <main style={{ padding: 24 }}>
       <style>{`@media print { aside, form, section[data-noprint] { display: none !important; } main { padding: 0 !important; } }`}</style>
+      <PrintHeader title="Profit, Balance Sheet and Trial Balance" subtitle={`Period ${from} to ${to}`} />
       <h1>Reports</h1>
       <p style={{ color: "#64748b" }}>
         From posted journals only. Dividing profit into gross, operating and net:

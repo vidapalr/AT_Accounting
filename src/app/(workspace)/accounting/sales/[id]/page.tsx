@@ -1,5 +1,7 @@
 
 import { Suspense } from "react";
+import PrintHeader from "@/components/PrintHeader";
+import PrintButton from "@/components/PrintButton";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
@@ -157,10 +159,12 @@ async function InvoiceDetails({ params }: Props) {
       margin: "0 auto",
       maxWidth: 1100,
     }}>
-      <nav style={{ marginBottom: 20 }}>
+      <PrintHeader title={`Invoice ${invoice.invoice_no}`} />
+      <nav className="no-print" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between" }}>
         <Link href="/accounting/invoices">
           ← All Invoices
         </Link>
+        <PrintButton label="Print invoice" />
       </nav>
 
       <h1>Invoice: {invoice.invoice_no}</h1>

@@ -243,3 +243,17 @@
     justify-content: space-between;
   }
 }
+
+@media print {
+  .sidebar,
+  .topbar {
+    display: none !important;
+  }
+  .workspace {
+    display: block;
+    background: #fff;
+  }
+  .content {
+    padding: 0 !important;
+  }
+}

@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import PrintHeader from "@/components/PrintHeader";
+import PrintButton from "@/components/PrintButton";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
@@ -71,6 +73,7 @@ async function Content({ searchParams }: Props) {
 
   return (
     <main className={styles.page}>
+      <PrintHeader title="Investor Profit Shares" subtitle={`Period ${from} to ${to}`} />
       <h1>Investor Profit Shares</h1>
       <p>
         What each investor agreement earns from the ledger profit of its own place and profit basis. Where an
@@ -78,10 +81,11 @@ async function Content({ searchParams }: Props) {
         booked inside that part. This is a calculation only: nothing is paid or posted from this page.
       </p>
 
-      <form method="GET" style={{ display: "flex", gap: 10, alignItems: "end", flexWrap: "wrap", margin: "12px 0" }}>
+      <form className="no-print" method="GET" style={{ display: "flex", gap: 10, alignItems: "end", flexWrap: "wrap", margin: "12px 0" }}>
         <label>From<input type="date" name="from" defaultValue={from} /></label>
         <label>To<input type="date" name="to" defaultValue={to} /></label>
-        <button type="submit">Show</button>
+        <button type="submit">Show</button>{" "}
+        <PrintButton />
       </form>
 
       {(issues.length > 0 || problems.length > 0) && (

@@ -2,6 +2,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
+import BrandLogo from "@/components/BrandLogo";
 import styles from "./login.module.css";
 
 export default function LoginPage({
@@ -40,7 +41,7 @@ async function LoginContent({
   return (
     <main className={styles.page}>
       <section className={styles.card}>
-        <div className={styles.logo}>AG</div>
+        <div className={styles.logo}><BrandLogo size={52} /></div>
 
         <p className={styles.brand}>ABHIRAM GROUP</p>
         <h1>Accounting Portal</h1>

@@ -1,4 +1,6 @@
 import ExcelJS from "exceljs";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 import { getSessionUser } from "@/lib/auth";
 import { canAccess } from "@/lib/access";
@@ -88,6 +90,16 @@ export async function GET(request: Request) {
   tb.getColumn(3).width = 20;
   tb.getColumn(2).numFmt = MONEY;
   tb.getColumn(3).numFmt = MONEY;
+
+  try {
+    const logo = await readFile(join(process.cwd(), "public", "brand", "abhiram-logo-print.png"));
+    const imageId = book.addImage({ buffer: logo as unknown as ExcelJS.Buffer, extension: "png" });
+    for (const sheet of book.worksheets) {
+      sheet.addImage(imageId, { tl: { col: sheet.columnCount + 0.3, row: 0.2 }, ext: { width: 64, height: 64 } });
+    }
+  } catch {
+    // the logo is a nicety; the workbook is still complete without it
+  }
 
   const buffer = await book.xlsx.writeBuffer();
   return new Response(buffer as ArrayBuffer, {

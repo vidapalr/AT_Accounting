@@ -19,10 +19,11 @@
 }
 
 .logo {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  background: #142c50;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #dbe3ef;
   color: white;
   display: grid;
   place-items: center;

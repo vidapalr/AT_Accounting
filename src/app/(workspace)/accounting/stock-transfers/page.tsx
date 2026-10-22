@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import PrintHeader from "@/components/PrintHeader";
 import Link from "next/link";
 import TransferHistoryTable from "./TransferHistoryTable";
 import PrintTransferButton from "./PrintTransferButton";
@@ -353,6 +354,7 @@ async function TransferContent({ searchParams }: Props) {
 
       {selectedTransfer && (
         <section className={`${styles.card} ${styles.printArea}`}>
+          <PrintHeader title={`Stock transfer ${selectedTransfer.transfer_no}`} />
           <div className={styles.detailHeading}>
             <div>
               <h2>Transfer Details: {selectedTransfer.transfer_no}</h2>

@@ -16,6 +16,7 @@ import {
 
 import { requireUser } from "@/lib/auth";
 import { canOpenPath, ROLE_LABELS } from "@/lib/access";
+import BrandLogo from "@/components/BrandLogo";
 import styles from "./workspace.module.css";
 
 const navigation = [
@@ -327,7 +328,7 @@ async function WorkspaceContent({
     <div className={styles.workspace}>
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
-          <div className={styles.brandIcon}>AG</div>
+          <div className={styles.brandIcon}><BrandLogo size={34} /></div>
           <div>
             <strong>Abhiram Group</strong>
             <span>Accounting</span>
