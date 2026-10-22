@@ -95,6 +95,16 @@ async function main() {
     const sumPrefix = (p: string) =>
       [...net.entries()].filter(([c]) => c.startsWith(p)).reduce((s, [, v]) => s + v, 0n);
 
+    // ------------------------------------------------------ profit levels
+    const gross = -(sumPrefix("4") + sumPrefix("5"));
+    const setup = bal("6900");
+    const operating = gross - (sumPrefix("6") - setup);
+    console.log("\nPROFIT");
+    console.log("-".repeat(78));
+    console.log(`${pad("Gross profit (sales after discounts - cost of goods)", 60)} ${rpad(inr(gross), 14)}`);
+    console.log(`${pad("Operating profit (after running expenses)", 60)} ${rpad(inr(operating), 14)}`);
+    console.log(`${pad("Net profit (after set-up costs)", 60)} ${rpad(inr(operating - setup), 14)}`);
+
     // ---------------------------------------- independent tie-outs (raw SQL)
     const one = async (sql: string): Promise<bigint> => {
       const [rows] = await conn.query<mysql.RowDataPacket[]>(sql, [businessId]);

@@ -29,6 +29,7 @@ export const ACCOUNT = {
   PROPRIETOR_CAPITAL: "3000",
   INVESTOR_CAPITAL: "3200",
   SALES: "4000",
+  SETUP_COSTS: "6900",
   SALES_DISCOUNTS: "4200",
   COGS: "5000",
 } as const;
@@ -283,12 +284,19 @@ export function expenseEntry(expense: {
   description: string;
   amount: string;
   dims: Dimensions;
+  /** One-off cost of starting up: reported below operating profit. */
+  isSetupCost?: boolean;
 }): JournalDraft {
   const amount = parseMoney(expense.amount);
-  const memo = `Expense ${expense.expenseNo} (${expense.category})`;
+  const memo = expense.isSetupCost
+    ? `Set-up cost ${expense.expenseNo} (${expense.category})`
+    : `Expense ${expense.expenseNo} (${expense.category})`;
+  const expenseAccount = expense.isSetupCost
+    ? ACCOUNT.SETUP_COSTS
+    : expenseAccountForCategory(expense.category);
 
   return makeDraft("EXPENSE", expense.id, expense.date, memo, [
-    debit(expenseAccountForCategory(expense.category), amount, expense.dims, memo),
+    debit(expenseAccount, amount, expense.dims, memo),
     credit(ACCOUNT.ACCRUED_EXPENSES, amount, expense.dims, memo),
   ]);
 }

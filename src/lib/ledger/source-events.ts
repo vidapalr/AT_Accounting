@@ -390,7 +390,7 @@ export async function buildLedgerDrafts(
   // ------------------------------------------------------------ expenses
   const expenses = await select(
     conn,
-    `SELECT id, expense_no, division_id, branch_id, category, description,
+    `SELECT id, expense_no, division_id, branch_id, category, is_setup_cost, description,
             DATE_FORMAT(expense_date, '%Y-%m-%d') AS d, amount
      FROM acct_expenses
      WHERE legal_business_id = ? AND status = 'CONFIRMED'
@@ -410,6 +410,7 @@ export async function buildLedgerDrafts(
         description: str(e.description),
         amount: str(e.amount),
         dims: dims(e.division_id, e.branch_id),
+        isSetupCost: Number(e.is_setup_cost) === 1,
       })
     );
   }
