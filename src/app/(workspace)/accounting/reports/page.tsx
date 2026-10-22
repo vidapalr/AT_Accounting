@@ -3,6 +3,8 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
+import { postPendingEntriesAction } from "@/lib/ledger-sync-actions";
+import { getSyncStatus } from "@/lib/ledger/sync-status";
 import {
   balanceSheet,
   profitByScope,
@@ -10,7 +12,7 @@ import {
 } from "@/lib/reports/profit-levels";
 
 type Props = {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; posted?: string; error?: string }>;
 };
 
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -61,6 +63,10 @@ async function ReportsContent({ searchParams }: Props) {
   );
   const from = isDate(query.from) ? query.from : String(years[0]?.starts_on ?? `${today.slice(0, 4)}-04-01`);
   const to = isDate(query.to) ? query.to : today;
+
+  const sync = await getSyncStatus(db, businessId);
+  const needsReview =
+    sync.changedAfterPosting.length + sync.noLongerValid.length + sync.problems.length;
 
   const [divisionRows] = await db.execute<Row[]>(
     `SELECT id, name FROM acct_divisions WHERE legal_business_id = ?`,
@@ -149,6 +155,30 @@ async function ReportsContent({ searchParams }: Props) {
         gross = sales after discounts − cost of goods; operating = gross − running expenses;
         net = operating − set-up costs.
       </p>
+
+      {query.posted !== undefined && (
+        <p style={{ color: "#166534" }}>Posted {query.posted.replace(/\D/g, "")} entries to the ledger.</p>
+      )}
+      {query.error && <p style={{ color: "#b91c1c" }}>{query.error.slice(0, 300)}</p>}
+
+      <section style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, margin: "12px 0" }}>
+        <strong>Ledger status:</strong>{" "}
+        {sync.pending.length === 0 && needsReview === 0
+          ? "Up to date. Every sale, purchase, payment and expense is in the ledger."
+          : `${sync.pending.length} new record(s) not yet in the ledger, so the figures below are out of date.`}
+        {sync.pending.length > 0 && (
+          <form action={postPendingEntriesAction} style={{ marginTop: 8 }}>
+            <button type="submit">Post {sync.pending.length} pending entries to the ledger</button>
+          </form>
+        )}
+        {needsReview > 0 && (
+          <ul style={{ color: "#b91c1c", marginTop: 8 }}>
+            {sync.problems.map((p) => <li key={p}>{p}</li>)}
+            {sync.changedAfterPosting.map((p) => <li key={p}>Changed after posting: {p}. Needs a reversal and re-entry.</li>)}
+            {sync.noLongerValid.map((p) => <li key={p}>Posted, but the record is no longer valid: {p}. Needs a reversal.</li>)}
+          </ul>
+        )}
+      </section>
 
       <form method="get" style={{ display: "flex", gap: 12, alignItems: "end", margin: "16px 0" }}>
         <label>From<br /><input type="date" name="from" defaultValue={from} /></label>
