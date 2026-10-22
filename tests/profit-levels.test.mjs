@@ -58,3 +58,20 @@ test("balance sheet balances: assets = liabilities + capital + profit", () => {
   assert.equal(sheet.profitToDate, 10000n);
   assert.equal(sheet.totalAssets, sheet.totalLiabilitiesAndCapital);
 });
+
+test("returns and damaged stock are reported separately but still reduce profit", () => {
+  const rows = profitByScope(
+    [
+      L("4000", 0, 1000), L("4200", 50, 0), L("4210", 200, 0),
+      L("5000", 400, 0), L("5150", 30, 0), L("6070", 20, 0),
+    ],
+    new Map([[1, 1]])
+  );
+  const f = rows[0].figures;
+  assert.equal(f.discounts, 25000n);   // 50 + 200 together
+  assert.equal(f.returns, 20000n);     // the returns part
+  assert.equal(f.costOfGoods, 43000n); // 400 + 30
+  assert.equal(f.damagedStock, 3000n);
+  assert.equal(f.gross, 100000n - 25000n - 43000n);
+  assert.equal(f.operating, f.gross - 2000n);
+});

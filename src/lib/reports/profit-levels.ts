@@ -25,8 +25,14 @@ export type LedgerTotal = {
 
 export type ProfitFigures = {
   sales: bigint;
+  /** All contra-sales: discounts and returns together. */
   discounts: bigint;
+  /** Part of `discounts` that is customer returns (account 4210). */
+  returns: bigint;
+  /** All cost of goods: normal cost plus damaged stock. */
   costOfGoods: bigint;
+  /** Part of `costOfGoods` that is damaged and lost stock (account 5150). */
+  damagedStock: bigint;
   gross: bigint;
   runningExpenses: bigint;
   operating: bigint;
@@ -44,12 +50,14 @@ export type ScopeProfit = {
 type Raw = {
   sales: bigint;
   discounts: bigint;
+  returns: bigint;
   costOfGoods: bigint;
+  damaged: bigint;
   running: bigint;
   setup: bigint;
 };
 
-const empty = (): Raw => ({ sales: 0n, discounts: 0n, costOfGoods: 0n, running: 0n, setup: 0n });
+const empty = (): Raw => ({ sales: 0n, discounts: 0n, returns: 0n, costOfGoods: 0n, damaged: 0n, running: 0n, setup: 0n });
 
 function add(target: Raw, line: LedgerTotal) {
   const code = line.accountCode;
@@ -57,8 +65,13 @@ function add(target: Raw, line: LedgerTotal) {
   const debit = line.debit - line.credit;
 
   if (code === "4000") target.sales += credit;
-  else if (code.startsWith("4")) target.discounts += debit; // 4200 and any other contra-sales
-  else if (code.startsWith("5")) target.costOfGoods += debit;
+  else if (code.startsWith("4")) {
+    target.discounts += debit; // 4200, 4210 and any other contra-sales
+    if (code === "4210") target.returns += debit;
+  } else if (code.startsWith("5")) {
+    target.costOfGoods += debit;
+    if (code === "5150") target.damaged += debit;
+  }
   else if (code === SETUP_ACCOUNT) target.setup += debit;
   else if (code.startsWith("6")) target.running += debit;
 }
@@ -69,7 +82,9 @@ function figures(raw: Raw): ProfitFigures {
   return {
     sales: raw.sales,
     discounts: raw.discounts,
+    returns: raw.returns,
     costOfGoods: raw.costOfGoods,
+    damagedStock: raw.damaged,
     gross,
     runningExpenses: raw.running,
     operating,
