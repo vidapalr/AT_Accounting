@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import {
   createProductCategoryAction,
   seedTextileCategoriesAction,
@@ -60,7 +60,7 @@ const cellStyle: React.CSSProperties = {
 };
 
 async function CategoryContent({ searchParams }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("products");
   const query = await searchParams;
 
   const [categories] = await db.execute<Category[]>(

@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 type InvoiceRow = RowDataPacket & {
   id: number;
@@ -53,7 +53,7 @@ const cell: React.CSSProperties = {
 };
 
 async function InvoiceList() {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("sales");
   const businessId = user.legal_business_id;
 
   const [invoices] = await db.execute<InvoiceRow[]>(

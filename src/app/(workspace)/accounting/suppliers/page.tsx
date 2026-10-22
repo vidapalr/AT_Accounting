@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import { createSupplierAction } from "@/lib/supplier-actions";
 
 type Props = {
@@ -64,7 +64,7 @@ const messages: Record<string, string> = {
 };
 
 async function SupplierContent({ searchParams }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("purchases");
   const query = await searchParams;
 
   const [suppliers] = await db.execute<Supplier[]>(

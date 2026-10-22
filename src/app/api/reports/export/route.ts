@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 
-import { getCurrentUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
+import { canAccess } from "@/lib/access";
 import { db } from "@/lib/db";
 import { getBalanceReport, getProfitReport } from "@/lib/reports/report-data";
 import { isDate, todayInIndia, toNumber } from "@/lib/reports/money";
@@ -8,8 +9,9 @@ import { isDate, todayInIndia, toNumber } from "@/lib/reports/money";
 const MONEY = '#,##0.00;[Red]-#,##0.00';
 
 export async function GET(request: Request) {
-  const user = await getCurrentUser();
+  const user = await getSessionUser();
   if (!user) return new Response("Sign in first.", { status: 401 });
+  if (!canAccess(user.role, "reports")) return new Response("Not allowed.", { status: 403 });
 
   const params = new URL(request.url).searchParams;
   const today = todayInIndia();

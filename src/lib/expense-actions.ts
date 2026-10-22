@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 const PAGE = "/accounting/expenses";
 const TEXTILES_DIVISION_ID = 1;
@@ -49,7 +49,7 @@ function segment(value: string): string {
 export async function createExpenseAction(
   form: FormData
 ): Promise<void> {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("expenses");
   const businessId = user.legal_business_id;
 
   const level = String(form.get("allocation_level") ?? "");

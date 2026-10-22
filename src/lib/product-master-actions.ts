@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 const PAGE = "/accounting/products";
 const DIVISION_ID = 1;
@@ -33,7 +33,7 @@ function go(result: string): never {
 export async function createProductAction(
   form: FormData
 ): Promise<void> {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("products");
   const businessId = user.legal_business_id;
 
   const categoryId = id(field(form, "category_id"));
@@ -163,7 +163,7 @@ export async function createProductAction(
 export async function createProductVariantAction(
   form: FormData
 ): Promise<void> {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("products");
   const businessId = user.legal_business_id;
 
   const productId = id(field(form, "product_id"));

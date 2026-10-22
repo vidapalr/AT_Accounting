@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import { postPendingEntriesAction } from "@/lib/ledger-sync-actions";
 import { getSyncStatus } from "@/lib/ledger/sync-status";
 import { getBalanceReport, getProfitReport } from "@/lib/reports/report-data";
@@ -24,7 +24,7 @@ const cell: React.CSSProperties = {
 const left: React.CSSProperties = { ...cell, textAlign: "left" };
 
 async function ReportsContent({ searchParams }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("reports");
   const businessId = user.legal_business_id;
   const query = await searchParams;
 
@@ -84,7 +84,7 @@ async function ReportsContent({ searchParams }: Props) {
         {sync.pending.length === 0 && needsReview === 0
           ? "Up to date. Every sale, purchase, payment and expense is in the ledger."
           : `${sync.pending.length} new record(s) not yet in the ledger, so the figures below are out of date.`}
-        {sync.pending.length > 0 && (
+        {sync.pending.length > 0 && user.role === "GROUP_OWNER" && (
           <form action={postPendingEntriesAction} style={{ marginTop: 8 }}>
             <button type="submit">Post {sync.pending.length} pending entries to the ledger</button>
           </form>

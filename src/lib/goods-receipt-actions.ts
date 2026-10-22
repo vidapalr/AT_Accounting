@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 const LIST_PAGE = "/accounting/purchases";
 const DIVISION_ID = 1;
@@ -83,7 +83,7 @@ interface LineRow extends RowDataPacket {
 export async function postGoodsReceiptAction(
   form: FormData
 ): Promise<void> {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("purchases");
   const businessId = user.legal_business_id;
 
   const purchaseId = positiveId(form.get("purchase_id"));

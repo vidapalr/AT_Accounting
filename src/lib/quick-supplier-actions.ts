@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 type SupplierType =
   | "MANUFACTURER"
@@ -49,7 +49,7 @@ const TYPES: SupplierType[] = [
 export async function quickCreateSupplierAction(
   input: QuickSupplierInput
 ): Promise<QuickSupplierResult> {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("purchases");
   const businessId = user.legal_business_id;
 
   const name = input.supplierName?.trim() ?? "";

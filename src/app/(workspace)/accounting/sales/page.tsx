@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import SalesBillingForm from
   "@/components/accounting/SalesBillingForm";
 
@@ -54,7 +54,7 @@ const messages: Record<string, string> = {
 };
 
 async function SalesContent({ searchParams }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("sales");
   const { result, id, view, edit } = await searchParams;
   const businessId = user.legal_business_id;
 

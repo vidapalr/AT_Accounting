@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 const PAGE = "/accounting/suppliers";
 
@@ -31,7 +31,7 @@ function optional(value: string): string | null {
 export async function createSupplierAction(
   form: FormData
 ): Promise<void> {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("purchases");
   const businessId = user.legal_business_id;
 
   const code = get(form, "supplier_code").toUpperCase();

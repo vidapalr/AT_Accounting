@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import {
   recordExpensePaymentAction,
 } from "@/lib/expense-payment-actions";
@@ -23,7 +23,7 @@ function money(value: string | number): string {
 }
 
 async function Content({ params, searchParams }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("expenses");
   const { id } = await params;
   const { result } = await searchParams;
   const expenseId = Number(id);

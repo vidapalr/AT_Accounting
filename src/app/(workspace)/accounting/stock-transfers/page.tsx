@@ -5,7 +5,7 @@ import PrintTransferButton from "./PrintTransferButton";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import StockTransferDraftForm, {
   type StockTransferDraft,
 } from "./StockTransferDraftForm";
@@ -97,7 +97,7 @@ const messages: Record<string, string> = {
 };
 
 async function TransferContent({ searchParams }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("purchases");
   const businessId = user.legal_business_id;
   const { result, edit, view } = await searchParams;
 

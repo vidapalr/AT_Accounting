@@ -1,7 +1,7 @@
 
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import styles from "./login.module.css";
 
 export default function LoginPage({
@@ -29,7 +29,7 @@ async function LoginContent({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const user = await getCurrentUser();
+  const user = await getSessionUser();
 
   if (user) {
     redirect("/dashboard");

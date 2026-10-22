@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 function toPaise(value: string): bigint {
   if (!/^\d{1,16}(\.\d{1,2})?$/.test(value)) {
@@ -23,7 +23,7 @@ function money(value: bigint): string {
 export async function recordExpensePaymentAction(
   form: FormData
 ): Promise<void> {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("expenses");
   const businessId = user.legal_business_id;
 
   const expenseId = Number(form.get("expense_id"));

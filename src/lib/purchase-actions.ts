@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 const PAGE = "/accounting/purchases";
 const DIVISION_ID = 1;
@@ -157,7 +157,7 @@ async function savePurchaseDraft(
   form: FormData,
   purchaseId?: number
 ): Promise<void> {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("purchases");
   const businessId = user.legal_business_id;
 
   const supplierId = positiveId(field(form, "supplier_id"));

@@ -10,7 +10,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 const PAGE = "/accounting/stock-transfers";
 
@@ -70,7 +70,7 @@ export async function saveStockTransferDraftAction(
 
 ): Promise<void> {
 
-  const user = await requireGroupOwner();
+  const user = await requireAccess("purchases");
 
   const businessId = user.legal_business_id;
 
@@ -810,7 +810,7 @@ export async function dispatchStockTransferAction(
 
 ): Promise<void> {
 
-  const user = await requireGroupOwner();
+  const user = await requireAccess("purchases");
 
   const businessId = user.legal_business_id;
 
@@ -1278,7 +1278,7 @@ export async function receiveStockTransferAction(
 
 ): Promise<void> {
 
-  const user = await requireGroupOwner();
+  const user = await requireAccess("purchases");
 
   const businessId = user.legal_business_id;
 

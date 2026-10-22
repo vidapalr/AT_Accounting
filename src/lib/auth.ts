@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
+import { canAccess, homePath, LOGIN_ROLES, type Feature } from "@/lib/access";
 
 const COOKIE_NAME = "abhiram_accounting_session";
 const SESSION_HOURS = 8;
@@ -50,7 +51,7 @@ export async function verifyCredentials(
          WHERE a.user_id = u.id
            AND a.legal_business_id = 1
            AND a.division_id IS NULL
-           AND a.role = 'GROUP_OWNER'
+           AND a.role IN (${LOGIN_ROLES.map((r) => `'${r}'`).join(",")})
        )
      LIMIT 1`,
     [email.trim().toLowerCase()]
@@ -103,7 +104,8 @@ export async function createSession(userId: number) {
   });
 }
 
-export async function getCurrentUser() {
+/** The signed-in user with their strongest role, or null. */
+export async function getSessionUser() {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
 
@@ -127,8 +129,9 @@ export async function getCurrentUser() {
        AND s.expires_at > UTC_TIMESTAMP()
        AND u.status = 'ACTIVE'
        AND a.legal_business_id = 1
-       AND a.role = 'GROUP_OWNER'
        AND a.division_id IS NULL
+       AND a.role IN (${LOGIN_ROLES.map((r) => `'${r}'`).join(",")})
+     ORDER BY FIELD(a.role, 'GROUP_OWNER', 'ACCOUNTANT', 'CASHIER')
      LIMIT 1`,
     [hashToken(token)]
   );
@@ -136,11 +139,40 @@ export async function getCurrentUser() {
   return rows[0] ?? null;
 }
 
-export async function requireGroupOwner() {
-  const user = await getCurrentUser();
+/** Group Owner only. Other signed-in users get null, exactly as before. */
+export async function getCurrentUser() {
+  const user = await getSessionUser();
+  return user && user.role === "GROUP_OWNER" ? user : null;
+}
+
+/** Any signed-in user; sends visitors to the login page. */
+export async function requireUser() {
+  const user = await getSessionUser();
 
   if (!user) {
     redirect("/login");
+  }
+
+  return user;
+}
+
+/** Owner-only pages and actions. Other staff are sent to their own home page. */
+export async function requireGroupOwner() {
+  const user = await requireUser();
+
+  if (user.role !== "GROUP_OWNER") {
+    redirect(homePath(user.role));
+  }
+
+  return user;
+}
+
+/** Pages and actions open to the roles listed for this feature in access.ts. */
+export async function requireAccess(feature: Feature) {
+  const user = await requireUser();
+
+  if (!canAccess(user.role, feature)) {
+    redirect(homePath(user.role));
   }
 
   return user;

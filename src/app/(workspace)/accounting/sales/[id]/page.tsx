@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -24,7 +24,7 @@ const cell: React.CSSProperties = {
 };
 
 async function InvoiceDetails({ params }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("sales");
   const { id } = await params;
   const saleId = Number(id);
 

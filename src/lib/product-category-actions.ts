@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 const PAGE = "/accounting/product-categories";
 const TEXTILES_DIVISION_ID = 1;
@@ -28,7 +28,7 @@ function go(code: string): never {
 export async function createProductCategoryAction(
   form: FormData
 ): Promise<void> {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("products");
   const businessId = user.legal_business_id;
 
   const code = text(form, "category_code").toUpperCase();
@@ -191,7 +191,7 @@ const DEFAULT_CATEGORIES = [
 ] as const;
 
 export async function seedTextileCategoriesAction(): Promise<void> {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("products");
   const businessId = user.legal_business_id;
   const conn = await db.getConnection();
 

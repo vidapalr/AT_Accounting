@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import styles from "./sales-purchase-report.module.css";
 
 type SearchParams = {
@@ -788,7 +788,7 @@ async function getAccountSnapshots(
 }
 
 async function ReportContent({ searchParams }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("reports");
   const businessId = user.legal_business_id;
   const query = await searchParams;
 

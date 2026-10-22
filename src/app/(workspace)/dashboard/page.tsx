@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import { getSyncStatus } from "@/lib/ledger/sync-status";
 import {
   getAccountPositions,
@@ -32,7 +32,7 @@ const money = (value: bigint) => (
 );
 
 async function DashboardContent({ searchParams }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("dashboard");
   const businessId = user.legal_business_id;
   const { period } = await searchParams;
 
@@ -117,7 +117,7 @@ async function DashboardContent({ searchParams }: Props) {
           {needsReview} posted item(s) no longer match their records. <Link href="/accounting/reports">Review on Reports</Link>.
         </p>
       )}
-      {!positions.openingBatchPosted && positions.openingPendingTotal > 0n && (
+      {user.role === "GROUP_OWNER" && !positions.openingBatchPosted && positions.openingPendingTotal > 0n && (
         <p className={`${styles.notice} ${styles.noticeWarn}`}>
           Opening balances of {inr(positions.openingPendingTotal)} are entered but not posted to the ledger yet.
           The balances below include them. Approve and post them in{" "}

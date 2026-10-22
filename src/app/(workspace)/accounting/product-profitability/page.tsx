@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 type ReportRow = RowDataPacket & {
   variant_id: number;
@@ -42,7 +42,7 @@ const cell: React.CSSProperties = {
 };
 
 async function ProductProfitabilityContent() {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("reports");
   const businessId = user.legal_business_id;
 
   const [rows] = await db.execute<ReportRow[]>(

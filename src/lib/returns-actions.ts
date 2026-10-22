@@ -6,7 +6,7 @@ import type { PoolConnection } from "mysql2/promise";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import {
   parsePaise,
   parseQtyMilli,
@@ -96,7 +96,7 @@ async function insertRefund(
 // ---------------------------------------------------------------- return
 
 export async function createSalesReturnAction(formData: FormData) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("returns");
   const businessId = user.legal_business_id;
   const text = (name: string) => String(formData.get(name) ?? "").trim();
 
@@ -282,7 +282,7 @@ export async function createSalesReturnAction(formData: FormData) {
 // ---------------------------------------------------------------- refund
 
 export async function recordRefundAction(formData: FormData) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("returns");
   const businessId = user.legal_business_id;
   const text = (name: string) => String(formData.get(name) ?? "").trim();
 
@@ -350,7 +350,7 @@ export async function recordRefundAction(formData: FormData) {
 // ---------------------------------------------------------------- damage
 
 export async function recordStockDamageAction(formData: FormData) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("returns");
   const businessId = user.legal_business_id;
   const text = (name: string) => String(formData.get(name) ?? "").trim();
 

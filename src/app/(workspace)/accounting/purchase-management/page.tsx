@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import {
   createPurchasePaymentDraftAction,
 } from "@/lib/purchase-payment-actions";
@@ -114,7 +114,7 @@ const messages: Record<string, string> = {
 async function PurchaseManagementContent({
   searchParams,
 }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("purchases");
   const businessId = user.legal_business_id;
   const query = await searchParams;
 

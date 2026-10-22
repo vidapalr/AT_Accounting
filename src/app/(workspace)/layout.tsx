@@ -14,7 +14,8 @@ import {
 
 
 
-import { requireGroupOwner } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
+import { canOpenPath, ROLE_LABELS } from "@/lib/access";
 import styles from "./workspace.module.css";
 
 const navigation = [
@@ -57,6 +58,12 @@ const navigation = [
       {
         label: "Investors & Lenders",
         href: "/funding",
+        icon: Users,
+        enabled: true,
+      },
+      {
+        label: "Users & Access",
+        href: "/users",
         icon: Users,
         enabled: true,
       },
@@ -293,7 +300,23 @@ async function WorkspaceContent({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await requireGroupOwner();
+  const user = await requireUser();
+
+  const visibleNavigation = navigation
+    .map((item) => {
+      if ("children" in item && item.children) {
+        return {
+          ...item,
+          children: item.children.filter((child) => canOpenPath(user.role, child.href)),
+        };
+      }
+      return item;
+    })
+    .filter((item) =>
+      "children" in item && item.children
+        ? item.children.length > 0
+        : canOpenPath(user.role, item.href)
+    );
 
   return (
     <div className={styles.workspace}>
@@ -307,7 +330,7 @@ async function WorkspaceContent({
         </div>
 
         <nav className={styles.navigation}>
-          {navigation.map((item) => {
+          {visibleNavigation.map((item) => {
             const Icon = item.icon;
 
             if (!item.enabled) {
@@ -378,7 +401,7 @@ async function WorkspaceContent({
           </div>
 
           <div className={styles.userArea}>
-            <span>{user.full_name}</span>
+            <span>{user.full_name} · {ROLE_LABELS[user.role] ?? user.role}</span>
             <form action="/api/auth/logout" method="POST">
               <button type="submit">Logout</button>
             </form>

@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import {
   createSalesReturnAction,
   recordRefundAction,
@@ -25,7 +25,7 @@ const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px soli
 const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
 
 async function ReturnsContent({ searchParams }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("returns");
   const businessId = user.legal_business_id;
   const query = await searchParams;
   const saleId = Number(query.sale);

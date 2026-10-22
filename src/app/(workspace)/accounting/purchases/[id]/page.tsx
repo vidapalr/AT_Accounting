@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import {
   postGoodsReceiptAction,
 } from "@/lib/goods-receipt-actions";
@@ -85,7 +85,7 @@ async function PurchaseDetailContent({
   params,
   searchParams,
 }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("purchases");
   const { id } = await params;
   const query = await searchParams;
 

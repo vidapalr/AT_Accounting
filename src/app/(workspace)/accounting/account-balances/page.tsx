@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import { expenseAccountKey, expensePaymentPaise } from "@/lib/expense-money-flow";
 
 type Props = {
@@ -108,7 +108,7 @@ const cell: React.CSSProperties = {
 async function AccountBalancesContent({
   searchParams,
 }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("reports");
   const businessId = user.legal_business_id;
   const { account: selected = "" } = await searchParams;
 

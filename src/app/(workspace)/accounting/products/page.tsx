@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import {
   createProductAction,
   createProductVariantAction,
@@ -92,7 +92,7 @@ const gridStyle: React.CSSProperties = {
 async function ProductMasterContent({
   searchParams,
 }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("products");
   const query = await searchParams;
   const businessId = user.legal_business_id;
 

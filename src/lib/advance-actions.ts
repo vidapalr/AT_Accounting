@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 const PAGE = "/accounting/advances-deposits";
 
@@ -64,7 +64,7 @@ function redirectResult(code: string): never {
 export async function createAdvanceAction(
   form: FormData
 ): Promise<void> {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("expenses");
   const businessId = user.legal_business_id;
 
   const allocation = String(

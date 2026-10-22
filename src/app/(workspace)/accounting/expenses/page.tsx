@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import { createExpenseAction } from "@/lib/expense-actions";
 import ExpenseAllocationFields
   from "@/components/accounting/ExpenseAllocationFields";
@@ -67,7 +67,7 @@ const cell: React.CSSProperties = {
 };
 
 async function ExpensesContent({ searchParams }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("expenses");
   const businessId = user.legal_business_id;
   const { result, id } = await searchParams;
 

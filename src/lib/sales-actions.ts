@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 const PAGE = "/accounting/sales";
 const DIVISION_ID = 1;
@@ -77,7 +77,7 @@ function errorRedirect(message: string): never {
 export async function createSaleAction(
   form: FormData
 ): Promise<void> {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("sales");
   const businessId = user.legal_business_id;
 
   const branchId = Number(form.get("branch_id"));
@@ -685,7 +685,7 @@ export async function createSaleAction(
 export async function updateSaleAction(
   form: FormData
 ): Promise<void> {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("sales");
   const businessId = user.legal_business_id;
   const saleId = Number(form.get("sale_id"));
   const branchId = Number(form.get("branch_id"));
