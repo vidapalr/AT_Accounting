@@ -34,10 +34,10 @@ async function Catalogue({ searchParams }: Props) {
               WHERE v.product_id = p.id AND sm.legal_business_id = p.legal_business_id) AS in_stock
        FROM acct_products p
       WHERE p.legal_business_id = ? AND p.division_id = ? AND p.status = 'ACTIVE'
-        AND (? = '%%' OR p.product_name LIKE ? OR p.product_code LIKE ?)
+        AND (p.product_name LIKE ? OR p.product_code LIKE ?)
       ORDER BY p.product_name
       LIMIT 400`,
-    [user.legal_business_id, divisionId, like, like, like]
+    [user.legal_business_id, divisionId, like, like]
   );
 
   const all = rows.map(r => ({

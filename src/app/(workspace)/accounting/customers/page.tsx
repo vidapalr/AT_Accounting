@@ -59,11 +59,11 @@ async function CustomerList({ searchParams }: Props) {
          ON h.legal_business_id = c.legal_business_id
         AND h.customer_id = c.id AND h.status = 'POSTED'
       WHERE c.legal_business_id = ? AND c.status = 'ACTIVE'
-        AND (? = '%%' OR c.full_name LIKE ? OR c.phone LIKE ? OR c.customer_code LIKE ?)
+        AND (c.full_name LIKE ? OR c.phone LIKE ? OR c.customer_code LIKE ?)
       GROUP BY c.id
       ORDER BY MAX(h.invoice_date) IS NULL, MAX(h.invoice_date) DESC, c.id DESC
       LIMIT 500`,
-    [businessId, like, like, like, like]
+    [businessId, like, like, like]
   );
 
   const customers = rows.map(r => ({
