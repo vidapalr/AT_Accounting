@@ -27,3 +27,17 @@ Read `docs/ROADMAP.md` for goals, phases and the page audit. Read `AGENTS.md` be
 - Customers buy both on credit and paid. Wholesale/GST is future: keep fields ready, do not switch it on yet.
 - Reports to staff and investors go by WhatsApp tap-to-send (free). Automatic paid WhatsApp API is optional and not wanted for now.
 - Future goals: ecommerce site, Instagram auto-posts with videos, one-click new-stock share to customers, employees updating stock through WhatsApp (as drafts to approve), many divisions and branches.
+
+## Branches and going live (owner's instruction, 23 Oct 2026)
+
+- All work is done on `feat/ledger-dry-run`. Hosting deploys from `main`, so merging to `main` is going live.
+- Only go live when the owner says so. Before that, remind him to run every pending file in `migrations/` in phpMyAdmin (see ROADMAP section 7).
+- When he asks to push to main, give him exactly this (PowerShell):
+  1. `cd E:\Projects\abhiram-accounting`
+  2. `git checkout feat/ledger-dry-run` then `git pull` (make sure nothing is left uncommitted)
+  3. `git checkout main` then `git pull`
+  4. `git merge feat/ledger-dry-run`
+  5. `git push origin main` (the site rebuilds automatically)
+  6. `git checkout feat/ledger-dry-run` (go back to the working branch)
+  Then open the live site and check Dashboard, Reports and one invoice. To undo: `git revert -m 1 HEAD` then `git push origin main`.
+- Always list the pending migrations at that moment together with these commands.
