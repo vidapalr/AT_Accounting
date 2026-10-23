@@ -104,7 +104,7 @@ The hosting service builds and publishes whenever the connected branch changes, 
 4. Open the site, sign in, and check Dashboard, Reports and one invoice.
 5. Roll back by reverting the merge if needed; migrations only add things, so they do not need undoing.
 
-Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products; 010 customers; 011 catalogue photos and new-stock events; 012 customer message log; 013 staff stock reports (WhatsApp); 014 online shop switch per product; 015 Instagram post history.
+Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products; 010 customers; 011 catalogue photos and new-stock events; 012 customer message log; 013 staff stock reports (WhatsApp); 014 online shop switch per product; 015 Instagram post history; 016 shop price per size/colour.
 
 ## 8. Known open items
 
@@ -138,3 +138,5 @@ IDs given by owner: Instagram User ID 1429287470264568, Meta Business ID 1107115
 Shop links: home page has a "Shop online" button; the new-stock WhatsApp message adds the shop link (single product or /shop) when SHOP_PUBLIC_URL is set and the product is switched on.
 
 Bulk shop switches on the Catalogue page: show all in-stock products, show every active product, hide everything (with confirmation); "On the shop now" count and a no-photo warning.
+
+Shop prices page (/accounting/catalogue/prices): set the selling price per size/colour for all shop products in one save. Overrides the stock-transfer price on /shop and in the Meta feed (migration 016).

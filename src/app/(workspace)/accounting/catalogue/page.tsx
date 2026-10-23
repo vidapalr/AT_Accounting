@@ -65,7 +65,8 @@ async function Catalogue({ searchParams }: Props) {
       <h1>Catalogue</h1>
       <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, margin: "12px 0" }}>
         <strong>Online shop</strong>{" "}
-        <Link className="btn-link" href="/shop" target="_blank">View shop</Link>
+        <Link className="btn-link" href="/shop" target="_blank">View shop</Link>{" "}
+        <Link className="btn-link btn-link-primary" href="/accounting/catalogue/prices">Set shop prices</Link>
         <p style={{ color: "#64748b", margin: "6px 0" }}>
           Customers see only products you switch on (open a product, then “Show on online shop”). Orders arrive on this WhatsApp number.
         </p>

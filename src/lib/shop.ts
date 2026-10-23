@@ -75,7 +75,7 @@ async function load(where: string, params: (string | number)[]): Promise<ShopPro
   if (prods.length === 0) return [];
   const ids = prods.map(p => Number(p.id));
   const [vars] = await db.query<RowDataPacket[]>(
-    `SELECT id, product_id, sku, size_label, color_name FROM acct_product_variants
+    `SELECT id, product_id, sku, size_label, color_name, shop_price FROM acct_product_variants
       WHERE legal_business_id = ? AND status = 'ACTIVE' AND product_id IN (?) ORDER BY id`,
     [SHOP_BUSINESS_ID, ids]
   );
@@ -90,7 +90,7 @@ async function load(where: string, params: (string | number)[]): Promise<ShopPro
         sku: String(v.sku),
         size: v.size_label ? String(v.size_label) : null,
         color: v.color_name ? String(v.color_name) : null,
-        price: prices.get(Number(v.id)) ?? null,
+        price: v.shop_price !== null && Number(v.shop_price) > 0 ? Number(v.shop_price) : (prices.get(Number(v.id)) ?? null),
         available: stocked.has(Number(v.id)),
       }));
     const priced = variants.map(v => v.price).filter((x): x is number => x !== null);

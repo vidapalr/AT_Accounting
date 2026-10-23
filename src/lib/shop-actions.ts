@@ -69,3 +69,42 @@ export async function bulkShopAction(formData: FormData) {
   revalidatePath("/shop");
   redirect(`/accounting/catalogue?shop=bulk&n=${changed}&m=${mode}`);
 }
+
+/** Save the shop price of many sizes/colours in one go. A blank box clears the price. */
+export async function saveShopPricesAction(formData: FormData) {
+  const user = await requireAccess("products");
+  const businessId = user.legal_business_id;
+  const updates: Array<[string | null, number]> = [];
+
+  for (const [key, raw] of formData.entries()) {
+    const m = /^price_(\d+)$/.exec(key);
+    if (!m) continue;
+    const text = String(raw).trim().replace(/,/g, "");
+    if (text === "") {
+      updates.push([null, Number(m[1])]);
+    } else if (/^\d{1,9}(\.\d{1,2})?$/.test(text) && Number(text) > 0) {
+      updates.push([text, Number(m[1])]);
+    } else {
+      redirect("/accounting/catalogue/prices?result=invalid");
+    }
+  }
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    for (const [price, id] of updates) {
+      await conn.execute(
+        `UPDATE acct_product_variants SET shop_price = ? WHERE id = ? AND legal_business_id = ?`,
+        [price, id, businessId]
+      );
+    }
+    await conn.commit();
+  } catch {
+    await conn.rollback();
+    redirect("/accounting/catalogue/prices?result=failed");
+  } finally {
+    conn.release();
+  }
+  revalidatePath("/shop");
+  redirect("/accounting/catalogue/prices?result=saved");
+}
