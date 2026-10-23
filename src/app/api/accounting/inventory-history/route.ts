@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { unstable_rethrow } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await requireGroupOwner();
+    const user = await requireAccess("stock");
     const legalBusinessId = user.legal_business_id;
     const params = request.nextUrl.searchParams;
     const locationId = Number(params.get("locationId"));
@@ -15,19 +15,21 @@ export async function GET(request: NextRequest) {
     const scope = params.get("scope");
 
     if (![locationId, variantId, page].every(n => Number.isSafeInteger(n) && n > 0) ||
-        page > 10000 || !["CENTRAL", "BRANCH"].includes(scope ?? "")) {
+        page > 10000 || !["CENTRAL", "BRANCH", "ALL"].includes(scope ?? "")) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
-    const locationRule = scope === "CENTRAL"
-      ? "l.location_type IN ('CENTRAL_WAREHOUSE', 'WAREHOUSE') AND l.branch_id IS NULL"
-      : "l.branch_id IS NOT NULL";
+    const locationRule = scope === "ALL"
+      ? "1 = 1"
+      : scope === "CENTRAL"
+        ? "l.location_type IN ('CENTRAL_WAREHOUSE', 'WAREHOUSE') AND l.branch_id IS NULL"
+        : "l.branch_id IS NOT NULL";
 
     const [valid] = await db.execute<RowDataPacket[]>(
       `SELECT l.id FROM acct_inventory_locations l
        JOIN acct_product_variants v ON v.legal_business_id = l.legal_business_id
          AND v.division_id = l.division_id AND v.id = ?
-       WHERE l.legal_business_id = ? AND l.division_id = 1 AND l.id = ? AND ${locationRule}
+       WHERE l.legal_business_id = ? AND l.id = ? AND ${locationRule}
        LIMIT 1`, [variantId, legalBusinessId, locationId],
     );
     if (valid.length !== 1) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -43,7 +45,7 @@ export async function GET(request: NextRequest) {
     const dateSql = dateCol ? `DATE_FORMAT(m.${dateCol}, '%Y-%m-%d %H:%i')` : "NULL";
     const [countRows] = await db.execute<RowDataPacket[]>(
       `SELECT COUNT(*) AS total FROM acct_stock_movements
-       WHERE legal_business_id = ? AND division_id = 1 AND location_id = ? AND variant_id = ?`,
+       WHERE legal_business_id = ? AND location_id = ? AND variant_id = ?`,
       [legalBusinessId, locationId, variantId],
     );
     const total = Number(countRows[0]?.total ?? 0);
@@ -53,7 +55,7 @@ export async function GET(request: NextRequest) {
       `SELECT m.id, m.movement_type, m.quantity_change, m.source_type,
               m.source_id, m.source_line_id, ${dateSql} AS event_date
        FROM acct_stock_movements m
-       WHERE m.legal_business_id = ? AND m.division_id = 1
+       WHERE m.legal_business_id = ?
          AND m.location_id = ? AND m.variant_id = ?
        ORDER BY m.id DESC LIMIT ? OFFSET ?`,
       [legalBusinessId, locationId, variantId, limit, offset],

@@ -182,7 +182,7 @@ async function ExpensesContent({ searchParams }: Props) {
       margin: "0 auto",
       padding: 24,
     }}>
-      <h1>Abhiram Textiles — Expenses</h1>
+      <h1>Expenses</h1>
 
       <nav style={{
         display: "flex",

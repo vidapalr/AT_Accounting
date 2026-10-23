@@ -223,7 +223,7 @@ async function ProductProfitabilityContent() {
       <h1>Product Profitability & Stock Report</h1>
 
       <p>
-        Abhiram Textiles — product-wise sales,
+        Product-wise sales,
         purchase costs, gross margins and
         remaining inventory.
       </p>
@@ -237,11 +237,8 @@ async function ProductProfitabilityContent() {
         <Link href="/accounting/invoices">
           Invoices
         </Link>
-        <Link href="/accounting/warehouse-inventory">
-          Central Warehouse
-        </Link>
-        <Link href="/accounting/branch-inventory">
-          Branch Inventory
+        <Link href="/accounting/stock">
+          Stock on hand
         </Link>
       </nav>
 

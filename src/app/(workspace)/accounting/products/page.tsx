@@ -185,7 +185,7 @@ async function ProductMasterContent({
         ← Product Categories
       </Link>
 
-      <h1>Abhiram Textiles — Product Master</h1>
+      <h1>Products</h1>
 
       <p>
         Register products and sellable SKUs shared

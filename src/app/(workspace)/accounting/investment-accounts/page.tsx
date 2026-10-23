@@ -191,7 +191,7 @@ async function InvestmentAccountsContent() {
       <h1>Investment Account Balances</h1>
 
       <p>
-        Abhiram Textiles — verified funding contributions,
+        Verified funding contributions,
         principal repayments and outstanding balances.
       </p>
 

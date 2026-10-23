@@ -675,7 +675,7 @@ export async function createSaleAction(
 
   if (result === "created") {
     revalidatePath(PAGE);
-    revalidatePath("/accounting/branch-inventory");
+    revalidatePath("/accounting/stock");
     redirect(`${PAGE}?result=created&id=${createdId}`);
   }
 
@@ -1267,7 +1267,7 @@ export async function updateSaleAction(
 
   if (result === "updated") {
     revalidatePath(PAGE);
-    revalidatePath("/accounting/branch-inventory");
+    revalidatePath("/accounting/stock");
     redirect(`${PAGE}?result=updated&id=${saleId}`);
   }
 

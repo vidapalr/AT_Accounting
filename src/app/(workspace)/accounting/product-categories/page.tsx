@@ -103,7 +103,7 @@ async function CategoryContent({ searchParams }: Props) {
         ← Accounting Dashboard
       </Link>
 
-      <h1>Abhiram Textiles — Product Categories</h1>
+      <h1>Product Groups</h1>
 
       <p>
         Manage categories for the Abhiram Textiles

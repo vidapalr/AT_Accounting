@@ -389,7 +389,7 @@ async function AccountBalancesContent({
       <h1>Account Balances & Money Flow</h1>
 
       <p>
-        Abhiram Textiles — recorded sales collections
+        Recorded sales collections
         verified supplier payments and recorded expense payments
         by account. Includes Textiles expenses and Group overheads.
       </p>

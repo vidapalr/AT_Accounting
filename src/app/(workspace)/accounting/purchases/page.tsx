@@ -255,7 +255,7 @@ async function PurchaseContent({ searchParams }: Props) {
       </Link>
 
       <header className={styles.pageHeader}>
-        <h1>Abhiram Textiles — Purchase Entry</h1>
+        <h1>Buy Stock (Purchases)</h1>
         <p>
           Record supplier invoices and product quantities.
           Saved drafts do not increase stock; stock changes

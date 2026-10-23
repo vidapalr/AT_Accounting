@@ -170,12 +170,8 @@ async function InvoiceList() {
           + New Invoice
         </Link>
 
-        <Link href="/accounting/branch-inventory">
-          Branch Inventory
-        </Link>
-
-        <Link href="/accounting/stock-transfers">
-          Stock Transfers
+        <Link href="/accounting/returns">
+          Customer returns
         </Link>
       </nav>
 

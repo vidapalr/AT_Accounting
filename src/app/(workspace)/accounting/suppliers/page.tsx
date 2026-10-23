@@ -98,7 +98,7 @@ async function SupplierContent({ searchParams }: Props) {
         ← Product Master
       </Link>
 
-      <h1>Abhiram Textiles — Supplier Master</h1>
+      <h1>Suppliers</h1>
 
       <p>
         Manage direct weavers, manufacturers, wholesalers

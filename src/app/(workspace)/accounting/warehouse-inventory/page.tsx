@@ -1,30 +1,6 @@
-import { Suspense } from "react";
-import LocationInventoryReport
-  from "@/components/accounting/LocationInventoryReport";
+import { redirect } from "next/navigation";
 
-type Props = {
-  searchParams: Promise<{
-    q?: string;
-    location?: string;
-    availability?: string;
-  }>;
-};
-
-async function Content({ searchParams }: Props) {
-  const filters = await searchParams;
-
-  return (
-    <LocationInventoryReport
-      scope="CENTRAL"
-      filters={filters}
-    />
-  );
-}
-
-export default function WarehouseInventoryPage(props: Props) {
-  return (
-    <Suspense fallback={<p>Loading warehouse inventory...</p>}>
-      <Content {...props} />
-    </Suspense>
-  );
+/** The old warehouse and shop stock pages are now one page: Stock on Hand. */
+export default function Redirect() {
+  redirect("/accounting/stock");
 }

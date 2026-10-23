@@ -355,7 +355,7 @@ async function SalesContent({ searchParams }: Props) {
       maxWidth: 1300,
       margin: "0 auto",
     }}>
-      <h1>Abhiram Textiles — Sales & Invoice</h1>
+      <h1>Sales and Billing</h1>
 
       <nav style={{
         display: "flex",
@@ -363,11 +363,11 @@ async function SalesContent({ searchParams }: Props) {
         marginBottom: 22,
         flexWrap: "wrap",
       }}>
-        <a href="/accounting/branch-inventory">
-          Branch Inventory
+        <a href="/accounting/invoices">
+          See all invoices
         </a>
-        <a href="/accounting/stock-transfers">
-          Stock Transfers
+        <a href="/accounting/returns">
+          Customer returns
         </a>
       </nav>
 

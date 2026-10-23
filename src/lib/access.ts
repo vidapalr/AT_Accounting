@@ -40,7 +40,8 @@ export type Feature =
   | "returns"
   | "purchases"
   | "products"
-  | "expenses";
+  | "expenses"
+  | "stock";
 
 const FEATURE_ROLES: Record<Feature, Role[]> = {
   dashboard: ["GROUP_OWNER", "ACCOUNTANT"],
@@ -50,6 +51,7 @@ const FEATURE_ROLES: Record<Feature, Role[]> = {
   purchases: ["GROUP_OWNER", "ACCOUNTANT"],
   products: ["GROUP_OWNER", "ACCOUNTANT"],
   expenses: ["GROUP_OWNER", "ACCOUNTANT"],
+  stock: ["GROUP_OWNER", "ACCOUNTANT"],
 };
 
 export function canAccess(role: string, feature: Feature): boolean {
@@ -72,6 +74,9 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/suppliers", "purchases"],
   ["/accounting/products", "products"],
   ["/accounting/product-categories", "products"],
+  ["/accounting/stock", "stock"],
+  ["/accounting/warehouse-inventory", "stock"],
+  ["/accounting/branch-inventory", "stock"],
   ["/accounting/expenses", "expenses"],
   ["/accounting/advances-deposits", "expenses"],
 ];
