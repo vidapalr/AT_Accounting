@@ -6,6 +6,7 @@ import {
   createDivisionAction,
   updateDivisionAction,
 } from "@/lib/division-actions";
+import DivisionChecklist from "@/components/DivisionChecklist";
 import styles from "../masters.module.css";
 
 type PageProps = {
@@ -224,6 +225,7 @@ async function DivisionsContent({
           </table>
         </div>
       </section>
+      <DivisionChecklist businessId={user.legal_business_id} />
     </div>
   );
 }

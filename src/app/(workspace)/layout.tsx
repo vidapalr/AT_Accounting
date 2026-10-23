@@ -3,6 +3,8 @@ import { requireUser } from "@/lib/auth";
 import { canOpenPath, ROLE_LABELS } from "@/lib/access";
 import { NAVIGATION } from "@/lib/navigation";
 import SidebarNav from "@/components/SidebarNav";
+import DivisionSwitcher from "@/components/DivisionSwitcher";
+import { getActiveDivisionId, listDivisions } from "@/lib/division-context";
 import MobileMenu from "@/components/MobileMenu";
 import BrandLogo from "@/components/BrandLogo";
 import styles from "./workspace.module.css";
@@ -25,6 +27,9 @@ async function WorkspaceContent({
   children: React.ReactNode;
 }) {
   const user = await requireUser();
+
+  const divisions = await listDivisions(user.legal_business_id);
+  const activeDivisionId = divisions.length > 1 ? await getActiveDivisionId(user) : (divisions[0]?.id ?? 0);
 
   const sections = NAVIGATION
     .map((section) => ({
@@ -57,6 +62,9 @@ async function WorkspaceContent({
           </div>
 
           <div className={styles.userArea}>
+            {divisions.length > 1 && (
+              <DivisionSwitcher divisions={divisions} activeId={activeDivisionId} />
+            )}
             <span>{user.full_name} · {ROLE_LABELS[user.role] ?? user.role}</span>
             <form action="/api/auth/logout" method="POST">
               <button type="submit">Logout</button>

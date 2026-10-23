@@ -9,6 +9,7 @@ import PurchaseDraftForm, {
   type PurchaseDraft,
 } from "./PurchaseDraftForm";
 import styles from "./purchases.module.css";
+import { getActiveDivisionId } from "@/lib/division-context";
 
 type Props = {
   searchParams: Promise<{
@@ -65,7 +66,6 @@ interface EditLine extends RowDataPacket {
   unit_cost: string;
 }
 
-const DIVISION_ID = 1;
 
 const messages: Record<string, string> = {
   created: "Purchase draft saved successfully.",
@@ -84,6 +84,7 @@ const messages: Record<string, string> = {
 
 async function PurchaseContent({ searchParams }: Props) {
   const user = await requireAccess("purchases");
+  const DIVISION_ID = await getActiveDivisionId(user);
   const query = await searchParams;
   const businessId = user.legal_business_id;
 

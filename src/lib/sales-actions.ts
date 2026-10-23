@@ -7,10 +7,10 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { findOrCreateCustomer, customerDuesPaise } from "@/lib/customers";
 import { normalizePhone } from "@/lib/customer-phone";
 import { db } from "@/lib/db";
+import { divisionOfBranch } from "@/lib/division-context";
 import { requireAccess } from "@/lib/auth";
 
 const PAGE = "/accounting/sales";
-const DIVISION_ID = 1;
 
 type SaleLineInput = {
   variantId: number;
@@ -105,6 +105,9 @@ export async function createSaleAction(
   if (customerPhone !== "" && phone10 === null) {
     errorRedirect("invalid-phone");
   }
+
+  const DIVISION_ID = await divisionOfBranch(businessId, branchId);
+  if (DIVISION_ID === null) errorRedirect("invalid-branch");
 
   let lines: SaleLineInput[];
   let payments: PaymentInput[];
@@ -750,6 +753,9 @@ export async function updateSaleAction(
   if (customerPhone !== "" && phone10 === null) {
     redirect(`${PAGE}?result=invalid-phone`);
   }
+
+  const DIVISION_ID = await divisionOfBranch(businessId, branchId);
+  if (DIVISION_ID === null) redirect(`${PAGE}?result=invalid-branch`);
 
   let lines: SaleLineInput[];
   let preparedLines: Array<{

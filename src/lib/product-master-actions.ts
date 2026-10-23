@@ -8,9 +8,9 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { nextCode, nextBarcode } from "@/lib/codes";
 import { requireAccess } from "@/lib/auth";
+import { getActiveDivisionId } from "@/lib/division-context";
 
 const PAGE = "/accounting/products";
-const DIVISION_ID = 1;
 
 function field(form: FormData, key: string): string {
   const value = form.get(key);
@@ -35,6 +35,7 @@ export async function createProductAction(
   form: FormData
 ): Promise<void> {
   const user = await requireAccess("products");
+  const DIVISION_ID = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
 
   const categoryId = id(field(form, "category_id"));
@@ -165,6 +166,7 @@ export async function createProductVariantAction(
   form: FormData
 ): Promise<void> {
   const user = await requireAccess("products");
+  const DIVISION_ID = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
 
   const productId = id(field(form, "product_id"));

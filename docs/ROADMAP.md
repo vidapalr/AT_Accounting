@@ -43,7 +43,7 @@ Decisions given: customers buy both on credit and paid; wholesale GST invoices a
 
 **Phase 1 – Customers (CRM core).** Customer master (phone is the key; retail/wholesale; address; optional GSTIN; credit limit). Credit and paid sales both supported; dues, receipts against old invoices, statement per customer, repeat-customer tracking (visits, spend, last purchase), customer ledger feeding the ledger. Quick-add while billing; existing invoices imported and de-duplicated.
 
-**Phase 2 – Multi-division readiness.** User scope by division and branch; division-aware pages and settings; new division/branch checklist (locations, price lists, accounts) so opening one is a form, not a code change.
+**Phase 2 – Multi-division readiness (started 23 Oct: active-division picker, sales take the division from the branch, readiness checklist; still to do: per-user division/branch scope, division manager role).** User scope by division and branch; division-aware pages and settings; new division/branch checklist (locations, price lists, accounts) so opening one is a form, not a code change.
 
 **Phase 3 – Catalogue and media.** Product photos and short videos stored once against the product; "new stock" event created when a purchase is received; public catalogue feed that other channels read.
 

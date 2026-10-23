@@ -7,9 +7,9 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
+import { getActiveDivisionId } from "@/lib/division-context";
 
 const BUSINESS_AGREEMENT_ID = 2;
-const DIVISION_ID = 1;
 const OLD_BRANCH_ID = 1;
 const RETURN_URL = "/accounting/investor-scope-amendment";
 
@@ -34,6 +34,7 @@ export async function createDivisionScopeAmendmentAction(
   form: FormData
 ): Promise<void> {
   const user = await requireGroupOwner();
+  const DIVISION_ID = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
 
   const rawDate = form.get("effective_from");

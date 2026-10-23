@@ -9,6 +9,7 @@ import {
   createProductAction,
   createProductVariantAction,
 } from "@/lib/product-master-actions";
+import { getActiveDivisionId } from "@/lib/division-context";
 
 type Props = {
   searchParams: Promise<{ result?: string }>;
@@ -46,7 +47,6 @@ interface Variant extends RowDataPacket {
   status: string;
 }
 
-const DIVISION_ID = 1;
 
 const messages: Record<string, string> = {
   "product-created": "Product created successfully.",
@@ -93,6 +93,7 @@ async function ProductMasterContent({
   searchParams,
 }: Props) {
   const user = await requireAccess("products");
+  const DIVISION_ID = await getActiveDivisionId(user);
   const query = await searchParams;
   const businessId = user.legal_business_id;
 

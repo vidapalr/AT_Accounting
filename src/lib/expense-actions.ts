@@ -5,9 +5,9 @@ import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { getActiveDivisionId } from "@/lib/division-context";
 
 const PAGE = "/accounting/expenses";
-const TEXTILES_DIVISION_ID = 1;
 
 const CATEGORIES = new Set([
   "RENT", "ELECTRICITY", "TRANSPORT", "PACKING",
@@ -50,6 +50,7 @@ export async function createExpenseAction(
   form: FormData
 ): Promise<void> {
   const user = await requireAccess("expenses");
+  const TEXTILES_DIVISION_ID = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
 
   const level = String(form.get("allocation_level") ?? "");

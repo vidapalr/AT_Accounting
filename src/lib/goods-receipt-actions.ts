@@ -7,9 +7,9 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { getActiveDivisionId } from "@/lib/division-context";
 
 const LIST_PAGE = "/accounting/purchases";
-const DIVISION_ID = 1;
 
 const MAX_MONEY = 999999999999999999n;
 
@@ -84,6 +84,7 @@ export async function postGoodsReceiptAction(
   form: FormData
 ): Promise<void> {
   const user = await requireAccess("purchases");
+  const DIVISION_ID = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
 
   const purchaseId = positiveId(form.get("purchase_id"));
