@@ -6,20 +6,21 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { getActiveDivisionId } from "@/lib/division-context";
 import { getShopSettings } from "@/lib/shop";
-import { saveShopWhatsappAction } from "@/lib/shop-actions";
+import { bulkShopAction, saveShopWhatsappAction } from "@/lib/shop-actions";
+import ConfirmButton from "@/components/ConfirmButton";
 
-type Props = { searchParams: Promise<{ q?: string; view?: string; shop?: string }> };
+type Props = { searchParams: Promise<{ q?: string; view?: string; shop?: string; n?: string; m?: string }> };
 
 async function Catalogue({ searchParams }: Props) {
   const user = await requireAccess("products");
   const divisionId = await getActiveDivisionId(user);
-  const { q = "", view = "all", shop } = await searchParams;
+  const { q = "", view = "all", shop, n, m } = await searchParams;
   const shopSettings = await getShopSettings(user.legal_business_id);
   const search = q.trim().slice(0, 60);
   const like = `%${search.replace(/[%_\\]/g, "")}%`;
 
   const [rows] = await db.execute<RowDataPacket[]>(
-    `SELECT p.id, p.product_code, p.product_name, p.fabric,
+    `SELECT p.id, p.product_code, p.product_name, p.fabric, p.show_in_shop,
             (SELECT m.id FROM acct_product_media m
               WHERE m.legal_business_id = p.legal_business_id AND m.product_id = p.id
                 AND m.status = 'ACTIVE' AND m.media_type = 'IMAGE'
@@ -52,9 +53,12 @@ async function Catalogue({ searchParams }: Props) {
     photos: Number(r.photos),
     videos: Number(r.videos),
     inStock: Number(r.in_stock),
+    inShop: Number(r.show_in_shop) === 1,
   }));
   const products = view === "missing" ? all.filter(p => p.photos === 0) : all;
   const missing = all.filter(p => p.photos === 0).length;
+  const onShop = all.filter(p => p.inShop).length;
+  const onShopNoPhoto = all.filter(p => p.inShop && p.photos === 0).length;
 
   return (
     <div style={{ maxWidth: 1200 }}>
@@ -65,6 +69,29 @@ async function Catalogue({ searchParams }: Props) {
         <p style={{ color: "#64748b", margin: "6px 0" }}>
           Customers see only products you switch on (open a product, then “Show on online shop”). Orders arrive on this WhatsApp number.
         </p>
+        <p style={{ margin: "6px 0" }}>
+          On the shop now: <strong>{onShop}</strong> of {all.length} products.
+          {onShopNoPhoto > 0 && (
+            <span style={{ color: "#b45309" }}> {onShopNoPhoto} of them have no photo yet. Add photos so they look good and can reach Instagram and WhatsApp.</span>
+          )}
+        </p>
+        {shop === "bulk" && (
+          <p role="status" style={{ color: "#166534" }}>
+            {m === "HIDE_ALL" ? `${n} product(s) hidden from the shop.` : `${n} product(s) added to the shop.`}
+          </p>
+        )}
+        <form action={bulkShopAction} style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "8px 0" }}>
+          <input type="hidden" name="mode" value="SHOW_IN_STOCK" />
+          <ConfirmButton label="Show all products that are in stock" question="Add every product that has stock to the online shop?" className="btn-link btn-link-primary" />
+        </form>
+        <form action={bulkShopAction} style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "8px 0" }}>
+          <input type="hidden" name="mode" value="SHOW_ALL" />
+          <ConfirmButton label="Show every active product" question="Add every active product, even those with no stock, to the online shop?" />
+        </form>
+        <form action={bulkShopAction} style={{ margin: "8px 0" }}>
+          <input type="hidden" name="mode" value="HIDE_ALL" />
+          <ConfirmButton label="Hide everything from the shop" question="Remove all products from the online shop? Customers will see an empty shop." />
+        </form>
         {shop === "saved" && <p role="status" style={{ color: "#166534" }}>Saved.</p>}
         {shop === "invalid" && <p role="alert" style={{ color: "#b91c1c" }}>Please enter a 10 digit mobile number.</p>}
         <form action={saveShopWhatsappAction} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -127,6 +154,7 @@ async function Catalogue({ searchParams }: Props) {
             <div style={{ padding: 12 }}>
               <strong>{p.name}</strong>
               <div style={{ color: "#64748b", fontSize: 13 }}>{p.code}{p.fabric ? ` · ${p.fabric}` : ""}</div>
+              {p.inShop && <div style={{ fontSize: 12, color: "#166534", marginTop: 4 }}>✔ On the online shop</div>}
               <div style={{ marginTop: 6, fontSize: 13 }}>
                 In stock: <strong>{p.inStock}</strong> · {p.photos} photo{p.photos === 1 ? "" : "s"} · {p.videos} video{p.videos === 1 ? "" : "s"}
               </div>
