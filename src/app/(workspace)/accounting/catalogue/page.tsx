@@ -5,13 +5,16 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { getActiveDivisionId } from "@/lib/division-context";
+import { getShopSettings } from "@/lib/shop";
+import { saveShopWhatsappAction } from "@/lib/shop-actions";
 
-type Props = { searchParams: Promise<{ q?: string; view?: string }> };
+type Props = { searchParams: Promise<{ q?: string; view?: string; shop?: string }> };
 
 async function Catalogue({ searchParams }: Props) {
   const user = await requireAccess("products");
   const divisionId = await getActiveDivisionId(user);
-  const { q = "", view = "all" } = await searchParams;
+  const { q = "", view = "all", shop } = await searchParams;
+  const shopSettings = await getShopSettings(user.legal_business_id);
   const search = q.trim().slice(0, 60);
   const like = `%${search.replace(/[%_\\]/g, "")}%`;
 
@@ -56,6 +59,20 @@ async function Catalogue({ searchParams }: Props) {
   return (
     <div style={{ maxWidth: 1200 }}>
       <h1>Catalogue</h1>
+      <section style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, margin: "12px 0" }}>
+        <strong>Online shop</strong>{" "}
+        <Link className="btn-link" href="/shop" target="_blank">View shop</Link>
+        <p style={{ color: "#64748b", margin: "6px 0" }}>
+          Customers see only products you switch on (open a product, then “Show on online shop”). Orders arrive on this WhatsApp number.
+        </p>
+        {shop === "saved" && <p role="status" style={{ color: "#166534" }}>Saved.</p>}
+        {shop === "invalid" && <p role="alert" style={{ color: "#b91c1c" }}>Please enter a 10 digit mobile number.</p>}
+        <form action={saveShopWhatsappAction} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input name="whatsapp" inputMode="numeric" defaultValue={shopSettings.whatsapp} placeholder="Shop WhatsApp number" required
+            style={{ padding: 10, border: "1px solid #cbd5e1", borderRadius: 8 }} />
+          <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Save number</button>
+        </form>
+      </section>
       <p style={{ color: "#475569" }}>
         Photos and short videos of every product, kept once and used everywhere: messages to customers,
         social posts and the online shop later.

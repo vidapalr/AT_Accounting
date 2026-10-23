@@ -47,7 +47,14 @@ export type PurchaseDraft = {
   }>;
 };
 
+export type Prefill = {
+  locationId: number | null;
+  reportIds: number[];
+  lines: Array<{ variant_id: number; quantity: string }>;
+};
+
 type Props = {
+  prefill?: Prefill;
   suppliers: Supplier[];
   locations: Location[];
   skus: SKU[];
@@ -61,9 +68,10 @@ export default function PurchaseDraftForm({
   locations,
   skus,
   draft,
+  prefill,
 }: Props) {
   const [lineCount, setLineCount] = useState(
-    Math.max(draft?.lines.length ?? 0, 1)
+    Math.max(draft?.lines.length ?? prefill?.lines.length ?? 0, 1)
   );
 
   return (
@@ -75,6 +83,16 @@ export default function PurchaseDraftForm({
       }
       className={styles.purchaseForm}
     >
+      {prefill && (
+        <>
+          <input type="hidden" name="report_ids" value={prefill.reportIds.join(",")} />
+          <p className={styles.muted}>
+            Filled from what your staff reported on WhatsApp. Choose the supplier and
+            enter the cost of each item, then save.
+          </p>
+        </>
+      )}
+
       {draft && (
         <input
           type="hidden"
@@ -121,7 +139,9 @@ export default function PurchaseDraftForm({
             defaultValue={
               draft
                 ? String(draft.location_id)
-                : locations.length === 1
+                : prefill?.locationId
+                  ? String(prefill.locationId)
+                  : locations.length === 1
                   ? String(locations[0].id)
                   : ""
             }
@@ -180,6 +200,7 @@ export default function PurchaseDraftForm({
           <tbody>
             {Array.from({ length: lineCount }, (_, index) => {
               const saved = draft?.lines[index];
+              const pre = prefill?.lines[index];
 
               return (
                 <tr key={index}>
@@ -191,7 +212,7 @@ export default function PurchaseDraftForm({
                     <select
                       name={`line_${index}_variant`}
                       defaultValue={
-                        saved ? String(saved.variant_id) : ""
+                        saved ? String(saved.variant_id) : pre ? String(pre.variant_id) : ""
                       }
                       className={styles.control}
                     >
@@ -220,7 +241,7 @@ export default function PurchaseDraftForm({
                       type="text"
                       inputMode="decimal"
                       placeholder="10"
-                      defaultValue={saved?.quantity ?? ""}
+                      defaultValue={saved?.quantity ?? pre?.quantity ?? ""}
                       className={styles.control}
                     />
                   </td>

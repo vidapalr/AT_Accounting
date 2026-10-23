@@ -13,6 +13,7 @@ type Props = {
     id?: string;
     view?: string;
     edit?: string;
+    from_report?: string;
   }>;
 };
 
@@ -57,7 +58,7 @@ const messages: Record<string, string> = {
 
 async function SalesContent({ searchParams }: Props) {
   const user = await requireAccess("sales");
-  const { result, id, view, edit } = await searchParams;
+  const { result, id, view, edit, from_report } = await searchParams;
   const businessId = user.legal_business_id;
 
   const [branches] = await db.execute<RowDataPacket[]>(
@@ -236,6 +237,35 @@ async function SalesContent({ searchParams }: Props) {
       suggestedPrice: pricing?.suggestedPrice ?? null,
     };
   });
+
+  // A "sold" line a staff member reported on WhatsApp: start the bill from it.
+  let prefill:
+    | { reportId: number; branchId: number | null; lines: Array<{ variantId: number; quantity: string; price: string }> }
+    | undefined;
+  const reportId = Number(from_report);
+  if (Number.isSafeInteger(reportId) && reportId > 0) {
+    const [reports] = await db.execute<RowDataPacket[]>(
+      `SELECT d.id, d.variant_id, d.quantity, d.price, l.branch_id
+         FROM acct_stock_drafts d
+         LEFT JOIN acct_inventory_locations l ON l.id = d.location_id
+        WHERE d.id = ? AND d.legal_business_id = ? AND d.action = 'SOLD'
+          AND d.status IN ('PENDING', 'DONE') AND d.variant_id IS NOT NULL`,
+      [reportId, businessId]
+    );
+    const r = reports[0];
+    if (r) {
+      const branch = Number(r.branch_id);
+      prefill = {
+        reportId: Number(r.id),
+        branchId: branches.some(b => Number(b.id) === branch) ? branch : null,
+        lines: [{
+          variantId: Number(r.variant_id),
+          quantity: String(Number(r.quantity)),
+          price: r.price === null ? "" : String(Number(r.price)),
+        }],
+      };
+    }
+  }
 
   const selectedInvoiceId = Number(edit ?? view);
   const hasSelectedInvoice =
@@ -472,6 +502,7 @@ async function SalesContent({ searchParams }: Props) {
           products={billingProducts}
           paymentAccounts={paymentAccounts}
           today={today}
+          prefill={prefill}
         />
       )}
 

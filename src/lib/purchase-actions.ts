@@ -471,6 +471,25 @@ async function savePurchaseDraft(
                 ]
               );
 
+              if (purchaseId === undefined) {
+                const reportIds = field(form, "report_ids")
+                  .split(",")
+                  .map((v) => positiveId(v.trim()))
+                  .filter((v): v is number => v !== null)
+                  .slice(0, 50);
+                if (reportIds.length > 0) {
+                  await conn.execute(
+                    `UPDATE acct_stock_drafts
+                        SET status = 'DONE', decided_by = ?, decided_at = NOW(),
+                            result_note = ?
+                      WHERE legal_business_id = ? AND action = 'RECEIVED'
+                        AND status IN ('PENDING', 'DONE')
+                        AND id IN (${reportIds.map(() => "?").join(",")})`,
+                    [user.id, `Purchase draft ${purchaseNo || savedPurchaseId} created.`, businessId, ...reportIds]
+                  );
+                }
+              }
+
               await conn.commit();
               outcome =
                 purchaseId === undefined ? "created" : "updated";

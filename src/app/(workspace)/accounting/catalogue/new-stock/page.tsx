@@ -115,6 +115,9 @@ async function NewStock() {
                   <Link className="btn-link btn-link-primary" href={`/accounting/catalogue/share?events=${ids}`}>
                     Send to customers
                   </Link>
+                  <Link className="btn-link" href={`/accounting/catalogue/instagram?product=${g.productId}`}>
+                    Post to Instagram
+                  </Link>
                   <Link className="btn-link" href={`/accounting/catalogue/${g.productId}`}>
                     {g.coverId ? "Photos and videos" : "Add photo"}
                   </Link>

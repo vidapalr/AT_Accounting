@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { toggleShopAction } from "@/lib/shop-actions";
 import { notFound } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
 
@@ -38,7 +39,7 @@ async function ProductMedia({ params, searchParams }: Props) {
   const businessId = user.legal_business_id;
 
   const [prod] = await db.execute<RowDataPacket[]>(
-    `SELECT id, product_code, product_name, brand_name, fabric, design_name, description
+    `SELECT id, product_code, product_name, brand_name, fabric, design_name, description, show_in_shop
        FROM acct_products WHERE legal_business_id = ? AND id = ?`,
     [businessId, productId]
   );
@@ -110,6 +111,17 @@ async function ProductMedia({ params, searchParams }: Props) {
         </form>
       </section>
 
+      <form action={toggleShopAction} style={{ margin: "12px 0", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <input type="hidden" name="product_id" value={String(p.id)} />
+        <span>{Number(p.show_in_shop) === 1 ? "Showing on the online shop." : "Not on the online shop."}</span>
+        <button type="submit" className="btn-link" style={{ cursor: "pointer" }}>
+          {Number(p.show_in_shop) === 1 ? "Hide from shop" : "Show on online shop"}
+        </button>
+        {Number(p.show_in_shop) === 1 && <Link className="btn-link" href={`/shop/${p.id}`} target="_blank">View in shop</Link>}
+      </form>
+      <p>
+        <Link className="btn-link btn-link-primary" href={`/accounting/catalogue/instagram?product=${p.id}`}>Post to Instagram</Link>
+      </p>
       <h2>Gallery ({media.length})</h2>
       {media.length === 0 && <p>No photos or videos yet.</p>}
       <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>

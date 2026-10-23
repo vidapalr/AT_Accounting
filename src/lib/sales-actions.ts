@@ -716,6 +716,19 @@ export async function createSaleAction(
   }
 
   if (result === "created") {
+    // If this bill was started from a staff WhatsApp "sold" report, mark it done.
+    const reportId = Number(String(form.get("report_id") ?? ""));
+    if (Number.isSafeInteger(reportId) && reportId > 0) {
+      await db
+        .execute(
+          `UPDATE acct_stock_drafts
+              SET status = 'DONE', decided_by = ?, decided_at = NOW(), result_note = ?
+            WHERE id = ? AND legal_business_id = ? AND action = 'SOLD'
+              AND status IN ('PENDING', 'DONE')`,
+          [user.id, `Invoice created (sale #${createdId}).`, reportId, user.legal_business_id]
+        )
+        .catch(() => {});
+    }
     revalidatePath(PAGE);
     revalidatePath("/accounting/stock");
     redirect(`${PAGE}?result=created&id=${createdId}`);
