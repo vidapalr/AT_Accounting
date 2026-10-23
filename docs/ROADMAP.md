@@ -104,7 +104,7 @@ The hosting service builds and publishes whenever the connected branch changes, 
 4. Open the site, sign in, and check Dashboard, Reports and one invoice.
 5. Roll back by reverting the merge if needed; migrations only add things, so they do not need undoing.
 
-Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products; 010 customers; 011 catalogue photos and new-stock events; 012 customer message log; 013 staff stock reports (WhatsApp).
+Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products; 010 customers; 011 catalogue photos and new-stock events; 012 customer message log; 013 staff stock reports (WhatsApp); 014 online shop switch per product.
 
 ## 8. Known open items
 
@@ -122,3 +122,7 @@ Received lines: "Make purchase" opens Buy stock pre-filled (item, quantity, ware
 
 ## Instagram helper
 Built (free): /accounting/catalogue/instagram?product=ID gives a ready caption + hashtags, copy button, Share to Instagram (phone share sheet) and Save to phone. Reached from New stock arrivals and each product page. Not yet: automatic posting through the Instagram business API (needs a Meta business account and review).
+
+## Online shop (v1)
+Built: public /shop and /shop/[id] (no login). Only products switched on ("Show on online shop" on the product photos page) appear. Price = latest suggested price from received transfers; "Out of stock" from stock movements; Order on WhatsApp opens a message to the number saved on the Catalogue page. Public media: /api/shop/media/[id] (published products only).
+Not yet: cart and online payment, wholesale/GST prices, shop link in the menu for customers, SEO sitemap, a product-page link on the home page.
