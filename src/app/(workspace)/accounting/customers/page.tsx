@@ -184,12 +184,16 @@ async function CustomerList({ searchParams }: Props) {
             </select>
           </label>
           <label>City (optional)<input name="city" maxLength={100} style={{ width: "100%" }} /></label>
+          <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="checkbox" name="whatsapp_opt_in" value="yes" />
+            Agreed to receive WhatsApp messages
+          </label>
           <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer", justifyContent: "center" }}>
             Save customer
           </button>
         </form>
         <p style={{ color: "#64748b", marginBottom: 0 }}>
-          Address, credit limit and WhatsApp permission can be added on the customer&apos;s own page.
+          Address and credit limit can be added on the customer&apos;s own page.
         </p>
       </section>
     </div>
