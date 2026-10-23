@@ -1,4 +1,5 @@
 
+import LedgerStatusNote from "@/components/LedgerStatusNote";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
@@ -384,6 +385,9 @@ async function AccountBalancesContent({
       padding: 24,
     }}>
       <h1>Account Balances & Money Flow</h1>
+      <Suspense fallback={null}>
+        <LedgerStatusNote businessId={businessId} />
+      </Suspense>
 
       <p>
         Recorded sales collections
