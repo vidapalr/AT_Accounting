@@ -16,7 +16,7 @@ export type NavItem = {
 export type NavSection = {
   id: string;
   label: string;
-  icon: "home" | "work" | "stock" | "reports" | "investors" | "accounting" | "setup";
+  icon: "home" | "sell" | "buy" | "work" | "stock" | "reports" | "investors" | "accounting" | "setup";
   items: NavItem[];
 };
 
@@ -28,15 +28,29 @@ export const NAVIGATION: NavSection[] = [
     items: [{ label: "Dashboard", href: "/dashboard", hint: "Today's sales, profit and money at a glance" }],
   },
   {
-    id: "work",
-    label: "Daily work",
-    icon: "work",
+    id: "sell",
+    label: "Selling",
+    icon: "sell",
     items: [
       { label: "New sale / bill", href: "/accounting/sales", hint: "Make a bill and take payment" },
       { label: "Invoices", href: "/accounting/invoices", hint: "Find, view and print past bills" },
       { label: "Returns and refunds", href: "/accounting/returns", hint: "Customer returns, refunds, damaged stock" },
+    ],
+  },
+  {
+    id: "buy",
+    label: "Buying",
+    icon: "buy",
+    items: [
       { label: "Buy stock (purchases)", href: "/accounting/purchases", hint: "Record stock bought from suppliers" },
       { label: "Supplier bills and payments", href: "/accounting/purchase-management", hint: "Receive goods and pay supplier bills" },
+    ],
+  },
+  {
+    id: "work",
+    label: "Other daily work",
+    icon: "work",
+    items: [
       { label: "Move stock", href: "/accounting/stock-transfers", hint: "Send stock between warehouse and shops" },
       { label: "Expenses", href: "/accounting/expenses", hint: "Rent, salaries, transport and other costs" },
       { label: "Advances and deposits", href: "/accounting/advances-deposits", hint: "Money paid in advance or as deposit" },

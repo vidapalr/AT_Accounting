@@ -168,7 +168,7 @@ async function PurchaseDetailContent({
       margin: "0 auto",
       padding: 24,
     }}>
-      <Link href="/accounting/purchases">
+      <Link className="btn-link" href="/accounting/purchases">
         ← Purchase List
       </Link>
 
@@ -371,6 +371,7 @@ async function PurchaseDetailContent({
         </p>
 
         <Link
+          className="btn-link btn-link-primary"
           href={`/accounting/purchases/${purchase.id}/payments`}
         >
           View / Record Purchase Payments →

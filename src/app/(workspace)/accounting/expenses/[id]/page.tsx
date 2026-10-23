@@ -133,7 +133,7 @@ async function Content({ params, searchParams }: Props) {
 
   return (
     <main style={{ maxWidth: 1000, padding: 24, margin: "auto" }}>
-      <Link href="/accounting/expenses">← Expenses</Link>
+      <Link className="btn-link" href="/accounting/expenses">← Expenses</Link>
       <h1>{e.expense_no}</h1>
 
       <p>

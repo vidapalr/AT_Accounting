@@ -228,7 +228,7 @@ async function ChartOfAccountsContent({
           all divisions and branches.
         </p>
 
-        <Link href="/accounting/bank-accounts">
+        <Link className="btn-link" href="/accounting/bank-accounts">
           View Bank Accounts
         </Link>
       </header>

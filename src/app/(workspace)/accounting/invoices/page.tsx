@@ -271,11 +271,12 @@ async function InvoiceList() {
 
                   <td style={cell}>
                     <Link
+                      className="btn-link btn-link-small"
                       href={`/accounting/sales/${invoice.id}`}
                     >
                       View
                     </Link>
-                    {" · "}
+                    {" "}
                     <span title="Refund workflow pending">
                       Refund
                     </span>

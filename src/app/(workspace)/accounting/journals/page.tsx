@@ -242,7 +242,7 @@ async function JournalsContent({
           Financial posting is not enabled yet.
         </p>
 
-        <Link href="/accounting/periods">
+        <Link className="btn-link" href="/accounting/periods">
           View Accounting Periods
         </Link>
       </header>

@@ -8,9 +8,11 @@ import {
   BookOpen,
   ChevronDown,
   LayoutDashboard,
+  Receipt,
+  Truck,
+  Wrench,
   Package,
   Settings,
-  ShoppingCart,
   Users,
 } from "lucide-react";
 
@@ -19,7 +21,9 @@ import styles from "@/app/(workspace)/workspace.module.css";
 
 const ICONS = {
   home: LayoutDashboard,
-  work: ShoppingCart,
+  sell: Receipt,
+  buy: Truck,
+  work: Wrench,
   stock: Package,
   reports: BarChart3,
   investors: Users,

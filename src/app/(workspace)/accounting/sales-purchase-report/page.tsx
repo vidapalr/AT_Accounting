@@ -1011,7 +1011,7 @@ async function ReportContent({ searchParams }: Props) {
             accounting month, and transaction date.
           </p>
         </div>
-        <Link href="/accounting/account-balances">
+        <Link className="btn-link" href="/accounting/account-balances">
           Account balances
         </Link>
       </header>

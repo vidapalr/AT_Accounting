@@ -249,7 +249,7 @@ async function PurchaseContent({ searchParams }: Props) {
     <main className={styles.page}>
       <Link
         href="/accounting/suppliers"
-        className={styles.backLink}
+        className={`${styles.backLink} btn-link`}
       >
         ← Supplier Master
       </Link>
@@ -266,7 +266,7 @@ async function PurchaseContent({ searchParams }: Props) {
 
       <p>
         After saving, go to{" "}
-        <Link href="/accounting/purchase-management">
+        <Link className="btn-link btn-link-primary" href="/accounting/purchase-management">
           Supplier Bills and Payments
         </Link>{" "}
         to receive the goods and pay the supplier.

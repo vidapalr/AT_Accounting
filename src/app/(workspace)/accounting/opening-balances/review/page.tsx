@@ -158,7 +158,7 @@ async function ReviewContent({
       <main className={accountingStyles.page}>
         <h1>Opening Balance Review</h1>
         <p>No opening balance worksheet exists yet.</p>
-        <Link href="/accounting/opening-balances">
+        <Link className="btn-link" href="/accounting/opening-balances">
           Create Opening Balance Draft
         </Link>
       </main>
@@ -570,7 +570,7 @@ async function ReviewContent({
 
   return (
     <main className={accountingStyles.page}>
-      <Link href="/accounting/opening-balances">
+      <Link className="btn-link" href="/accounting/opening-balances">
         ← Edit Opening Balances
       </Link>
 

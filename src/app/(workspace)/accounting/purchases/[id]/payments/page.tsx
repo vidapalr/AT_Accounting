@@ -240,7 +240,7 @@ async function PaymentContent({ params, searchParams }: Props) {
       margin: "0 auto",
       padding: 24,
     }}>
-      <Link href={`/accounting/purchases/${purchaseId}`}>
+      <Link className="btn-link" href={`/accounting/purchases/${purchaseId}`}>
         ← Purchase Details
       </Link>
 

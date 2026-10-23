@@ -361,12 +361,12 @@ async function SalesContent({ searchParams }: Props) {
       </nav>
 
       {result && (
-        <p role="status">
+        <p role="status" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
           {messages[result] ?? "Request completed."}
           {result === "created" && id ? (
             <>
               {" "}
-              <a href={`/accounting/sales/${id}`}>
+              <a className="btn-link btn-link-primary" href={`/accounting/sales/${id}`}>
                 Next: view, print or take payment for this invoice
               </a>
             </>
@@ -491,11 +491,11 @@ async function SalesContent({ searchParams }: Props) {
                     gap: 10,
                     flexWrap: "wrap",
                   }}>
-                    <a href={`/accounting/sales?view=${s.id}`}>
+                    <a className="btn-link btn-link-small" href={`/accounting/sales?view=${s.id}`}>
                       View
                     </a>
                     {["DRAFT", "POSTED"].includes(s.status) && (
-                      <a href={`/accounting/sales?edit=${s.id}`}>
+                      <a className="btn-link btn-link-small" href={`/accounting/sales?edit=${s.id}`}>
                         Edit
                       </a>
                     )}
