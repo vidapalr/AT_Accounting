@@ -104,7 +104,7 @@ The hosting service builds and publishes whenever the connected branch changes, 
 4. Open the site, sign in, and check Dashboard, Reports and one invoice.
 5. Roll back by reverting the merge if needed; migrations only add things, so they do not need undoing.
 
-Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products; 010 customers; 011 catalogue photos and new-stock events; 012 customer message log.
+Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products; 010 customers; 011 catalogue photos and new-stock events; 012 customer message log; 013 staff stock reports (WhatsApp).
 
 ## 8. Known open items
 
@@ -115,3 +115,7 @@ Migrations so far: 001 investor capital account; 002 missing live columns; 003 s
 - Settings screens: owner minimum (51%), funding limit (₹10 lakh), low-stock level.
 - Expense form needs a "set-up cost" checkbox.
 - Repo hygiene: private uploads are committed, there is no base schema file, billing uses floating-point money in one form, login has no rate limit, the website and accounting app share one database, expired sessions are never cleaned.
+
+## Staff stock reports (WhatsApp)
+Built: staff text lines like "DAMAGED SKU 2 torn" to the business number (or the owner pastes them). Lines become drafts on /accounting/stock-reports. Approve: damaged/lost reduces stock; count shows the difference; received/sold are acknowledged with links to Buy stock / Sell. Needs env WHATSAPP_VERIFY_TOKEN and WHATSAPP_APP_SECRET for the automatic webhook (/api/whatsapp/webhook).
+Not yet: billing prefill for sold lines, auto-adding received stock, WhatsApp replies to staff.
