@@ -72,6 +72,23 @@ async function Catalogue({ searchParams }: Props) {
             style={{ padding: 10, border: "1px solid #cbd5e1", borderRadius: 8 }} />
           <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Save number</button>
         </form>
+        <details style={{ marginTop: 10 }}>
+          <summary><strong>WhatsApp and Instagram catalogue (one-time set-up)</strong></summary>
+          <p style={{ color: "#475569" }}>
+            Meta can read your shop automatically, so the same products appear in your WhatsApp Business catalogue and
+            Instagram Shopping, and update by themselves. Only products switched on, with a price and a photo, are sent.
+          </p>
+          <ol>
+            <li>Open Meta Commerce Manager (business.facebook.com/commerce) and choose <em>Add catalogue</em>, then <em>E-commerce</em>.</li>
+            <li>Choose <em>Data feed</em> (scheduled), paste this address, set it to refresh daily:</li>
+          </ol>
+          <code style={{ display: "block", padding: 8, background: "#f1f5f9", borderRadius: 6, wordBreak: "break-all" }}>
+            {(process.env.SHOP_PUBLIC_URL || "https://your-site-address").replace(/\/+$/, "")}/shop/feed.csv
+          </code>
+          <ol start={3}>
+            <li>In Commerce Manager, connect the catalogue to your WhatsApp Business number and to your Instagram business account.</li>
+          </ol>
+        </details>
       </section>
       <p style={{ color: "#475569" }}>
         Photos and short videos of every product, kept once and used everywhere: messages to customers,

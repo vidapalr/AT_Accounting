@@ -48,7 +48,7 @@ async function inStock(variantIds: number[]): Promise<Set<number>> {
   return new Set(rows.map(r => Number(r.variant_id)));
 }
 
-export type ShopVariant = { id: number; size: string | null; color: string | null; price: number | null; available: boolean };
+export type ShopVariant = { id: number; sku: string; size: string | null; color: string | null; price: number | null; available: boolean };
 export type ShopProduct = {
   id: number;
   name: string;
@@ -75,7 +75,7 @@ async function load(where: string, params: (string | number)[]): Promise<ShopPro
   if (prods.length === 0) return [];
   const ids = prods.map(p => Number(p.id));
   const [vars] = await db.query<RowDataPacket[]>(
-    `SELECT id, product_id, size_label, color_name FROM acct_product_variants
+    `SELECT id, product_id, sku, size_label, color_name FROM acct_product_variants
       WHERE legal_business_id = ? AND status = 'ACTIVE' AND product_id IN (?) ORDER BY id`,
     [SHOP_BUSINESS_ID, ids]
   );
@@ -87,6 +87,7 @@ async function load(where: string, params: (string | number)[]): Promise<ShopPro
       .filter(v => Number(v.product_id) === Number(p.id))
       .map(v => ({
         id: Number(v.id),
+        sku: String(v.sku),
         size: v.size_label ? String(v.size_label) : null,
         color: v.color_name ? String(v.color_name) : null,
         price: prices.get(Number(v.id)) ?? null,

@@ -126,3 +126,7 @@ Built (free): /accounting/catalogue/instagram?product=ID gives a ready caption +
 ## Online shop (v1)
 Built: public /shop and /shop/[id] (no login). Only products switched on ("Show on online shop" on the product photos page) appear. Price = latest suggested price from received transfers; "Out of stock" from stock movements; Order on WhatsApp opens a message to the number saved on the Catalogue page. Public media: /api/shop/media/[id] (published products only).
 Not yet: cart and online payment, wholesale/GST prices, shop link in the menu for customers, SEO sitemap, a product-page link on the home page.
+
+## Meta catalogue feed
+Built: /shop/feed.csv (public) lists shop-enabled products that have a price and a photo, one row per size/colour, for Meta Commerce Manager (scheduled data feed). One catalogue then serves the WhatsApp Business catalogue and Instagram Shopping. Env SHOP_PUBLIC_URL sets the address Meta should use. Set-up steps are on the Catalogue page.
+Not yet: automatic Instagram posting via the API; the shop link inside customer WhatsApp messages.
