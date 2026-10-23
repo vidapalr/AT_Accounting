@@ -6,7 +6,7 @@ Do the steps in this order. Hosting rebuilds automatically after `git push origi
 Paste each file in the SQL tab, in this order. All are safe to run again if unsure.
 001 to 006 should already be applied. Pending list:
 007_business_settings, 008_whatsapp_reports, 009_backfill_barcodes, 010_customers,
-011_catalogue_media, 012_customer_messages, 013_stock_reports, 014_online_shop, 016_shop_prices,
+011_catalogue_media, 012_customer_messages, 013_stock_reports, 014_online_shop,
 015_instagram_posts, 016_shop_prices.
 (Re-run on the test database: all nine ran again without errors.)
 
