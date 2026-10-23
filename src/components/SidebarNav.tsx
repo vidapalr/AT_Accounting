@@ -9,6 +9,7 @@ import {
   ChevronDown,
   LayoutDashboard,
   Receipt,
+  UserRound,
   Truck,
   Wrench,
   Package,
@@ -21,6 +22,7 @@ import styles from "@/app/(workspace)/workspace.module.css";
 
 const ICONS = {
   home: LayoutDashboard,
+  customers: UserRound,
   sell: Receipt,
   buy: Truck,
   work: Wrench,

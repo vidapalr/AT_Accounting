@@ -16,7 +16,7 @@ export type NavItem = {
 export type NavSection = {
   id: string;
   label: string;
-  icon: "home" | "sell" | "buy" | "work" | "stock" | "reports" | "investors" | "accounting" | "setup";
+  icon: "home" | "customers" | "sell" | "buy" | "work" | "stock" | "reports" | "investors" | "accounting" | "setup";
   items: NavItem[];
 };
 
@@ -35,6 +35,15 @@ export const NAVIGATION: NavSection[] = [
       { label: "New sale / bill", href: "/accounting/sales", hint: "Make a bill and take payment" },
       { label: "Invoices", href: "/accounting/invoices", hint: "Find, view and print past bills" },
       { label: "Returns and refunds", href: "/accounting/returns", hint: "Customer returns, refunds, damaged stock" },
+    ],
+  },
+  {
+    id: "customers",
+    label: "Customers",
+    icon: "customers",
+    items: [
+      { label: "All customers", href: "/accounting/customers", hint: "Customer list, history and credit limits" },
+      { label: "Money customers owe", href: "/accounting/customers?view=dues", hint: "Customers with unpaid bills" },
     ],
   },
   {

@@ -50,6 +50,8 @@ const messages: Record<string, string> = {
   "invalid-payment-account":
     "Select an active, eligible bank or cash account.",
   "invalid-product": "One or more products are unavailable.",
+  "invalid-phone": "Enter a 10 digit mobile number, or leave it empty for a walk-in customer.",
+  "credit-limit": "This sale would take the customer over their credit limit. Collect some payment, or raise the limit on the customer's page.",
   failed: "Unable to save invoice. Check server logs.",
 };
 
@@ -158,6 +160,30 @@ async function SalesContent({ searchParams }: Props) {
      ORDER BY cash_name, id`,
     [businessId]
   );
+
+  const [customerRows] = await db.execute<RowDataPacket[]>(
+    `SELECT c.full_name, c.phone, ROUND(c.credit_limit * 100) AS limit_paise,
+            COALESCE((SELECT SUM(ROUND(h.grand_total * 100)) FROM acct_sales_headers h
+                       WHERE h.legal_business_id = c.legal_business_id
+                         AND h.customer_id = c.id AND h.status = 'POSTED'), 0)
+          - COALESCE((SELECT SUM(ROUND(p.amount * 100)) FROM acct_sales_payments p
+                        JOIN acct_sales_headers h2 ON h2.legal_business_id = p.legal_business_id
+                         AND h2.id = p.sale_id
+                       WHERE h2.legal_business_id = c.legal_business_id
+                         AND h2.customer_id = c.id AND h2.status = 'POSTED'
+                         AND p.status = 'RECORDED'), 0) AS dues_paise
+       FROM acct_customers c
+      WHERE c.legal_business_id = ? AND c.status = 'ACTIVE' AND c.phone IS NOT NULL
+      ORDER BY c.id DESC
+      LIMIT 500`,
+    [businessId]
+  );
+  const customerOptions = customerRows.map(c => ({
+    name: String(c.full_name),
+    phone: String(c.phone),
+    dues: Number(c.dues_paise) / 100,
+    creditLimit: Number(c.limit_paise) / 100,
+  }));
 
   const paymentAccounts = [
     ...bankRows.map(account => ({
@@ -386,6 +412,7 @@ async function SalesContent({ searchParams }: Props) {
               : "Draft invoice lines can be changed before posting."}
           </p>
           <SalesBillingForm
+            customers={customerOptions}
             branches={branches.map(branch => ({
               id: Number(branch.id),
               name: String(branch.name),
@@ -437,6 +464,7 @@ async function SalesContent({ searchParams }: Props) {
         <p>No eligible retail branch was found.</p>
       ) : (
         <SalesBillingForm
+          customers={customerOptions}
           branches={branches.map(b => ({
             id: Number(b.id),
             name: String(b.name),

@@ -65,7 +65,15 @@ type InitialInvoice = {
   }>;
 };
 
+type CustomerOption = {
+  name: string;
+  phone: string;
+  dues: number;
+  creditLimit: number;
+};
+
 type Props = {
+  customers?: CustomerOption[];
   branches: Branch[];
   products: ProductOption[];
   paymentAccounts: PaymentAccountOption[];
@@ -107,12 +115,18 @@ const newPaymentRow = (): PaymentRow => ({
 });
 
 export default function SalesBillingForm({
+  customers = [],
   branches,
   products,
   paymentAccounts,
   today,
   initialInvoice,
 }: Props) {
+  const [custPhone, setCustPhone] = useState(initialInvoice?.customerPhone ?? "");
+  const [custName, setCustName] = useState(initialInvoice?.customerName ?? "");
+  const digits = custPhone.replace(/\D/g, "").slice(-10);
+  const known = digits.length === 10 ? customers.find(c => c.phone === digits) : undefined;
+
   const [branchId, setBranchId] = useState(
     initialInvoice?.branchId ?? branches[0]?.id ?? 0
   );
@@ -324,27 +338,66 @@ export default function SalesBillingForm({
         </label>
 
         <label>
+          Customer Mobile
+          <input
+            name="customer_phone"
+            type="tel"
+            inputMode="numeric"
+            list="known-customers"
+            placeholder="10 digit mobile (leave empty for walk-in)"
+            maxLength={20}
+            value={custPhone}
+            onChange={e => {
+              const v = e.target.value;
+              setCustPhone(v);
+              const d = v.replace(/\D/g, "").slice(-10);
+              const match = d.length === 10 ? customers.find(c => c.phone === d) : undefined;
+              if (match && custName.trim() === "") setCustName(match.name);
+            }}
+            style={inputStyle}
+          />
+          <datalist id="known-customers">
+            {customers.slice(0, 300).map(c => (
+              <option key={c.phone} value={c.phone}>{c.name}</option>
+            ))}
+          </datalist>
+        </label>
+
+        <label>
           Customer Name
           <input
             name="customer_name"
             placeholder="Walk-in customer"
             maxLength={150}
-            defaultValue={initialInvoice?.customerName ?? ""}
+            value={custName}
+            onChange={e => setCustName(e.target.value)}
             style={inputStyle}
           />
         </label>
 
-        <label>
-          Customer Mobile
-          <input
-            name="customer_phone"
-            type="tel"
-            placeholder="Mobile number"
-            maxLength={20}
-            defaultValue={initialInvoice?.customerPhone ?? ""}
-            style={inputStyle}
-          />
-        </label>
+        {digits.length === 10 && (
+          <p
+            role="status"
+            style={{
+              gridColumn: "1 / -1",
+              margin: 0,
+              padding: "8px 12px",
+              borderRadius: 8,
+              background: known ? (known.dues > 0 ? "#fffbeb" : "#f0fdf4") : "#eff6ff",
+              color: "#1e293b",
+            }}
+          >
+            {known
+              ? `Existing customer: ${known.name}. ${
+                  known.dues > 0 ? `Still owes ₹${amount(known.dues)}.` : "No dues."
+                }${
+                  known.creditLimit > 0
+                    ? ` Credit limit ₹${amount(known.creditLimit)}.`
+                    : ""
+                }`
+              : "New customer. They will be saved automatically with this sale."}
+          </p>
+        )}
       </section>
 
       <section>

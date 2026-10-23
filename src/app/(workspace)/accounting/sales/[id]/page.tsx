@@ -58,6 +58,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
        s.status,
        s.customer_name,
        s.customer_phone,
+       s.customer_id,
        s.subtotal,
        s.discount_amount,
        s.grand_total,
@@ -212,7 +213,15 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         </div>
         <div>
           <strong>Customer</strong>
-          <p>{invoice.customer_name || "Walk-in"}</p>
+          <p>
+            {invoice.customer_id ? (
+              <Link href={`/accounting/customers/${invoice.customer_id}`}>
+                {invoice.customer_name || "Customer"}
+              </Link>
+            ) : (
+              invoice.customer_name || "Walk-in"
+            )}
+          </p>
           <p>{invoice.customer_phone || "No mobile"}</p>
         </div>
         <div>

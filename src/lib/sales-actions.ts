@@ -4,6 +4,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
+import { findOrCreateCustomer, customerDuesPaise } from "@/lib/customers";
+import { normalizePhone } from "@/lib/customer-phone";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 
@@ -97,6 +99,11 @@ export async function createSaleAction(
     remarks.length > 500
   ) {
     errorRedirect("invalid");
+  }
+
+  const phone10 = normalizePhone(customerPhone);
+  if (customerPhone !== "" && phone10 === null) {
+    errorRedirect("invalid-phone");
   }
 
   let lines: SaleLineInput[];
@@ -487,23 +494,40 @@ export async function createSaleAction(
           );
           const totalDiscount = lineDiscountTotal + invoiceDiscount;
 
+          const customer = phone10
+            ? await findOrCreateCustomer(conn, {
+                businessId, userId: user.id, name: customerName, phone10,
+              })
+            : null;
+
+          if (customer && mode === "POSTED" && customer.credit_limit_paise > 0n) {
+            const creditNow = grandTotal - paymentTotal;
+            if (creditNow > 0n) {
+              const dues = await customerDuesPaise(conn, businessId, customer.id);
+              if (dues + creditNow > customer.credit_limit_paise) {
+                throw new Error("CREDIT_LIMIT");
+              }
+            }
+          }
+
           const [header] = await conn.execute<ResultSetHeader>(
             `INSERT INTO acct_sales_headers (
                legal_business_id, division_id,
                branch_id, location_id, invoice_no,
-               invoice_date, customer_name, customer_phone,
+               invoice_date, customer_name, customer_phone, customer_id,
                status, subtotal, discount_amount,
                grand_total, remarks, created_by,
                posted_by, posted_at
              ) VALUES (
-               ?, ?, ?, ?, ?, ?, ?, ?, ?,
+               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                ?, ?, ?, ?, ?, ?,
                ${mode === "POSTED" ? "CURRENT_TIMESTAMP" : "NULL"}
              )`,
             [
               businessId, DIVISION_ID, branchId,
               locationId, invoiceNo, saleDate,
-              customerName || null, customerPhone || null,
+              customerName || customer?.full_name || null,
+              phone10 ?? null, customer?.id ?? null,
               mode, moneyFromPaise(subtotal),
               moneyFromPaise(totalDiscount),
               moneyFromPaise(grandTotal),
@@ -678,8 +702,12 @@ export async function createSaleAction(
     }
   } catch (error) {
     await conn.rollback().catch(() => {});
-    console.error("Sale creation failed:", error);
-    result = "failed";
+    if (error instanceof Error && error.message === "CREDIT_LIMIT") {
+      result = "credit-limit";
+    } else {
+      console.error("Sale creation failed:", error);
+      result = "failed";
+    }
   } finally {
     conn.release();
   }
@@ -716,6 +744,11 @@ export async function updateSaleAction(
     remarks.length > 500
   ) {
     redirect(`${PAGE}?result=invalid-edit`);
+  }
+
+  const phone10 = normalizePhone(customerPhone);
+  if (customerPhone !== "" && phone10 === null) {
+    redirect(`${PAGE}?result=invalid-phone`);
   }
 
   let lines: SaleLineInput[];
@@ -1118,10 +1151,17 @@ export async function updateSaleAction(
             const discountTotal =
               lineDiscountTotal + invoiceDiscount;
 
+            const customer = phone10
+              ? await findOrCreateCustomer(conn, {
+                  businessId, userId: user.id, name: customerName, phone10,
+                })
+              : null;
+
             await conn.execute(
               `UPDATE acct_sales_headers
                SET customer_name = ?,
                    customer_phone = ?,
+                   customer_id = ?,
                    invoice_date = ?,
                    subtotal = ?,
                    discount_amount = ?,
@@ -1131,8 +1171,9 @@ export async function updateSaleAction(
                  AND division_id = ?
                  AND id = ?`,
               [
-                customerName || null,
-                customerPhone || null,
+                customerName || customer?.full_name || null,
+                phone10 ?? null,
+                customer?.id ?? null,
                 saleDate,
                 moneyFromPaise(subtotal),
                 moneyFromPaise(discountTotal),
