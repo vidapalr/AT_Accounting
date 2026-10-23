@@ -354,7 +354,16 @@ async function InvoiceDetails({ params, searchParams }: Props) {
       )}
 
       {outstanding > 0 && (
+        <p className="no-print" style={{ margin: "16px 0" }}>
+          <a href="#take-payment" className="btn-link btn-link-primary">
+            ₹{money(outstanding)} is still due. Take payment
+          </a>
+        </p>
+      )}
+
+      {outstanding > 0 && (
         <section
+          id="take-payment"
           className="no-print"
           style={{
             marginTop: 24,
@@ -365,6 +374,11 @@ async function InvoiceDetails({ params, searchParams }: Props) {
           }}
         >
           <h2 style={{ marginTop: 0 }}>Take payment (₹{money(outstanding)} still due)</h2>
+          {cashRows.length + bankRows.length === 0 && (
+            <p role="alert" style={{ color: "#b91c1c" }}>
+              No cash or bank account is set up to receive money. Add one first (Setup, then Cash accounts or Bank accounts), then come back here.
+            </p>
+          )}
           <form
             action={receiveSalePaymentAction}
             style={{

@@ -140,3 +140,7 @@ Shop links: home page has a "Shop online" button; the new-stock WhatsApp message
 Bulk shop switches on the Catalogue page: show all in-stock products, show every active product, hide everything (with confirmation); "On the shop now" count and a no-photo warning.
 
 Shop price = the maximum selling price from the newest received stock transfer (falls back to the suggested price). The Shop prices page (/accounting/catalogue/prices) lets the owner override it per size/colour (migration 016).
+
+Bulk photos: /accounting/catalogue/photos lists products without a photo with one file box each; one Save uploads them all (images only, JPG/PNG/WebP up to 8 MB). Shop grid now fits 2 products per row on phones.
+
+Part payments: "Take payment" button now shows on Recent Sales, the Invoices list and the inline view for any posted invoice with a balance; the invoice page has a top banner, an anchor, and a clear message when no cash/bank account exists.

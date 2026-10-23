@@ -15,7 +15,7 @@ async function Products() {
   const products = await getShopProducts();
   if (products.length === 0) return <p>Our online catalogue is coming soon. Please visit us in the shop.</p>;
   return (
-    <div style={{ display: "grid", gap: 20, gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+    <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
       {products.map(p => (
         <Link key={p.id} href={`/shop/${p.id}`} style={{ textDecoration: "none", color: "inherit", border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
           <div style={{ aspectRatio: "1 / 1", background: "#f1f5f9" }}>
