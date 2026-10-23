@@ -136,3 +136,5 @@ Built: "Post now" on /accounting/catalogue/instagram posts the photo (JPG) or vi
 IDs given by owner: Instagram User ID 1429287470264568, Meta Business ID 1107115578575302 (identifiers, not secrets). The access token is never stored in code or chat.
 
 Shop links: home page has a "Shop online" button; the new-stock WhatsApp message adds the shop link (single product or /shop) when SHOP_PUBLIC_URL is set and the product is switched on.
+
+Bulk shop switches on the Catalogue page: show all in-stock products, show every active product, hide everything (with confirmation); "On the shop now" count and a no-photo warning.
