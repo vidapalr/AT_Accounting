@@ -139,15 +139,6 @@ async function BranchesContent({
               </select>
             </Field>
 
-            <Field label="Branch Code">
-              <input
-                name="branch_code"
-                placeholder="ATX-BR02"
-                maxLength={32}
-                pattern="[A-Za-z][A-Za-z0-9_-]{1,31}"
-                required
-              />
-            </Field>
 
             <Field label="Branch Name">
               <input

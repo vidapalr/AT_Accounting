@@ -225,16 +225,6 @@ async function ProductMasterContent({
             </select>
           </label>
 
-          <label>
-            Product Code
-            <input
-              name="product_code"
-              required
-              maxLength={40}
-              placeholder="ATX-CS-00001"
-              style={fieldStyle}
-            />
-          </label>
 
           <label>
             Product Name
@@ -332,26 +322,7 @@ async function ProductMasterContent({
             </select>
           </label>
 
-          <label>
-            SKU
-            <input
-              name="sku"
-              required
-              maxLength={60}
-              placeholder="ATX-CS-00001-M-BLU"
-              style={fieldStyle}
-            />
-          </label>
 
-          <label>
-            Barcode (Optional)
-            <input
-              name="barcode"
-              maxLength={80}
-              placeholder="Scan or enter barcode"
-              style={fieldStyle}
-            />
-          </label>
 
           <label>
             Size
@@ -374,7 +345,7 @@ async function ProductMasterContent({
           </label>
 
           <label>
-            Design Code
+            Design Code (optional, made automatically if empty)
             <input
               name="design_code"
               maxLength={80}

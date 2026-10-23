@@ -128,15 +128,6 @@ async function FundingContent({
           action={createFundingPartyAction}
           className={styles.formGrid}
         >
-          <Field label="Party Code">
-            <input
-              name="party_code"
-              placeholder="INV001"
-              pattern="[A-Za-z][A-Za-z0-9_-]{1,31}"
-              maxLength={32}
-              required
-            />
-          </Field>
 
           <Field label="Party Type">
             <select name="party_type" required>

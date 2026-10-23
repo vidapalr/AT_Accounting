@@ -40,11 +40,41 @@ function bool(form: FormData, key: string): number {
   return form.get(key) === "yes" ? 1 : 0;
 }
 
+const ACCOUNT_RANGE_START: Record<string, number> = {
+  ASSET: 1000,
+  LIABILITY: 2000,
+  EQUITY: 3000,
+  REVENUE: 4000,
+  EXPENSE: 5000,
+};
+
+/** Next free account number in the range for this account type (1xxx assets, 2xxx liabilities ...). */
+async function nextAccountCode(
+  businessId: number,
+  type: AccountType
+): Promise<string> {
+  const start = ACCOUNT_RANGE_START[type] ?? 5000;
+  const [rows] = await db.query<RowDataPacket[]>(
+    `SELECT MAX(CAST(account_code AS UNSIGNED)) AS top
+       FROM acct_chart_of_accounts
+      WHERE legal_business_id = ?
+        AND account_code REGEXP '^[0-9]{4}$'
+        AND CAST(account_code AS UNSIGNED) BETWEEN ? AND ?`,
+    [businessId, start, start + 999]
+  );
+  const top = Number(rows[0]?.top ?? 0);
+  const next = top ? top + 1 : start + 1;
+  return String(next > start + 999 ? start + 999 : next);
+}
+
 export async function createLedgerAccountAction(form: FormData) {
   const user = await requireGroupOwner();
   const businessId = user.legal_business_id;
 
-  const code = value(form, "account_code").toUpperCase();
+  const code = await nextAccountCode(
+    businessId,
+    value(form, "account_type") as AccountType
+  );
   const name = value(form, "account_name");
   const type = value(form, "account_type") as AccountType;
   const subtype = value(form, "account_subtype").toUpperCase();

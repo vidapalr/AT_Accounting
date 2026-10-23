@@ -6,6 +6,7 @@ import { parseBasis } from "@/lib/investor-shares/engine";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
+import { nextCode } from "@/lib/codes";
 import { requireGroupOwner } from "@/lib/auth";
 
 function read(form: FormData, key: string) {
@@ -41,8 +42,7 @@ export async function createFundingAgreementAction(
   const user = await requireGroupOwner();
   const businessId = user.legal_business_id;
 
-  const agreementNo = read(form, "agreement_no")
-    .toUpperCase();
+  const agreementNo = await nextCode(db, { table: "acct_funding_agreements", column: "agreement_no", prefix: "AGR-", width: 4, where: "legal_business_id = ?", params: [businessId] });
   const partyText = read(form, "party_id");
 
   const scope = read(form, "funding_scope");

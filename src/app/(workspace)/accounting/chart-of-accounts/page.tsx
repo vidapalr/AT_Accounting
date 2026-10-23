@@ -442,16 +442,6 @@ async function ChartOfAccountsContent({
             gap: 16,
           }}
         >
-          <label style={fieldStyle}>
-            Account Code
-            <input
-              name="account_code"
-              maxLength={20}
-              required
-              style={inputStyle}
-              placeholder="6095"
-            />
-          </label>
 
           <label style={fieldStyle}>
             Account Name

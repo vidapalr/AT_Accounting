@@ -104,7 +104,7 @@ The hosting service builds and publishes whenever the connected branch changes, 
 4. Open the site, sign in, and check Dashboard, Reports and one invoice.
 5. Roll back by reverting the merge if needed; migrations only add things, so they do not need undoing.
 
-Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports.
+Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products.
 
 ## 8. Known open items
 

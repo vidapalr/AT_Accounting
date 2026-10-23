@@ -148,16 +148,6 @@ async function CategoryContent({ searchParams }: Props) {
             gap: 16,
           }}
         >
-          <label>
-            Category Code
-            <input
-              name="category_code"
-              required
-              maxLength={30}
-              placeholder="SAREE-SILK"
-              style={inputStyle}
-            />
-          </label>
 
           <label>
             Category Name

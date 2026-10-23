@@ -17,7 +17,8 @@ Read `docs/ROADMAP.md` for goals, phases and the page audit. Read `AGENTS.md` be
 1. **Clean look.** Plenty of white space, one calm colour scheme, no clutter, consistent headings and buttons, nothing decorative that does not help.
 2. **Easy flow.** A person always knows where they are and what comes next: clear page titles, next-step links (sale saved -> view invoice -> take payment), plain names in the menu, no duplicate pages for one job.
 3. **Easy for low-level employees.** Plain words (no accounting jargon on staff screens), big obvious buttons, few fields, sensible defaults, confirmation before anything that cannot be undone, helpful messages when something is wrong. Staff screens work on a phone.
-4. Staff only see what their role allows (see `src/lib/access.ts`); deny by default.
+4. **Codes are always automatic.** Never ask a person to type a code or number (division, branch, cash account, supplier, product, SKU, barcode, group, agreement, transaction, account number). Use `nextCode()` / `nextBarcode()` in `src/lib/codes.ts`. Only outside identifiers (supplier's own invoice number, bank account number, IFSC, GSTIN) are typed.
+5. Staff only see what their role allows (see `src/lib/access.ts`); deny by default.
 
 ## Business rules already decided (do not re-ask)
 

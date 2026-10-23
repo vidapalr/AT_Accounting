@@ -115,16 +115,6 @@ async function SupplierContent({ searchParams }: Props) {
         <h2>Add Supplier</h2>
 
         <form action={createSupplierAction} style={gridStyle}>
-          <label>
-            Supplier Code
-            <input
-              name="supplier_code"
-              required
-              maxLength={30}
-              placeholder="SUP-0001"
-              style={fieldStyle}
-            />
-          </label>
 
           <label>
             Supplier / Business Name

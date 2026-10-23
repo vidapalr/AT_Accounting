@@ -208,14 +208,6 @@ async function FundingTransactionsContent({
               </select>
             </Field>
 
-            <Field label="Transaction Number">
-              <input
-                name="transaction_no"
-                placeholder="ATX-RCPT-0001"
-                maxLength={40}
-                required
-              />
-            </Field>
 
             <Field label="Transaction Date">
               <input

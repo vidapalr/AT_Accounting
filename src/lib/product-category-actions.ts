@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
+import { nextCode } from "@/lib/codes";
 import { requireAccess } from "@/lib/auth";
 
 const PAGE = "/accounting/product-categories";
@@ -31,7 +32,7 @@ export async function createProductCategoryAction(
   const user = await requireAccess("products");
   const businessId = user.legal_business_id;
 
-  const code = text(form, "category_code").toUpperCase();
+  const code = await nextCode(db, { table: "acct_product_categories", column: "category_code", prefix: "CAT-", width: 3, where: "legal_business_id = ?", params: [businessId] });
   const name = text(form, "category_name");
   const parentText = text(form, "parent_category_id");
   const parentId = parentText ? numericId(parentText) : null;

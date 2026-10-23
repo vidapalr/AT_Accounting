@@ -9,6 +9,7 @@ import type {
 } from "mysql2";
 
 import { db } from "@/lib/db";
+import { nextCode } from "@/lib/codes";
 import { requireGroupOwner } from "@/lib/auth";
 
 type AgreementRow = RowDataPacket & {
@@ -79,8 +80,7 @@ export async function createFundingReceiptAction(
   const businessId = user.legal_business_id;
 
   const agreementText = read(form, "agreement_id");
-  const transactionNo = read(form, "transaction_no")
-    .toUpperCase();
+  const transactionNo = await nextCode(db, { table: "acct_funding_transactions", column: "transaction_no", prefix: "FTX-", width: 4, where: "legal_business_id = ?", params: [businessId] });
 
   const transactionDate = read(
     form,
