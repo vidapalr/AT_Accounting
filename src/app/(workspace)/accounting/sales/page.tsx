@@ -551,6 +551,11 @@ async function SalesContent({ searchParams }: Props) {
                     gap: 10,
                     flexWrap: "wrap",
                   }}>
+                    {s.status === "POSTED" && Number(s.grand_total) - Number(s.collected) > 0.004 && (
+                      <a className="btn-link btn-link-small btn-link-primary" href={`/accounting/sales/${s.id}#take-payment`}>
+                        Take payment
+                      </a>
+                    )}
                     <a className="btn-link btn-link-small" href={`/accounting/sales?view=${s.id}`}>
                       View
                     </a>
@@ -575,6 +580,13 @@ async function SalesContent({ searchParams }: Props) {
           marginTop: 24,
         }}>
           <h2>Invoice {selectedInvoice.invoice_no}</h2>
+          {selectedInvoice.status === "POSTED" && (
+            <p>
+              <a className="btn-link btn-link-primary" href={`/accounting/sales/${selectedInvoice.id}#take-payment`}>
+                Take payment or print this invoice
+              </a>
+            </p>
+          )}
           <p>
             {selectedInvoice.invoice_date} · {selectedInvoice.branch_name}
             {" · "}{selectedInvoice.status}

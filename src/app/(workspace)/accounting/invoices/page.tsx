@@ -270,6 +270,17 @@ async function InvoiceList() {
                   </td>
 
                   <td style={cell}>
+                    {invoice.status === "POSTED" && pending > 0.004 && (
+                      <>
+                        <Link
+                          className="btn-link btn-link-small btn-link-primary"
+                          href={`/accounting/sales/${invoice.id}#take-payment`}
+                        >
+                          Take payment
+                        </Link>
+                        {" "}
+                      </>
+                    )}
                     <Link
                       className="btn-link btn-link-small"
                       href={`/accounting/sales/${invoice.id}`}
