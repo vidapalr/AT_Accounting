@@ -8,9 +8,21 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { receiveSalePaymentAction } from "@/lib/sale-payment-actions";
 
 type Props = {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ pay?: string }>;
+};
+
+const PAY_MESSAGES: Record<string, { ok: boolean; text: string }> = {
+  ok: { ok: true, text: "Payment saved." },
+  invalid: { ok: false, text: "Check the amount, method and account." },
+  "invalid-account": { ok: false, text: "That receiving account cannot be used." },
+  "invalid-date": { ok: false, text: "The payment date cannot be before the invoice date." },
+  "too-much": { ok: false, text: "That is more than the amount still due." },
+  "not-posted": { ok: false, text: "Confirm the sale before taking payment." },
+  failed: { ok: false, text: "Could not save the payment. Please try again." },
 };
 
 const money = (value: string | number) =>
@@ -25,7 +37,7 @@ const cell: React.CSSProperties = {
   textAlign: "left",
 };
 
-async function InvoiceDetails({ params }: Props) {
+async function InvoiceDetails({ params, searchParams }: Props) {
   const user = await requireAccess("sales");
   const { id } = await params;
   const saleId = Number(id);
@@ -35,6 +47,7 @@ async function InvoiceDetails({ params }: Props) {
   }
 
   const businessId = user.legal_business_id;
+  const payResult = (await searchParams)?.pay;
 
   const [headers] = await db.execute<RowDataPacket[]>(
     `SELECT
@@ -140,6 +153,22 @@ async function InvoiceDetails({ params }: Props) {
     invoice.status === "POSTED"
       ? Math.max(0, total - collected)
       : 0;
+
+  const [bankRows] = await db.execute<RowDataPacket[]>(
+    `SELECT id, bank_name, account_number_last4
+       FROM acct_bank_accounts
+      WHERE legal_business_id = ? AND status = 'ACTIVE'
+        AND verification_status = 'VERIFIED' AND can_receive = 1
+      ORDER BY bank_name, id`,
+    [businessId]
+  );
+  const [cashRows] = await db.execute<RowDataPacket[]>(
+    `SELECT id, cash_name FROM acct_cash_accounts
+      WHERE legal_business_id = ? AND status = 'ACTIVE'
+      ORDER BY cash_name, id`,
+    [businessId]
+  );
+  const today = new Date().toISOString().slice(0, 10);
 
   const paymentStatus =
     invoice.status !== "POSTED"
@@ -305,11 +334,101 @@ async function InvoiceDetails({ params }: Props) {
         <p>Remarks: {invoice.remarks}</p>
       )}
 
-      <p style={{ marginTop: 24 }}>
-        Refund, Return, Exchange and follow-up
-        collection will be enabled through controlled
-        transaction workflows.
-      </p>
+      {payResult && PAY_MESSAGES[payResult] && (
+        <p
+          role="status"
+          className="no-print"
+          style={{ color: PAY_MESSAGES[payResult].ok ? "#166534" : "#b91c1c", marginTop: 16 }}
+        >
+          {PAY_MESSAGES[payResult].text}
+        </p>
+      )}
+
+      {outstanding > 0 && (
+        <section
+          className="no-print"
+          style={{
+            marginTop: 24,
+            padding: 18,
+            border: "1px solid #cbd5e1",
+            borderRadius: 10,
+            background: "#fff",
+          }}
+        >
+          <h2 style={{ marginTop: 0 }}>Take payment (₹{money(outstanding)} still due)</h2>
+          <form
+            action={receiveSalePaymentAction}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+              gap: 14,
+              alignItems: "end",
+            }}
+          >
+            <input type="hidden" name="sale_id" value={invoice.id} />
+            <label>
+              Amount received (₹)
+              <input
+                name="amount"
+                inputMode="decimal"
+                defaultValue={outstanding.toFixed(2)}
+                required
+                style={{ width: "100%" }}
+              />
+            </label>
+            <label>
+              How did they pay?
+              <select name="method" defaultValue="CASH" style={{ width: "100%" }}>
+                <option value="CASH">Cash</option>
+                <option value="UPI">UPI</option>
+                <option value="BANK_TRANSFER">Bank transfer</option>
+                <option value="CARD">Card</option>
+              </select>
+            </label>
+            <label>
+              Money went into
+              <select name="account" required style={{ width: "100%" }}>
+                {cashRows.map(c => (
+                  <option key={`c${c.id}`} value={`CASH:${c.id}`}>
+                    Cash: {c.cash_name}
+                  </option>
+                ))}
+                {bankRows.map(b => (
+                  <option key={`b${b.id}`} value={`BANK:${b.id}`}>
+                    Bank: {b.bank_name} ••••{b.account_number_last4}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Date
+              <input
+                type="date"
+                name="payment_date"
+                defaultValue={today}
+                min={invoice.invoice_date}
+                required
+                style={{ width: "100%" }}
+              />
+            </label>
+            <label>
+              Reference (optional)
+              <input name="reference" maxLength={150} placeholder="UPI ref, cheque no." style={{ width: "100%" }} />
+            </label>
+            <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer", justifyContent: "center" }}>
+              Save payment
+            </button>
+          </form>
+          <p style={{ color: "#64748b", marginBottom: 0 }}>
+            Cash goes into a cash account, UPI, card and bank transfer into a bank account.
+          </p>
+        </section>
+      )}
+
+      <nav className="no-print" style={{ marginTop: 24, display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <Link href="/accounting/returns">Return or refund</Link>
+        <Link href="/accounting/sales">New sale</Link>
+      </nav>
     </main>
   );
 }

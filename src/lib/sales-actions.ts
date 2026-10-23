@@ -456,7 +456,18 @@ export async function createSaleAction(
             [businessId, prefix]
           );
 
-          const number = BigInt(seq[0].last_number) + 1n;
+          // Never reuse a number: also look at invoices already saved with this
+          // prefix (imported or older ones may be ahead of the counter).
+          const [used] = await conn.execute<RowDataPacket[]>(
+            `SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(invoice_no, '_', -1) AS UNSIGNED)), 0) AS top
+             FROM acct_sales_headers
+             WHERE legal_business_id = ?
+               AND invoice_no LIKE ?`,
+            [businessId, `${prefix}\\_%`]
+          );
+          const counter = BigInt(seq[0].last_number);
+          const highest = BigInt(used[0]?.top ?? 0);
+          const number = (counter > highest ? counter : highest) + 1n;
 
           await conn.execute(
             `UPDATE acct_document_sequences
