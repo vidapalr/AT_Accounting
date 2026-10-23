@@ -81,6 +81,19 @@ async function Content({ searchParams }: Props) {
 
       <section style={card}>
         <h2 style={{ marginTop: 0 }}>Waiting for your approval ({pending.length})</h2>
+        {pending.filter((d) => d.action === "RECEIVED" && !d.problem).length > 1 && (
+          <p>
+            <Link
+              href={`/accounting/purchases?from_reports=${pending
+                .filter((d) => d.action === "RECEIVED" && !d.problem)
+                .map((d) => d.id)
+                .join(",")}#purchase-entry`}
+              style={btn}
+            >
+              Make one purchase from all received lines
+            </Link>
+          </p>
+        )}
         {pending.length === 0 ? <p>Nothing waiting.</p> : (
           <div style={{ overflowX: "auto" }}>
             <table style={{ borderCollapse: "collapse", width: "100%" }}>
@@ -95,7 +108,7 @@ async function Content({ searchParams }: Props) {
                       {d.problem && <div style={{ color: "#b91c1c", fontSize: 14 }}>⚠ {d.problem} (“{d.raw_line}”)</div>}
                     </td>
                     <td style={{ ...cell, whiteSpace: "nowrap" }}>
-                      {!d.problem && (
+                      {!d.problem && d.action !== "RECEIVED" && (
                         <form action={approveDraftAction} style={{ display: "inline" }}>
                           <input type="hidden" name="id" value={d.id} />
                           <button style={btn}>Approve</button>
@@ -105,7 +118,7 @@ async function Content({ searchParams }: Props) {
                         <input type="hidden" name="id" value={d.id} />
                         <button style={btnGrey}>Reject</button>
                       </form>
-                      {!d.problem && d.action === "RECEIVED" && <> <Link href="/accounting/purchases" style={btnGrey}>Buy stock</Link></>}
+                      {!d.problem && d.action === "RECEIVED" && <><Link href={`/accounting/purchases?from_reports=${d.id}#purchase-entry`} style={btnGrey}>Make purchase</Link></>}
                       {!d.problem && d.action === "SOLD" && <> <Link href="/accounting/sales" style={btnGrey}>Make bill</Link></>}
                     </td>
                   </tr>

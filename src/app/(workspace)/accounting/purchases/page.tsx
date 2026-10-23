@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import PurchaseDraftForm, {
   type PurchaseDraft,
+  type Prefill,
 } from "./PurchaseDraftForm";
 import styles from "./purchases.module.css";
 import { getActiveDivisionId } from "@/lib/division-context";
@@ -16,6 +17,7 @@ type Props = {
     result?: string;
     purchase?: string;
     edit?: string;
+    from_reports?: string;
   }>;
 };
 
@@ -128,6 +130,35 @@ async function PurchaseContent({ searchParams }: Props) {
      ORDER BY p.product_name, v.sku`,
     [businessId, DIVISION_ID]
   );
+
+  // Lines staff reported as "received" on WhatsApp, to start a purchase from.
+  let prefill: Prefill | undefined;
+  const reportIds = String(query.from_reports ?? "")
+    .split(",")
+    .map((v) => Number(v))
+    .filter((v) => Number.isSafeInteger(v) && v > 0)
+    .slice(0, 50);
+  if (reportIds.length > 0) {
+    const [reports] = await db.execute<RowDataPacket[]>(
+      `SELECT id, variant_id, quantity, location_id FROM acct_stock_drafts
+        WHERE legal_business_id = ? AND division_id = ? AND action = 'RECEIVED'
+          AND status IN ('PENDING', 'DONE') AND variant_id IS NOT NULL
+          AND id IN (${reportIds.map(() => "?").join(",")})`,
+      [businessId, DIVISION_ID, ...reportIds]
+    );
+    if (reports.length > 0) {
+      const totals = new Map<number, number>();
+      for (const r of reports) {
+        totals.set(Number(r.variant_id), (totals.get(Number(r.variant_id)) ?? 0) + Number(r.quantity));
+      }
+      const wanted = Number(reports[0].location_id);
+      prefill = {
+        locationId: locations.some((l) => Number(l.id) === wanted) ? wanted : null,
+        reportIds: reports.map((r) => Number(r.id)),
+        lines: [...totals].map(([variant_id, quantity]) => ({ variant_id, quantity: String(quantity) })),
+      };
+    }
+  }
 
   const [purchases] = await db.execute<Purchase[]>(
     `SELECT
@@ -342,6 +373,7 @@ async function PurchaseContent({ searchParams }: Props) {
             unit_of_measure: sku.unit_of_measure,
           }))}
           draft={editDraft}
+          prefill={editDraft ? undefined : prefill}
         />
       </section>
 

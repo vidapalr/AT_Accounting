@@ -133,7 +133,7 @@ export async function approveDraftAction(formData: FormData) {
         const diff = Number(d.quantity) - system;
         note = diff === 0 ? "Count matches the system." : `Counted ${Number(d.quantity)}, system shows ${system} (difference ${diff > 0 ? "+" : ""}${diff}).`;
       } else if (d.action === "RECEIVED") {
-        note = "Acknowledged. Record the purchase in Buy stock to add it to stock.";
+        note = "Acknowledged. Use “Make purchase” to add it to stock.";
       } else {
         note = "Acknowledged. Make the bill in Sell to record the sale.";
       }
