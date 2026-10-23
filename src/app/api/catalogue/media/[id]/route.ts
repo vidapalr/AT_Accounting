@@ -32,6 +32,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     "X-Content-Type-Options": "nosniff",
   };
 
+  if (request.nextUrl.searchParams.get("download") === "1") {
+    const ext = String(media.mime_type).split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
+    headers["Content-Disposition"] = `attachment; filename="abhiram-${id}.${ext}"`;
+  }
+
   const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get("range") ?? "");
   if (range && (range[1] || range[2])) {
     const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));

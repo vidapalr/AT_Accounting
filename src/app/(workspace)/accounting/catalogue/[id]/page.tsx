@@ -110,6 +110,9 @@ async function ProductMedia({ params, searchParams }: Props) {
         </form>
       </section>
 
+      <p>
+        <Link className="btn-link btn-link-primary" href={`/accounting/catalogue/instagram?product=${p.id}`}>Post to Instagram</Link>
+      </p>
       <h2>Gallery ({media.length})</h2>
       {media.length === 0 && <p>No photos or videos yet.</p>}
       <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
