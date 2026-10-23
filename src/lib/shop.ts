@@ -16,17 +16,17 @@ export async function getShopSettings(businessId = SHOP_BUSINESS_ID) {
   return { whatsapp: map.get("shop_whatsapp") ?? "" };
 }
 
-/** Latest selling price for each variant, from the newest received stock transfer. */
-async function latestPrices(variantIds: number[]): Promise<Map<number, number>> {
+/** Shop price for each variant: the maximum selling price entered on its newest received stock transfer. */
+export async function latestPrices(variantIds: number[]): Promise<Map<number, number>> {
   const prices = new Map<number, number>();
   if (variantIds.length === 0) return prices;
   const [rows] = await db.query<RowDataPacket[]>(
-    `SELECT tl.variant_id, tl.suggested_selling_price AS price
+    `SELECT tl.variant_id, COALESCE(tl.max_selling_price, tl.suggested_selling_price) AS price
        FROM acct_stock_transfer_lines tl
        JOIN acct_stock_transfers t
          ON t.legal_business_id = tl.legal_business_id AND t.id = tl.transfer_id
       WHERE t.legal_business_id = ? AND t.status = 'RECEIVED'
-        AND tl.suggested_selling_price IS NOT NULL AND tl.variant_id IN (?)
+        AND COALESCE(tl.max_selling_price, tl.suggested_selling_price) IS NOT NULL AND tl.variant_id IN (?)
       ORDER BY t.received_at DESC, t.id DESC`,
     [SHOP_BUSINESS_ID, variantIds]
   );

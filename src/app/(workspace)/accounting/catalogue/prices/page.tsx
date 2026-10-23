@@ -5,6 +5,7 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { saveShopPricesAction } from "@/lib/shop-actions";
+import { latestPrices } from "@/lib/shop";
 
 type Props = { searchParams: Promise<{ result?: string }> };
 
@@ -31,6 +32,9 @@ async function Prices({ searchParams }: Props) {
     [user.legal_business_id]
   );
 
+  const transferPrices = await latestPrices(rows.map(r => Number(r.id)));
+  const inr = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+
   const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
 
   return (
@@ -38,8 +42,7 @@ async function Prices({ searchParams }: Props) {
       <nav style={{ marginBottom: 12 }}><Link href="/accounting/catalogue">← Catalogue</Link></nav>
       <h1>Shop prices</h1>
       <p style={{ color: "#475569" }}>
-        The selling price customers see on the online shop, Instagram and WhatsApp. Fill the price for each size and colour, then press Save once.
-        A product needs a price and a photo to be sent to Meta.
+        Customers see the maximum selling price you entered when stock was moved to the shop. If a size has none, or you want a different price, type your own price here and press Save once. Leave a box empty to use the stock price. A product needs a price and a photo to be sent to Meta.
       </p>
       {msg && <p role={msg.ok ? "status" : "alert"} style={{ color: msg.ok ? "#166534" : "#b91c1c" }}>{msg.text}</p>}
       {rows.length === 0 ? (
@@ -49,19 +52,20 @@ async function Prices({ searchParams }: Props) {
           <div style={{ overflowX: "auto" }}>
             <table style={{ borderCollapse: "collapse", width: "100%" }}>
               <thead>
-                <tr><th style={cell}>Product</th><th style={cell}>Size / colour</th><th style={cell}>Price (₹)</th><th style={cell}>Photo</th></tr>
+                <tr><th style={cell}>Product</th><th style={cell}>Size / colour</th><th style={cell}>Maximum price from stock</th><th style={cell}>Your own price (optional)</th><th style={cell}>Photo</th></tr>
               </thead>
               <tbody>
                 {rows.map(r => (
                   <tr key={r.id}>
                     <td style={cell}>{String(r.product_name)}</td>
                     <td style={cell}>{[r.size_label, r.color_name].filter(Boolean).join(", ") || String(r.sku)}</td>
+                    <td style={cell}>{transferPrices.has(Number(r.id)) ? inr(transferPrices.get(Number(r.id))!) : <span style={{ color: "#b45309" }}>none</span>}</td>
                     <td style={cell}>
                       <input
                         name={`price_${r.id}`}
                         inputMode="decimal"
                         defaultValue={r.shop_price === null ? "" : String(Number(r.shop_price))}
-                        placeholder="1499"
+                        placeholder="same as stock"
                         style={{ padding: 8, width: 110, border: "1px solid #cbd5e1", borderRadius: 6 }}
                       />
                     </td>

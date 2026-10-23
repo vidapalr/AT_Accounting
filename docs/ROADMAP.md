@@ -139,4 +139,4 @@ Shop links: home page has a "Shop online" button; the new-stock WhatsApp message
 
 Bulk shop switches on the Catalogue page: show all in-stock products, show every active product, hide everything (with confirmation); "On the shop now" count and a no-photo warning.
 
-Shop prices page (/accounting/catalogue/prices): set the selling price per size/colour for all shop products in one save. Overrides the stock-transfer price on /shop and in the Meta feed (migration 016).
+Shop price = the maximum selling price from the newest received stock transfer (falls back to the suggested price). The Shop prices page (/accounting/catalogue/prices) lets the owner override it per size/colour (migration 016).
