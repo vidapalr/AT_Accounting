@@ -36,7 +36,7 @@ export type TransitItem = {
 };
 
 type Props = {
-  scope: "CENTRAL" | "BRANCH";
+  scope: "CENTRAL" | "BRANCH" | "ALL";
   stock: InventoryRow[];
   transit: TransitItem[];
   initialFilters?: { q?: string; location?: string; availability?: string };
@@ -164,7 +164,7 @@ export default function InventoryReportClient({
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${scope === "CENTRAL" ? "central" : "branch"}-inventory-${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `${scope === "ALL" ? "stock-on-hand" : scope === "CENTRAL" ? "central-inventory" : "branch-inventory"}-${new Date().toISOString().slice(0,10)}.csv`;
     document.body.appendChild(a);
     a.click(); a.remove(); URL.revokeObjectURL(url);
   };
@@ -181,12 +181,10 @@ export default function InventoryReportClient({
       <div className="ir-header">
         <div>
           <div className="ir-eyebrow">ABHIRAM TEXTILES · INVENTORY</div>
-          <h1>{scope === "CENTRAL" ? "Central Warehouse Inventory" : "Branch Inventory"}</h1>
+          <h1>{scope === "ALL" ? "Stock on Hand" : scope === "CENTRAL" ? "Central Warehouse Inventory" : "Branch Inventory"}</h1>
           <p>Balances from posted inventory movements. In-transit stock is shown separately.</p>
         </div>
         <nav className="ir-nav" aria-label="Inventory navigation">
-          <Link href="/accounting/warehouse-inventory">Central Warehouse</Link>
-          <Link href="/accounting/branch-inventory">Branch Inventory</Link>
           <Link href="/accounting/stock-transfers">Stock Transfers</Link>
         </nav>
       </div>

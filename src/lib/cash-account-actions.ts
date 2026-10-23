@@ -9,6 +9,7 @@ import type {
 } from "mysql2";
 
 import { db } from "@/lib/db";
+import { nextCode } from "@/lib/codes";
 import { requireGroupOwner } from "@/lib/auth";
 
 const PAGE = "/accounting/cash-accounts";
@@ -55,8 +56,7 @@ export async function createCashAccountAction(
   const user = await requireGroupOwner();
   const businessId = user.legal_business_id;
 
-  const cashCode = field(form, "cash_code")
-    .toUpperCase();
+  const cashCode = await nextCode(db, { table: "acct_cash_accounts", column: "cash_code", prefix: "CASH-", width: 3, where: "legal_business_id = ?", params: [businessId] });
 
   const cashName = field(form, "cash_name");
   const cashType = field(form, "cash_type") as CashType;

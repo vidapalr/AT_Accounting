@@ -1,3 +1,4 @@
+import LedgerStatusNote from "@/components/LedgerStatusNote";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
@@ -1006,12 +1007,15 @@ async function ReportContent({ searchParams }: Props) {
         <div>
           <p className={styles.eyebrow}>Accounting report</p>
           <h1>Sales, Purchase & Daily Profit</h1>
+      <Suspense fallback={null}>
+        <LedgerStatusNote businessId={businessId} />
+      </Suspense>
           <p>
             Review posted sales and purchases by financial year,
             accounting month, and transaction date.
           </p>
         </div>
-        <Link href="/accounting/account-balances">
+        <Link className="btn-link" href="/accounting/account-balances">
           Account balances
         </Link>
       </header>

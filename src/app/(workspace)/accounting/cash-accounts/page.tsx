@@ -170,16 +170,6 @@ async function CashAccountsContent({
             gap: 16,
           }}
         >
-          <label style={fieldStyle}>
-            Cash Code
-            <input
-              name="cash_code"
-              placeholder="ATX-KAP-CASH"
-              maxLength={32}
-              required
-              style={inputStyle}
-            />
-          </label>
 
           <label style={fieldStyle}>
             Cash Account Name

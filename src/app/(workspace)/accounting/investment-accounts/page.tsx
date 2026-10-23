@@ -1,4 +1,5 @@
 
+import LedgerStatusNote from "@/components/LedgerStatusNote";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
@@ -99,7 +100,6 @@ async function InvestmentAccountsContent() {
       AND t.status = 'VERIFIED'
 
      WHERE a.legal_business_id = ?
-       AND a.division_id = 1
 
      GROUP BY
        a.id,
@@ -145,7 +145,6 @@ async function InvestmentAccountsContent() {
         AND a.legal_business_id = pp.legal_business_id
 
        WHERE pp.legal_business_id = ?
-         AND ph.division_id = 1
          AND pp.status = 'VERIFIED'
          AND pp.payment_source IN (
            'INVESTOR_BANK',
@@ -189,9 +188,12 @@ async function InvestmentAccountsContent() {
       margin: "0 auto",
     }}>
       <h1>Investment Account Balances</h1>
+      <Suspense fallback={null}>
+        <LedgerStatusNote businessId={businessId} />
+      </Suspense>
 
       <p>
-        Abhiram Textiles — verified funding contributions,
+        Verified funding contributions,
         principal repayments and outstanding balances.
       </p>
 

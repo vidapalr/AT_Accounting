@@ -1,4 +1,5 @@
 
+import LedgerStatusNote from "@/components/LedgerStatusNote";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
@@ -154,7 +155,6 @@ async function AccountBalancesContent({
         AND sh.division_id = sp.division_id
         AND sh.id = sp.sale_id
        WHERE sp.legal_business_id = ?
-         AND sp.division_id = 1
          AND sp.status = 'RECORDED'
          AND sh.status = 'POSTED'
        ORDER BY sp.payment_date, sp.id`,
@@ -180,7 +180,6 @@ async function AccountBalancesContent({
          ON ph.legal_business_id = pp.legal_business_id
         AND ph.id = pp.purchase_id
        WHERE pp.legal_business_id = ?
-         AND ph.division_id = 1
          AND pp.status = 'VERIFIED'
        ORDER BY pp.payment_date, pp.id`,
       [businessId]
@@ -197,7 +196,6 @@ async function AccountBalancesContent({
       AND e.id = ep.expense_id
       AND e.division_id <=> ep.division_id
      WHERE ep.legal_business_id = ?
-       AND (e.division_id = 1 OR e.division_id IS NULL)
        AND ep.status = 'RECORDED'
        AND e.status = 'CONFIRMED'
      ORDER BY ep.payment_date, ep.id`,
@@ -387,9 +385,12 @@ async function AccountBalancesContent({
       padding: 24,
     }}>
       <h1>Account Balances & Money Flow</h1>
+      <Suspense fallback={null}>
+        <LedgerStatusNote businessId={businessId} />
+      </Suspense>
 
       <p>
-        Abhiram Textiles — recorded sales collections
+        Recorded sales collections
         verified supplier payments and recorded expense payments
         by account. Includes Textiles expenses and Group overheads.
       </p>

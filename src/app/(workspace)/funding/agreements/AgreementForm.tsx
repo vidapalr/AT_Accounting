@@ -69,14 +69,6 @@ export default function AgreementForm({
       action={createFundingAgreementAction}
       className={styles.formGrid}
     >
-      <Field label="Agreement Number">
-        <input
-          name="agreement_no"
-          placeholder="ATX-KAP-INV001"
-          maxLength={40}
-          required
-        />
-      </Field>
 
       <Field label="Funding Party">
         <select

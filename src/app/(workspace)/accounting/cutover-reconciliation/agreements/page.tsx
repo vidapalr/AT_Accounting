@@ -136,7 +136,7 @@ async function AgreementReconciliationContent({
       <main style={{ padding: 24 }}>
         <h1>Agreement Cutover Reconciliation</h1>
         <p>Create an opening balance worksheet first.</p>
-        <Link href="/accounting/opening-balances">
+        <Link className="btn-link" href="/accounting/opening-balances">
           Opening Balances
         </Link>
       </main>
@@ -416,7 +416,7 @@ async function AgreementReconciliationContent({
       margin: "0 auto",
       padding: 24,
     }}>
-      <Link href="/accounting/cutover-reconciliation">
+      <Link className="btn-link" href="/accounting/cutover-reconciliation">
         ← Cutover Reconciliation
       </Link>
 

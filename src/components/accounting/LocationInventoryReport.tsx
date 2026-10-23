@@ -1,13 +1,13 @@
 import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
-import { requireGroupOwner } from "@/lib/auth";
+import { requireAccess } from "@/lib/auth";
 import InventoryReportClient, {
   type InventoryRow,
   type TransitItem,
 } from "./InventoryReportClient";
 import "./inventory-report.css";
 
-type InventoryScope = "CENTRAL" | "BRANCH";
+type InventoryScope = "CENTRAL" | "BRANCH" | "ALL";
 type InventoryFilters = { q?: string; location?: string; availability?: string };
 type Props = { scope: InventoryScope; filters?: InventoryFilters };
 
@@ -18,13 +18,14 @@ export default async function LocationInventoryReport({
   scope,
   filters = {},
 }: Props) {
-  const user = await requireGroupOwner();
+  const user = await requireAccess("stock");
   const businessId = user.legal_business_id;
-  const divisionId = 1;
 
-  const locationCondition = scope === "CENTRAL"
-    ? "l.location_type IN ('CENTRAL_WAREHOUSE', 'WAREHOUSE') AND l.branch_id IS NULL"
-    : "l.branch_id IS NOT NULL";
+  const locationCondition = scope === "ALL"
+    ? "1 = 1"
+    : scope === "CENTRAL"
+      ? "l.location_type IN ('CENTRAL_WAREHOUSE', 'WAREHOUSE') AND l.branch_id IS NULL"
+      : "l.branch_id IS NOT NULL";
 
   // Stock values come exclusively from posted movements, not transfers still in transit.
   const [rows] = await db.execute<StockDbRow[]>(
@@ -54,18 +55,20 @@ export default async function LocationInventoryReport({
      JOIN acct_products p
        ON p.legal_business_id = v.legal_business_id
       AND p.division_id = v.division_id AND p.id = v.product_id
-     WHERE m.legal_business_id = ? AND m.division_id = ?
+     WHERE m.legal_business_id = ?
        AND ${locationCondition}
      GROUP BY l.id, l.location_name, l.location_code,
        b.branch_name, v.id, v.sku, p.product_name,
        v.size_label, v.color_name, v.unit_of_measure
      ORDER BY b.branch_name, l.location_name, p.product_name, v.sku`,
-    [businessId, divisionId],
+    [businessId],
   );
 
-  const transitCondition = scope === "CENTRAL"
-    ? "src.location_type IN ('CENTRAL_WAREHOUSE', 'WAREHOUSE') AND src.branch_id IS NULL"
-    : "dst.branch_id IS NOT NULL";
+  const transitCondition = scope === "ALL"
+    ? "1 = 1"
+    : scope === "CENTRAL"
+      ? "src.location_type IN ('CENTRAL_WAREHOUSE', 'WAREHOUSE') AND src.branch_id IS NULL"
+      : "dst.branch_id IS NOT NULL";
 
   const [transitRows] = await db.execute<TransitDbRow[]>(
     `SELECT t.transfer_no, src.location_name AS source_location,
@@ -90,10 +93,10 @@ export default async function LocationInventoryReport({
        ON p.legal_business_id = v.legal_business_id
       AND p.division_id = v.division_id
       AND p.id = v.product_id
-     WHERE t.legal_business_id = ? AND t.division_id = ?
+     WHERE t.legal_business_id = ?
        AND t.status = 'DISPATCHED' AND ${transitCondition}
      ORDER BY t.id DESC, tl.id`,
-    [businessId, divisionId],
+    [businessId],
   );
 
   // mysql2 returns DECIMAL as strings; convert to plain serializable props.

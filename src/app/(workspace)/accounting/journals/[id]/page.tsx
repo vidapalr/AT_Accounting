@@ -234,7 +234,7 @@ async function JournalDetailContent({
       margin: "0 auto",
       padding: 24,
     }}>
-      <Link href="/accounting/journals">
+      <Link className="btn-link" href="/accounting/journals">
         ← Back to Journal Register
       </Link>
 

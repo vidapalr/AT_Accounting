@@ -2,6 +2,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import styles from "./SalesBillingForm.module.css";
 import {
   createSaleAction,
   updateSaleAction,
@@ -65,7 +66,15 @@ type InitialInvoice = {
   }>;
 };
 
+type CustomerOption = {
+  name: string;
+  phone: string;
+  dues: number;
+  creditLimit: number;
+};
+
 type Props = {
+  customers?: CustomerOption[];
   branches: Branch[];
   products: ProductOption[];
   paymentAccounts: PaymentAccountOption[];
@@ -107,12 +116,18 @@ const newPaymentRow = (): PaymentRow => ({
 });
 
 export default function SalesBillingForm({
+  customers = [],
   branches,
   products,
   paymentAccounts,
   today,
   initialInvoice,
 }: Props) {
+  const [custPhone, setCustPhone] = useState(initialInvoice?.customerPhone ?? "");
+  const [custName, setCustName] = useState(initialInvoice?.customerName ?? "");
+  const digits = custPhone.replace(/\D/g, "").slice(-10);
+  const known = digits.length === 10 ? customers.find(c => c.phone === digits) : undefined;
+
   const [branchId, setBranchId] = useState(
     initialInvoice?.branchId ?? branches[0]?.id ?? 0
   );
@@ -216,18 +231,28 @@ export default function SalesBillingForm({
 
   const outstanding = grandTotal - collected;
 
+  const overStock = rows.some(r => {
+    const p = findProduct(r.variantId);
+    return p != null && Number(r.quantity) > p.available;
+  });
+  const firstCash = paymentAccounts.find(a => a.value.startsWith("CASH:"));
+
+  function payFull() {
+    if (!firstCash || grandTotal <= 0) return;
+    setPayments([
+      {
+        ...newPaymentRow(),
+        method: "CASH",
+        amount: grandTotal.toFixed(2),
+        account: firstCash.value,
+      },
+    ]);
+  }
+
   return (
-    <form action={action} style={{
-      display: "grid",
-      gap: 20,
-      marginBottom: 36,
-    }}>
+    <form action={action} className={styles.form}>
       {initialInvoice && (
-        <input
-          type="hidden"
-          name="sale_id"
-          value={initialInvoice.id}
-        />
+        <input type="hidden" name="sale_id" value={initialInvoice.id} />
       )}
       <input
         type="hidden"
@@ -242,7 +267,6 @@ export default function SalesBillingForm({
           }))
         )}
       />
-
       <input
         type="hidden"
         name="payments_json"
@@ -258,537 +282,451 @@ export default function SalesBillingForm({
         )}
       />
 
-      <section style={{
-        display: "grid",
-        gridTemplateColumns:
-          "repeat(auto-fit, minmax(200px, 1fr))",
-        gap: 14,
-      }}>
-        <label>
-          Sales Branch
-          {editing ? (
-            <>
-              <input
-                type="hidden"
-                name="branch_id"
-                value={branchId}
-              />
-              <input
-                value={
-                  branches.find(branch => branch.id === branchId)
-                    ?.name ?? ""
-                }
-                readOnly
-                style={inputStyle}
-              />
-            </>
-          ) : (
-            <select
-              name="branch_id"
-              value={branchId}
-              onChange={e => {
-                setBranchId(Number(e.target.value));
-                setRows([newSaleRow()]);
-              }}
-              style={inputStyle}
-              required
-            >
-              {branches.map(branch => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </label>
-
-        <label>
-          Invoice Date
-          <input
-            name="invoice_date"
-            type="date"
-            defaultValue={initialInvoice?.date ?? today}
-            disabled={
-              initialInvoice?.status === "POSTED"
-            }
-            required
-            style={inputStyle}
-          />
-          {initialInvoice?.status === "POSTED" && (
+      {/* 1. Customer */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>
+          <span className={styles.step}>1</span> Who is buying?
+        </h2>
+        <div className={styles.grid2}>
+          <label className={styles.field}>
+            Customer mobile number
             <input
-              type="hidden"
-              name="invoice_date"
-              value={initialInvoice.date}
+              name="customer_phone"
+              type="tel"
+              inputMode="numeric"
+              list="known-customers"
+              placeholder="10 digits (empty = walk-in)"
+              maxLength={20}
+              value={custPhone}
+              onChange={e => {
+                const v = e.target.value;
+                setCustPhone(v);
+                const d = v.replace(/\D/g, "").slice(-10);
+                const match =
+                  d.length === 10 ? customers.find(c => c.phone === d) : undefined;
+                if (match && custName.trim() === "") setCustName(match.name);
+              }}
             />
-          )}
-        </label>
+            <datalist id="known-customers">
+              {customers.slice(0, 300).map(c => (
+                <option key={c.phone} value={c.phone}>{c.name}</option>
+              ))}
+            </datalist>
+          </label>
 
-        <label>
-          Customer Name
-          <input
-            name="customer_name"
-            placeholder="Walk-in customer"
-            maxLength={150}
-            defaultValue={initialInvoice?.customerName ?? ""}
-            style={inputStyle}
-          />
-        </label>
+          <label className={styles.field}>
+            Customer name
+            <input
+              name="customer_name"
+              placeholder="Walk-in customer"
+              maxLength={150}
+              value={custName}
+              onChange={e => setCustName(e.target.value)}
+            />
+          </label>
+        </div>
 
-        <label>
-          Customer Mobile
-          <input
-            name="customer_phone"
-            type="tel"
-            placeholder="Mobile number"
-            maxLength={20}
-            defaultValue={initialInvoice?.customerPhone ?? ""}
-            style={inputStyle}
-          />
-        </label>
+        {digits.length === 10 && (
+          <p
+            role="status"
+            className={`${styles.hint} ${
+              !known ? styles.hintNew : known.dues > 0 ? styles.hintOwes : styles.hintOk
+            }`}
+          >
+            {known
+              ? `Existing customer: ${known.name}. ${
+                  known.dues > 0 ? `Still owes ₹${amount(known.dues)}.` : "No dues."
+                }${
+                  known.creditLimit > 0 ? ` Credit limit ₹${amount(known.creditLimit)}.` : ""
+                }`
+              : "New customer. They will be saved automatically with this sale."}
+          </p>
+        )}
+
+        <details className={styles.more}>
+          <summary>Shop and date: {branches.find(b => b.id === branchId)?.name ?? ""}</summary>
+          <div className={styles.grid2} style={{ marginTop: 10 }}>
+            <label className={styles.field}>
+              Shop / branch
+              {editing ? (
+                <>
+                  <input type="hidden" name="branch_id" value={branchId} />
+                  <input
+                    value={branches.find(b => b.id === branchId)?.name ?? ""}
+                    readOnly
+                  />
+                </>
+              ) : (
+                <select
+                  name="branch_id"
+                  value={branchId}
+                  onChange={e => {
+                    setBranchId(Number(e.target.value));
+                    setRows([newSaleRow()]);
+                  }}
+                  required
+                >
+                  {branches.map(branch => (
+                    <option key={branch.id} value={branch.id}>{branch.name}</option>
+                  ))}
+                </select>
+              )}
+            </label>
+            <label className={styles.field}>
+              Bill date
+              <input
+                name="invoice_date"
+                type="date"
+                defaultValue={initialInvoice?.date ?? today}
+                disabled={initialInvoice?.status === "POSTED"}
+                required
+              />
+              {initialInvoice?.status === "POSTED" && (
+                <input type="hidden" name="invoice_date" value={initialInvoice.date} />
+              )}
+            </label>
+          </div>
+        </details>
       </section>
 
-      <section>
-        <h2>Invoice Items</h2>
+      {/* 2. Items */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>
+          <span className={styles.step}>2</span> What are they buying?
+        </h2>
 
-        <div style={{ overflowX: "auto" }}>
-          <table style={{
-            borderCollapse: "collapse",
-            width: "100%",
-            minWidth: 850,
-          }}>
-            <thead>
-              <tr>
-                <th>Product / SKU</th>
-                <th>Available</th>
-                <th>Qty</th>
-                <th>Rate ₹</th>
-                <th>Discount ₹</th>
-                <th>Total ₹</th>
-                <th>Action</th>
-              </tr>
-            </thead>
+        <div className={styles.items}>
+          {rows.map((row, index) => {
+            const product = findProduct(row.variantId);
+            const price = Number(row.price || 0);
+            const min = product?.minPrice;
+            const fractionalQuantity = product?.unit === "METER";
+            const belowMinimum = min != null && price < min;
+            const insufficient =
+              product != null && Number(row.quantity) > product.available;
 
-            <tbody>
-              {rows.map((row, index) => {
-                const product = findProduct(row.variantId);
-                const price = Number(row.price || 0);
-                const min = product?.minPrice;
-                const fractionalQuantity =
-                  product?.unit === "METER";
+            return (
+              <div key={row.key} className={styles.item}>
+                <label className={styles.field}>
+                  Product
+                  <select
+                    value={row.variantId}
+                    onChange={e => {
+                      const id = Number(e.target.value);
+                      const selected = findProduct(id);
+                      updateRow(row.key, {
+                        variantId: id,
+                        price:
+                          selected?.suggestedPrice != null
+                            ? String(selected.suggestedPrice)
+                            : selected?.minPrice != null
+                              ? String(selected.minPrice)
+                              : "",
+                        reason: "",
+                      });
+                    }}
+                    required={index === 0}
+                  >
+                    <option value={0}>Choose a product</option>
+                    {branchProducts.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} — {p.sku}
+                        {!p.active ? " (inactive)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-                const belowMinimum =
-                  min != null && price < min;
+                {product && (
+                  <p className={insufficient ? styles.bad : styles.stock}>
+                    {insufficient
+                      ? `Not enough stock: only ${product.available} ${product.unit} available`
+                      : `In stock: ${product.available} ${product.unit}`}
+                  </p>
+                )}
 
-                const insufficient =
-                  product != null &&
-                  Number(row.quantity) > product.available;
+                <div className={styles.itemNums}>
+                  <label className={styles.field}>
+                    Quantity
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min={fractionalQuantity ? "0.001" : "1"}
+                      step={fractionalQuantity ? "0.001" : "1"}
+                      value={row.quantity}
+                      onChange={e => updateRow(row.key, { quantity: e.target.value })}
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    Price ₹
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      value={row.price}
+                      onChange={e => updateRow(row.key, { price: e.target.value })}
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    Discount ₹
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      value={row.discount}
+                      onChange={e => updateRow(row.key, { discount: e.target.value })}
+                    />
+                  </label>
+                  <div className={styles.lineTotal}>
+                    <span>Amount</span>
+                    <strong>₹{amount(lineTotals[index])}</strong>
+                  </div>
+                </div>
 
-                return (
-                  <tr key={row.key}>
-                    <td style={{ padding: 6, minWidth: 270 }}>
-                      <select
-                        value={row.variantId}
-                        onChange={e => {
-                          const id = Number(e.target.value);
-                          const selected = findProduct(id);
-                          updateRow(row.key, {
-                            variantId: id,
-                            price:
-                              selected?.suggestedPrice != null
-                                ? String(selected.suggestedPrice)
-                                : selected?.minPrice != null
-                                  ? String(selected.minPrice)
-                                  : "",
-                            reason: "",
-                          });
-                        }}
-                        style={inputStyle}
-                        required={index === 0}
-                      >
-                        <option value={0}>Select item</option>
-                        {branchProducts.map(p => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} — {p.sku}
-                            {!p.active ? " (inactive)" : ""}
-                          </option>
-                        ))}
-                      </select>
-
-                      {belowMinimum && (
-                        <p style={{
-                          color: "#b45309",
-                          fontSize: 12,
-                          margin: "5px 0",
-                        }}>
-                          Below minimum ₹{amount(min)}
-                          — override permitted
-                        </p>
-                      )}
-
-                      {belowMinimum && (
-                        <input
-                          placeholder="Reason (optional)"
-                          value={row.reason}
-                          maxLength={300}
-                          onChange={e =>
-                            updateRow(row.key, {
-                              reason: e.target.value,
-                            })
-                          }
-                          style={inputStyle}
-                        />
-                      )}
-                    </td>
-
-                    <td style={{ padding: 6 }}>
-                      {product
-                        ? `${product.available} ${product.unit}`
-                        : "—"}
-                      {insufficient && (
-                        <p style={{
-                          color: "#b91c1c",
-                          fontSize: 12,
-                        }}>
-                          Insufficient stock
-                        </p>
-                      )}
-                    </td>
-
-                    <td style={{ padding: 6 }}>
+                {belowMinimum && (
+                  <>
+                    <p className={styles.warn}>
+                      Price is below the minimum ₹{amount(min)}. You may continue.
+                    </p>
+                    <label className={styles.field}>
+                      Reason (optional)
                       <input
-                        type="number"
-                        min={fractionalQuantity ? "0.001" : "1"}
-                        step={fractionalQuantity ? "0.001" : "1"}
-                        value={row.quantity}
-                        onChange={e =>
-                          updateRow(row.key, {
-                            quantity: e.target.value,
-                          })
-                        }
-                        style={{ ...inputStyle, width: 90 }}
+                        value={row.reason}
+                        maxLength={300}
+                        onChange={e => updateRow(row.key, { reason: e.target.value })}
                       />
-                    </td>
+                    </label>
+                  </>
+                )}
 
-                    <td style={{ padding: 6 }}>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={row.price}
-                        onChange={e =>
-                          updateRow(row.key, {
-                            price: e.target.value,
-                          })
-                        }
-                        style={{ ...inputStyle, width: 110 }}
-                      />
-                    </td>
-
-                    <td style={{ padding: 6 }}>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={row.discount}
-                        onChange={e =>
-                          updateRow(row.key, {
-                            discount: e.target.value,
-                          })
-                        }
-                        style={{ ...inputStyle, width: 100 }}
-                      />
-                    </td>
-
-                    <td style={{ padding: 6 }}>
-                      ₹{amount(lineTotals[index])}
-                    </td>
-
-                    <td style={{ padding: 6 }}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setRows(current =>
-                            current.filter(r => r.key !== row.key)
-                          )
-                        }
-                        disabled={rows.length === 1}
-                      >
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                {rows.length > 1 && (
+                  <div className={styles.itemFoot}>
+                    <span />
+                    <button
+                      type="button"
+                      className={`${styles.btn} ${styles.btnDanger}`}
+                      onClick={() =>
+                        setRows(current => current.filter(r => r.key !== row.key))
+                      }
+                    >
+                      Remove this item
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <button
           type="button"
-          onClick={() =>
-            setRows(current => [...current, newSaleRow()])
-          }
-          style={{ padding: 10, marginTop: 10 }}
+          className={styles.btn}
+          style={{ marginTop: 12 }}
+          onClick={() => setRows(current => [...current, newSaleRow()])}
         >
-          + Add Item
+          + Add another item
         </button>
-
       </section>
 
-      <section style={{
-        display: "grid",
-        gap: 12,
-        maxWidth: 440,
-        marginLeft: "auto",
-        width: "100%",
-      }}>
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-        }}>
-          <span>Items Total</span>
-          <strong>₹{amount(subtotal)}</strong>
-        </div>
+      {/* 3. Total and payment */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>
+          <span className={styles.step}>3</span> Total and payment
+        </h2>
 
-        <label>
-          Additional Invoice Discount ₹
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            name="invoice_discount"
-            value={invoiceDiscount}
-            onChange={e =>
-              setInvoiceDiscount(e.target.value)
-            }
-            style={inputStyle}
-          />
-        </label>
-
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          borderTop: "1px solid #cbd5e1",
-          paddingTop: 12,
-        }}>
-          <strong>Invoice Total</strong>
-          <strong style={{ fontSize: 24 }}>
-            ₹{amount(grandTotal)}
-          </strong>
-        </div>
-      </section>
-
-      {editing ? (
-        <section>
-          <h2>Recorded Payments</h2>
-          <p>
-            Existing collections of ₹
-            {amount(initialInvoice.collected)} are preserved.
-            Update the invoice total so it is not less than
-            the collected amount.
-          </p>
-        </section>
-      ) : (
-      <section>
-        <h2>Payment Collection</h2>
-        <p>
-          Enter full or partial collection. Leave payment
-          empty for a credit sale.
-        </p>
-        {paymentAccounts.length === 0 && (
-          <p role="status">
-            No active receiving bank or cash accounts are available.
-            Add or activate an account before recording a collection.
-          </p>
-        )}
-
-        {payments.map(payment => (
-          <div key={payment.key} style={{
-            display: "flex",
-            gap: 10,
-            flexWrap: "wrap",
-            marginBottom: 12,
-          }}>
-            <label style={{ minWidth: 165 }}>
-              Payment Type
-              <select
-                value={payment.method}
-                onChange={e =>
-                  updatePayment(payment.key, {
-                    method: e.target.value,
-                    account: "",
-                  })
-                }
-                style={{ ...inputStyle, marginTop: 5 }}
-              >
-                <option value="CASH">Cash</option>
-                <option value="BANK_TRANSFER">Bank Transfer</option>
-                <option value="UPI">UPI</option>
-                <option value="CARD">Card</option>
-                <option value="OTHER">Others</option>
-              </select>
-            </label>
-
-            <label style={{ minWidth: 280 }}>
-              Receiving Account
-              <select
-                value={payment.account}
-                onChange={e =>
-                  updatePayment(payment.key, {
-                    account: e.target.value,
-                  })
-                }
-                style={{ ...inputStyle, width: 280 }}
-                required={Number(payment.amount) > 0}
-              >
-                <option value="">Select Receiving Account</option>
-                {paymentAccounts
-                  .filter(account =>
-                    payment.method === "CASH"
-                      ? account.value.startsWith("CASH:")
-                      : account.value.startsWith("BANK:")
-                  )
-                  .map(account => (
-                    <option
-                      key={account.value}
-                      value={account.value}
-                    >
-                      {account.label}
-                    </option>
-                  ))}
-              </select>
-            </label>
-
+        <div className={styles.totals}>
+          <div className={styles.totalRow}>
+            <span>Items total</span>
+            <strong>₹{amount(subtotal)}</strong>
+          </div>
+          <label className={`${styles.field}`}>
+            Extra discount on the whole bill ₹
             <input
               type="number"
-              min="0.01"
+              inputMode="decimal"
+              min="0"
               step="0.01"
-              placeholder="Amount ₹"
-              value={payment.amount}
-              onChange={e =>
-                updatePayment(payment.key, {
-                  amount: e.target.value,
-                })
-              }
-              style={{ ...inputStyle, width: 145 }}
+              name="invoice_discount"
+              value={invoiceDiscount}
+              onChange={e => setInvoiceDiscount(e.target.value)}
             />
-
-            <input
-              placeholder="Payment reference (optional)"
-              value={payment.reference}
-              onChange={e =>
-                updatePayment(payment.key, {
-                  reference: e.target.value,
-                })
-              }
-              style={{ ...inputStyle, width: 220 }}
-            />
-
-            <button
-              type="button"
-              onClick={() =>
-                setPayments(current =>
-                  current.filter(p => p.key !== payment.key)
-                )
-              }
-            >
-              Remove
-            </button>
-          </div>
-        ))}
-
-        <button
-          type="button"
-          disabled={paymentAccounts.length === 0}
-          onClick={() =>
-            setPayments(current => [
-              ...current, newPaymentRow(),
-            ])
-          }
-        >
-          + Add Payment
-        </button>
-
-        <div style={{
-          display: "flex",
-          gap: 26,
-          marginTop: 20,
-          flexWrap: "wrap",
-        }}>
-          <div>
-            <div>Collected</div>
-            <strong>₹{amount(collected)}</strong>
-          </div>
-          <div>
-            <div>Customer Balance</div>
-            <strong>₹{amount(outstanding)}</strong>
+          </label>
+          <div className={`${styles.totalRow} ${styles.grand}`}>
+            <strong>Bill total</strong>
+            <strong>₹{amount(grandTotal)}</strong>
           </div>
         </div>
 
-        {outstanding < 0 && (
-          <p style={{ color: "#b91c1c" }}>
-            Collection exceeds the invoice total.
+        {editing ? (
+          <p style={{ color: "#475569" }}>
+            Payments already received (₹{amount(initialInvoice.collected)}) are kept.
+            The new bill total cannot be less than this.
           </p>
+        ) : (
+          <div style={{ marginTop: 18 }}>
+            <h3 style={{ margin: "0 0 8px" }}>Did the customer pay now?</h3>
+            {paymentAccounts.length === 0 && (
+              <p role="status" className={styles.warn}>
+                No bank or cash account is ready to receive money. Ask the owner to set one up.
+              </p>
+            )}
+
+            <div className={styles.quick}>
+              <button
+                type="button"
+                className={styles.btn}
+                disabled={!firstCash || grandTotal <= 0}
+                onClick={payFull}
+              >
+                Paid in full (cash)
+              </button>
+              <button
+                type="button"
+                className={styles.btn}
+                disabled={paymentAccounts.length === 0}
+                onClick={() => setPayments(current => [...current, newPaymentRow()])}
+              >
+                Add a payment (UPI, card, part payment)
+              </button>
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnQuiet}`}
+                disabled={payments.length === 0}
+                onClick={() => setPayments([])}
+              >
+                Pay later (credit)
+              </button>
+            </div>
+
+            {payments.map(payment => (
+              <div key={payment.key} className={styles.pay}>
+                <label className={styles.field}>
+                  How
+                  <select
+                    value={payment.method}
+                    onChange={e =>
+                      updatePayment(payment.key, { method: e.target.value, account: "" })
+                    }
+                  >
+                    <option value="CASH">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="CARD">Card</option>
+                    <option value="BANK_TRANSFER">Bank transfer</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </label>
+                <label className={styles.field}>
+                  Money goes into
+                  <select
+                    value={payment.account}
+                    onChange={e => updatePayment(payment.key, { account: e.target.value })}
+                    required={Number(payment.amount) > 0}
+                  >
+                    <option value="">Choose account</option>
+                    {paymentAccounts
+                      .filter(account =>
+                        payment.method === "CASH"
+                          ? account.value.startsWith("CASH:")
+                          : account.value.startsWith("BANK:")
+                      )
+                      .map(account => (
+                        <option key={account.value} value={account.value}>
+                          {account.label}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label className={styles.field}>
+                  Amount ₹
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0.01"
+                    step="0.01"
+                    value={payment.amount}
+                    onChange={e => updatePayment(payment.key, { amount: e.target.value })}
+                  />
+                </label>
+                <label className={styles.field}>
+                  Reference (optional)
+                  <input
+                    value={payment.reference}
+                    onChange={e => updatePayment(payment.key, { reference: e.target.value })}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.btnDanger}`}
+                  onClick={() =>
+                    setPayments(current => current.filter(p => p.key !== payment.key))
+                  }
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+
+            <div className={styles.balance}>
+              <div>
+                <div>Paid now</div>
+                <strong>₹{amount(collected)}</strong>
+              </div>
+              <div>
+                <div>Customer will owe</div>
+                <strong style={{ color: outstanding > 0 ? "#b45309" : undefined }}>
+                  ₹{amount(Math.max(outstanding, 0))}
+                </strong>
+              </div>
+            </div>
+
+            {outstanding < 0 && (
+              <p className={styles.bad}>The payment is more than the bill total.</p>
+            )}
+          </div>
         )}
+
+        <label className={styles.field} style={{ marginTop: 16 }}>
+          Note (optional)
+          <textarea
+            name="remarks"
+            maxLength={500}
+            rows={2}
+            defaultValue={initialInvoice?.remarks ?? ""}
+          />
+        </label>
       </section>
-      )}
 
-      <label>
-        Invoice Remarks (optional)
-        <textarea
-          name="remarks"
-          maxLength={500}
-          rows={2}
-          defaultValue={initialInvoice?.remarks ?? ""}
-          style={inputStyle}
-        />
-      </label>
-
-      <div style={{
-        display: "flex",
-        gap: 12,
-        flexWrap: "wrap",
-      }}>
+      <div className={styles.actions}>
         {editing ? (
           <button
             type="submit"
-            disabled={
-              rows.some(r => {
-                const p = findProduct(r.variantId);
-                return p != null &&
-                  Number(r.quantity) > p.available;
-              })
-            }
-            style={{ padding: "12px 20px" }}
+            className={`${styles.btn} ${styles.btnPrimary}`}
+            disabled={overStock}
           >
-            Update Invoice
+            Save changes to this bill
           </button>
         ) : (
           <>
             <button
               type="submit"
               name="mode"
-              value="DRAFT"
-              disabled={payments.length > 0}
-              style={{ padding: "12px 20px" }}
+              value="POSTED"
+              className={`${styles.btn} ${styles.btnPrimary}`}
+              disabled={outstanding < 0 || overStock}
             >
-              Save Draft
+              Confirm sale
             </button>
             <button
               type="submit"
               name="mode"
-              value="POSTED"
-              disabled={
-                outstanding < 0 ||
-                rows.some(r => {
-                  const p = findProduct(r.variantId);
-                  return p != null &&
-                    Number(r.quantity) > p.available;
-                })
-              }
-              style={{ padding: "12px 20px" }}
+              value="DRAFT"
+              className={`${styles.btn} ${styles.btnQuiet}`}
+              disabled={payments.length > 0}
+              title="Keeps the bill without changing stock. Cannot be used when a payment is entered."
             >
-              Confirm Sale & Update Stock
+              Save for later
             </button>
           </>
         )}

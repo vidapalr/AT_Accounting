@@ -11,10 +11,10 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 
 import { requireAccess } from "@/lib/auth";
+import { getActiveDivisionId } from "@/lib/division-context";
 
 const PAGE = "/accounting/stock-transfers";
 
-const DIVISION_ID = 1;
 
 const MAX_ITEM_COUNT = 100;
 
@@ -71,6 +71,8 @@ export async function saveStockTransferDraftAction(
 ): Promise<void> {
 
   const user = await requireAccess("purchases");
+
+  const DIVISION_ID = await getActiveDivisionId(user);
 
   const businessId = user.legal_business_id;
 
@@ -812,6 +814,8 @@ export async function dispatchStockTransferAction(
 
   const user = await requireAccess("purchases");
 
+  const DIVISION_ID = await getActiveDivisionId(user);
+
   const businessId = user.legal_business_id;
 
   const transferId = validId(form.get("transfer_id"));
@@ -1279,6 +1283,8 @@ export async function receiveStockTransferAction(
 ): Promise<void> {
 
   const user = await requireAccess("purchases");
+
+  const DIVISION_ID = await getActiveDivisionId(user);
 
   const businessId = user.legal_business_id;
 

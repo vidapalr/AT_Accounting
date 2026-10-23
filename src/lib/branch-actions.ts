@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
+import { nextCode } from "@/lib/codes";
 import { requireGroupOwner } from "@/lib/auth";
 
 interface BranchRow extends RowDataPacket {
@@ -88,7 +89,7 @@ export async function createBranchAction(form: FormData) {
   const businessId = user.legal_business_id;
 
   const divisionText = read(form, "division_id");
-  const branchCode = read(form, "branch_code").toUpperCase();
+  const branchCode = await nextCode(db, { table: "acct_branches", column: "branch_code", prefix: "BR-", width: 3, where: "legal_business_id = ?", params: [businessId] });
   const data = validateInput(form);
 
   if (

@@ -9,6 +9,7 @@ import {
   createProductCategoryAction,
   seedTextileCategoriesAction,
 } from "@/lib/product-category-actions";
+import { getActiveDivisionId } from "@/lib/division-context";
 
 type Props = {
   searchParams: Promise<{ result?: string }>;
@@ -23,7 +24,6 @@ interface Category extends RowDataPacket {
   status: string;
 }
 
-const DIVISION_ID = 1;
 
 const messages: Record<string, string> = {
   created: "Product category created successfully.",
@@ -61,6 +61,7 @@ const cellStyle: React.CSSProperties = {
 
 async function CategoryContent({ searchParams }: Props) {
   const user = await requireAccess("products");
+  const DIVISION_ID = await getActiveDivisionId(user);
   const query = await searchParams;
 
   const [categories] = await db.execute<Category[]>(
@@ -103,7 +104,7 @@ async function CategoryContent({ searchParams }: Props) {
         ← Accounting Dashboard
       </Link>
 
-      <h1>Abhiram Textiles — Product Categories</h1>
+      <h1>Product Groups</h1>
 
       <p>
         Manage categories for the Abhiram Textiles
@@ -148,16 +149,6 @@ async function CategoryContent({ searchParams }: Props) {
             gap: 16,
           }}
         >
-          <label>
-            Category Code
-            <input
-              name="category_code"
-              required
-              maxLength={30}
-              placeholder="SAREE-SILK"
-              style={inputStyle}
-            />
-          </label>
 
           <label>
             Category Name

@@ -50,6 +50,8 @@ const messages: Record<string, string> = {
   "invalid-payment-account":
     "Select an active, eligible bank or cash account.",
   "invalid-product": "One or more products are unavailable.",
+  "invalid-phone": "Enter a 10 digit mobile number, or leave it empty for a walk-in customer.",
+  "credit-limit": "This sale would take the customer over their credit limit. Collect some payment, or raise the limit on the customer's page.",
   failed: "Unable to save invoice. Check server logs.",
 };
 
@@ -70,7 +72,6 @@ async function SalesContent({ searchParams }: Props) {
       AND l.location_type = 'RETAIL'
       AND l.status = 'ACTIVE'
      WHERE b.legal_business_id = ?
-       AND b.division_id = 1
        AND b.status = 'ACTIVE'
      GROUP BY b.id, b.branch_name
      HAVING COUNT(l.id) = 1
@@ -103,7 +104,6 @@ async function SalesContent({ searchParams }: Props) {
       AND m.location_id = l.id
       AND m.variant_id = v.id
      WHERE l.legal_business_id = ?
-       AND l.division_id = 1
        AND l.location_type = 'RETAIL'
        AND l.status = 'ACTIVE'
      GROUP BY
@@ -130,7 +130,6 @@ async function SalesContent({ searchParams }: Props) {
       AND dst.division_id = t.division_id
       AND dst.id = t.to_location_id
      WHERE t.legal_business_id = ?
-       AND t.division_id = 1
        AND t.status = 'RECEIVED'
      ORDER BY t.received_at DESC, t.id DESC`,
     [businessId]
@@ -158,12 +157,33 @@ async function SalesContent({ searchParams }: Props) {
      FROM acct_cash_accounts
      WHERE legal_business_id = ?
        AND status = 'ACTIVE'
-       AND (
-         division_id IS NULL OR division_id = 1
-       )
      ORDER BY cash_name, id`,
     [businessId]
   );
+
+  const [customerRows] = await db.execute<RowDataPacket[]>(
+    `SELECT c.full_name, c.phone, ROUND(c.credit_limit * 100) AS limit_paise,
+            COALESCE((SELECT SUM(ROUND(h.grand_total * 100)) FROM acct_sales_headers h
+                       WHERE h.legal_business_id = c.legal_business_id
+                         AND h.customer_id = c.id AND h.status = 'POSTED'), 0)
+          - COALESCE((SELECT SUM(ROUND(p.amount * 100)) FROM acct_sales_payments p
+                        JOIN acct_sales_headers h2 ON h2.legal_business_id = p.legal_business_id
+                         AND h2.id = p.sale_id
+                       WHERE h2.legal_business_id = c.legal_business_id
+                         AND h2.customer_id = c.id AND h2.status = 'POSTED'
+                         AND p.status = 'RECORDED'), 0) AS dues_paise
+       FROM acct_customers c
+      WHERE c.legal_business_id = ? AND c.status = 'ACTIVE' AND c.phone IS NOT NULL
+      ORDER BY c.id DESC
+      LIMIT 500`,
+    [businessId]
+  );
+  const customerOptions = customerRows.map(c => ({
+    name: String(c.full_name),
+    phone: String(c.phone),
+    dues: Number(c.dues_paise) / 100,
+    creditLimit: Number(c.limit_paise) / 100,
+  }));
 
   const paymentAccounts = [
     ...bankRows.map(account => ({
@@ -244,7 +264,6 @@ async function SalesContent({ searchParams }: Props) {
           AND b.division_id = s.division_id
           AND b.id = s.branch_id
          WHERE s.legal_business_id = ?
-           AND s.division_id = 1
            AND s.id = ?
          LIMIT 1`,
         [businessId, selectedInvoiceId]
@@ -273,7 +292,6 @@ async function SalesContent({ searchParams }: Props) {
           AND p.division_id = v.division_id
           AND p.id = v.product_id
          WHERE sl.legal_business_id = ?
-           AND sl.division_id = 1
            AND sl.sale_id = ?
          ORDER BY sl.id`,
         [businessId, selectedInvoiceId]
@@ -288,7 +306,6 @@ async function SalesContent({ searchParams }: Props) {
                 payment_reference
          FROM acct_sales_payments
          WHERE legal_business_id = ?
-           AND division_id = 1
            AND sale_id = ?
            AND status = 'RECORDED'
          ORDER BY id`,
@@ -300,7 +317,6 @@ async function SalesContent({ searchParams }: Props) {
         `SELECT COALESCE(SUM(amount), 0) AS collected
          FROM acct_sales_payments
          WHERE legal_business_id = ?
-           AND division_id = 1
            AND sale_id = ?
            AND status = 'RECORDED'`,
         [businessId, selectedInvoiceId]
@@ -332,7 +348,6 @@ async function SalesContent({ searchParams }: Props) {
       AND pay.division_id = s.division_id
       AND pay.sale_id = s.id
      WHERE s.legal_business_id = ?
-       AND s.division_id = 1
      GROUP BY
        s.id, s.invoice_no, s.invoice_date,
        s.customer_name, s.customer_phone,
@@ -355,7 +370,7 @@ async function SalesContent({ searchParams }: Props) {
       maxWidth: 1300,
       margin: "0 auto",
     }}>
-      <h1>Abhiram Textiles — Sales & Invoice</h1>
+      <h1>Sales and Billing</h1>
 
       <nav style={{
         display: "flex",
@@ -363,20 +378,25 @@ async function SalesContent({ searchParams }: Props) {
         marginBottom: 22,
         flexWrap: "wrap",
       }}>
-        <a href="/accounting/branch-inventory">
-          Branch Inventory
+        <a href="/accounting/invoices">
+          See all invoices
         </a>
-        <a href="/accounting/stock-transfers">
-          Stock Transfers
+        <a href="/accounting/returns">
+          Customer returns
         </a>
       </nav>
 
       {result && (
-        <p role="status">
+        <p role="status" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
           {messages[result] ?? "Request completed."}
-          {result === "created" && id
-            ? ` Sale record ID: ${id}.`
-            : ""}
+          {result === "created" && id ? (
+            <>
+              {" "}
+              <a className="btn-link btn-link-primary" href={`/accounting/sales/${id}`}>
+                Next: view, print or take payment for this invoice
+              </a>
+            </>
+          ) : null}
         </p>
       )}
 
@@ -392,6 +412,7 @@ async function SalesContent({ searchParams }: Props) {
               : "Draft invoice lines can be changed before posting."}
           </p>
           <SalesBillingForm
+            customers={customerOptions}
             branches={branches.map(branch => ({
               id: Number(branch.id),
               name: String(branch.name),
@@ -443,6 +464,7 @@ async function SalesContent({ searchParams }: Props) {
         <p>No eligible retail branch was found.</p>
       ) : (
         <SalesBillingForm
+          customers={customerOptions}
           branches={branches.map(b => ({
             id: Number(b.id),
             name: String(b.name),
@@ -456,7 +478,8 @@ async function SalesContent({ searchParams }: Props) {
       <h2>Recent Sales & Invoices</h2>
 
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%" }}>
+        <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", minWidth: 760 }}>
           <thead>
             <tr>
               <th>Invoice</th>
@@ -497,11 +520,11 @@ async function SalesContent({ searchParams }: Props) {
                     gap: 10,
                     flexWrap: "wrap",
                   }}>
-                    <a href={`/accounting/sales?view=${s.id}`}>
+                    <a className="btn-link btn-link-small" href={`/accounting/sales?view=${s.id}`}>
                       View
                     </a>
                     {["DRAFT", "POSTED"].includes(s.status) && (
-                      <a href={`/accounting/sales?edit=${s.id}`}>
+                      <a className="btn-link btn-link-small" href={`/accounting/sales?edit=${s.id}`}>
                         Edit
                       </a>
                     )}
@@ -511,6 +534,7 @@ async function SalesContent({ searchParams }: Props) {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
       {view && selectedInvoice && (
         <section style={{

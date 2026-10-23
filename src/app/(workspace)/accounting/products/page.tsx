@@ -9,6 +9,7 @@ import {
   createProductAction,
   createProductVariantAction,
 } from "@/lib/product-master-actions";
+import { getActiveDivisionId } from "@/lib/division-context";
 
 type Props = {
   searchParams: Promise<{ result?: string }>;
@@ -46,7 +47,6 @@ interface Variant extends RowDataPacket {
   status: string;
 }
 
-const DIVISION_ID = 1;
 
 const messages: Record<string, string> = {
   "product-created": "Product created successfully.",
@@ -93,6 +93,7 @@ async function ProductMasterContent({
   searchParams,
 }: Props) {
   const user = await requireAccess("products");
+  const DIVISION_ID = await getActiveDivisionId(user);
   const query = await searchParams;
   const businessId = user.legal_business_id;
 
@@ -185,7 +186,7 @@ async function ProductMasterContent({
         ← Product Categories
       </Link>
 
-      <h1>Abhiram Textiles — Product Master</h1>
+      <h1>Products</h1>
 
       <p>
         Register products and sellable SKUs shared
@@ -225,16 +226,6 @@ async function ProductMasterContent({
             </select>
           </label>
 
-          <label>
-            Product Code
-            <input
-              name="product_code"
-              required
-              maxLength={40}
-              placeholder="ATX-CS-00001"
-              style={fieldStyle}
-            />
-          </label>
 
           <label>
             Product Name
@@ -332,26 +323,7 @@ async function ProductMasterContent({
             </select>
           </label>
 
-          <label>
-            SKU
-            <input
-              name="sku"
-              required
-              maxLength={60}
-              placeholder="ATX-CS-00001-M-BLU"
-              style={fieldStyle}
-            />
-          </label>
 
-          <label>
-            Barcode (Optional)
-            <input
-              name="barcode"
-              maxLength={80}
-              placeholder="Scan or enter barcode"
-              style={fieldStyle}
-            />
-          </label>
 
           <label>
             Size
@@ -374,7 +346,7 @@ async function ProductMasterContent({
           </label>
 
           <label>
-            Design Code
+            Design Code (optional, made automatically if empty)
             <input
               name="design_code"
               maxLength={80}

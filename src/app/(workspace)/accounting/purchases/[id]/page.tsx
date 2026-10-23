@@ -122,7 +122,6 @@ async function PurchaseDetailContent({
       AND w.legal_business_id = h.legal_business_id
      WHERE h.id = ?
        AND h.legal_business_id = ?
-       AND h.division_id = 1
      LIMIT 1`,
     [purchaseId, businessId]
   );
@@ -153,7 +152,6 @@ async function PurchaseDetailContent({
       AND p.division_id = v.division_id
      WHERE l.purchase_id = ?
        AND l.legal_business_id = ?
-       AND l.division_id = 1
      ORDER BY l.line_no`,
     [purchaseId, businessId]
   );
@@ -170,7 +168,7 @@ async function PurchaseDetailContent({
       margin: "0 auto",
       padding: 24,
     }}>
-      <Link href="/accounting/purchases">
+      <Link className="btn-link" href="/accounting/purchases">
         ← Purchase List
       </Link>
 
@@ -373,6 +371,7 @@ async function PurchaseDetailContent({
         </p>
 
         <Link
+          className="btn-link btn-link-primary"
           href={`/accounting/purchases/${purchase.id}/payments`}
         >
           View / Record Purchase Payments →

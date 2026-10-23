@@ -56,7 +56,6 @@ async function ProductProfitabilityContent() {
          SUM(total_cost) AS purchase_amount
        FROM acct_stock_movements
        WHERE legal_business_id = ?
-         AND division_id = 1
          AND movement_type = 'PURCHASE_RECEIPT'
        GROUP BY
          legal_business_id, division_id, variant_id
@@ -80,7 +79,6 @@ async function ProductProfitabilityContent() {
         AND s.division_id = sl.division_id
         AND s.id = sl.sale_id
        WHERE s.legal_business_id = ?
-         AND s.division_id = 1
          AND s.status = 'POSTED'
      ),
 
@@ -128,7 +126,6 @@ async function ProductProfitabilityContent() {
          ) AS remaining_stock_amount
        FROM acct_stock_movements
        WHERE legal_business_id = ?
-         AND division_id = 1
        GROUP BY
          legal_business_id, division_id, variant_id
      )
@@ -180,7 +177,6 @@ async function ProductProfitabilityContent() {
       AND inv.variant_id = v.id
 
      WHERE v.legal_business_id = ?
-       AND v.division_id = 1
 
      ORDER BY p.product_name, v.sku`,
     [businessId, businessId, businessId, businessId]
@@ -223,7 +219,7 @@ async function ProductProfitabilityContent() {
       <h1>Product Profitability & Stock Report</h1>
 
       <p>
-        Abhiram Textiles — product-wise sales,
+        Product-wise sales,
         purchase costs, gross margins and
         remaining inventory.
       </p>
@@ -237,11 +233,8 @@ async function ProductProfitabilityContent() {
         <Link href="/accounting/invoices">
           Invoices
         </Link>
-        <Link href="/accounting/warehouse-inventory">
-          Central Warehouse
-        </Link>
-        <Link href="/accounting/branch-inventory">
-          Branch Inventory
+        <Link href="/accounting/stock">
+          Stock on hand
         </Link>
       </nav>
 

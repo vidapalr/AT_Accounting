@@ -106,7 +106,6 @@ async function ExpensesContent({ searchParams }: Props) {
     `SELECT id, branch_name
      FROM acct_branches
      WHERE legal_business_id = ?
-       AND division_id = 1
        AND status = 'ACTIVE'
      ORDER BY branch_name`,
     [businessId]
@@ -147,7 +146,6 @@ async function ExpensesContent({ searchParams }: Props) {
       AND p.division_id <=> e.division_id
       AND p.expense_id = e.id
      WHERE e.legal_business_id = ?
-       AND (e.division_id = 1 OR e.division_id IS NULL)
      ORDER BY e.expense_date DESC, e.id DESC
      LIMIT 100`,
     [businessId]
@@ -182,7 +180,7 @@ async function ExpensesContent({ searchParams }: Props) {
       margin: "0 auto",
       padding: 24,
     }}>
-      <h1>Abhiram Textiles — Expenses</h1>
+      <h1>Expenses</h1>
 
       <nav style={{
         display: "flex",

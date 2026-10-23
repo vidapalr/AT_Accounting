@@ -8,9 +8,9 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { getActiveDivisionId } from "@/lib/division-context";
 
 const PAGE = "/accounting/purchases";
-const DIVISION_ID = 1;
 const MAX_LINE_COUNT = 100;
 
 function field(form: FormData, key: string): string {
@@ -158,6 +158,7 @@ async function savePurchaseDraft(
   purchaseId?: number
 ): Promise<void> {
   const user = await requireAccess("purchases");
+  const DIVISION_ID = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
 
   const supplierId = positiveId(field(form, "supplier_id"));

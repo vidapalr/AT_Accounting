@@ -1,298 +1,13 @@
 import { Suspense } from "react";
-import Link from "next/link";
-import {
-  LayoutDashboard,
-  Building2,
-  Layers3,
-  BookOpen,
-  Package,
-  Users,
-  BarChart3,
-  Store,  
-  ChevronDown,
-} from "lucide-react";
-
-
-
 import { requireUser } from "@/lib/auth";
 import { canOpenPath, ROLE_LABELS } from "@/lib/access";
+import { NAVIGATION } from "@/lib/navigation";
+import SidebarNav from "@/components/SidebarNav";
+import DivisionSwitcher from "@/components/DivisionSwitcher";
+import { getActiveDivisionId, listDivisions } from "@/lib/division-context";
+import MobileMenu from "@/components/MobileMenu";
 import BrandLogo from "@/components/BrandLogo";
 import styles from "./workspace.module.css";
-
-const navigation = [
-  {
-    label: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    enabled: true,
-  },
-  {
-    label: "Group Master",
-    href: "/group",
-    icon: Building2,
-    enabled: true,
-    children: [
-      {
-        label: "Group Master",
-        href: "/group",
-        icon: Building2,
-        enabled: true,
-      },
-      {
-        label: "Divisions",
-        href: "/divisions",
-        icon: Layers3,
-        enabled: true,
-      },
-      {
-        label: "Branches",
-        href: "/branches",
-        icon: Store,
-        enabled: true,
-      },
-      {
-        label: "Bank Accounts",
-        href: "/accounting/bank-accounts",
-        icon: BookOpen,
-        enabled: true,
-        },
-      {
-        label: "Investors & Lenders",
-        href: "/funding",
-        icon: Users,
-        enabled: true,
-      },
-      {
-        label: "Users & Access",
-        href: "/users",
-        icon: Users,
-        enabled: true,
-      },
-    ],
-  },
-  
-  {
-    label: "Accounting",
-    href: "/accounting/chart-of-accounts",
-    icon: BookOpen,
-    enabled: true,
-    children: [
-      {
-        label: "Investor Bank Scopes",
-        href: "/accounting/investor-bank-scopes",
-        enabled: true,
-      },
-      {
-        label: "Opening Balances",
-        href: "/accounting/opening-balances",
-        enabled: true,
-      },
-      {
-        label: "Review Opening Balances",
-        href: "/accounting/opening-balances/review",
-        enabled: true,
-      },
-      {
-        label: "Cutover Reconciliation",
-        href: "/accounting/cutover-reconciliation",
-        enabled: true,
-      },
-      {
-        label: "Agreement-Level Reconciliation",
-        href: "/accounting/cutover-reconciliation/agreements",
-        enabled: true,
-      },
-      {
-        label: " Historical Funding Entry",
-        href: "/accounting/historical-funding",
-        enabled: true,
-      },
-      {
-        label: "Accounting",
-        href: "/accounting/chart-of-accounts",
-        icon: BookOpen,
-        enabled: true,
-      },
-            {
-        label: "Periods",
-        href: "/accounting/periods",
-        enabled: true,
-      },
-      {
-        label: "Journals",
-        href: "/accounting/journals",
-        enabled: true,
-      },
-      {
-        label: "Cash of Accounts",
-        href: "/accounting/cash-accounts",
-        enabled: true,
-      },
-       {
-        label: "Investment Accounts",
-        href: "/accounting/investment-accounts",
-        enabled: true,
-      },
-      {
-        label: "Accounts Balance",
-        href: "/accounting/account-balances",
-        enabled: true,
-      },
-      {
-        label: "Reports (Profit, Balance Sheet)",
-        href: "/accounting/reports",
-        enabled: true,
-      },
-      {
-        label: "WhatsApp Reports",
-        href: "/accounting/whatsapp",
-        enabled: true,
-      },
-      {
-        label: "Investor Profit Shares",
-        href: "/accounting/investor-shares",
-        enabled: true,
-      },
-      {
-        label: "Returns, Refunds, Damaged Stock",
-        href: "/accounting/returns",
-        enabled: true,
-      },
-      
-      
-    ],
-  },
-
-  {
-    label: "Divison Inventory",
-    href: "/group",
-    icon: Building2,
-    enabled: true,
-    children: [
-      {
-        label: " Warehouse Inventory",
-        href: "/accounting/warehouse-inventory",
-        enabled: true,
-      },
-    ],
-  },
-
-  {
-    label: "Branch Inventory",
-    href: "/group",
-    icon: Building2,
-    enabled: true,
-    children: [
-      {
-        label: " Branch Inventory",
-        href: "/accounting/branch-inventory",
-        enabled: true,
-      },
-    ],
-  },
-  
-    
-  {
-    label: "Inventory",
-    href: "/inventory",
-    icon: Package,
-    enabled: true,
-    children: [
-      {
-        label: " Product Categories",
-        href: "/accounting/product-categories",
-        enabled: true,
-      },
-      {
-        label: " Product Master",
-        href: "/accounting/products",
-        enabled: true,
-      },
-      {
-        label: " Supplier Master",
-        href: "/accounting/suppliers",
-        enabled: true,
-      },
-      
-    ]
-  },
-  
-  {
-    label: "Purchase Management",
-    href: "/accounting/purchases",
-    icon: BarChart3,
-    enabled: true,
-    children: [
-      {
-        label: " Purchases",
-        href: "/accounting/purchases",
-        enabled: true,
-      },      
-      {
-        label: " Purchase Management",
-        href: "/accounting/purchase-management",
-        enabled: true,
-      },
-      {
-        label: " Stock Transfers",
-        href: "/accounting/stock-transfers",
-        enabled: true,
-      },
-      
-      
-    ]
-  },
-
-  {
-    label: "Sales & Billing",
-    href: "/accounting/sales",
-    icon: BookOpen,
-    enabled: true,
-    children: [
-      {
-        label: "Sales",
-        href: "/accounting/sales",
-        enabled: true,
-      },
-      {
-        label: "Invoice Overview",
-        href: "/accounting/invoices",
-        enabled: true,
-      },
-      {
-        label: "Product Profitability",
-        href: "/accounting/product-profitability",
-        enabled: true,
-      },
-      {
-        label: "Sales & Purchase Report",
-        href: "/accounting/sales-purchase-report",
-        enabled: true,
-      },
-         
-    ],
-  },
-  {
-    label: "Expenses",
-    href: "/accounting/expenses",
-    icon: BookOpen,
-    enabled: true,
-    children: [
-      {
-        label: "Expenses",
-        href: "/accounting/expenses",
-        enabled: true,
-      },
-      {
-        label: "Advances & Deposits",
-        href: "/accounting/advances-deposits",
-        enabled: true,
-      },
-    ]
-  },
-];
-
-
 
 export default function WorkspaceLayout({
   children,
@@ -313,21 +28,15 @@ async function WorkspaceContent({
 }) {
   const user = await requireUser();
 
-  const visibleNavigation = navigation
-    .map((item) => {
-      if ("children" in item && item.children) {
-        return {
-          ...item,
-          children: item.children.filter((child) => canOpenPath(user.role, child.href)),
-        };
-      }
-      return item;
-    })
-    .filter((item) =>
-      "children" in item && item.children
-        ? item.children.length > 0
-        : canOpenPath(user.role, item.href)
-    );
+  const divisions = await listDivisions(user.legal_business_id);
+  const activeDivisionId = divisions.length > 1 ? await getActiveDivisionId(user) : (divisions[0]?.id ?? 0);
+
+  const sections = NAVIGATION
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => canOpenPath(user.role, item.href)),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <div className={styles.workspace}>
@@ -340,68 +49,9 @@ async function WorkspaceContent({
           </div>
         </div>
 
-        <nav className={styles.navigation}>
-          {visibleNavigation.map((item) => {
-            const Icon = item.icon;
-
-            if (!item.enabled) {
-              return (
-                <div
-                  className={styles.disabled}
-                  key={item.label}
-                >
-                  <Icon size={18} />
-                  <span>{item.label}</span>
-                  <small>Soon</small>
-                </div>
-              );
-            }
-
-            if ("children" in item && item.children) {
-              return (
-                <details
-                  className={styles.navGroup}
-                  key={item.label}
-                >
-                  <summary className={styles.navGroupSummary}>
-                    <Icon size={18} />
-                    <span>{item.label}</span>
-                    <ChevronDown
-                      className={styles.navGroupChevron}
-                      size={16}
-                    />
-                  </summary>
-
-                  <div className={styles.subNavigation}>
-                    
-                    {item.children
-                      .filter((child) => child.enabled)
-                      .map((child) => (
-                        <Link
-                          href={child.href}
-                          className={styles.subNavLink}
-                          key={child.href}
-                        >
-                          {child.label}
-                        </Link>
-                      ))}
-                  </div>
-                </details>
-              );
-            }
-
-            return (
-              <Link
-                href={item.href}
-                className={styles.navLink}
-                key={item.href}
-              >
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        <MobileMenu>
+          <SidebarNav sections={sections} />
+        </MobileMenu>
       </aside>
 
       <div className={styles.mainArea}>
@@ -412,6 +62,9 @@ async function WorkspaceContent({
           </div>
 
           <div className={styles.userArea}>
+            {divisions.length > 1 && (
+              <DivisionSwitcher divisions={divisions} activeId={activeDivisionId} />
+            )}
             <span>{user.full_name} · {ROLE_LABELS[user.role] ?? user.role}</span>
             <form action="/api/auth/logout" method="POST">
               <button type="submit">Logout</button>

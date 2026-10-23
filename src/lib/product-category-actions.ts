@@ -5,10 +5,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
+import { nextCode } from "@/lib/codes";
 import { requireAccess } from "@/lib/auth";
+import { getActiveDivisionId } from "@/lib/division-context";
 
 const PAGE = "/accounting/product-categories";
-const TEXTILES_DIVISION_ID = 1;
 
 function text(form: FormData, key: string) {
   const value = form.get(key);
@@ -29,9 +30,10 @@ export async function createProductCategoryAction(
   form: FormData
 ): Promise<void> {
   const user = await requireAccess("products");
+  const TEXTILES_DIVISION_ID = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
 
-  const code = text(form, "category_code").toUpperCase();
+  const code = await nextCode(db, { table: "acct_product_categories", column: "category_code", prefix: "CAT-", width: 3, where: "legal_business_id = ?", params: [businessId] });
   const name = text(form, "category_name");
   const parentText = text(form, "parent_category_id");
   const parentId = parentText ? numericId(parentText) : null;
@@ -192,6 +194,7 @@ const DEFAULT_CATEGORIES = [
 
 export async function seedTextileCategoriesAction(): Promise<void> {
   const user = await requireAccess("products");
+  const TEXTILES_DIVISION_ID = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
   const conn = await db.getConnection();
 

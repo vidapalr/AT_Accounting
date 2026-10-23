@@ -124,7 +124,6 @@ async function InvoiceList() {
       AND pay.sale_id = s.id
 
      WHERE s.legal_business_id = ?
-       AND s.division_id = 1
 
      ORDER BY s.invoice_date DESC, s.id DESC
      LIMIT 500`,
@@ -170,12 +169,8 @@ async function InvoiceList() {
           + New Invoice
         </Link>
 
-        <Link href="/accounting/branch-inventory">
-          Branch Inventory
-        </Link>
-
-        <Link href="/accounting/stock-transfers">
-          Stock Transfers
+        <Link href="/accounting/returns">
+          Customer returns
         </Link>
       </nav>
 
@@ -276,11 +271,12 @@ async function InvoiceList() {
 
                   <td style={cell}>
                     <Link
+                      className="btn-link btn-link-small"
                       href={`/accounting/sales/${invoice.id}`}
                     >
                       View
                     </Link>
-                    {" · "}
+                    {" "}
                     <span title="Refund workflow pending">
                       Refund
                     </span>

@@ -6,6 +6,7 @@ import {
   createDivisionAction,
   updateDivisionAction,
 } from "@/lib/division-actions";
+import DivisionChecklist from "@/components/DivisionChecklist";
 import styles from "../masters.module.css";
 
 type PageProps = {
@@ -104,20 +105,6 @@ async function DivisionsContent({
 
         <form action={createDivisionAction} className={styles.formGrid}>
           <div className={styles.formField}>
-            <label htmlFor="divisionCode">Division Code</label>
-            <input
-              id="divisionCode"
-              type="text"
-              name="code"
-              placeholder="e.g. AGR"
-              pattern="[A-Za-z][A-Za-z0-9_-]{1,31}"
-              maxLength={32}
-              required
-            />
-          </div>
-
-          <div className={styles.formField}>
-            <label htmlFor="divisionName">Division Name</label>
             <input
               id="divisionName"
               type="text"
@@ -238,6 +225,7 @@ async function DivisionsContent({
           </table>
         </div>
       </section>
+      <DivisionChecklist businessId={user.legal_business_id} />
     </div>
   );
 }

@@ -98,7 +98,7 @@ async function SupplierContent({ searchParams }: Props) {
         ← Product Master
       </Link>
 
-      <h1>Abhiram Textiles — Supplier Master</h1>
+      <h1>Suppliers</h1>
 
       <p>
         Manage direct weavers, manufacturers, wholesalers
@@ -115,16 +115,6 @@ async function SupplierContent({ searchParams }: Props) {
         <h2>Add Supplier</h2>
 
         <form action={createSupplierAction} style={gridStyle}>
-          <label>
-            Supplier Code
-            <input
-              name="supplier_code"
-              required
-              maxLength={30}
-              placeholder="SUP-0001"
-              style={fieldStyle}
-            />
-          </label>
 
           <label>
             Supplier / Business Name

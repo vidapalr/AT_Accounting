@@ -7,9 +7,9 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { getActiveDivisionId } from "@/lib/division-context";
 
 const LIST_PAGE = "/accounting/purchases";
-const DIVISION_ID = 1;
 
 const MAX_MONEY = 999999999999999999n;
 
@@ -84,6 +84,7 @@ export async function postGoodsReceiptAction(
   form: FormData
 ): Promise<void> {
   const user = await requireAccess("purchases");
+  const DIVISION_ID = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
 
   const purchaseId = positiveId(form.get("purchase_id"));
@@ -298,6 +299,26 @@ export async function postGoodsReceiptAction(
                   line.line_amount,
                   line.remarks,
                   user.id,
+                ]
+              );
+
+              // Tell the catalogue that new stock has arrived (shown on the
+              // New stock page; later used for WhatsApp and social posts).
+              await conn.execute(
+                `INSERT IGNORE INTO acct_stock_events (
+                   legal_business_id, division_id, source_type, source_id,
+                   product_id, variant_id, location_id, quantity
+                 )
+                 SELECT v.legal_business_id, v.division_id, 'PURCHASE', ?,
+                        v.product_id, v.id, ?, ?
+                   FROM acct_product_variants v
+                  WHERE v.legal_business_id = ? AND v.id = ?`,
+                [
+                  purchaseId,
+                  purchase.receiving_location_id,
+                  line.quantity,
+                  businessId,
+                  line.variant_id,
                 ]
               );
             }

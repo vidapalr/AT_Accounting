@@ -64,3 +64,56 @@ a {
     background: #fff !important;
   }
 }
+
+/* Links that move you to the next step look like buttons, never like text */
+.btn-link,
+main nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: 1px solid #2f6fed;
+  background: #fff;
+  color: #2f6fed;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  line-height: 1.2;
+}
+
+.btn-link:hover,
+main nav a:hover {
+  background: #eef3ff;
+}
+
+.btn-link-primary {
+  background: #2f6fed;
+  color: #fff;
+}
+
+.btn-link-primary:hover {
+  background: #2459c4;
+}
+
+@media print {
+  .btn-link,
+  main nav a {
+    display: none !important;
+  }
+}
+
+.btn-link-small {
+  padding: 5px 12px;
+  font-size: 13px;
+}
+
+main nav {
+  margin-top: 12px;
+}
+
+.btn-link.btn-link-primary,
+main nav a.btn-link-primary {
+  background: #2f6fed !important;
+  color: #fff !important;
+}

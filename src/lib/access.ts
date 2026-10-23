@@ -30,7 +30,7 @@ export const ROLE_SUMMARY: Record<string, string> = {
   GROUP_OWNER: "Everything, including opening balances, posting, periods, investors and users.",
   ACCOUNTANT:
     "Dashboard, reports, sales, returns, purchases, suppliers, products, expenses and advances. Cannot post to the ledger, change opening balances, periods, investors, bank set-up or users.",
-  CASHIER: "Sales and billing, and sales returns. Nothing else.",
+  CASHIER: "Sales and billing, sales returns and customers. Nothing else.",
 };
 
 export type Feature =
@@ -40,7 +40,9 @@ export type Feature =
   | "returns"
   | "purchases"
   | "products"
-  | "expenses";
+  | "expenses"
+  | "stock"
+  | "customers";
 
 const FEATURE_ROLES: Record<Feature, Role[]> = {
   dashboard: ["GROUP_OWNER", "ACCOUNTANT"],
@@ -50,6 +52,8 @@ const FEATURE_ROLES: Record<Feature, Role[]> = {
   purchases: ["GROUP_OWNER", "ACCOUNTANT"],
   products: ["GROUP_OWNER", "ACCOUNTANT"],
   expenses: ["GROUP_OWNER", "ACCOUNTANT"],
+  stock: ["GROUP_OWNER", "ACCOUNTANT"],
+  customers: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
 };
 
 export function canAccess(role: string, feature: Feature): boolean {
@@ -72,6 +76,11 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/suppliers", "purchases"],
   ["/accounting/products", "products"],
   ["/accounting/product-categories", "products"],
+  ["/accounting/catalogue", "products"],
+  ["/accounting/customers", "customers"],
+  ["/accounting/stock", "stock"],
+  ["/accounting/warehouse-inventory", "stock"],
+  ["/accounting/branch-inventory", "stock"],
   ["/accounting/expenses", "expenses"],
   ["/accounting/advances-deposits", "expenses"],
 ];

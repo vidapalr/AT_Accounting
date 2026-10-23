@@ -228,7 +228,7 @@ async function ChartOfAccountsContent({
           all divisions and branches.
         </p>
 
-        <Link href="/accounting/bank-accounts">
+        <Link className="btn-link" href="/accounting/bank-accounts">
           View Bank Accounts
         </Link>
       </header>
@@ -442,16 +442,6 @@ async function ChartOfAccountsContent({
             gap: 16,
           }}
         >
-          <label style={fieldStyle}>
-            Account Code
-            <input
-              name="account_code"
-              maxLength={20}
-              required
-              style={inputStyle}
-              placeholder="6095"
-            />
-          </label>
 
           <label style={fieldStyle}>
             Account Name

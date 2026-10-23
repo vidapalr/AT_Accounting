@@ -8,9 +8,9 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { getActiveDivisionId } from "@/lib/division-context";
 
 const PAGE = "/accounting/purchases";
-const DIVISION_ID = 1;
 const MAX_PAISE = 999999999999999999n;
 
 const METHODS = [
@@ -92,6 +92,7 @@ export async function createPurchasePaymentDraftAction(
   form: FormData
 ): Promise<void> {
   const user = await requireAccess("purchases");
+  const DIVISION_ID = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
 
   const purchaseId = id(field(form, "purchase_id"));

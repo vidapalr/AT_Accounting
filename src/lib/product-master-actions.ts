@@ -6,10 +6,11 @@ import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
+import { nextCode, nextBarcode } from "@/lib/codes";
 import { requireAccess } from "@/lib/auth";
+import { getActiveDivisionId } from "@/lib/division-context";
 
 const PAGE = "/accounting/products";
-const DIVISION_ID = 1;
 
 function field(form: FormData, key: string): string {
   const value = form.get(key);
@@ -34,10 +35,11 @@ export async function createProductAction(
   form: FormData
 ): Promise<void> {
   const user = await requireAccess("products");
+  const DIVISION_ID = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
 
   const categoryId = id(field(form, "category_id"));
-  const code = field(form, "product_code").toUpperCase();
+  const code = await nextCode(db, { table: "acct_products", column: "product_code", prefix: "PRD-", width: 4, where: "legal_business_id = ?", params: [businessId] });
   const name = field(form, "product_name");
   const brand = field(form, "brand_name");
   const fabric = field(form, "fabric");
@@ -164,14 +166,15 @@ export async function createProductVariantAction(
   form: FormData
 ): Promise<void> {
   const user = await requireAccess("products");
+  const DIVISION_ID = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
 
   const productId = id(field(form, "product_id"));
-  const sku = field(form, "sku").toUpperCase();
-  const barcode = field(form, "barcode");
+  const sku = await nextCode(db, { table: "acct_product_variants", column: "sku", prefix: "SKU-", width: 5, where: "legal_business_id = ?", params: [businessId] });
+  const barcode = await nextBarcode(db);
   const size = field(form, "size_label");
   const color = field(form, "color_name");
-  const designCode = field(form, "design_code");
+  const designCode = field(form, "design_code") || (await nextCode(db, { table: "acct_product_variants", column: "design_code", prefix: "DSN-", width: 4, where: "legal_business_id = ?", params: [businessId] }));
   const unit = field(form, "unit_of_measure");
 
   if (

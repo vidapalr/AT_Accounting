@@ -177,7 +177,7 @@ async function AccountingPeriodsContent({
           financial years.
         </p>
 
-        <Link href="/accounting/chart-of-accounts">
+        <Link className="btn-link" href="/accounting/chart-of-accounts">
           ← Chart of Accounts
         </Link>
       </header>

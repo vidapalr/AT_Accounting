@@ -273,7 +273,7 @@ async function HistoricalFundingContent({
       margin: "0 auto",
       padding: 24,
     }}>
-      <Link href="/accounting/cutover-reconciliation">
+      <Link className="btn-link" href="/accounting/cutover-reconciliation">
         ← Cutover Reconciliation
       </Link>
 

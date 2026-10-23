@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
+import { nextCode } from "@/lib/codes";
 import { requireGroupOwner } from "@/lib/auth";
 
 type PartyType =
@@ -46,7 +47,7 @@ function validate(form: FormData) {
     "FINANCIAL_INSTITUTION",
   ];
 
-  if (!/^[A-Z][A-Z0-9_-]{1,31}$/.test(partyCode)) {
+  if (partyCode && !/^[A-Z][A-Z0-9_-]{1,31}$/.test(partyCode)) {
     throw new Error("Invalid party code");
   }
 
@@ -113,6 +114,17 @@ export async function createFundingPartyAction(
 
       if (!business.length) {
         throw new Error("Business not found");
+      }
+
+      if (!data.partyCode) {
+        data.partyCode = await nextCode(connection, {
+          table: "acct_funding_parties",
+          column: "party_code",
+          prefix: "PTY-",
+          width: 3,
+          where: "legal_business_id = ?",
+          params: [businessId],
+        });
       }
 
       const [duplicates] = await connection.execute<RowDataPacket[]>(

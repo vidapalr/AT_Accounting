@@ -214,7 +214,7 @@ async function InvestorBankScopesContent({
         in the business General Ledger.
       </p>
 
-      <Link href="/accounting/bank-accounts">
+      <Link className="btn-link" href="/accounting/bank-accounts">
         ← Bank Account Management
       </Link>
 

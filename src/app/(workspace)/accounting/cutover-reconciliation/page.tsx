@@ -237,7 +237,7 @@ async function ReconciliationContent({
       margin: "0 auto",
       padding: 24,
     }}>
-      <Link href="/accounting/opening-balances/review">
+      <Link className="btn-link" href="/accounting/opening-balances/review">
         ← Opening Balance Review
       </Link>
 
