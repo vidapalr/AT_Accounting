@@ -111,3 +111,9 @@ main nav a:hover {
 main nav {
   margin-top: 12px;
 }
+
+.btn-link.btn-link-primary,
+main nav a.btn-link-primary {
+  background: #2f6fed !important;
+  color: #fff !important;
+}

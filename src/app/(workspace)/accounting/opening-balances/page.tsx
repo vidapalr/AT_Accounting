@@ -1,6 +1,7 @@
 
 import { Suspense } from "react";
 import Link from "next/link";
+import OpeningSteps from "@/components/OpeningSteps";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
@@ -589,6 +590,7 @@ async function OpeningBalancesContent({
   return (
     <main className={accountingStyles.page}>
       <h1>Opening Balances</h1>
+      <OpeningSteps current={1} />
 
       <p>
         Enter the opening position for Abhiram Group,

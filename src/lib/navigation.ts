@@ -115,6 +115,13 @@ export const NAVIGATION: NavSection[] = [
       { label: "Bank accounts", href: "/accounting/bank-accounts" },
       { label: "Cash accounts", href: "/accounting/cash-accounts" },
       { label: "Users and access", href: "/users", hint: "Who can sign in and what they can open" },
+    ],
+  },
+  {
+    id: "cutover",
+    label: "One-time cut-over",
+    icon: "setup",
+    items: [
       { label: "Investor bank links", href: "/accounting/investor-bank-scopes", hint: "One-time set-up" },
       { label: "Change investor scope", href: "/accounting/investor-scope-amendment", hint: "One-time set-up" },
       { label: "Earlier funding entries", href: "/accounting/historical-funding", hint: "One-time set-up" },

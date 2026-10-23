@@ -1,6 +1,7 @@
 
 import { Suspense } from "react";
 import Link from "next/link";
+import OpeningSteps from "@/components/OpeningSteps";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
@@ -570,11 +571,8 @@ async function ReviewContent({
 
   return (
     <main className={accountingStyles.page}>
-      <Link className="btn-link" href="/accounting/opening-balances">
-        ← Edit Opening Balances
-      </Link>
-
-      <h1>Opening Balance Review</h1>
+      <h1>Opening Balances: Check, Authorise and Post</h1>
+      <OpeningSteps current={2} />
 
       {query.authorization && (
         <p role="status">
@@ -862,7 +860,7 @@ async function ReviewContent({
           marginTop: 24,
         }}
       >
-        <h2>Opening Balance Authorization</h2>
+        <h2 id="authorization">Opening Balance Authorization</h2>
 
         <p>
           Confirm each reconciliation only after reviewing
@@ -979,7 +977,7 @@ async function ReviewContent({
           padding: 20,
         }}
       >
-        <h2>Post Opening Balances</h2>
+        <h2 id="post">Step 3: Post Opening Balances</h2>
 
         <p>
           Authorization status:{" "}
