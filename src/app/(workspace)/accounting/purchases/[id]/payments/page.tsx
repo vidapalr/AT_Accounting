@@ -147,8 +147,7 @@ async function PaymentContent({ params, searchParams }: Props) {
        ON s.id = h.supplier_id
       AND s.legal_business_id = h.legal_business_id
      WHERE h.id = ?
-       AND h.legal_business_id = ?
-       AND h.division_id = 1`,
+       AND h.legal_business_id = ?`,
     [purchaseId, businessId]
   );
 
@@ -188,7 +187,6 @@ async function PaymentContent({ params, searchParams }: Props) {
      WHERE legal_business_id = ?
        AND status = 'ACTIVE'
        AND branch_id IS NULL
-       AND (division_id IS NULL OR division_id = 1)
      ORDER BY agreement_no`,
     [businessId]
   );
@@ -210,7 +208,6 @@ async function PaymentContent({ params, searchParams }: Props) {
        status
      FROM acct_purchase_payments
      WHERE legal_business_id = ?
-       AND division_id = 1
        AND purchase_id = ?
      ORDER BY id DESC`,
     [businessId, purchaseId]

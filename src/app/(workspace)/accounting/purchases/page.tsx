@@ -255,6 +255,7 @@ async function PurchaseContent({ searchParams }: Props) {
       </Link>
 
       <header className={styles.pageHeader}>
+        <p>Buy stock · Step 1 of 2</p>
         <h1>Buy Stock (Purchases)</h1>
         <p>
           Record supplier invoices and product quantities.
@@ -262,6 +263,14 @@ async function PurchaseContent({ searchParams }: Props) {
           only after goods receipt is posted.
         </p>
       </header>
+
+      <p>
+        After saving, go to{" "}
+        <Link href="/accounting/purchase-management">
+          Supplier Bills and Payments
+        </Link>{" "}
+        to receive the goods and pay the supplier.
+      </p>
 
       {query.result && (
         <p role="status" className={styles.status}>

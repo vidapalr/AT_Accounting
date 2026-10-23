@@ -208,7 +208,6 @@ async function PurchaseManagementContent({
        ON s.id = h.supplier_id
       AND s.legal_business_id = h.legal_business_id
      WHERE h.legal_business_id = ?
-       AND h.division_id = 1
        AND h.status IN ('DRAFT', 'POSTED')
      ORDER BY h.invoice_date DESC, h.id DESC`,
     [businessId]
@@ -228,7 +227,6 @@ async function PurchaseManagementContent({
       AND v.legal_business_id = l.legal_business_id
       AND v.division_id = l.division_id
      WHERE h.legal_business_id = ?
-       AND h.division_id = 1
        AND h.status = 'POSTED'
      GROUP BY v.unit_of_measure
      ORDER BY v.unit_of_measure`,
@@ -268,7 +266,6 @@ async function PurchaseManagementContent({
      WHERE legal_business_id = ?
        AND status = 'ACTIVE'
        AND branch_id IS NULL
-       AND (division_id IS NULL OR division_id = 1)
      ORDER BY agreement_no`,
     [businessId]
   );
@@ -301,10 +298,10 @@ async function PurchaseManagementContent({
     <main className={styles.page}>
       <header className={styles.pageHeader}>
         <div>
-          <p className={styles.eyebrow}>Purchases · Accounts payable</p>
-          <h1>Purchase Management</h1>
+          <p className={styles.eyebrow}>Buy stock · Step 2 of 2</p>
+          <h1>Supplier Bills and Payments</h1>
           <p className={styles.description}>
-            Track goods receipts, supplier payments and outstanding balances.
+            See what you bought, what you still owe each supplier, and pay them here.
           </p>
         </div>
 
@@ -312,7 +309,7 @@ async function PurchaseManagementContent({
           className={styles.primaryLink}
           href="/accounting/purchases"
         >
-          + New Purchase
+          + Record new stock purchase
         </Link>
       </header>
 

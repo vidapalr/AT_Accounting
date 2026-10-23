@@ -124,7 +124,6 @@ async function InvoiceList() {
       AND pay.sale_id = s.id
 
      WHERE s.legal_business_id = ?
-       AND s.division_id = 1
 
      ORDER BY s.invoice_date DESC, s.id DESC
      LIMIT 500`,

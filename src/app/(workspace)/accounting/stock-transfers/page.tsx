@@ -111,7 +111,6 @@ async function TransferContent({ searchParams }: Props) {
        branch_id
      FROM acct_inventory_locations
      WHERE legal_business_id = ?
-       AND division_id = 1
        AND status = 'ACTIVE'
        AND location_type IN (
          'CENTRAL_WAREHOUSE',
@@ -137,7 +136,6 @@ async function TransferContent({ searchParams }: Props) {
       AND p.legal_business_id = v.legal_business_id
       AND p.division_id = v.division_id
      WHERE v.legal_business_id = ?
-       AND v.division_id = 1
      GROUP BY
        v.id, v.sku, v.unit_of_measure, p.product_name,
        v.status, p.status
@@ -166,7 +164,6 @@ async function TransferContent({ searchParams }: Props) {
      LEFT JOIN acct_stock_transfer_lines tl
        ON tl.transfer_id = t.id
      WHERE t.legal_business_id = ?
-       AND t.division_id = 1
      GROUP BY
        t.id, t.transfer_no, t.transfer_date, t.status,
        f.location_name, d.location_name
@@ -196,7 +193,7 @@ async function TransferContent({ searchParams }: Props) {
                  / SUM(quantity_change)) * 1.01 * 2.00, 2)
               ELSE NULL END AS CHAR) AS max_price
      FROM acct_stock_movements
-     WHERE legal_business_id = ? AND division_id = 1
+     WHERE legal_business_id = ?
      GROUP BY location_id, variant_id`,
     [businessId]
   );
@@ -222,7 +219,6 @@ async function TransferContent({ searchParams }: Props) {
        FROM acct_stock_transfers
        WHERE id = ?
          AND legal_business_id = ?
-         AND division_id = 1
          AND status = 'DRAFT'
        LIMIT 1`,
       [editId, businessId]
@@ -280,7 +276,6 @@ async function TransferContent({ searchParams }: Props) {
         AND d.legal_business_id = t.legal_business_id
        WHERE t.id = ?
          AND t.legal_business_id = ?
-         AND t.division_id = 1
        LIMIT 1`,
       [viewId, businessId]
     );
@@ -311,7 +306,6 @@ async function TransferContent({ searchParams }: Props) {
           AND p.division_id = v.division_id
          WHERE l.transfer_id = ?
            AND l.legal_business_id = ?
-           AND l.division_id = 1
          ORDER BY l.id`,
         [viewId, businessId]
       );

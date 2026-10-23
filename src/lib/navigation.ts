@@ -36,7 +36,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Invoices", href: "/accounting/invoices", hint: "Find, view and print past bills" },
       { label: "Returns and refunds", href: "/accounting/returns", hint: "Customer returns, refunds, damaged stock" },
       { label: "Buy stock (purchases)", href: "/accounting/purchases", hint: "Record stock bought from suppliers" },
-      { label: "Pay suppliers", href: "/accounting/purchase-management", hint: "Receive goods and pay supplier bills" },
+      { label: "Supplier bills and payments", href: "/accounting/purchase-management", hint: "Receive goods and pay supplier bills" },
       { label: "Move stock", href: "/accounting/stock-transfers", hint: "Send stock between warehouse and shops" },
       { label: "Expenses", href: "/accounting/expenses", hint: "Rent, salaries, transport and other costs" },
       { label: "Advances and deposits", href: "/accounting/advances-deposits", hint: "Money paid in advance or as deposit" },

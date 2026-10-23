@@ -99,7 +99,6 @@ async function InvestmentAccountsContent() {
       AND t.status = 'VERIFIED'
 
      WHERE a.legal_business_id = ?
-       AND a.division_id = 1
 
      GROUP BY
        a.id,
@@ -145,7 +144,6 @@ async function InvestmentAccountsContent() {
         AND a.legal_business_id = pp.legal_business_id
 
        WHERE pp.legal_business_id = ?
-         AND ph.division_id = 1
          AND pp.status = 'VERIFIED'
          AND pp.payment_source IN (
            'INVESTOR_BANK',

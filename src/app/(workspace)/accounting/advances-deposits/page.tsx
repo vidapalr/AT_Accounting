@@ -38,7 +38,6 @@ async function Content({ searchParams }: Props) {
     `SELECT id, branch_name
      FROM acct_branches
      WHERE legal_business_id = ?
-       AND division_id = 1
        AND status = 'ACTIVE'
      ORDER BY branch_name`,
     [businessId]
@@ -114,7 +113,6 @@ async function Content({ searchParams }: Props) {
       AND t.advance_id = a.id
 
      WHERE a.legal_business_id = ?
-       AND (a.division_id = 1 OR a.division_id IS NULL)
 
      GROUP BY
        a.id, a.advance_no, a.advance_type,

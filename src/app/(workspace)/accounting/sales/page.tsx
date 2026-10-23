@@ -70,7 +70,6 @@ async function SalesContent({ searchParams }: Props) {
       AND l.location_type = 'RETAIL'
       AND l.status = 'ACTIVE'
      WHERE b.legal_business_id = ?
-       AND b.division_id = 1
        AND b.status = 'ACTIVE'
      GROUP BY b.id, b.branch_name
      HAVING COUNT(l.id) = 1
@@ -103,7 +102,6 @@ async function SalesContent({ searchParams }: Props) {
       AND m.location_id = l.id
       AND m.variant_id = v.id
      WHERE l.legal_business_id = ?
-       AND l.division_id = 1
        AND l.location_type = 'RETAIL'
        AND l.status = 'ACTIVE'
      GROUP BY
@@ -130,7 +128,6 @@ async function SalesContent({ searchParams }: Props) {
       AND dst.division_id = t.division_id
       AND dst.id = t.to_location_id
      WHERE t.legal_business_id = ?
-       AND t.division_id = 1
        AND t.status = 'RECEIVED'
      ORDER BY t.received_at DESC, t.id DESC`,
     [businessId]
@@ -158,9 +155,6 @@ async function SalesContent({ searchParams }: Props) {
      FROM acct_cash_accounts
      WHERE legal_business_id = ?
        AND status = 'ACTIVE'
-       AND (
-         division_id IS NULL OR division_id = 1
-       )
      ORDER BY cash_name, id`,
     [businessId]
   );
@@ -244,7 +238,6 @@ async function SalesContent({ searchParams }: Props) {
           AND b.division_id = s.division_id
           AND b.id = s.branch_id
          WHERE s.legal_business_id = ?
-           AND s.division_id = 1
            AND s.id = ?
          LIMIT 1`,
         [businessId, selectedInvoiceId]
@@ -273,7 +266,6 @@ async function SalesContent({ searchParams }: Props) {
           AND p.division_id = v.division_id
           AND p.id = v.product_id
          WHERE sl.legal_business_id = ?
-           AND sl.division_id = 1
            AND sl.sale_id = ?
          ORDER BY sl.id`,
         [businessId, selectedInvoiceId]
@@ -288,7 +280,6 @@ async function SalesContent({ searchParams }: Props) {
                 payment_reference
          FROM acct_sales_payments
          WHERE legal_business_id = ?
-           AND division_id = 1
            AND sale_id = ?
            AND status = 'RECORDED'
          ORDER BY id`,
@@ -300,7 +291,6 @@ async function SalesContent({ searchParams }: Props) {
         `SELECT COALESCE(SUM(amount), 0) AS collected
          FROM acct_sales_payments
          WHERE legal_business_id = ?
-           AND division_id = 1
            AND sale_id = ?
            AND status = 'RECORDED'`,
         [businessId, selectedInvoiceId]
@@ -332,7 +322,6 @@ async function SalesContent({ searchParams }: Props) {
       AND pay.division_id = s.division_id
       AND pay.sale_id = s.id
      WHERE s.legal_business_id = ?
-       AND s.division_id = 1
      GROUP BY
        s.id, s.invoice_no, s.invoice_date,
        s.customer_name, s.customer_phone,
@@ -374,9 +363,14 @@ async function SalesContent({ searchParams }: Props) {
       {result && (
         <p role="status">
           {messages[result] ?? "Request completed."}
-          {result === "created" && id
-            ? ` Sale record ID: ${id}.`
-            : ""}
+          {result === "created" && id ? (
+            <>
+              {" "}
+              <a href={`/accounting/sales/${id}`}>
+                Next: view, print or take payment for this invoice
+              </a>
+            </>
+          ) : null}
         </p>
       )}
 

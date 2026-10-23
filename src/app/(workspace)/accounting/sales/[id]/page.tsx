@@ -56,7 +56,6 @@ async function InvoiceDetails({ params }: Props) {
       AND b.division_id = s.division_id
       AND b.id = s.branch_id
      WHERE s.legal_business_id = ?
-       AND s.division_id = 1
        AND s.id = ?`,
     [businessId, saleId]
   );
@@ -89,7 +88,6 @@ async function InvoiceDetails({ params }: Props) {
       AND p.division_id = v.division_id
       AND p.id = v.product_id
      WHERE sl.legal_business_id = ?
-       AND sl.division_id = 1
        AND sl.sale_id = ?
      ORDER BY sl.id`,
     [businessId, saleId]
@@ -128,7 +126,6 @@ async function InvoiceDetails({ params }: Props) {
        ON cash.legal_business_id = pay.legal_business_id
       AND cash.id = pay.cash_account_id
      WHERE pay.legal_business_id = ?
-       AND pay.division_id = 1
        AND pay.sale_id = ?
      ORDER BY pay.id`,
     [businessId, saleId]
