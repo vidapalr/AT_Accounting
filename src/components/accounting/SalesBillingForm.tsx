@@ -73,7 +73,14 @@ type CustomerOption = {
   creditLimit: number;
 };
 
+type Prefill = {
+  reportId: number;
+  branchId: number | null;
+  lines: Array<{ variantId: number; quantity: string; price: string }>;
+};
+
 type Props = {
+  prefill?: Prefill;
   customers?: CustomerOption[];
   branches: Branch[];
   products: ProductOption[];
@@ -122,6 +129,7 @@ export default function SalesBillingForm({
   paymentAccounts,
   today,
   initialInvoice,
+  prefill,
 }: Props) {
   const [custPhone, setCustPhone] = useState(initialInvoice?.customerPhone ?? "");
   const [custName, setCustName] = useState(initialInvoice?.customerName ?? "");
@@ -129,7 +137,7 @@ export default function SalesBillingForm({
   const known = digits.length === 10 ? customers.find(c => c.phone === digits) : undefined;
 
   const [branchId, setBranchId] = useState(
-    initialInvoice?.branchId ?? branches[0]?.id ?? 0
+    initialInvoice?.branchId ?? prefill?.branchId ?? branches[0]?.id ?? 0
   );
   const [rows, setRows] = useState<SaleRow[]>(
     initialInvoice
@@ -141,7 +149,14 @@ export default function SalesBillingForm({
           discount: line.discount,
           reason: line.reason,
         }))
-      : [newSaleRow()]
+      : prefill
+        ? prefill.lines.map(line => ({
+            ...newSaleRow(),
+            variantId: line.variantId,
+            quantity: line.quantity,
+            price: line.price,
+          }))
+        : [newSaleRow()]
   );
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [invoiceDiscount, setInvoiceDiscount] = useState(
@@ -253,6 +268,15 @@ export default function SalesBillingForm({
     <form action={action} className={styles.form}>
       {initialInvoice && (
         <input type="hidden" name="sale_id" value={initialInvoice.id} />
+      )}
+      {prefill && !initialInvoice && (
+        <>
+          <input type="hidden" name="report_id" value={prefill.reportId} />
+          <p style={{ background: "#eff6ff", padding: 10, borderRadius: 8 }}>
+            Filled from what your staff reported on WhatsApp. Add the customer and
+            payment, then save the bill.
+          </p>
+        </>
       )}
       <input
         type="hidden"

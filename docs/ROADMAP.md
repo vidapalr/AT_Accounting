@@ -118,4 +118,4 @@ Migrations so far: 001 investor capital account; 002 missing live columns; 003 s
 
 ## Staff stock reports (WhatsApp)
 Built: staff text lines like "DAMAGED SKU 2 torn" to the business number (or the owner pastes them). Lines become drafts on /accounting/stock-reports. Approve: damaged/lost reduces stock; count shows the difference; received/sold are acknowledged with links to Buy stock / Sell. Needs env WHATSAPP_VERIFY_TOKEN and WHATSAPP_APP_SECRET for the automatic webhook (/api/whatsapp/webhook).
-Received lines: "Make purchase" opens Buy stock pre-filled (item, quantity, warehouse); saving the purchase marks the reports done. Not yet: billing prefill for sold lines, WhatsApp replies to staff.
+Received lines: "Make purchase" opens Buy stock pre-filled (item, quantity, warehouse); saving the purchase marks the reports done. Sold lines: "Make bill" opens billing pre-filled (item, quantity, price, branch); saving the bill marks the report done. Not yet: WhatsApp replies to staff.

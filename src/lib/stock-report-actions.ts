@@ -135,7 +135,7 @@ export async function approveDraftAction(formData: FormData) {
       } else if (d.action === "RECEIVED") {
         note = "Acknowledged. Use “Make purchase” to add it to stock.";
       } else {
-        note = "Acknowledged. Make the bill in Sell to record the sale.";
+        note = "Acknowledged. Use “Make bill” to record the sale.";
       }
 
       await conn.execute(

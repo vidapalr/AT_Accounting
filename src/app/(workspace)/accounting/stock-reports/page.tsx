@@ -108,7 +108,7 @@ async function Content({ searchParams }: Props) {
                       {d.problem && <div style={{ color: "#b91c1c", fontSize: 14 }}>⚠ {d.problem} (“{d.raw_line}”)</div>}
                     </td>
                     <td style={{ ...cell, whiteSpace: "nowrap" }}>
-                      {!d.problem && d.action !== "RECEIVED" && (
+                      {!d.problem && d.action !== "RECEIVED" && d.action !== "SOLD" && (
                         <form action={approveDraftAction} style={{ display: "inline" }}>
                           <input type="hidden" name="id" value={d.id} />
                           <button style={btn}>Approve</button>
@@ -119,7 +119,7 @@ async function Content({ searchParams }: Props) {
                         <button style={btnGrey}>Reject</button>
                       </form>
                       {!d.problem && d.action === "RECEIVED" && <><Link href={`/accounting/purchases?from_reports=${d.id}#purchase-entry`} style={btnGrey}>Make purchase</Link></>}
-                      {!d.problem && d.action === "SOLD" && <> <Link href="/accounting/sales" style={btnGrey}>Make bill</Link></>}
+                      {!d.problem && d.action === "SOLD" && <><Link href={`/accounting/sales?from_report=${d.id}`} style={btn}>Make bill</Link></>}
                     </td>
                   </tr>
                 ))}
