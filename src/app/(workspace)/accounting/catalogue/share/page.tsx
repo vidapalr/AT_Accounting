@@ -22,7 +22,7 @@ async function Share({ searchParams }: Props) {
     .slice(0, 200);
 
   const [rows] = await db.query<RowDataPacket[]>(
-    `SELECT e.id, p.product_name, p.fabric, v.size_label, v.color_name, v.sku
+    `SELECT e.id, p.id AS product_id, p.show_in_shop, p.product_name, p.fabric, v.size_label, v.color_name, v.sku
        FROM acct_stock_events e
        JOIN acct_products p ON p.legal_business_id = e.legal_business_id AND p.id = e.product_id
        JOIN acct_product_variants v ON v.legal_business_id = e.legal_business_id AND v.id = e.variant_id
@@ -33,12 +33,21 @@ async function Share({ searchParams }: Props) {
   );
 
   const names = [...new Set(rows.map(r => String(r.product_name)))];
+  // Link to the online shop when the new products are switched on for it.
+  const site = (process.env.SHOP_PUBLIC_URL ?? "").replace(/\/+$/, "");
+  const shopIds = [...new Set(rows.filter(r => Number(r.show_in_shop) === 1).map(r => Number(r.product_id)))];
+  const shopLine = !site || shopIds.length === 0
+    ? null
+    : shopIds.length === 1
+      ? `See it and order: ${site}/shop/${shopIds[0]}`
+      : `See them and order: ${site}/shop`;
   const defaultText =
     names.length === 0
       ? "New stock has arrived at Abhiram Textiles. Visit us or message us to order."
       : [
           "New stock has arrived at Abhiram Textiles:",
           ...names.map(n => `• ${n}`),
+          ...(shopLine ? [shopLine] : []),
           "Visit us or message us to order.",
         ].join("\n");
 

@@ -134,3 +134,5 @@ Not yet: automatic Instagram posting via the API; the shop link inside customer 
 ## Automatic Instagram posting
 Built: "Post now" on /accounting/catalogue/instagram posts the photo (JPG) or video (as a reel) with the caption through Meta Graph API. Shows only when server settings INSTAGRAM_USER_ID, INSTAGRAM_ACCESS_TOKEN and SHOP_PUBLIC_URL exist. Product must be switched on for the shop (Instagram fetches the file from /api/shop/media/ID). Posts are logged in acct_instagram_posts. Request logic is unit-tested with a mock; NOT yet tested against live Meta (no token/network in the build sandbox).
 IDs given by owner: Instagram User ID 1429287470264568, Meta Business ID 1107115578575302 (identifiers, not secrets). The access token is never stored in code or chat.
+
+Shop links: home page has a "Shop online" button; the new-stock WhatsApp message adds the shop link (single product or /shop) when SHOP_PUBLIC_URL is set and the product is switched on.
