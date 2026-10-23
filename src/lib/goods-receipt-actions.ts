@@ -301,6 +301,26 @@ export async function postGoodsReceiptAction(
                   user.id,
                 ]
               );
+
+              // Tell the catalogue that new stock has arrived (shown on the
+              // New stock page; later used for WhatsApp and social posts).
+              await conn.execute(
+                `INSERT IGNORE INTO acct_stock_events (
+                   legal_business_id, division_id, source_type, source_id,
+                   product_id, variant_id, location_id, quantity
+                 )
+                 SELECT v.legal_business_id, v.division_id, 'PURCHASE', ?,
+                        v.product_id, v.id, ?, ?
+                   FROM acct_product_variants v
+                  WHERE v.legal_business_id = ? AND v.id = ?`,
+                [
+                  purchaseId,
+                  purchase.receiving_location_id,
+                  line.quantity,
+                  businessId,
+                  line.variant_id,
+                ]
+              );
             }
 
             const [updated] =

@@ -45,7 +45,7 @@ Decisions given: customers buy both on credit and paid; wholesale GST invoices a
 
 **Phase 2 – Multi-division readiness (started 23 Oct: active-division picker, sales take the division from the branch, readiness checklist; still to do: per-user division/branch scope, division manager role).** User scope by division and branch; division-aware pages and settings; new division/branch checklist (locations, price lists, accounts) so opening one is a form, not a code change.
 
-**Phase 3 – Catalogue and media.** Product photos and short videos stored once against the product; "new stock" event created when a purchase is received; public catalogue feed that other channels read.
+**Phase 3 – Catalogue and media (built 23 Oct: photos and videos per product, cover photo, New stock arrivals fed by goods receipts, copy-ready messages; still to do: public catalogue feed, customer WhatsApp share, MEDIA_DIR on the server).** Product photos and short videos stored once against the product; "new stock" event created when a purchase is received; public catalogue feed that other channels read.
 
 **Phase 4 – Channels.** In this order of value and cost:
 1. Employees update stock by WhatsApp (inbound).
@@ -104,7 +104,7 @@ The hosting service builds and publishes whenever the connected branch changes, 
 4. Open the site, sign in, and check Dashboard, Reports and one invoice.
 5. Roll back by reverting the merge if needed; migrations only add things, so they do not need undoing.
 
-Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products; 010 customers.
+Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products; 010 customers; 011 catalogue photos and new-stock events.
 
 ## 8. Known open items
 

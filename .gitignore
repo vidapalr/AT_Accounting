@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Product photos and videos (set MEDIA_DIR outside the app folder on the server)
+/private_uploads/media/

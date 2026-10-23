@@ -76,6 +76,7 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/suppliers", "purchases"],
   ["/accounting/products", "products"],
   ["/accounting/product-categories", "products"],
+  ["/accounting/catalogue", "products"],
   ["/accounting/customers", "customers"],
   ["/accounting/stock", "stock"],
   ["/accounting/warehouse-inventory", "stock"],
