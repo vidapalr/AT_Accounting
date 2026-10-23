@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { postToInstagramAction } from "@/lib/instagram-actions";
 
 type Media = { id: number; type: "IMAGE" | "VIDEO" };
 
@@ -9,7 +10,18 @@ type Media = { id: number; type: "IMAGE" | "VIDEO" };
  * On a phone, "Share to Instagram" opens the share sheet with the file; the caption is
  * copied first so it can be pasted. On a computer, save the file and post from the app.
  */
-export default function InstagramPostKit({ caption: initial, media }: { caption: string; media: Media[] }) {
+export default function InstagramPostKit({
+  caption: initial,
+  media,
+  autoPost = false,
+  lastPosted = null,
+}: {
+  caption: string;
+  media: Media[];
+  autoPost?: boolean;
+  lastPosted?: string | null;
+}) {
+  const [pending, startPost] = useTransition();
   const [caption, setCaption] = useState(initial);
   const [note, setNote] = useState("");
 
@@ -76,10 +88,28 @@ export default function InstagramPostKit({ caption: initial, media }: { caption:
                   Share to Instagram
                 </button>
                 <a className="btn-link" href={`/api/catalogue/media/${m.id}?download=1`}>Save to phone</a>
+                {autoPost && (
+                  <button
+                    type="button"
+                    className="btn-link"
+                    disabled={pending}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => {
+                      if (!window.confirm("Post this to your Instagram account now?")) return;
+                      startPost(async () => {
+                        const r = await postToInstagramAction(m.id, caption);
+                        setNote(r.message);
+                      });
+                    }}
+                  >
+                    {pending ? "Posting…" : "Post now"}
+                  </button>
+                )}
               </div>
             </div>
           ))}
         </div>
+        {lastPosted && <p style={{ color: "#64748b" }}>Last posted to Instagram: {lastPosted}.</p>}
         {note && <p style={{ background: "#eff6ff", padding: 10, borderRadius: 8 }}>{note}</p>}
         <p style={{ color: "#64748b" }}>
           Instagram needs you to tap Post yourself. <a href="https://www.instagram.com/" target="_blank" rel="noreferrer">Open Instagram</a>

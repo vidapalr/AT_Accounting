@@ -35,6 +35,13 @@ async function Content({ searchParams }: Props) {
     [businessId, productId]
   );
 
+  const [last] = await db.execute<RowDataPacket[]>(
+    `SELECT DATE_FORMAT(created_at, '%d %b %H:%i') AS at FROM acct_instagram_posts
+      WHERE legal_business_id = ? AND product_id = ? AND status = 'POSTED' ORDER BY id DESC LIMIT 1`,
+    [businessId, productId]
+  );
+  const autoPost = Boolean(process.env.INSTAGRAM_USER_ID && process.env.INSTAGRAM_ACCESS_TOKEN && process.env.SHOP_PUBLIC_URL);
+
   const caption = buildCaption({
     name: String(p.product_name),
     fabric: p.fabric ? String(p.fabric) : null,
@@ -51,6 +58,8 @@ async function Content({ searchParams }: Props) {
       <p style={{ color: "#475569" }}>Edit the words if you like, then share the photo or video. You tap Post in Instagram.</p>
       <InstagramPostKit
         caption={caption}
+        autoPost={autoPost}
+        lastPosted={last[0]?.at ? String(last[0].at) : null}
         media={media.map(m => ({ id: Number(m.id), type: m.media_type === "VIDEO" ? "VIDEO" : "IMAGE" }))}
       />
     </div>

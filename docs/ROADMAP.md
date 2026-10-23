@@ -104,7 +104,7 @@ The hosting service builds and publishes whenever the connected branch changes, 
 4. Open the site, sign in, and check Dashboard, Reports and one invoice.
 5. Roll back by reverting the merge if needed; migrations only add things, so they do not need undoing.
 
-Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products; 010 customers; 011 catalogue photos and new-stock events; 012 customer message log; 013 staff stock reports (WhatsApp); 014 online shop switch per product.
+Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products; 010 customers; 011 catalogue photos and new-stock events; 012 customer message log; 013 staff stock reports (WhatsApp); 014 online shop switch per product; 015 Instagram post history.
 
 ## 8. Known open items
 
@@ -130,3 +130,7 @@ Not yet: cart and online payment, wholesale/GST prices, shop link in the menu fo
 ## Meta catalogue feed
 Built: /shop/feed.csv (public) lists shop-enabled products that have a price and a photo, one row per size/colour, for Meta Commerce Manager (scheduled data feed). One catalogue then serves the WhatsApp Business catalogue and Instagram Shopping. Env SHOP_PUBLIC_URL sets the address Meta should use. Set-up steps are on the Catalogue page.
 Not yet: automatic Instagram posting via the API; the shop link inside customer WhatsApp messages.
+
+## Automatic Instagram posting
+Built: "Post now" on /accounting/catalogue/instagram posts the photo (JPG) or video (as a reel) with the caption through Meta Graph API. Shows only when server settings INSTAGRAM_USER_ID, INSTAGRAM_ACCESS_TOKEN and SHOP_PUBLIC_URL exist. Product must be switched on for the shop (Instagram fetches the file from /api/shop/media/ID). Posts are logged in acct_instagram_posts. Request logic is unit-tested with a mock; NOT yet tested against live Meta (no token/network in the build sandbox).
+IDs given by owner: Instagram User ID 1429287470264568, Meta Business ID 1107115578575302 (identifiers, not secrets). The access token is never stored in code or chat.
