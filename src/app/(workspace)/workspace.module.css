@@ -196,31 +196,19 @@
     padding-bottom: 12px;
   }
 
-  .navigation {
-    flex-direction: row;
-    overflow-x: auto;
+  .menuButton {
+    display: flex;
   }
 
-  .navLink,
-  .disabled {
-    white-space: nowrap;
-    flex-shrink: 0;
+  .navWrap {
+    display: none;
+    max-height: 70vh;
+    overflow-y: auto;
+    margin-top: 8px;
   }
 
-  .navGroup {
-    flex-shrink: 0;
-  }
-
-  .navGroup[open] {
-    flex-shrink: 0;
-  }
-
-  .subNavigation {
-    margin-bottom: 0;
-  }
-
-  .subNavLink {
-    white-space: nowrap;
+  .navWrapOpen {
+    display: block;
   }
 
   .disabled small {
@@ -286,4 +274,29 @@
 
 .subNavActive:hover {
   background: #2f6fed;
+}
+
+.menuButton {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #3a5a86;
+  border-radius: 10px;
+  background: #1c3a68;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.navWrap {
+  display: block;
+}
+
+@media (max-width: 800px) {
+  .menuButton { display: flex; }
+  .navWrap { display: none; max-height: 70vh; overflow-y: auto; margin-top: 8px; }
+  .navWrapOpen { display: block; }
 }

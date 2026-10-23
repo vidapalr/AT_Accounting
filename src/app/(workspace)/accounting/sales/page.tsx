@@ -478,7 +478,8 @@ async function SalesContent({ searchParams }: Props) {
       <h2>Recent Sales & Invoices</h2>
 
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%" }}>
+        <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", minWidth: 760 }}>
           <thead>
             <tr>
               <th>Invoice</th>
@@ -533,6 +534,7 @@ async function SalesContent({ searchParams }: Props) {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
       {view && selectedInvoice && (
         <section style={{

@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { canOpenPath, ROLE_LABELS } from "@/lib/access";
 import { NAVIGATION } from "@/lib/navigation";
 import SidebarNav from "@/components/SidebarNav";
+import MobileMenu from "@/components/MobileMenu";
 import BrandLogo from "@/components/BrandLogo";
 import styles from "./workspace.module.css";
 
@@ -43,7 +44,9 @@ async function WorkspaceContent({
           </div>
         </div>
 
-        <SidebarNav sections={sections} />
+        <MobileMenu>
+          <SidebarNav sections={sections} />
+        </MobileMenu>
       </aside>
 
       <div className={styles.mainArea}>
