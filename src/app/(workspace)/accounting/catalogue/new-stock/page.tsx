@@ -71,6 +71,14 @@ async function NewStock() {
         Copy the message, add the photo, post it, then tap &ldquo;Done&rdquo;.
       </p>
 
+      {groups.length > 1 && (
+        <p>
+          <Link className="btn-link btn-link-primary" href="/accounting/catalogue/share">
+            Send all {groups.length} new arrivals to customers in one message
+          </Link>
+        </p>
+      )}
+
       {groups.length === 0 && (
         <p style={{ padding: 16, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }}>
           Nothing new. When you receive goods from a supplier, they show up here.
@@ -104,13 +112,16 @@ async function NewStock() {
                 </ul>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <CopyTextButton text={text} />
+                  <Link className="btn-link btn-link-primary" href={`/accounting/catalogue/share?events=${ids}`}>
+                    Send to customers
+                  </Link>
                   <Link className="btn-link" href={`/accounting/catalogue/${g.productId}`}>
                     {g.coverId ? "Photos and videos" : "Add photo"}
                   </Link>
                   <form action={updateStockEventAction}>
                     <input type="hidden" name="event_ids" value={ids} />
                     <input type="hidden" name="status" value="SHARED" />
-                    <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Done, announced</button>
+                    <button type="submit" className="btn-link" style={{ cursor: "pointer" }}>Done, announced</button>
                   </form>
                   <form action={updateStockEventAction}>
                     <input type="hidden" name="event_ids" value={ids} />
