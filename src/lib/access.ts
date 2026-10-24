@@ -55,6 +55,7 @@ export type Feature =
   | "supplier_returns"
   | "free_stock"
   | "approval_items"
+  | "cash_closing"
   | "customers";
 
 const FEATURE_ROLES: Record<Feature, Role[]> = {
@@ -70,6 +71,7 @@ const FEATURE_ROLES: Record<Feature, Role[]> = {
   // Everyone can ask for free stock; only owner and accountant approve it.
   free_stock: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
   approval_items: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
+  cash_closing: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
   customers: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
 };
 
@@ -100,6 +102,7 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/supplier-statement", "supplier_returns"],
   ["/accounting/free-stock", "free_stock"],
   ["/accounting/approval-items", "approval_items"],
+  ["/accounting/cash-closing", "cash_closing"],
   ["/accounting/stock", "stock"],
   ["/accounting/stock-reports", "stock"],
   ["/accounting/warehouse-inventory", "stock"],
@@ -127,4 +130,9 @@ export function homePath(role: string): string {
   if (canAccess(role, "dashboard")) return "/dashboard";
   if (canAccess(role, "sales")) return "/accounting/sales";
   return "/login";
+}
+
+/** Only the owner or accountant can change a day that has already been closed. */
+export function canRedoCashClosing(role: string): boolean {
+  return role === "GROUP_OWNER" || role === "ACCOUNTANT";
 }

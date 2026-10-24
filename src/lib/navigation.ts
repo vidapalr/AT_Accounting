@@ -65,6 +65,7 @@ export const NAVIGATION: NavSection[] = [
     items: [
       { label: "Move stock", href: "/accounting/stock-transfers", hint: "Send stock between warehouse and shops" },
       { label: "Give stock free", href: "/accounting/free-stock", hint: "Gifts, samples and promotions (a business expense)" },
+      { label: "Close the day (cash count)", href: "/accounting/cash-closing", hint: "Count the cash drawer and compare with what the system expects" },
       { label: "Items on approval", href: "/accounting/approval-items", hint: "Customer takes items home to try, pays only for what they keep" },
       { label: "Expenses", href: "/accounting/expenses", hint: "Rent, salaries, transport and other costs" },
       { label: "Advances and deposits", href: "/accounting/advances-deposits", hint: "Money paid in advance or as deposit" },
