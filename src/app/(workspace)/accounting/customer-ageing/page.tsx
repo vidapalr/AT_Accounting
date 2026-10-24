@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { todayInIndia } from "@/lib/reports/money";
 import { normalizePhone } from "@/lib/customer-phone";
+import UnpaidWalkIns from "@/components/accounting/UnpaidWalkIns";
 import { ageDues } from "@/lib/supplier-statement";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -84,6 +85,8 @@ async function AgeingContent({ searchParams }: Props) {
           </Link>
         ))}
       </div>
+
+      <UnpaidWalkIns businessId={businessId} />
 
       <section style={box}>
         <h2>Total unpaid: {rupees(sum((a) => a.totalDue))}</h2>

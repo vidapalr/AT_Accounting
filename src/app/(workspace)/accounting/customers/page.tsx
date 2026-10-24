@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { createCustomerAction } from "@/lib/customer-actions";
 import { prettyPhone } from "@/lib/customer-phone";
+import UnpaidWalkIns from "@/components/accounting/UnpaidWalkIns";
 
 type Props = {
   searchParams: Promise<{ q?: string; view?: string; result?: string }>;
@@ -112,6 +113,8 @@ async function CustomerList({ searchParams }: Props) {
           they are not saved twice.
         </p>
       )}
+
+      <UnpaidWalkIns businessId={businessId} />
 
       <form method="get" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", margin: "16px 0" }}>
         <input
