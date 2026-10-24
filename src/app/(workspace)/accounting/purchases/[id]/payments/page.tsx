@@ -1,4 +1,6 @@
 
+import { splitPurchasePaymentAction } from "@/lib/purchase-payment-split-actions";
+import ConfirmButton from "@/components/ConfirmButton";
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -106,6 +108,11 @@ const messages: Record<string, string> = {
   "amount-exceeds-balance": "Payment exceeds the unallocated purchase amount.",
   "duplicate-reference": "A payment with this reference already exists.",
   verified: "Payment verified successfully. No GL journal has been posted.",
+  "split-done":
+    "Done. Part of the payment is now shown as paid from the investor's bank. The bill's total paid has not changed. If the payment was already in the ledger, open Reports and post the correction it asks for.",
+  "split-invalid": "Choose an amount and an investor bank account.",
+  "split-too-big": "The part paid by the investor must be less than the whole payment.",
+  "split-failed": "Could not change the payment. Nothing was changed.",
   "verification-invalid":
     "Select a valid payment and confirm verification.",
   "business-not-found": "The legal business was not found.",
@@ -564,8 +571,34 @@ async function PaymentContent({ params, searchParams }: Props) {
                           Confirm Payment
                         </button>
                       </form>
-                    ) : (
-                      "—"
+                    ) : null}
+                    {(payment.status === "DRAFT" || payment.status === "VERIFIED") && banks.some(b => b.ownership_type === "INVESTOR") && (
+                      <details style={{ marginTop: payment.status === "DRAFT" ? 12 : 0 }}>
+                        <summary style={{ cursor: "pointer" }}>Part of this was paid by an investor</summary>
+                        <form action={splitPurchasePaymentAction} style={{ marginTop: 8 }}>
+                          <input type="hidden" name="purchase_id" value={purchaseId} />
+                          <input type="hidden" name="payment_id" value={payment.id} />
+                          <label style={{ display: "block" }}>Amount paid by the investor (₹)
+                            <input name="amount" required inputMode="decimal" style={input} />
+                          </label>
+                          <label style={{ display: "block" }}>Investor bank account
+                            <select name="investor_bank_id" required defaultValue="" style={input}>
+                              <option value="" disabled>Choose…</option>
+                              {banks.filter(b => b.ownership_type === "INVESTOR").map(b => (
+                                <option key={b.id} value={b.id}>{b.bank_name} / {b.account_label}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label style={{ display: "block" }}>Note
+                            <input name="reason" maxLength={300} placeholder="For example: customer paid her directly" style={input} />
+                          </label>
+                          <ConfirmButton
+                            label="Move this part to the investor"
+                            question="Move this part of the payment to the investor's bank? The bill's total paid stays the same."
+                            className="btn-link btn-link-primary"
+                          />
+                        </form>
+                      </details>
                     )}
                   </td>
                 </tr>
