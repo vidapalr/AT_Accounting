@@ -126,6 +126,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Branches", href: "/branches" },
       { label: "Bank accounts", href: "/accounting/bank-accounts" },
       { label: "Cash accounts", href: "/accounting/cash-accounts" },
+      { label: "GST settings", href: "/accounting/gst-settings", hint: "Not registered yet; keeps the app ready" },
       { label: "Users and access", href: "/users", hint: "Who can sign in and what they can open" },
     ],
   },

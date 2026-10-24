@@ -104,7 +104,7 @@ The hosting service builds and publishes whenever the connected branch changes, 
 4. Open the site, sign in, and check Dashboard, Reports and one invoice.
 5. Roll back by reverting the merge if needed; migrations only add things, so they do not need undoing.
 
-Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products; 010 customers; 011 catalogue photos and new-stock events; 012 customer message log; 013 staff stock reports (WhatsApp); 014 online shop switch per product; 015 Instagram post history; 016 shop price per size/colour.
+Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products; 010 customers; 011 catalogue photos and new-stock events; 012 customer message log; 013 staff stock reports (WhatsApp); 014 online shop switch per product; 015 Instagram post history; 016 shop price per size/colour; 017 GST-ready columns (switched off).
 
 ## 8. Known open items
 
@@ -144,3 +144,7 @@ Shop price = the maximum selling price from the newest received stock transfer (
 Bulk photos: /accounting/catalogue/photos lists products without a photo with one file box each; one Save uploads them all (images only, JPG/PNG/WebP up to 8 MB). Shop grid now fits 2 products per row on phones.
 
 Part payments: "Take payment" button now shows on Recent Sales, the Invoices list and the inline view for any posted invoice with a balance; the invoice page has a top banner, an anchor, and a clear message when no cash/bank account exists.
+
+## GST-ready foundation (switched off)
+Built: owner page /accounting/gst-settings (not registered / regular / composition, GSTIN, state, prices include GST, start date); bulk page /accounting/products/gst for HSN code and rate per product; migration 017 adds hsn/rate on products and tax columns (taxable value, CGST, SGST, IGST, cess, ITC flag) on sales and purchase lines plus place of supply on invoices. Helpers in src/lib/gst.ts (state from GSTIN, HSN/rate checks, CGST/SGST/IGST split). Invoices and bills are unchanged while GST is off.
+Not yet (do when the owner registers, with the CA): tax calculation on invoices and purchases, tax invoice format and numbering, credit notes, GST ledger accounts and posting, GSTR-1 / GSTR-3B exports, purchase matching, e-invoice if needed.
