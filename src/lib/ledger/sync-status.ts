@@ -12,7 +12,7 @@ export type SyncStatus = {
   pending: JournalDraft[];
   /** Posted, but the record has since been changed. */
   changedAfterPosting: string[];
-  /** Posted, but the record is no longer valid (voided, deleted, unposted). */
+  /** Posted, but the record is no longer valid (voided, deleted, unposted). A reversed journal no longer counts as posted. */
   noLongerValid: string[];
   /** Records the ledger cannot understand yet. */
   problems: string[];
@@ -41,7 +41,7 @@ export async function getSyncStatus(conn: Queryable, businessId: number): Promis
      FROM acct_journal_entries j
      JOIN acct_journal_lines l ON l.journal_entry_id = j.id AND l.legal_business_id = j.legal_business_id
      JOIN acct_chart_of_accounts a ON a.id = l.account_id AND a.legal_business_id = l.legal_business_id
-     WHERE j.legal_business_id = ? AND j.status IN ('POSTED', 'REVERSED')
+     WHERE j.legal_business_id = ? AND j.status = 'POSTED'
        AND j.source_type IN (${OUR_SOURCES.map(() => "?").join(",")})`,
     [businessId, ...OUR_SOURCES]
   );
