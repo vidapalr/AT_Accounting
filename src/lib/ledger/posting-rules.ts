@@ -258,6 +258,22 @@ export function salesReceiptEntry(receipt: {
   ]);
 }
 
+/** A discount allowed to close a bill: Sales Discounts up, what the customer owes down. No cash or bank moves. */
+export function salesSettlementDiscountEntry(d: {
+  id: number;
+  invoiceNo: string;
+  date: string;
+  amount: string;
+  dims: Dimensions;
+}): JournalDraft {
+  const amount = parseMoney(d.amount);
+  const memo = `Discount to close invoice ${d.invoiceNo}`;
+  return makeDraft("SALES_RECEIPT", d.id, d.date, memo, [
+    debit(ACCOUNT.SALES_DISCOUNTS, amount, d.dims, memo),
+    credit(ACCOUNT.RECEIVABLES, amount, d.dims, memo),
+  ]);
+}
+
 export function purchaseReceiptEntry(purchase: {
   id: number;
   purchaseNo: string;

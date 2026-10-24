@@ -8,7 +8,9 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
-import { receiveSalePaymentAction } from "@/lib/sale-payment-actions";
+import { receiveSalePaymentAction, giveBillDiscountAction } from "@/lib/sale-payment-actions";
+import { canGiveBillDiscount } from "@/lib/access";
+import ConfirmButton from "@/components/ConfirmButton";
 import { setInvoiceMobileAction } from "@/lib/customer-merge-actions";
 
 type Props = {
@@ -23,6 +25,9 @@ const PAY_MESSAGES: Record<string, { ok: boolean; text: string }> = {
   "invalid-date": { ok: false, text: "The payment date cannot be before the invoice date." },
   "too-much": { ok: false, text: "That is more than the amount still due." },
   "not-posted": { ok: false, text: "Confirm the sale before taking payment." },
+  "discount-ok": { ok: true, text: "Discount given. It counts as paid on this bill." },
+  "discount-denied": { ok: false, text: "Only the owner or accountant can give a discount." },
+  "discount-reason": { ok: false, text: "Write a short reason for the discount." },
   failed: { ok: false, text: "Could not save the payment. Please try again." },
 };
 
@@ -333,9 +338,9 @@ async function InvoiceDetails({ params, searchParams }: Props) {
             {payments.map(payment => (
               <tr key={payment.id}>
                 <td style={cell}>{payment.payment_date}</td>
-                <td style={cell}>{payment.payment_method}</td>
+                <td style={cell}>{payment.payment_method === "DISCOUNT" ? "Discount given" : payment.payment_method}</td>
                 <td style={cell}>
-                  {payment.account_name || "Not allocated"}
+                  {payment.payment_method === "DISCOUNT" ? "—" : (payment.account_name || "Not allocated")}
                   {payment.bank_ownership === "INVESTOR" &&
                     " (Investor account)"}
                 </td>
@@ -486,6 +491,28 @@ async function InvoiceDetails({ params, searchParams }: Props) {
           <p style={{ color: "#64748b", marginBottom: 0 }}>
             Cash goes into a cash account, UPI, card and bank transfer into a bank account.
           </p>
+          {canGiveBillDiscount(user.role) && (
+            <form
+              action={giveBillDiscountAction}
+              style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #e2e8f0", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 14, alignItems: "end" }}
+            >
+              <input type="hidden" name="sale_id" value={invoice.id} />
+              <strong style={{ gridColumn: "1 / -1" }}>Customer is a little short? Give a discount to close this bill</strong>
+              <label>
+                Discount (₹)
+                <input name="amount" inputMode="decimal" required placeholder="50" style={{ width: "100%" }} />
+              </label>
+              <label>
+                Reason
+                <input name="reason" required minLength={3} maxLength={250} placeholder="Customer short by 50" style={{ width: "100%" }} />
+              </label>
+              <ConfirmButton
+                label="Give discount"
+                question="Give this discount? It counts as paid on the bill and is shown as a discount in your reports."
+                className="btn-link btn-link-primary"
+              />
+            </form>
+          )}
         </section>
       )}
 

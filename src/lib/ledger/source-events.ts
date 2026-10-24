@@ -33,6 +33,7 @@ import {
   purchaseReceiptEntry,
   saleInvoiceEntry,
   salesReceiptEntry,
+  salesSettlementDiscountEntry,
   type Dimensions,
   type JournalDraft,
   type Settlement,
@@ -302,7 +303,7 @@ export async function buildLedgerDrafts(
   const receipts = await select(
     conn,
     `SELECT p.id, p.sale_id, DATE_FORMAT(p.payment_date, '%Y-%m-%d') AS d,
-            p.amount, p.bank_account_id, p.cash_account_id
+            p.amount, p.payment_method, p.bank_account_id, p.cash_account_id
      FROM acct_sales_payments p
      JOIN acct_sales_headers s
        ON s.legal_business_id = p.legal_business_id AND s.id = p.sale_id
@@ -317,6 +318,15 @@ export async function buildLedgerDrafts(
     const label = `Receipt ${str(p.id)} for invoice ${sale ? str(sale.invoice_no) : str(p.sale_id)}`;
     add(label, () => {
       if (!sale) throw new Error("its invoice is not posted");
+      if (str(p.payment_method) === "DISCOUNT") {
+        return salesSettlementDiscountEntry({
+          id: Number(p.id),
+          invoiceNo: str(sale.invoice_no),
+          date: str(p.d),
+          amount: str(p.amount),
+          dims: dims(sale.division_id, sale.branch_id),
+        });
+      }
       const settlement = settle(label, null, p.bank_account_id, p.cash_account_id);
       if (!settlement) return null;
       return salesReceiptEntry({

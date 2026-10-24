@@ -6,6 +6,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { canGiveBillDiscount } from "@/lib/access";
 
 const METHODS = new Set(["CASH", "UPI", "BANK_TRANSFER", "CARD"]);
 
@@ -141,5 +142,77 @@ export async function receiveSalePaymentAction(form: FormData): Promise<void> {
     revalidatePath("/accounting/invoices");
     revalidatePath("/accounting/sales");
   }
+  redirect(`${back}?pay=${result}`);
+}
+
+/**
+ * A small discount given to close a bill that the customer cannot pay in full
+ * (for example 50 rupees short). It counts as paid on the bill, books to Sales
+ * Discounts, and never touches cash or bank.
+ */
+export async function giveBillDiscountAction(form: FormData): Promise<void> {
+  const user = await requireAccess("sales");
+  const businessId = user.legal_business_id;
+  const saleId = Number(form.get("sale_id"));
+  const back = `/accounting/sales/${saleId}`;
+  const amount = paise(String(form.get("amount") ?? ""));
+  const reason = String(form.get("reason") ?? "").trim().slice(0, 250);
+
+  if (!canGiveBillDiscount(user.role)) redirect(`${back}?pay=discount-denied`);
+  if (!Number.isSafeInteger(saleId) || saleId <= 0 || amount <= 0n) redirect(`${back}?pay=invalid`);
+  if (reason.length < 3) redirect(`${back}?pay=discount-reason`);
+
+  let result = "failed";
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [sales] = await conn.execute<RowDataPacket[]>(
+      `SELECT id, division_id, status, ROUND(grand_total * 100) AS total_paise
+         FROM acct_sales_headers WHERE legal_business_id = ? AND id = ? FOR UPDATE`,
+      [businessId, saleId]
+    );
+    const sale = sales[0];
+    if (!sale) {
+      result = "invalid";
+    } else if (sale.status !== "POSTED") {
+      result = "not-posted";
+    } else {
+      const [paid] = await conn.execute<RowDataPacket[]>(
+        `SELECT COALESCE(SUM(ROUND(amount * 100)), 0) AS paid_paise
+           FROM acct_sales_payments WHERE legal_business_id = ? AND sale_id = ? AND status = 'RECORDED'`,
+        [businessId, saleId]
+      );
+      const outstanding = BigInt(sale.total_paise) - BigInt(paid[0].paid_paise);
+      if (amount > outstanding) {
+        result = "too-much";
+      } else {
+        const [ins] = await conn.execute<import("mysql2").ResultSetHeader>(
+          `INSERT INTO acct_sales_payments (
+             legal_business_id, division_id, sale_id, payment_date, payment_method,
+             payment_account_type, bank_account_id, cash_account_id, payment_account,
+             amount, remarks, status, created_by
+           ) VALUES (?, ?, ?, CURDATE(), 'DISCOUNT', 'OTHERS', NULL, NULL, NULL, ?, ?, 'RECORDED', ?)`,
+          [businessId, sale.division_id, saleId, rupees(amount), reason, user.id]
+        );
+        await conn.execute(
+          `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
+           VALUES (?, ?, 'BILL_DISCOUNT_GIVEN', 'SALES_INVOICE', ?, ?)`,
+          [businessId, user.id, saleId, JSON.stringify({ paymentId: ins.insertId, amount: rupees(amount), reason })]
+        );
+        await conn.commit();
+        result = "discount-ok";
+      }
+    }
+    if (result !== "discount-ok") await conn.rollback();
+  } catch (error) {
+    await conn.rollback().catch(() => {});
+    console.error("Bill discount failed:", error);
+    result = "failed";
+  } finally {
+    conn.release();
+  }
+  revalidatePath(back);
+  revalidatePath("/accounting/invoices");
+  revalidatePath("/accounting/sales");
   redirect(`${back}?pay=${result}`);
 }

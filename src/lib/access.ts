@@ -136,3 +136,8 @@ export function homePath(role: string): string {
 export function canRedoCashClosing(role: string): boolean {
   return role === "GROUP_OWNER" || role === "ACCOUNTANT";
 }
+
+/** Only the owner or accountant can give a discount to close a bill. */
+export function canGiveBillDiscount(role: string): boolean {
+  return role === "GROUP_OWNER" || role === "ACCOUNTANT";
+}

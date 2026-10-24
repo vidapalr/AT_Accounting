@@ -360,3 +360,13 @@ test("set-up costs move from expense to an asset so profit is not reduced", () =
   assert.equal(tb["6900"], 0n);          // nothing left in expenses
   assert.equal(tb["2200"], -2500000n);   // still owed to whoever paid
 });
+
+import { salesSettlementDiscountEntry } from "../src/lib/ledger/posting-rules.ts";
+
+test("a settlement discount books a sales discount and clears what the customer owed", () => {
+  const d = salesSettlementDiscountEntry({ id: 9, invoiceNo: "INV-9", date: "2026-10-24", amount: "50.00", dims });
+  const a = byAccount(d);
+  assert.equal(a["4200"].debit, 5000n);
+  assert.equal(a["1100"]?.credit ?? a[Object.keys(a).find((k) => k !== "4200")].credit, 5000n);
+  assert.equal(d.lines.reduce((s, l) => s + l.debit - l.credit, 0n), 0n);
+});

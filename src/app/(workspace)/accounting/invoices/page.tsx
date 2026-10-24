@@ -102,6 +102,7 @@ async function InvoiceList() {
                )
              WHEN pay.cash_account_id IS NOT NULL
                THEN cash.cash_name
+             WHEN pay.payment_method = 'DISCOUNT' THEN 'Discount'
              ELSE 'Not allocated'
            END
            SEPARATOR ', '
