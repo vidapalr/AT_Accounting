@@ -44,6 +44,7 @@ export const NAVIGATION: NavSection[] = [
     items: [
       { label: "All customers", href: "/accounting/customers", hint: "Customer list, history and credit limits" },
       { label: "Money customers owe", href: "/accounting/customers?view=dues", hint: "Customers with unpaid bills" },
+      { label: "Who owes, and how long", href: "/accounting/customer-ageing", hint: "Unpaid bills by age, with a WhatsApp reminder" },
     ],
   },
   {
