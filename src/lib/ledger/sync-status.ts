@@ -5,6 +5,7 @@
 import type { RowDataPacket } from "mysql2/promise";
 
 import { formatMoney, type JournalDraft } from "./posting-rules.ts";
+import { APP_POSTED_SOURCES } from "./reversible-sources.ts";
 import { buildLedgerDrafts, type Queryable } from "./source-events.ts";
 
 export type SyncStatus = {
@@ -19,11 +20,7 @@ export type SyncStatus = {
   warnings: string[];
 };
 
-const OUR_SOURCES = [
-  "DEPOSIT_PAID", "DEPOSIT_REFUND", "EXPENSE", "EXPENSE_PAYMENT",
-  "PURCHASE_RECEIPT", "PURCHASE_PAYMENT", "SALES_INVOICE", "SALES_RECEIPT",
-  "SALES_RETURN", "SALES_REFUND", "STOCK_DAMAGE", "SETUP_CAPITALISATION", "SUPPLIER_RETURN", "SUPPLIER_REFUND", "FREE_STOCK",
-];
+const OUR_SOURCES: readonly string[] = APP_POSTED_SOURCES;
 
 type Row = RowDataPacket & Record<string, unknown>;
 
@@ -42,6 +39,8 @@ export async function getSyncStatus(conn: Queryable, businessId: number): Promis
      JOIN acct_journal_lines l ON l.journal_entry_id = j.id AND l.legal_business_id = j.legal_business_id
      JOIN acct_chart_of_accounts a ON a.id = l.account_id AND a.legal_business_id = l.legal_business_id
      WHERE j.legal_business_id = ? AND j.status = 'POSTED'
+       AND NOT EXISTS (SELECT 1 FROM acct_journal_reversals r
+                        WHERE r.legal_business_id = j.legal_business_id AND r.original_journal_id = j.id)
        AND j.source_type IN (${OUR_SOURCES.map(() => "?").join(",")})`,
     [businessId, ...OUR_SOURCES]
   );

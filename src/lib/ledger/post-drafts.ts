@@ -79,7 +79,11 @@ export async function postDrafts(
     const [existing] = await conn.execute<Row[]>(
       `SELECT id FROM acct_journal_entries
        WHERE legal_business_id = ? AND source_type = ? AND source_id = ?
-         AND status = 'POSTED' LIMIT 1`,
+         AND status = 'POSTED'
+         AND NOT EXISTS (SELECT 1 FROM acct_journal_reversals r
+                          WHERE r.legal_business_id = acct_journal_entries.legal_business_id
+                            AND r.original_journal_id = acct_journal_entries.id)
+       LIMIT 1`,
       [businessId, draft.sourceType, draft.sourceId]
     );
     if (existing.length > 0) {

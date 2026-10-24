@@ -9,6 +9,7 @@ import type {
   RowDataPacket,
 } from "mysql2";
 
+import { isAppPostedSource } from "@/lib/ledger/reversible-sources";
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 
@@ -144,9 +145,9 @@ export async function reversePostedJournalAction(
         outcome = "not-found";
       } else if (original.status !== "POSTED") {
         outcome = "not-posted";
-      } else if (original.source_type !== null) {
-        // Integrated journals need source subledger
-        // reversal and reconciliation first.
+      } else if (original.source_type !== null && !isAppPostedSource(original.source_type)) {
+        // Other integrated journals (opening balances, funding and so on)
+        // still need their own source reversal first.
         outcome = "source-restricted";
       } else {
         const [alreadyReversed] =

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
 
+import { isAppPostedSource } from "@/lib/ledger/reversible-sources";
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 import { reversePostedJournalAction } from
@@ -491,7 +492,7 @@ async function JournalDetailContent({
             <p>Reversed at: {reversal.reversed_at}</p>
           </div>
         ) : header.status === "POSTED" &&
-            header.source_type === null ? (
+            (header.source_type === null || isAppPostedSource(header.source_type)) ? (
           <form
             action={reversePostedJournalAction}
             style={{
