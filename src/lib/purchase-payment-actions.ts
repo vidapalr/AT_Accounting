@@ -9,6 +9,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { getActiveDivisionId } from "@/lib/division-context";
+import { billCreditSql } from "@/lib/supplier-ledger";
 
 const PAGE = "/accounting/purchases";
 const MAX_PAISE = 999999999999999999n;
@@ -301,12 +302,17 @@ export async function createPurchasePaymentDraftAction(
       } else {
         const [purchaseTotalRows] =
           await conn.execute<RowDataPacket[]>(
-            `SELECT CAST(COALESCE(SUM(line_amount), 0) AS CHAR)
+            `SELECT CAST(COALESCE(SUM(l.line_amount), 0) - ${billCreditSql("h")} AS CHAR)
                AS total
-             FROM acct_purchase_lines
-             WHERE legal_business_id = ?
-               AND division_id = ?
-               AND purchase_id = ?`,
+             FROM acct_purchase_headers h
+             LEFT JOIN acct_purchase_lines l
+               ON l.legal_business_id = h.legal_business_id
+              AND l.division_id = h.division_id
+              AND l.purchase_id = h.id
+             WHERE h.legal_business_id = ?
+               AND h.division_id = ?
+               AND h.id = ?
+             GROUP BY h.id, h.legal_business_id`,
             [businessId, DIVISION_ID, purchaseId]
           );
 

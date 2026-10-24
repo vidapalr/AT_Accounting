@@ -6,6 +6,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { billCreditSql } from "@/lib/supplier-ledger";
 import {
   createPurchasePaymentDraftAction,
 } from "@/lib/purchase-payment-actions";
@@ -141,7 +142,8 @@ async function PaymentContent({ params, searchParams }: Props) {
          WHERE l.legal_business_id = h.legal_business_id
            AND l.division_id = h.division_id
            AND l.purchase_id = h.id
-       ), 0) AS CHAR) AS total_amount
+       ), 0) - ${billCreditSql("h")} AS CHAR) AS total_amount,
+       CAST(${billCreditSql("h")} AS CHAR) AS returned_credit
      FROM acct_purchase_headers h
      JOIN acct_suppliers s
        ON s.id = h.supplier_id
@@ -223,7 +225,9 @@ async function PaymentContent({ params, searchParams }: Props) {
     .filter(p => p.status === "DRAFT")
     .reduce((sum, p) => sum + paise(p.amount), 0n);
 
-  const actualOutstanding = total - verified;
+  const returnedCredit = paise(String(purchase.returned_credit ?? "0"));
+  const supplierOwesUs = verified > total ? verified - total : 0n;
+  const actualOutstanding = total > verified ? total - verified : 0n;
 
   const paymentStatus =
     verified === 0n
@@ -232,7 +236,7 @@ async function PaymentContent({ params, searchParams }: Props) {
         ? "PAID"
         : "PARTIALLY PAID";
 
-  const remaining = total - verified - drafts;
+  const remaining = total > verified + drafts ? total - verified - drafts : 0n;
 
   return (
     <main style={{
@@ -273,6 +277,13 @@ async function PaymentContent({ params, searchParams }: Props) {
               <td style={cell}>{rupees(total)}</td>
             </tr>
 
+            {returnedCredit > 0n && (
+              <tr>
+                <td style={cell}>Includes goods returned to supplier</td>
+                <td style={cell}>{rupees(returnedCredit)} taken off the bill</td>
+              </tr>
+            )}
+
             <tr>
               <td style={cell}>Amount Paid</td>
               <td style={cell}>{rupees(verified)}</td>
@@ -291,6 +302,18 @@ async function PaymentContent({ params, searchParams }: Props) {
                 <strong>{rupees(actualOutstanding)}</strong>
               </td>
             </tr>
+
+            {supplierOwesUs > 0n && (
+              <tr>
+                <td style={cell}>
+                  <strong>Supplier owes you</strong>
+                </td>
+                <td style={cell}>
+                  <strong>{rupees(supplierOwesUs)}</strong>{" "}
+                  <Link href="/accounting/supplier-statement">See supplier statement</Link>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </section>

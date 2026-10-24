@@ -14,6 +14,11 @@ export type Role =
   | "INVESTOR"
   | "LENDER";
 
+/** Who may approve stock given away free (others can only ask). */
+export function canApproveFreeStock(role: string): boolean {
+  return role === "GROUP_OWNER" || role === "ACCOUNTANT";
+}
+
 /** Roles that can sign in to this portal today. */
 export const LOGIN_ROLES: Role[] = ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"];
 
@@ -42,6 +47,8 @@ export type Feature =
   | "products"
   | "expenses"
   | "stock"
+  | "supplier_returns"
+  | "free_stock"
   | "customers";
 
 const FEATURE_ROLES: Record<Feature, Role[]> = {
@@ -53,6 +60,9 @@ const FEATURE_ROLES: Record<Feature, Role[]> = {
   products: ["GROUP_OWNER", "ACCOUNTANT"],
   expenses: ["GROUP_OWNER", "ACCOUNTANT"],
   stock: ["GROUP_OWNER", "ACCOUNTANT"],
+  supplier_returns: ["GROUP_OWNER", "ACCOUNTANT"],
+  // Everyone can ask for free stock; only owner and accountant approve it.
+  free_stock: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
   customers: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
 };
 
@@ -78,6 +88,9 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/product-categories", "products"],
   ["/accounting/catalogue", "products"],
   ["/accounting/customers", "customers"],
+  ["/accounting/supplier-returns", "supplier_returns"],
+  ["/accounting/supplier-statement", "supplier_returns"],
+  ["/accounting/free-stock", "free_stock"],
   ["/accounting/stock", "stock"],
   ["/accounting/stock-reports", "stock"],
   ["/accounting/warehouse-inventory", "stock"],

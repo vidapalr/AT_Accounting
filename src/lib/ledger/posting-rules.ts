@@ -12,6 +12,9 @@
  *   Payment   Dr Supplier Payables / Cr bank | cash | Investor Capital | Proprietor Capital
  *   Expense   Dr expense account / Cr Accrued Expenses, then paid like a purchase payment
  *   Deposit   Dr Refundable Shop Deposits / Cr the paying source
+ *   Supplier return   Dr Supplier Payables (agreed value), Dr Loss on Supplier Returns (any shortfall) / Cr Inventory (cost)
+ *   Supplier refund   Dr bank | cash / Cr Supplier Payables
+ *   Free stock        Dr Gifts and Free Stock / Cr Inventory (at cost)
  *
  * Investor money is capital for now: whatever the investor pays out of
  * (or receives into) his own bank is a credit (or debit) to Investor Capital.
@@ -35,6 +38,8 @@ export const ACCOUNT = {
   SALES_RETURNS: "4210",
   COGS: "5000",
   DAMAGED_STOCK: "5150",
+  SUPPLIER_RETURN_LOSS: "5160",
+  GIFTS: "6045",
 } as const;
 
 export const EXPENSE_ACCOUNT_BY_CATEGORY: Record<string, string> = {
@@ -64,6 +69,9 @@ export type SourceType =
   | "SALES_RETURN"
   | "SALES_REFUND"
   | "STOCK_DAMAGE"
+  | "SUPPLIER_RETURN"
+  | "SUPPLIER_REFUND"
+  | "FREE_STOCK"
   | "SETUP_CAPITALISATION";
 
 export type Dimensions = {
@@ -456,6 +464,68 @@ export function stockDamageEntry(damage: {
   return makeDraft("STOCK_DAMAGE", damage.id, damage.date, memo, [
     debit(ACCOUNT.DAMAGED_STOCK, cost, damage.dims, memo),
     credit(ACCOUNT.INVENTORY, cost, damage.dims, memo),
+  ]);
+}
+
+/**
+ * Goods sent back to a supplier. Stock leaves at its cost; what we owe the
+ * supplier drops by the value he agreed. If he agreed to less than the cost,
+ * the shortfall is shown as a loss rather than hidden.
+ */
+export function supplierReturnEntry(ret: {
+  id: number;
+  returnNo: string;
+  date: string;
+  dims: Dimensions;
+  costValue: string;
+  agreedValue: string;
+}): JournalDraft {
+  const cost = parseMoney(ret.costValue);
+  const agreed = parseMoney(ret.agreedValue);
+  if (agreed > cost) {
+    throw new Error(`${ret.returnNo}: agreed value cannot be more than the cost of the goods`);
+  }
+  const memo = `Supplier return ${ret.returnNo}`;
+
+  return makeDraft("SUPPLIER_RETURN", ret.id, ret.date, memo, [
+    debit(ACCOUNT.PAYABLES, agreed, ret.dims, memo),
+    debit(ACCOUNT.SUPPLIER_RETURN_LOSS, cost - agreed, ret.dims, memo),
+    credit(ACCOUNT.INVENTORY, cost, ret.dims, memo),
+  ]);
+}
+
+/** Money a supplier paid back to us. It settles the credit he owed. */
+export function supplierRefundEntry(refund: {
+  id: number;
+  date: string;
+  amount: string;
+  dims: Dimensions;
+  settlement: Settlement;
+}): JournalDraft {
+  const amount = parseMoney(refund.amount);
+  const memo = `Supplier refund (record ${refund.id})`;
+
+  return makeDraft("SUPPLIER_REFUND", refund.id, refund.date, memo, [
+    debit(settlementAccount(refund.settlement), amount, refund.dims, memo),
+    credit(ACCOUNT.PAYABLES, amount, refund.dims, memo),
+  ]);
+}
+
+/** Stock given away free. Always a business expense, at cost. */
+export function freeStockEntry(give: {
+  id: number;
+  entryNo: string;
+  date: string;
+  cost: string;
+  givenTo: string;
+  dims: Dimensions;
+}): JournalDraft {
+  const cost = parseMoney(give.cost);
+  const memo = `Free stock ${give.entryNo} to ${give.givenTo}`.slice(0, 480);
+
+  return makeDraft("FREE_STOCK", give.id, give.date, memo, [
+    debit(ACCOUNT.GIFTS, cost, give.dims, memo),
+    credit(ACCOUNT.INVENTORY, cost, give.dims, memo),
   ]);
 }
 

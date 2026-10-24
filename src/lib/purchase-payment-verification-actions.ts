@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
+import { billCreditSql } from "@/lib/supplier-ledger";
 
 const BASE = "/accounting/purchases";
 
@@ -131,7 +132,7 @@ export async function verifyPurchasePaymentAction(
              WHERE l.legal_business_id = h.legal_business_id
                AND l.division_id = h.division_id
                AND l.purchase_id = h.id
-           ), 0) AS CHAR) AS purchase_total
+           ), 0) - ${billCreditSql("h")} AS CHAR) AS purchase_total
          FROM acct_purchase_payments pp
          JOIN acct_purchase_headers h
            ON h.id = pp.purchase_id

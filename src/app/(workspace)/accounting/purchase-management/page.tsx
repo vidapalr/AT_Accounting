@@ -5,6 +5,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { billCreditSql } from "@/lib/supplier-ledger";
 import {
   createPurchasePaymentDraftAction,
 } from "@/lib/purchase-payment-actions";
@@ -27,6 +28,7 @@ interface PurchaseRow extends RowDataPacket {
   received_date: string | null;
   status: string;
   invoice_total: string;
+  returned_credit: string;
   amount_paid: string;
   draft_amount: string;
   payment_sources: string | null;
@@ -137,7 +139,9 @@ async function PurchaseManagementContent({
          WHERE l.legal_business_id = h.legal_business_id
            AND l.division_id = h.division_id
            AND l.purchase_id = h.id
-       ), 0) AS CHAR) AS invoice_total,
+       ), 0) - ${billCreditSql("h")} AS CHAR) AS invoice_total,
+
+       CAST(${billCreditSql("h")} AS CHAR) AS returned_credit,
 
        CAST(COALESCE((
          SELECT SUM(pp.amount)
@@ -385,7 +389,9 @@ async function PurchaseManagementContent({
                 const total = paise(purchase.invoice_total);
                 const paid = paise(purchase.amount_paid);
                 const draft = paise(purchase.draft_amount);
-                const outstanding = total - paid;
+                const returnedCredit = paise(purchase.returned_credit);
+                const owedToUs = paid > total ? paid - total : 0n;
+                const outstanding = total > paid ? total - paid : 0n;
                 const available = outstanding - draft;
 
                 return (
@@ -406,6 +412,7 @@ async function PurchaseManagementContent({
                       </Link>
                       <div className={styles.secondaryText}>
                         Invoice: {money(total)}
+                        {returnedCredit !== 0n && " (after returns to supplier)"}
                       </div>
                     </td>
 
@@ -449,6 +456,11 @@ async function PurchaseManagementContent({
                       <div className={styles.secondaryText}>
                         Due: {money(outstanding)}
                       </div>
+                      {owedToUs > 0n && (
+                        <div className={styles.secondaryText}>
+                          Supplier owes you {money(owedToUs)}
+                        </div>
+                      )}
                     </td>
 
                     <td className={styles.tableCell}>

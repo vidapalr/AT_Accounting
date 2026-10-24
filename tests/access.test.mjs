@@ -41,3 +41,17 @@ test("investor and lender roles cannot open anything yet", () => {
   }
   assert.deepEqual(ASSIGNABLE_ROLES, ["ACCOUNTANT", "CASHIER"]);
 });
+
+test("supplier returns are for owner and accountant; free stock can be asked by cashier but approved only by owner and accountant", async () => {
+  const { canApproveFreeStock } = await import("../src/lib/access.ts");
+  for (const p of ["/accounting/supplier-returns", "/accounting/supplier-returns/4", "/accounting/supplier-statement"]) {
+    assert.equal(canOpenPath("ACCOUNTANT", p), true, p);
+    assert.equal(canOpenPath("CASHIER", p), false, p);
+  }
+  assert.equal(canOpenPath("CASHIER", "/accounting/free-stock"), true);
+  assert.equal(canOpenPath("ACCOUNTANT", "/accounting/free-stock"), true);
+  assert.equal(canApproveFreeStock("CASHIER"), false);
+  assert.equal(canApproveFreeStock("ACCOUNTANT"), true);
+  assert.equal(canApproveFreeStock("GROUP_OWNER"), true);
+  assert.equal(canApproveFreeStock("INVESTOR"), false);
+});

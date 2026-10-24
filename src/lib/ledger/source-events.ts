@@ -21,6 +21,9 @@ import {
   setupCapitalisationEntry,
   salesReturnEntry,
   stockDamageEntry,
+  supplierReturnEntry,
+  supplierRefundEntry,
+  freeStockEntry,
   depositPaidEntry,
   depositRefundEntry,
   expenseEntry,
@@ -75,6 +78,9 @@ const SOURCE_ORDER: SourceType[] = [
   "SALES_RETURN",
   "SALES_REFUND",
   "STOCK_DAMAGE",
+  "SUPPLIER_RETURN",
+  "SUPPLIER_REFUND",
+  "FREE_STOCK",
 ];
 
 const str = (v: unknown): string => String(v ?? "");
@@ -603,6 +609,84 @@ export async function buildLedgerDrafts(
         ? depositPaidEntry(input)
         : depositRefundEntry(input);
     });
+  }
+
+  // ----------------------------- supplier returns, refunds, free stock
+  const supplierReturns = await select(
+    conn,
+    `SELECT id, return_no, division_id, cost_value, agreed_value,
+            DATE_FORMAT(return_date, '%Y-%m-%d') AS d
+     FROM acct_supplier_returns
+     WHERE legal_business_id = ? AND status = 'POSTED'
+     ORDER BY return_date, id`,
+    [businessId]
+  );
+
+  const supplierReturnById = new Map<number, Row>();
+  for (const r of supplierReturns) {
+    supplierReturnById.set(Number(r.id), r);
+    add(`Supplier return ${str(r.return_no)}`, () =>
+      supplierReturnEntry({
+        id: Number(r.id),
+        returnNo: str(r.return_no),
+        date: str(r.d),
+        dims: dims(r.division_id, null),
+        costValue: str(r.cost_value),
+        agreedValue: str(r.agreed_value),
+      })
+    );
+  }
+
+  const supplierRefunds = await select(
+    conn,
+    `SELECT f.id, f.division_id, f.amount, f.bank_account_id, f.cash_account_id,
+            ca.branch_id AS cash_branch_id,
+            DATE_FORMAT(f.refund_date, '%Y-%m-%d') AS d
+     FROM acct_supplier_refunds f
+     LEFT JOIN acct_cash_accounts ca
+       ON ca.id = f.cash_account_id AND ca.legal_business_id = f.legal_business_id
+     WHERE f.legal_business_id = ? AND f.status = 'RECORDED'
+     ORDER BY f.refund_date, f.id`,
+    [businessId]
+  );
+
+  for (const f of supplierRefunds) {
+    const label = `Supplier refund ${str(f.id)}`;
+    add(label, () => {
+      const settlement = settle(label, null, f.bank_account_id, f.cash_account_id);
+      if (!settlement) return null;
+      return supplierRefundEntry({
+        id: Number(f.id),
+        date: str(f.d),
+        amount: str(f.amount),
+        // A cash account belongs to one branch, so cash coming in is booked to that branch.
+        dims: dims(f.division_id, f.cash_branch_id),
+        settlement,
+      });
+    });
+  }
+
+  const freeStock = await select(
+    conn,
+    `SELECT id, entry_no, division_id, branch_id, given_to, total_cost,
+            DATE_FORMAT(given_date, '%Y-%m-%d') AS d
+     FROM acct_free_stock
+     WHERE legal_business_id = ? AND status = 'APPROVED'
+     ORDER BY given_date, id`,
+    [businessId]
+  );
+
+  for (const g of freeStock) {
+    add(`Free stock ${str(g.entry_no)}`, () =>
+      freeStockEntry({
+        id: Number(g.id),
+        entryNo: str(g.entry_no),
+        date: str(g.d),
+        cost: str(g.total_cost),
+        givenTo: str(g.given_to),
+        dims: dims(g.division_id, g.branch_id),
+      })
+    );
   }
 
   // --------------------------------------------- chart-of-accounts checks

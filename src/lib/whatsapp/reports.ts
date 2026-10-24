@@ -310,9 +310,13 @@ async function alerts({ db, businessId, place, today }: BuildInput): Promise<Rep
   const divisionForPurchases = place.divisionId;
   const [payable] = await db.execute<Row[]>(
     `SELECT sp.supplier_name AS name,
-            SUM(pl.total - COALESCE(pp.paid, 0)) AS due
+            SUM(pl.total - COALESCE(pp.paid, 0) - COALESCE(sr.credit, 0)) AS due
      FROM acct_purchase_headers ph
      JOIN acct_suppliers sp ON sp.id = ph.supplier_id AND sp.legal_business_id = ph.legal_business_id
+     LEFT JOIN (SELECT r.purchase_id,
+                       SUM(r.agreed_value - COALESCE((SELECT SUM(f.amount) FROM acct_supplier_refunds f
+                                                      WHERE f.return_id = r.id AND f.status = 'RECORDED'), 0)) AS credit
+                FROM acct_supplier_returns r WHERE r.status = 'POSTED' GROUP BY r.purchase_id) sr ON sr.purchase_id = ph.id
      JOIN (SELECT purchase_id, SUM(line_amount) AS total FROM acct_purchase_lines GROUP BY purchase_id) pl ON pl.purchase_id = ph.id
      LEFT JOIN (SELECT purchase_id, SUM(amount) AS paid FROM acct_purchase_payments WHERE status = 'VERIFIED' GROUP BY purchase_id) pp ON pp.purchase_id = ph.id
      WHERE ph.legal_business_id = ? AND ph.status = 'POSTED'${divisionForPurchases !== null ? " AND ph.division_id = ?" : ""}
