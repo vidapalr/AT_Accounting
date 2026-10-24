@@ -128,7 +128,7 @@ export async function updateCustomerAction(form: FormData): Promise<void> {
         [businessId, data.phone, id]
       )
     : [[] as RowDataPacket[]];
-  if (dup.length > 0) redirect(`${back}?result=phone-used`);
+  if (dup.length > 0) redirect(`${back}?result=phone-used&other=${dup[0].id}`);
 
   // Only the owner changes the credit limit.
   const [current] = await db.execute<RowDataPacket[]>(

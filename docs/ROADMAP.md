@@ -104,7 +104,7 @@ The hosting service builds and publishes whenever the connected branch changes, 
 4. Open the site, sign in, and check Dashboard, Reports and one invoice.
 5. Roll back by reverting the merge if needed; migrations only add things, so they do not need undoing.
 
-Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products; 010 customers; 011 catalogue photos and new-stock events; 012 customer message log; 013 staff stock reports (WhatsApp); 014 online shop switch per product; 015 Instagram post history; 016 shop price per size/colour; 017 GST-ready columns (switched off); 018 supplier returns (debit notes), supplier refunds and free stock.
+Migrations so far: 001 investor capital account; 002 missing live columns; 003 set-up costs; 004 opening date; 005 returns, refunds, damaged stock; 006 set-up cost asset; 007 business settings; 008 WhatsApp reports; 009 barcodes for existing products; 010 customers; 011 catalogue photos and new-stock events; 012 customer message log; 013 staff stock reports (WhatsApp); 014 online shop switch per product; 015 Instagram post history; 016 shop price per size/colour; 017 GST-ready columns (switched off); 018 supplier returns (debit notes), supplier refunds and free stock; 019 items on approval (customer takes items home to try).
 
 ## 8. Known open items
 
@@ -156,3 +156,10 @@ Give stock free (/accounting/free-stock): place, items, who, why. Cashier can on
 Ledger: SUPPLIER_RETURN (Dr Payables [+ Dr 5160] / Cr Inventory), SUPPLIER_REFUND (Dr bank/cash / Cr Payables; cash is booked to the cash account's branch), FREE_STOCK (Dr 6045 / Cr Inventory), posted with the other pending entries on Reports.
 Not yet: cancelling a posted return or free-stock entry (use a reversing journal for now); GST debit note and input-tax reversal (do with the GST build); using supplier credit on a specific bill (credit already reduces the bill it came from).
 Note for later: cash payments to suppliers use no branch on the journal while cash ledger accounts require one; check this when the first cash supplier payment is posted.
+
+## Owner's running list (Oct 2026)
+
+- Draft bills can now be confirmed from the Sales, Invoices and bill pages (same invoice number kept, stock and payments taken at confirmation).
+- Mobile number can be added or changed on any bill; if the number already belongs to another customer record, the Customers page offers "join the two" (bills and messages move, old record hidden, nothing deleted).
+- Items on approval (migration 019): items leave the shelf into a per-division "With customers" place, no accounting entry while out. Outcomes per item: keeps it (bill is pre-filled; stock comes back to the shelf and is sold in the same step), came back fine (back on the shelf), came back damaged (recorded as damaged stock). Overdue = past the "due back" day, with a tap-to-send WhatsApp reminder.
+- Known gaps: a posted supplier return or free-stock entry cannot be cancelled yet (use a reversing journal); existing cash purchase payments may fail posting because cash accounts need a branch.

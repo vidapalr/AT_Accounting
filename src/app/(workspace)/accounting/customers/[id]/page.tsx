@@ -6,6 +6,9 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { updateCustomerAction } from "@/lib/customer-actions";
+import ConfirmButton from "@/components/ConfirmButton";
+import { mergeCustomersAction } from "@/lib/customer-merge-actions";
+import { canMergeCustomers } from "@/lib/access";
 import { prettyPhone } from "@/lib/customer-phone";
 import { whatsappLink } from "@/lib/whatsapp/core";
 import PrintHeader from "@/components/PrintHeader";
@@ -13,7 +16,7 @@ import PrintButton from "@/components/PrintButton";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ result?: string }>;
+  searchParams: Promise<{ result?: string; other?: string }>;
 };
 
 const inr = (paise: number) =>
@@ -26,6 +29,8 @@ const MESSAGES: Record<string, { ok: boolean; text: string }> = {
   invalid: { ok: false, text: "Please check the name, mobile number, GSTIN and credit limit." },
   "phone-used": { ok: false, text: "Another customer already has this mobile number." },
   failed: { ok: false, text: "Could not save. Please try again." },
+  merged: { ok: true, text: "Done. The two customer records are now one." },
+  "merge-denied": { ok: false, text: "Ask the owner or accountant to join these two customers." },
 };
 
 const cell: React.CSSProperties = {
@@ -45,7 +50,7 @@ const card: React.CSSProperties = {
 async function CustomerPage({ params, searchParams }: Props) {
   const user = await requireAccess("customers");
   const { id } = await params;
-  const { result } = await searchParams;
+  const { result, other: otherParam } = await searchParams;
   const customerId = Number(id);
   if (!Number.isSafeInteger(customerId) || customerId <= 0) notFound();
   const businessId = user.legal_business_id;
@@ -58,6 +63,17 @@ async function CustomerPage({ params, searchParams }: Props) {
   );
   const c = found[0];
   if (!c) notFound();
+
+  // When the number typed belongs to someone else, offer to join the two records.
+  let holder: RowDataPacket | undefined;
+  if (result === "phone-used" && /^[1-9]\d*$/.test(otherParam ?? "")) {
+    const [others] = await db.execute<RowDataPacket[]>(
+      `SELECT id, customer_code, full_name, phone FROM acct_customers
+        WHERE legal_business_id = ? AND id = ? AND id <> ? AND status = 'ACTIVE'`,
+      [businessId, Number(otherParam), customerId]
+    );
+    holder = others[0];
+  }
 
   const [bills] = await db.execute<RowDataPacket[]>(
     `SELECT h.id, h.invoice_no, DATE_FORMAT(h.invoice_date, '%Y-%m-%d') AS invoice_date,
@@ -113,6 +129,32 @@ async function CustomerPage({ params, searchParams }: Props) {
 
       {msg && (
         <p role="status" className="no-print" style={{ color: msg.ok ? "#166534" : "#b91c1c" }}>{msg.text}</p>
+      )}
+
+      {holder && (
+        <section className="no-print" style={{ background: "#fff7ed", border: "1px solid #fdba74", borderRadius: 10, padding: 16, margin: "12px 0" }}>
+          <strong>
+            This number already belongs to{" "}
+            <Link href={`/accounting/customers/${holder.id}`}>{holder.full_name}</Link> ({holder.customer_code}).
+          </strong>
+          <p style={{ margin: "8px 0" }}>
+            If this is the same person, join the two records. All of {c.full_name}&rsquo;s bills and messages move to{" "}
+            {holder.full_name}, and this record is hidden. Nothing is deleted.
+          </p>
+          {canMergeCustomers(user.role) ? (
+            <form action={mergeCustomersAction}>
+              <input type="hidden" name="source_id" value={c.id} />
+              <input type="hidden" name="target_id" value={holder.id} />
+              <ConfirmButton
+                label={`Yes, join with ${holder.full_name}`}
+                question="Join these two customers? The bills of this record will move to the other one."
+                className="btn-link btn-link-primary"
+              />
+            </form>
+          ) : (
+            <p>Ask the owner or accountant to join them.</p>
+          )}
+        </section>
       )}
 
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", margin: "16px 0" }}>

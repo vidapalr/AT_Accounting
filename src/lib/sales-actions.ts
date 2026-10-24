@@ -9,6 +9,7 @@ import { normalizePhone } from "@/lib/customer-phone";
 import { db } from "@/lib/db";
 import { divisionOfBranch } from "@/lib/division-context";
 import { requireAccess } from "@/lib/auth";
+import { releaseItemsForSale } from "@/lib/approval-stock";
 
 const PAGE = "/accounting/sales";
 
@@ -87,7 +88,20 @@ export async function createSaleAction(
   const customerName = String(form.get("customer_name") ?? "").trim();
   const customerPhone = String(form.get("customer_phone") ?? "").trim();
   const remarks = String(form.get("remarks") ?? "").trim();
-  const mode = String(form.get("mode") ?? "DRAFT");
+  // Set when a saved draft is being confirmed: the same invoice is posted, not a new one.
+  // (The button that sends this does not reliably send its own name/value, so this field decides.)
+  const draftField = Number(form.get("confirm_draft_id") ?? 0);
+  const confirmDraftId = Number.isSafeInteger(draftField) && draftField > 0 ? draftField : 0;
+  const mode = confirmDraftId > 0 ? "POSTED" : String(form.get("mode") ?? "DRAFT");
+  // Items a customer took on approval and has now decided to buy (comma separated item ids).
+  const approvalItemIds =
+    mode === "POSTED"
+      ? String(form.get("approval_item_ids") ?? "")
+          .split(",")
+          .map(v => Number(v.trim()))
+          .filter(v => Number.isSafeInteger(v) && v > 0)
+          .slice(0, 100)
+      : [];
 
   if (
     !Number.isSafeInteger(branchId) ||
@@ -405,6 +419,17 @@ export async function createSaleAction(
         }
 
         if (mode === "POSTED") {
+          // Goods the customer kept come back to the shelf first, so this bill takes them out the normal way.
+          await releaseItemsForSale(conn, {
+            businessId,
+            divisionId: DIVISION_ID,
+            userId: user.id,
+            shopLocationId: locationId,
+            date: saleDate,
+            itemIds: approvalItemIds,
+            billedMilliByVariant: requestedBySku,
+          });
+
           for (const line of preparedLines) {
             const [stock] = await conn.execute<RowDataPacket[]>(
               `SELECT
@@ -437,57 +462,80 @@ export async function createSaleAction(
         }
 
         if (result !== "insufficient-stock") {
-          const branchPrefix = String(
-            branches[0].branch_code
-          ).toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
-
-          if (branchPrefix.length !== 2) {
-            throw new Error("Branch code must contain two letters");
+          let draftInvoiceNo: string | null = null;
+          if (confirmDraftId > 0) {
+            const [drafts] = await conn.execute<RowDataPacket[]>(
+              `SELECT invoice_no FROM acct_sales_headers
+               WHERE id = ? AND legal_business_id = ? AND branch_id = ? AND status = 'DRAFT'
+               FOR UPDATE`,
+              [confirmDraftId, businessId, branchId]
+            );
+            if (drafts.length !== 1) throw new Error("DRAFT_GONE");
+            const [anyPay] = await conn.execute<RowDataPacket[]>(
+              `SELECT id FROM acct_sales_payments WHERE legal_business_id = ? AND sale_id = ? LIMIT 1`,
+              [businessId, confirmDraftId]
+            );
+            if (anyPay.length > 0) throw new Error("DRAFT_GONE");
+            draftInvoiceNo = String(drafts[0].invoice_no);
           }
 
-          const prefix = `AB_AT_${branchPrefix}_SA`;
+          let invoiceNo: string;
+          if (draftInvoiceNo !== null) {
+            invoiceNo = draftInvoiceNo;
+          } else {
+            const branchPrefix = String(
+              branches[0].branch_code
+            ).toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
 
-          await conn.execute(
-            `INSERT INTO acct_document_sequences (
-               legal_business_id, document_type,
-               code_prefix, last_number
-             ) VALUES (?, 'SALE', ?, 0)
-             ON DUPLICATE KEY UPDATE id = id`,
-            [businessId, prefix]
-          );
+            if (branchPrefix.length !== 2) {
+              throw new Error("Branch code must contain two letters");
+            }
 
-          const [seq] = await conn.execute<RowDataPacket[]>(
-            `SELECT id, last_number
-             FROM acct_document_sequences
-             WHERE legal_business_id = ?
-               AND document_type = 'SALE'
-               AND code_prefix = ?
-             FOR UPDATE`,
-            [businessId, prefix]
-          );
+            const prefix = `AB_AT_${branchPrefix}_SA`;
 
-          // Never reuse a number: also look at invoices already saved with this
-          // prefix (imported or older ones may be ahead of the counter).
-          const [used] = await conn.execute<RowDataPacket[]>(
-            `SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(invoice_no, '_', -1) AS UNSIGNED)), 0) AS top
-             FROM acct_sales_headers
-             WHERE legal_business_id = ?
-               AND invoice_no LIKE ?`,
-            [businessId, `${prefix}\\_%`]
-          );
-          const counter = BigInt(seq[0].last_number);
-          const highest = BigInt(used[0]?.top ?? 0);
-          const number = (counter > highest ? counter : highest) + 1n;
+            await conn.execute(
+              `INSERT INTO acct_document_sequences (
+                 legal_business_id, document_type,
+                 code_prefix, last_number
+               ) VALUES (?, 'SALE', ?, 0)
+               ON DUPLICATE KEY UPDATE id = id`,
+              [businessId, prefix]
+            );
 
-          await conn.execute(
-            `UPDATE acct_document_sequences
-             SET last_number = ?
-             WHERE id = ?`,
-            [number.toString(), seq[0].id]
-          );
+            const [seq] = await conn.execute<RowDataPacket[]>(
+              `SELECT id, last_number
+               FROM acct_document_sequences
+               WHERE legal_business_id = ?
+                 AND document_type = 'SALE'
+                 AND code_prefix = ?
+               FOR UPDATE`,
+              [businessId, prefix]
+            );
 
-          const invoiceNo =
-            `${prefix}_${number.toString().padStart(2, "0")}`;
+            // Never reuse a number: also look at invoices already saved with this
+            // prefix (imported or older ones may be ahead of the counter).
+            const [used] = await conn.execute<RowDataPacket[]>(
+              `SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(invoice_no, '_', -1) AS UNSIGNED)), 0) AS top
+               FROM acct_sales_headers
+               WHERE legal_business_id = ?
+                 AND invoice_no LIKE ?`,
+              [businessId, `${prefix}\\_%`]
+            );
+            const counter = BigInt(seq[0].last_number);
+            const highest = BigInt(used[0]?.top ?? 0);
+            const number = (counter > highest ? counter : highest) + 1n;
+
+            await conn.execute(
+              `UPDATE acct_document_sequences
+               SET last_number = ?
+               WHERE id = ?`,
+              [number.toString(), seq[0].id]
+            );
+
+            invoiceNo =
+              `${prefix}_${number.toString().padStart(2, "0")}`;
+
+          }
 
           const subtotal = preparedLines.reduce(
             (sum, l) => sum + l.grossPaise, 0n
@@ -513,33 +561,69 @@ export async function createSaleAction(
             }
           }
 
-          const [header] = await conn.execute<ResultSetHeader>(
-            `INSERT INTO acct_sales_headers (
-               legal_business_id, division_id,
-               branch_id, location_id, invoice_no,
-               invoice_date, customer_name, customer_phone, customer_id,
-               status, subtotal, discount_amount,
-               grand_total, remarks, created_by,
-               posted_by, posted_at
-             ) VALUES (
-               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-               ?, ?, ?, ?, ?, ?,
-               ${mode === "POSTED" ? "CURRENT_TIMESTAMP" : "NULL"}
-             )`,
-            [
-              businessId, DIVISION_ID, branchId,
-              locationId, invoiceNo, saleDate,
-              customerName || customer?.full_name || null,
-              phone10 ?? null, customer?.id ?? null,
-              mode, moneyFromPaise(subtotal),
-              moneyFromPaise(totalDiscount),
-              moneyFromPaise(grandTotal),
-              remarks || null, user.id,
-              mode === "POSTED" ? user.id : null,
-            ]
-          );
+          if (confirmDraftId > 0) {
+            // A draft has no stock movements and no payments, so only its lines are replaced.
+            await conn.execute(
+              `DELETE FROM acct_sales_lines
+               WHERE legal_business_id = ? AND sale_id = ?`,
+              [businessId, confirmDraftId]
+            );
+            await conn.execute(
+              `UPDATE acct_sales_headers
+               SET invoice_date = ?, customer_name = ?, customer_phone = ?, customer_id = ?,
+                   status = 'POSTED', subtotal = ?, discount_amount = ?, grand_total = ?,
+                   remarks = ?, posted_by = ?, posted_at = CURRENT_TIMESTAMP
+               WHERE id = ? AND legal_business_id = ? AND status = 'DRAFT'`,
+              [
+                saleDate,
+                customerName || customer?.full_name || null,
+                phone10 ?? null, customer?.id ?? null,
+                moneyFromPaise(subtotal),
+                moneyFromPaise(totalDiscount),
+                moneyFromPaise(grandTotal),
+                remarks || null, user.id,
+                confirmDraftId, businessId,
+              ]
+            );
+            createdId = confirmDraftId;
+          } else {
+            const [header] = await conn.execute<ResultSetHeader>(
+              `INSERT INTO acct_sales_headers (
+                 legal_business_id, division_id,
+                 branch_id, location_id, invoice_no,
+                 invoice_date, customer_name, customer_phone, customer_id,
+                 status, subtotal, discount_amount,
+                 grand_total, remarks, created_by,
+                 posted_by, posted_at
+               ) VALUES (
+                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                 ?, ?, ?, ?, ?, ?,
+                 ${mode === "POSTED" ? "CURRENT_TIMESTAMP" : "NULL"}
+               )`,
+              [
+                businessId, DIVISION_ID, branchId,
+                locationId, invoiceNo, saleDate,
+                customerName || customer?.full_name || null,
+                phone10 ?? null, customer?.id ?? null,
+                mode, moneyFromPaise(subtotal),
+                moneyFromPaise(totalDiscount),
+                moneyFromPaise(grandTotal),
+                remarks || null, user.id,
+                mode === "POSTED" ? user.id : null,
+              ]
+            );
 
-          createdId = header.insertId;
+            createdId = header.insertId;
+          }
+
+          if (approvalItemIds.length > 0) {
+            await conn.execute(
+              `UPDATE acct_approval_items SET sale_id = ?
+               WHERE legal_business_id = ? AND status = 'KEPT'
+                 AND id IN (${approvalItemIds.map(() => "?").join(",")})`,
+              [createdId, businessId, ...approvalItemIds]
+            );
+          }
 
           for (const line of preparedLines) {
             const [minRows] = await conn.execute<RowDataPacket[]>(
@@ -705,7 +789,13 @@ export async function createSaleAction(
     }
   } catch (error) {
     await conn.rollback().catch(() => {});
-    if (error instanceof Error && error.message === "CREDIT_LIMIT") {
+    if (error instanceof Error && error.message === "DRAFT_GONE") {
+      result = "not-editable";
+    } else if (error instanceof Error && error.message === "APPROVAL_GONE") {
+      result = "approval-gone";
+    } else if (error instanceof Error && error.message === "APPROVAL_MISMATCH") {
+      result = "approval-mismatch";
+    } else if (error instanceof Error && error.message === "CREDIT_LIMIT") {
       result = "credit-limit";
     } else {
       console.error("Sale creation failed:", error);

@@ -77,6 +77,11 @@ type Prefill = {
   reportId: number;
   branchId: number | null;
   lines: Array<{ variantId: number; quantity: string; price: string }>;
+  /** Set when the bill starts from items a customer took on approval. */
+  customerName?: string;
+  customerPhone?: string;
+  approvalItemIds?: number[];
+  approvalBack?: Array<{ variantId: number; quantity: number }>;
 };
 
 type Props = {
@@ -131,8 +136,8 @@ export default function SalesBillingForm({
   initialInvoice,
   prefill,
 }: Props) {
-  const [custPhone, setCustPhone] = useState(initialInvoice?.customerPhone ?? "");
-  const [custName, setCustName] = useState(initialInvoice?.customerName ?? "");
+  const [custPhone, setCustPhone] = useState(initialInvoice?.customerPhone ?? prefill?.customerPhone ?? "");
+  const [custName, setCustName] = useState(initialInvoice?.customerName ?? prefill?.customerName ?? "");
   const digits = custPhone.replace(/\D/g, "").slice(-10);
   const known = digits.length === 10 ? customers.find(c => c.phone === digits) : undefined;
 
@@ -163,6 +168,8 @@ export default function SalesBillingForm({
     initialInvoice?.invoiceDiscount ?? "0"
   );
   const editing = initialInvoice != null;
+  // A saved draft can still be confirmed; only a confirmed bill keeps its payments fixed here.
+  const editingDraft = initialInvoice?.status === "DRAFT";
   const action = editing ? updateSaleAction : createSaleAction;
 
   const branchProducts = products.filter(
@@ -186,7 +193,13 @@ export default function SalesBillingForm({
 
   function findProduct(variantId: number) {
     const product = productMap.get(`${branchId}-${variantId}`);
-    if (!product || !initialInvoice) return product;
+    // Items the customer is keeping come back to the shelf when the bill is confirmed.
+    const coming = prefill?.approvalBack?.find(b => b.variantId === variantId)?.quantity ?? 0;
+    if (product && coming > 0 && !initialInvoice) {
+      return { ...product, available: product.available + coming };
+    }
+    // A draft has not taken anything out of stock, so there is nothing to give back.
+    if (!product || !initialInvoice || initialInvoice.status !== "POSTED") return product;
 
     const restoredQuantity = initialInvoice.lines
       .filter(line => line.variantId === variantId)
@@ -269,13 +282,28 @@ export default function SalesBillingForm({
       {initialInvoice && (
         <input type="hidden" name="sale_id" value={initialInvoice.id} />
       )}
+      {editingDraft && initialInvoice && (
+        <input type="hidden" name="confirm_draft_id" value={initialInvoice.id} />
+      )}
       {prefill && !initialInvoice && (
         <>
-          <input type="hidden" name="report_id" value={prefill.reportId} />
-          <p style={{ background: "#eff6ff", padding: 10, borderRadius: 8 }}>
-            Filled from what your staff reported on WhatsApp. Add the customer and
-            payment, then save the bill.
-          </p>
+          {prefill.approvalItemIds && prefill.approvalItemIds.length > 0 ? (
+            <>
+              <input type="hidden" name="approval_item_ids" value={prefill.approvalItemIds.join(",")} />
+              <p style={{ background: "#eff6ff", padding: 10, borderRadius: 8 }}>
+                The customer is keeping the items they took on approval. Check the prices,
+                add any payment, then confirm the sale. Keep every item on the bill.
+              </p>
+            </>
+          ) : (
+            <>
+              <input type="hidden" name="report_id" value={prefill.reportId} />
+              <p style={{ background: "#eff6ff", padding: 10, borderRadius: 8 }}>
+                Filled from what your staff reported on WhatsApp. Add the customer and
+                payment, then save the bill.
+              </p>
+            </>
+          )}
         </>
       )}
       <input
@@ -583,7 +611,7 @@ export default function SalesBillingForm({
           </div>
         </div>
 
-        {editing ? (
+        {editing && !editingDraft ? (
           <p style={{ color: "#475569" }}>
             Payments already received (₹{amount(initialInvoice.collected)}) are kept.
             The new bill total cannot be less than this.
@@ -723,7 +751,28 @@ export default function SalesBillingForm({
       </section>
 
       <div className={styles.actions}>
-        {editing ? (
+        {editingDraft ? (
+          <>
+            <button
+              type="submit"
+              formAction={createSaleAction}
+              name="mode"
+              value="POSTED"
+              className={`${styles.btn} ${styles.btnPrimary}`}
+              disabled={outstanding < 0 || overStock}
+            >
+              Confirm sale
+            </button>
+            <button
+              type="submit"
+              className={`${styles.btn} ${styles.btnQuiet}`}
+              disabled={overStock || payments.length > 0}
+              title="Keeps the bill as a draft. Cannot be used when a payment is entered."
+            >
+              Save changes, still a draft
+            </button>
+          </>
+        ) : editing ? (
           <button
             type="submit"
             className={`${styles.btn} ${styles.btnPrimary}`}

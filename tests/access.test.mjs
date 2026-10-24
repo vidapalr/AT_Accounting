@@ -55,3 +55,14 @@ test("supplier returns are for owner and accountant; free stock can be asked by 
   assert.equal(canApproveFreeStock("GROUP_OWNER"), true);
   assert.equal(canApproveFreeStock("INVESTOR"), false);
 });
+
+test("items on approval are open to staff; only owner and accountant can join customers", async () => {
+  const { canMergeCustomers } = await import("../src/lib/access.ts");
+  for (const role of ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"]) {
+    assert.equal(canOpenPath(role, "/accounting/approval-items"), true, role);
+  }
+  assert.equal(canOpenPath("INVESTOR", "/accounting/approval-items"), false);
+  assert.equal(canMergeCustomers("CASHIER"), false);
+  assert.equal(canMergeCustomers("ACCOUNTANT"), true);
+  assert.equal(canMergeCustomers("GROUP_OWNER"), true);
+});

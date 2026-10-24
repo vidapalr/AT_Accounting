@@ -19,6 +19,11 @@ export function canApproveFreeStock(role: string): boolean {
   return role === "GROUP_OWNER" || role === "ACCOUNTANT";
 }
 
+/** Joining two customer records into one is not for the cashier. */
+export function canMergeCustomers(role: string): boolean {
+  return role === "GROUP_OWNER" || role === "ACCOUNTANT";
+}
+
 /** Roles that can sign in to this portal today. */
 export const LOGIN_ROLES: Role[] = ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"];
 
@@ -49,6 +54,7 @@ export type Feature =
   | "stock"
   | "supplier_returns"
   | "free_stock"
+  | "approval_items"
   | "customers";
 
 const FEATURE_ROLES: Record<Feature, Role[]> = {
@@ -63,6 +69,7 @@ const FEATURE_ROLES: Record<Feature, Role[]> = {
   supplier_returns: ["GROUP_OWNER", "ACCOUNTANT"],
   // Everyone can ask for free stock; only owner and accountant approve it.
   free_stock: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
+  approval_items: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
   customers: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
 };
 
@@ -91,6 +98,7 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/supplier-returns", "supplier_returns"],
   ["/accounting/supplier-statement", "supplier_returns"],
   ["/accounting/free-stock", "free_stock"],
+  ["/accounting/approval-items", "approval_items"],
   ["/accounting/stock", "stock"],
   ["/accounting/stock-reports", "stock"],
   ["/accounting/warehouse-inventory", "stock"],

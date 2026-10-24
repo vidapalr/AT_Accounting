@@ -9,10 +9,11 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { receiveSalePaymentAction } from "@/lib/sale-payment-actions";
+import { setInvoiceMobileAction } from "@/lib/customer-merge-actions";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ pay?: string }>;
+  searchParams?: Promise<{ pay?: string; mobile?: string }>;
 };
 
 const PAY_MESSAGES: Record<string, { ok: boolean; text: string }> = {
@@ -23,6 +24,13 @@ const PAY_MESSAGES: Record<string, { ok: boolean; text: string }> = {
   "too-much": { ok: false, text: "That is more than the amount still due." },
   "not-posted": { ok: false, text: "Confirm the sale before taking payment." },
   failed: { ok: false, text: "Could not save the payment. Please try again." },
+};
+
+const MOBILE_MESSAGES: Record<string, { ok: boolean; text: string }> = {
+  saved: { ok: true, text: "Mobile number saved on this bill." },
+  invalid: { ok: false, text: "Enter a 10 digit mobile number." },
+  "not-allowed": { ok: false, text: "This bill can no longer be changed." },
+  failed: { ok: false, text: "Could not save the number. Please try again." },
 };
 
 const money = (value: string | number) =>
@@ -47,7 +55,9 @@ async function InvoiceDetails({ params, searchParams }: Props) {
   }
 
   const businessId = user.legal_business_id;
-  const payResult = (await searchParams)?.pay;
+  const query = await searchParams;
+  const payResult = query?.pay;
+  const mobileResult = query?.mobile;
 
   const [headers] = await db.execute<RowDataPacket[]>(
     `SELECT
@@ -223,6 +233,28 @@ async function InvoiceDetails({ params, searchParams }: Props) {
             )}
           </p>
           <p>{invoice.customer_phone || "No mobile"}</p>
+          {["DRAFT", "POSTED"].includes(String(invoice.status)) && (
+            <form action={setInvoiceMobileAction} className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input type="hidden" name="sale_id" value={invoice.id} />
+              <input
+                name="phone"
+                inputMode="numeric"
+                maxLength={20}
+                placeholder="10 digit mobile"
+                defaultValue={invoice.customer_phone ?? ""}
+                aria-label="Mobile number"
+                style={{ padding: "8px 10px", fontSize: 16, width: 170 }}
+              />
+              <button type="submit" className="btn-link btn-link-small" style={{ cursor: "pointer" }}>
+                {invoice.customer_phone ? "Change mobile" : "Add mobile"}
+              </button>
+            </form>
+          )}
+          {mobileResult && MOBILE_MESSAGES[mobileResult] && (
+            <p role="status" className="no-print" style={{ color: MOBILE_MESSAGES[mobileResult].ok ? "#166534" : "#b91c1c" }}>
+              {MOBILE_MESSAGES[mobileResult].text}
+            </p>
+          )}
         </div>
         <div>
           <strong>Status</strong>
@@ -350,6 +382,15 @@ async function InvoiceDetails({ params, searchParams }: Props) {
           style={{ color: PAY_MESSAGES[payResult].ok ? "#166534" : "#b91c1c", marginTop: 16 }}
         >
           {PAY_MESSAGES[payResult].text}
+        </p>
+      )}
+
+      {invoice.status === "DRAFT" && (
+        <p className="no-print" style={{ background: "#fff7ed", padding: 12, borderRadius: 8 }}>
+          This bill is only a draft: stock has not moved and no payment can be taken yet.{" "}
+          <a href={`/accounting/sales?edit=${invoice.id}`} className="btn-link btn-link-primary">
+            Confirm sale
+          </a>
         </p>
       )}
 

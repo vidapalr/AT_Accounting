@@ -14,6 +14,7 @@ type Props = {
     view?: string;
     edit?: string;
     from_report?: string;
+    from_approval?: string;
   }>;
 };
 
@@ -52,13 +53,17 @@ const messages: Record<string, string> = {
     "Select an active, eligible bank or cash account.",
   "invalid-product": "One or more products are unavailable.",
   "invalid-phone": "Enter a 10 digit mobile number, or leave it empty for a walk-in customer.",
+  "approval-gone":
+    "Some of the items taken on approval were already dealt with. Open Items on approval and check them.",
+  "approval-mismatch":
+    "The bill must include every item the customer is keeping. Nothing was saved.",
   "credit-limit": "This sale would take the customer over their credit limit. Collect some payment, or raise the limit on the customer's page.",
   failed: "Unable to save invoice. Check server logs.",
 };
 
 async function SalesContent({ searchParams }: Props) {
   const user = await requireAccess("sales");
-  const { result, id, view, edit, from_report } = await searchParams;
+  const { result, id, view, edit, from_report, from_approval } = await searchParams;
   const businessId = user.legal_business_id;
 
   const [branches] = await db.execute<RowDataPacket[]>(
@@ -240,10 +245,58 @@ async function SalesContent({ searchParams }: Props) {
 
   // A "sold" line a staff member reported on WhatsApp: start the bill from it.
   let prefill:
-    | { reportId: number; branchId: number | null; lines: Array<{ variantId: number; quantity: string; price: string }> }
+    | {
+        reportId: number;
+        branchId: number | null;
+        lines: Array<{ variantId: number; quantity: string; price: string }>;
+        customerName?: string;
+        customerPhone?: string;
+        approvalItemIds?: number[];
+        approvalBack?: Array<{ variantId: number; quantity: number }>;
+      }
     | undefined;
+
+  // Items a customer took home to try and has decided to keep: start the bill from them.
+  const approvalIds = String(from_approval ?? "")
+    .split(",").map(v => Number(v.trim()))
+    .filter(v => Number.isSafeInteger(v) && v > 0).slice(0, 100);
+  if (approvalIds.length > 0) {
+    const [kept] = await db.execute<RowDataPacket[]>(
+      `SELECT i.id, i.variant_id, i.quantity, h.from_location_id, h.holding_location_id,
+              c.full_name, c.phone, l.branch_id
+         FROM acct_approval_items i
+         JOIN acct_approval_handouts h ON h.id = i.handout_id AND h.legal_business_id = i.legal_business_id
+         JOIN acct_customers c ON c.id = i.customer_id AND c.legal_business_id = i.legal_business_id
+         LEFT JOIN acct_inventory_locations l ON l.id = h.from_location_id
+        WHERE i.legal_business_id = ? AND i.status = 'OUT'
+          AND i.id IN (${approvalIds.map(() => "?").join(",")})
+        ORDER BY i.id`,
+      [businessId, ...approvalIds]
+    );
+    if (kept.length > 0) {
+      const branch = Number(kept[0].branch_id);
+      const byVariant = new Map<number, number>();
+      for (const k of kept) {
+        byVariant.set(Number(k.variant_id), (byVariant.get(Number(k.variant_id)) ?? 0) + Number(k.quantity));
+      }
+      const branchId = branches.some(b => Number(b.id) === branch) ? branch : null;
+      prefill = {
+        reportId: 0,
+        branchId,
+        lines: [...byVariant].map(([variantId, quantity]) => ({
+          variantId,
+          quantity: String(quantity),
+          price: String(latestPrices.get(`${branchId}-${variantId}`)?.suggestedPrice ?? ""),
+        })),
+        customerName: String(kept[0].full_name),
+        customerPhone: kept[0].phone ? String(kept[0].phone) : "",
+        approvalItemIds: kept.map(k => Number(k.id)),
+        approvalBack: [...byVariant].map(([variantId, quantity]) => ({ variantId, quantity })),
+      };
+    }
+  }
   const reportId = Number(from_report);
-  if (Number.isSafeInteger(reportId) && reportId > 0) {
+  if (!prefill && Number.isSafeInteger(reportId) && reportId > 0) {
     const [reports] = await db.execute<RowDataPacket[]>(
       `SELECT d.id, d.variant_id, d.quantity, d.price, l.branch_id
          FROM acct_stock_drafts d
@@ -439,7 +492,7 @@ async function SalesContent({ searchParams }: Props) {
           <p>
             {selectedInvoice.status === "POSTED"
               ? "Posted invoice edits adjust inventory and preserve recorded payments."
-              : "Draft invoice lines can be changed before posting."}
+              : "This bill is a draft: nothing has left stock and no payment is taken yet. Press Confirm sale to finish it, or change it first."}
           </p>
           <SalesBillingForm
             customers={customerOptions}
@@ -559,6 +612,11 @@ async function SalesContent({ searchParams }: Props) {
                     <a className="btn-link btn-link-small" href={`/accounting/sales?view=${s.id}`}>
                       View
                     </a>
+                    {s.status === "DRAFT" && (
+                      <a className="btn-link btn-link-small btn-link-primary" href={`/accounting/sales?edit=${s.id}`}>
+                        Confirm sale
+                      </a>
+                    )}
                     {["DRAFT", "POSTED"].includes(s.status) && (
                       <a className="btn-link btn-link-small" href={`/accounting/sales?edit=${s.id}`}>
                         Edit
