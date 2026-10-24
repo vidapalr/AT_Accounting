@@ -59,9 +59,11 @@ async function ApprovalContent({ searchParams }: Props) {
               GROUP BY variant_id HAVING SUM(quantity_change) > 0) s
        JOIN acct_product_variants v ON v.id = s.variant_id AND v.legal_business_id = ? AND v.status = 'ACTIVE'
        JOIN acct_products p ON p.id = v.product_id AND p.legal_business_id = v.legal_business_id
-       WHERE (? = '' OR p.product_name LIKE ? OR v.sku LIKE ? OR v.barcode = ?)
+       ${search ? "WHERE (p.product_name LIKE ? OR v.sku LIKE ? OR v.barcode = ?)" : ""}
        ORDER BY p.product_name, v.sku LIMIT 60`,
-      [businessId, place.id, businessId, search, like, like, search]
+      search
+        ? [businessId, place.id, businessId, like, like, search]
+        : [businessId, place.id, businessId]
     );
     stockItems = rows;
   }
