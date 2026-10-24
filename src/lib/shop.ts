@@ -1,4 +1,5 @@
 import "server-only";
+import { connection } from "next/server";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
@@ -7,6 +8,7 @@ import { db } from "@/lib/db";
 export const SHOP_BUSINESS_ID = Number(process.env.SHOP_BUSINESS_ID ?? 1);
 
 export async function getShopSettings(businessId = SHOP_BUSINESS_ID) {
+  await connection(); // read at request time, never while the site is being built
   const [rows] = await db.execute<RowDataPacket[]>(
     `SELECT setting_key, setting_value FROM acct_business_settings
       WHERE legal_business_id = ? AND setting_key IN ('shop_whatsapp')`,
@@ -61,6 +63,7 @@ export type ShopProduct = {
 };
 
 async function load(where: string, params: (string | number)[]): Promise<ShopProduct[]> {
+  await connection(); // read at request time, never while the site is being built
   const [prods] = await db.execute<RowDataPacket[]>(
     `SELECT p.id, p.product_name, p.fabric, p.description,
             (SELECT m.id FROM acct_product_media m
@@ -113,6 +116,7 @@ export async function getShopProduct(id: number) {
 }
 
 export async function getShopMedia(productId: number) {
+  await connection(); // read at request time, never while the site is being built
   const [rows] = await db.execute<RowDataPacket[]>(
     `SELECT m.id, m.media_type FROM acct_product_media m
        JOIN acct_products p ON p.id = m.product_id AND p.legal_business_id = m.legal_business_id
