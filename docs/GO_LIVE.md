@@ -7,7 +7,7 @@ Paste each file in the SQL tab, in this order. All are safe to run again if unsu
 001 to 006 should already be applied. Pending list:
 007_business_settings, 008_whatsapp_reports, 009_backfill_barcodes, 010_customers,
 011_catalogue_media, 012_customer_messages, 013_stock_reports, 014_online_shop,
-015_instagram_posts, 016_shop_prices, 017_gst_ready, 018_supplier_returns_free_stock, 019_items_on_approval, 020_cash_closing, 021_settlement_discount.
+015_instagram_posts, 016_shop_prices, 017_gst_ready, 018_supplier_returns_free_stock, 019_items_on_approval, 020_cash_closing, 021_settlement_discount, 022_sale_submit_token.
 (Re-run on the test database: all nine ran again without errors.)
 
 ## 2. Server settings on Hostinger (Node.js app, environment variables)

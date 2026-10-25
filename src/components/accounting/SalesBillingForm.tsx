@@ -1,12 +1,24 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
+import { useSearchParams } from "next/navigation";
 import styles from "./SalesBillingForm.module.css";
 import {
   createSaleAction,
   updateSaleAction,
 } from "@/lib/sales-actions";
+
+/** A submit button that locks while the bill is being saved, so a double tap cannot save it twice. */
+function SubmitBtn({ children, disabled, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" {...rest} disabled={disabled || pending}>
+      {pending ? "Saving..." : children}
+    </button>
+  );
+}
 
 type Branch = {
   id: number;
@@ -164,6 +176,13 @@ export default function SalesBillingForm({
         : [newSaleRow()]
   );
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  // One-time token for this form. A new one is made after each save (the page address changes),
+  // so a repeated submit of the same form can never create a second bill.
+  const [submitToken, setSubmitToken] = useState("");
+  const addressKey = useSearchParams().toString();
+  useEffect(() => {
+    setSubmitToken(crypto.randomUUID());
+  }, [addressKey]);
   const [invoiceDiscount, setInvoiceDiscount] = useState(
     initialInvoice?.invoiceDiscount ?? "0"
   );
@@ -279,6 +298,7 @@ export default function SalesBillingForm({
 
   return (
     <form action={action} className={styles.form}>
+      <input type="hidden" name="submit_token" value={submitToken} />
       {initialInvoice && (
         <input type="hidden" name="sale_id" value={initialInvoice.id} />
       )}
@@ -753,7 +773,7 @@ export default function SalesBillingForm({
       <div className={styles.actions}>
         {editingDraft ? (
           <>
-            <button
+            <SubmitBtn
               type="submit"
               formAction={createSaleAction}
               name="mode"
@@ -762,27 +782,27 @@ export default function SalesBillingForm({
               disabled={outstanding < 0 || overStock}
             >
               Confirm sale
-            </button>
-            <button
+            </SubmitBtn>
+            <SubmitBtn
               type="submit"
               className={`${styles.btn} ${styles.btnQuiet}`}
               disabled={overStock || payments.length > 0}
               title="Keeps the bill as a draft. Cannot be used when a payment is entered."
             >
               Save changes, still a draft
-            </button>
+            </SubmitBtn>
           </>
         ) : editing ? (
-          <button
+          <SubmitBtn
             type="submit"
             className={`${styles.btn} ${styles.btnPrimary}`}
             disabled={overStock}
           >
             Save changes to this bill
-          </button>
+          </SubmitBtn>
         ) : (
           <>
-            <button
+            <SubmitBtn
               type="submit"
               name="mode"
               value="POSTED"
@@ -790,8 +810,8 @@ export default function SalesBillingForm({
               disabled={outstanding < 0 || overStock}
             >
               Confirm sale
-            </button>
-            <button
+            </SubmitBtn>
+            <SubmitBtn
               type="submit"
               name="mode"
               value="DRAFT"
@@ -800,7 +820,7 @@ export default function SalesBillingForm({
               title="Keeps the bill without changing stock. Cannot be used when a payment is entered."
             >
               Save for later
-            </button>
+            </SubmitBtn>
           </>
         )}
       </div>

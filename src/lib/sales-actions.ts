@@ -115,6 +115,17 @@ export async function createSaleAction(
     errorRedirect("invalid");
   }
 
+  // One-time token from the form: the same submission can only ever make one bill.
+  const tokenRaw = String(form.get("submit_token") ?? "").trim();
+  const submitToken = /^[0-9a-fA-F-]{36}$/.test(tokenRaw) ? tokenRaw : null;
+  if (submitToken && confirmDraftId === 0) {
+    const [dup] = await db.execute<RowDataPacket[]>(
+      "SELECT id FROM acct_sales_headers WHERE legal_business_id = ? AND submit_token = ? LIMIT 1",
+      [businessId, submitToken]
+    );
+    if (dup[0]) redirect(`${PAGE}?result=created&id=${dup[0].id}`);
+  }
+
   const phone10 = normalizePhone(customerPhone);
   if (customerPhone !== "" && phone10 === null) {
     errorRedirect("invalid-phone");
@@ -594,11 +605,11 @@ export async function createSaleAction(
                  invoice_date, customer_name, customer_phone, customer_id,
                  status, subtotal, discount_amount,
                  grand_total, remarks, created_by,
-                 posted_by, posted_at
+                 posted_by, posted_at, submit_token
                ) VALUES (
                  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                  ?, ?, ?, ?, ?, ?,
-                 ${mode === "POSTED" ? "CURRENT_TIMESTAMP" : "NULL"}
+                 ${mode === "POSTED" ? "CURRENT_TIMESTAMP" : "NULL"}, ?
                )`,
               [
                 businessId, DIVISION_ID, branchId,
@@ -610,6 +621,7 @@ export async function createSaleAction(
                 moneyFromPaise(grandTotal),
                 remarks || null, user.id,
                 mode === "POSTED" ? user.id : null,
+                submitToken,
               ]
             );
 
@@ -797,6 +809,18 @@ export async function createSaleAction(
       result = "approval-mismatch";
     } else if (error instanceof Error && error.message === "CREDIT_LIMIT") {
       result = "credit-limit";
+    } else if ((error as { code?: string }).code === "ER_DUP_ENTRY" && submitToken) {
+      // The same form was sent twice at the same moment; the other copy won. Show that bill.
+      const [won] = await db.execute<RowDataPacket[]>(
+        "SELECT id FROM acct_sales_headers WHERE legal_business_id = ? AND submit_token = ? LIMIT 1",
+        [businessId, submitToken]
+      );
+      if (won[0]) {
+        createdId = Number(won[0].id);
+        result = "created";
+      } else {
+        result = "failed";
+      }
     } else {
       console.error("Sale creation failed:", error);
       result = "failed";
