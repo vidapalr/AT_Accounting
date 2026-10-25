@@ -120,6 +120,7 @@ export const NAVIGATION: NavSection[] = [
     items: [
       { label: "Journals", href: "/accounting/journals", hint: "Every accounting entry" },
       { label: "Every ledger line", href: "/accounting/audit/ledger", hint: "Search every posted entry by date, account or words (view only)" },
+      { label: "Download for the auditor", href: "/accounting/audit/export", hint: "Excel and Tally files of the books" },
       { label: "Change history", href: "/accounting/audit/changes", hint: "Who did what, and when" },
       { label: "Chart of accounts", href: "/accounting/chart-of-accounts", hint: "The list of accounts" },
       { label: "Months and years", href: "/accounting/periods", hint: "Open and close accounting months" },
