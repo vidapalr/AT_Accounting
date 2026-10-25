@@ -25,6 +25,9 @@ export function canWriteOffStockCount(role: string): boolean {
   return role === "GROUP_OWNER" || role === "ACCOUNTANT";
 }
 
+/** The most a cashier can note as shop spending in one entry, in rupees. Above this the owner or accountant records it. */
+export const CASHIER_SPENDING_LIMIT = 5000;
+
 /** Joining two customer records into one is not for the cashier. */
 export function canMergeCustomers(role: string): boolean {
   return role === "GROUP_OWNER" || role === "ACCOUNTANT";
@@ -67,6 +70,8 @@ export type Feature =
   | "cash_closing"
   | "stock_count"
   | "audit_view"
+  | "shop_spending"
+  | "salary"
   | "customers";
 
 const FEATURE_ROLES: Record<Feature, Role[]> = {
@@ -86,6 +91,9 @@ const FEATURE_ROLES: Record<Feature, Role[]> = {
   stock_count: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
   // Read-only pages for the auditor (every ledger line, change history).
   audit_view: ["GROUP_OWNER", "AUDITOR"],
+  // Anyone at the counter can note small cash spending (the cashier has a limit); salary is for owner and accountant.
+  shop_spending: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
+  salary: ["GROUP_OWNER", "ACCOUNTANT"],
   customers: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
 };
 
@@ -119,6 +127,8 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/free-stock", "free_stock"],
   ["/accounting/approval-items", "approval_items"],
   ["/accounting/cash-closing", "cash_closing"],
+  ["/accounting/shop-spending", "shop_spending"],
+  ["/accounting/salaries", "salary"],
   ["/accounting/stock-count", "stock_count"],
   ["/accounting/low-stock", "stock"],
   ["/accounting/stock", "stock"],

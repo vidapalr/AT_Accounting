@@ -68,6 +68,8 @@ export const NAVIGATION: NavSection[] = [
       { label: "Close the day (cash count)", href: "/accounting/cash-closing", hint: "Count the cash drawer and compare with what the system expects" },
       { label: "Count stock", href: "/accounting/stock-count", hint: "Count what is on the shelf and compare with the books" },
       { label: "Items on approval", href: "/accounting/approval-items", hint: "Customer takes items home to try, pays only for what they keep" },
+      { label: "Shop spending", href: "/accounting/shop-spending", hint: "Note small cash spending: auto, tea, packing, repairs" },
+      { label: "Salaries", href: "/accounting/salaries", hint: "Pay the staff each month and send pay slips" },
       { label: "Expenses", href: "/accounting/expenses", hint: "Rent, salaries, transport and other costs" },
       { label: "Advances and deposits", href: "/accounting/advances-deposits", hint: "Money paid in advance or as deposit" },
     ],
