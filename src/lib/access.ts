@@ -101,6 +101,7 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/sales-purchase-report", "reports"],
   ["/accounting/product-profitability", "reports"],
   ["/accounting/account-balances", "reports"],
+  ["/accounting/cash-flow", "reports"],
   ["/accounting/sales", "sales"],
   ["/accounting/invoices", "sales"],
   ["/accounting/returns", "returns"],
