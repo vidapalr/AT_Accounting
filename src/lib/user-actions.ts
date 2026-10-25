@@ -28,7 +28,7 @@ function checkPassword(password: string) {
 }
 
 function checkRole(role: string) {
-  if (!(ASSIGNABLE_ROLES as string[]).includes(role)) throw new UserError("Choose Accountant or Cashier.");
+  if (!(ASSIGNABLE_ROLES as string[]).includes(role)) throw new UserError("Choose Accountant, Cashier or Auditor.");
 }
 
 async function audit(

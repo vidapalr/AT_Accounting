@@ -39,7 +39,7 @@ test("investor and lender roles cannot open anything yet", () => {
     assert.equal(canAccess(role, "dashboard"), false);
     assert.equal(canAccess(role, "sales"), false);
   }
-  assert.deepEqual(ASSIGNABLE_ROLES, ["ACCOUNTANT", "CASHIER"]);
+  assert.deepEqual(ASSIGNABLE_ROLES, ["ACCOUNTANT", "CASHIER", "AUDITOR"]);
 });
 
 test("supplier returns are for owner and accountant; free stock can be asked by cashier but approved only by owner and accountant", async () => {
@@ -65,4 +65,17 @@ test("items on approval are open to staff; only owner and accountant can join cu
   assert.equal(canMergeCustomers("CASHIER"), false);
   assert.equal(canMergeCustomers("ACCOUNTANT"), true);
   assert.equal(canMergeCustomers("GROUP_OWNER"), true);
+});
+
+test("auditor can only look: reports, ledger lines, change history and account balances", () => {
+  for (const p of ["/accounting/reports", "/accounting/account-balances", "/accounting/audit/ledger", "/accounting/audit/changes"]) {
+    assert.equal(canOpenPath("AUDITOR", p), true, p);
+  }
+  for (const p of ["/dashboard", "/accounting/sales", "/accounting/sales/12", "/accounting/invoices", "/accounting/purchases", "/accounting/expenses",
+    "/accounting/journals", "/accounting/journals/3", "/accounting/chart-of-accounts", "/accounting/opening-balances", "/accounting/stock-count",
+    "/accounting/cash-closing", "/accounting/customers", "/users", "/funding", "/group"]) {
+    assert.equal(canOpenPath("AUDITOR", p), false, p);
+  }
+  assert.equal(homePath("AUDITOR"), "/accounting/reports");
+  assert.equal(canOpenPath("ACCOUNTANT", "/accounting/audit/ledger"), false);
 });

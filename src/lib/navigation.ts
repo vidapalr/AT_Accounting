@@ -119,6 +119,8 @@ export const NAVIGATION: NavSection[] = [
     icon: "accounting",
     items: [
       { label: "Journals", href: "/accounting/journals", hint: "Every accounting entry" },
+      { label: "Every ledger line", href: "/accounting/audit/ledger", hint: "Search every posted entry by date, account or words (view only)" },
+      { label: "Change history", href: "/accounting/audit/changes", hint: "Who did what, and when" },
       { label: "Chart of accounts", href: "/accounting/chart-of-accounts", hint: "The list of accounts" },
       { label: "Months and years", href: "/accounting/periods", hint: "Open and close accounting months" },
       { label: "Opening balances", href: "/accounting/opening-balances", hint: "What the business started with" },

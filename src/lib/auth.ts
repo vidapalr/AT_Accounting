@@ -131,7 +131,7 @@ export async function getSessionUser() {
        AND a.legal_business_id = 1
        AND a.division_id IS NULL
        AND a.role IN (${LOGIN_ROLES.map((r) => `'${r}'`).join(",")})
-     ORDER BY FIELD(a.role, 'GROUP_OWNER', 'ACCOUNTANT', 'CASHIER')
+     ORDER BY FIELD(a.role, 'GROUP_OWNER', 'ACCOUNTANT', 'CASHIER', 'AUDITOR')
      LIMIT 1`,
     [hashToken(token)]
   );

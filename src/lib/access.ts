@@ -12,7 +12,8 @@ export type Role =
   | "DIVISION_MANAGER"
   | "CASHIER"
   | "INVESTOR"
-  | "LENDER";
+  | "LENDER"
+  | "AUDITOR";
 
 /** Who may approve stock given away free (others can only ask). */
 export function canApproveFreeStock(role: string): boolean {
@@ -30,15 +31,16 @@ export function canMergeCustomers(role: string): boolean {
 }
 
 /** Roles that can sign in to this portal today. */
-export const LOGIN_ROLES: Role[] = ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"];
+export const LOGIN_ROLES: Role[] = ["GROUP_OWNER", "ACCOUNTANT", "CASHIER", "AUDITOR"];
 
 /** Roles the owner can hand out from the Users page. */
-export const ASSIGNABLE_ROLES: Role[] = ["ACCOUNTANT", "CASHIER"];
+export const ASSIGNABLE_ROLES: Role[] = ["ACCOUNTANT", "CASHIER", "AUDITOR"];
 
 export const ROLE_LABELS: Record<string, string> = {
   GROUP_OWNER: "Group Owner (full access)",
   ACCOUNTANT: "Accountant",
   CASHIER: "Cashier / Billing",
+  AUDITOR: "Auditor (view only)",
 };
 
 export const ROLE_SUMMARY: Record<string, string> = {
@@ -46,6 +48,8 @@ export const ROLE_SUMMARY: Record<string, string> = {
   ACCOUNTANT:
     "Dashboard, reports, sales, returns, purchases, suppliers, products, expenses and advances. Cannot post to the ledger, change opening balances, periods, investors, bank set-up or users.",
   CASHIER: "Sales and billing, sales returns and customers. Nothing else.",
+  AUDITOR:
+    "Can only look: reports, every ledger entry, account balances and the change history. Cannot add, change or post anything.",
 };
 
 export type Feature =
@@ -62,11 +66,12 @@ export type Feature =
   | "approval_items"
   | "cash_closing"
   | "stock_count"
+  | "audit_view"
   | "customers";
 
 const FEATURE_ROLES: Record<Feature, Role[]> = {
   dashboard: ["GROUP_OWNER", "ACCOUNTANT"],
-  reports: ["GROUP_OWNER", "ACCOUNTANT"],
+  reports: ["GROUP_OWNER", "ACCOUNTANT", "AUDITOR"],
   sales: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
   returns: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
   purchases: ["GROUP_OWNER", "ACCOUNTANT"],
@@ -79,6 +84,8 @@ const FEATURE_ROLES: Record<Feature, Role[]> = {
   approval_items: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
   cash_closing: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
   stock_count: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
+  // Read-only pages for the auditor (every ledger line, change history).
+  audit_view: ["GROUP_OWNER", "AUDITOR"],
   customers: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
 };
 
@@ -89,6 +96,7 @@ export function canAccess(role: string, feature: Feature): boolean {
 /** Page prefixes that belong to a feature. Anything not listed is owner only. */
 const PATH_FEATURES: Array<[string, Feature]> = [
   ["/dashboard", "dashboard"],
+  ["/accounting/audit", "audit_view"],
   ["/accounting/reports", "reports"],
   ["/accounting/sales-purchase-report", "reports"],
   ["/accounting/product-profitability", "reports"],
@@ -138,6 +146,7 @@ export function canOpenPath(role: string, path: string): boolean {
 export function homePath(role: string): string {
   if (canAccess(role, "dashboard")) return "/dashboard";
   if (canAccess(role, "sales")) return "/accounting/sales";
+  if (role === "AUDITOR") return "/accounting/reports";
   return "/login";
 }
 
