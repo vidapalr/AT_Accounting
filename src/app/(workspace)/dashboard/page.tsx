@@ -5,6 +5,7 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { getSyncStatus } from "@/lib/ledger/sync-status";
+import { BACKUP_REMINDER_DAYS, lastBackup } from "@/lib/backup-status";
 import {
   getAccountPositions,
   getBalanceReport,
@@ -99,6 +100,8 @@ async function DashboardContent({ searchParams }: Props) {
   const discountsOnly = f.discounts - f.returns;
   const costOnly = f.costOfGoods - f.damagedStock;
 
+  const backup = user.role === "GROUP_OWNER" ? await lastBackup(db, businessId) : null;
+
   return (
     <div className={styles.page}>
       <div className={styles.titleRow}>
@@ -106,6 +109,12 @@ async function DashboardContent({ searchParams }: Props) {
         <span className={styles.asAt}>As at {today} · all figures from posted accounts</span>
       </div>
 
+      {backup && (backup.days === null || backup.days >= BACKUP_REMINDER_DAYS) && (
+        <p className={`${styles.notice} ${styles.noticeWarn}`}>
+          {backup.days === null ? "You have never taken a backup." : `Your last backup was ${backup.days} days ago.`}{" "}
+          <Link href="/accounting/backup">Take one now</Link>.
+        </p>
+      )}
       {sync.pending.length > 0 && (
         <p className={`${styles.notice} ${styles.noticeWarn}`}>
           {sync.pending.length} new record(s) are not in the ledger yet, so profit figures are behind.{" "}
