@@ -370,3 +370,26 @@ test("a settlement discount books a sales discount and clears what the customer 
   assert.equal(a["1100"]?.credit ?? a[Object.keys(a).find((k) => k !== "4200")].credit, 5000n);
   assert.equal(d.lines.reduce((s, l) => s + l.debit - l.credit, 0n), 0n);
 });
+
+import { auditorAdjustmentEntry } from "../src/lib/ledger/posting-rules.ts";
+
+test("an auditor adjustment posts exactly the lines given and must balance", () => {
+  const d = auditorAdjustmentEntry({
+    id: 1, adjustmentNo: "ADJ-0001", date: "2026-10-25", reason: "Rent booked as miscellaneous",
+    lines: [
+      { accountCode: "6000", debit: "500.00", credit: "", memo: "", dims },
+      { accountCode: "6090", debit: "", credit: "500.00", memo: "", dims },
+    ],
+  });
+  const a = byAccount(d);
+  assert.equal(a["6000"].debit, 50000n);
+  assert.equal(a["6090"].credit, 50000n);
+  assert.equal(d.sourceType, "AUDITOR_ADJUSTMENT");
+  assert.throws(() => auditorAdjustmentEntry({
+    id: 2, adjustmentNo: "ADJ-0002", date: "2026-10-25", reason: "x",
+    lines: [
+      { accountCode: "6000", debit: "500.00", credit: "", memo: "", dims },
+      { accountCode: "6090", debit: "", credit: "400.00", memo: "", dims },
+    ],
+  }), /does not balance/);
+});

@@ -72,7 +72,8 @@ export type SourceType =
   | "SUPPLIER_RETURN"
   | "SUPPLIER_REFUND"
   | "FREE_STOCK"
-  | "SETUP_CAPITALISATION";
+  | "SETUP_CAPITALISATION"
+  | "AUDITOR_ADJUSTMENT";
 
 export type Dimensions = {
   divisionId: number | null;
@@ -272,6 +273,29 @@ export function salesSettlementDiscountEntry(d: {
     debit(ACCOUNT.SALES_DISCOUNTS, amount, d.dims, memo),
     credit(ACCOUNT.RECEIVABLES, amount, d.dims, memo),
   ]);
+}
+
+/**
+ * An adjustment the owner records on the auditor's advice. The lines are
+ * whatever the auditor asked for; the entry must balance and have two or more lines.
+ */
+export function auditorAdjustmentEntry(adj: {
+  id: number;
+  adjustmentNo: string;
+  date: string;
+  reason: string;
+  lines: { accountCode: string; debit: string; credit: string; memo: string; dims: Dimensions }[];
+}): JournalDraft {
+  const memo = `Auditor adjustment ${adj.adjustmentNo}: ${adj.reason}`;
+  const lines = adj.lines.map((l) => {
+    const d = parseMoney(l.debit || "0");
+    const c = parseMoney(l.credit || "0");
+    if (d > 0n && c > 0n) throw new Error(`${l.accountCode}: a line is either a debit or a credit, not both`);
+    return d > 0n
+      ? debit(l.accountCode, d, l.dims, l.memo || memo)
+      : credit(l.accountCode, c, l.dims, l.memo || memo);
+  });
+  return makeDraft("AUDITOR_ADJUSTMENT", adj.id, adj.date, memo, lines);
 }
 
 export function purchaseReceiptEntry(purchase: {

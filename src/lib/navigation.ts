@@ -119,6 +119,7 @@ export const NAVIGATION: NavSection[] = [
     icon: "accounting",
     items: [
       { label: "Journals", href: "/accounting/journals", hint: "Every accounting entry" },
+      { label: "Auditor adjustments", href: "/accounting/auditor-adjustments", hint: "Record a change your auditor asked for, as its own dated entry" },
       { label: "Every ledger line", href: "/accounting/audit/ledger", hint: "Search every posted entry by date, account or words (view only)" },
       { label: "Download for the auditor", href: "/accounting/audit/export", hint: "Excel and Tally files of the books" },
       { label: "Change history", href: "/accounting/audit/changes", hint: "Who did what, and when" },

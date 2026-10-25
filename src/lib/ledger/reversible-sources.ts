@@ -12,3 +12,10 @@ export const APP_POSTED_SOURCES = [
 
 export const isAppPostedSource = (source: string | null): boolean =>
   source !== null && (APP_POSTED_SOURCES as readonly string[]).includes(source);
+
+/** Adjustment entries the owner records on the auditor's advice. Reversible, but never "re-posted" from a record. */
+export const AUDITOR_ADJUSTMENT_SOURCE = "AUDITOR_ADJUSTMENT";
+
+/** Journals the owner may reverse from the journal page. */
+export const isReversibleSource = (source: string | null): boolean =>
+  isAppPostedSource(source) || source === AUDITOR_ADJUSTMENT_SOURCE;
