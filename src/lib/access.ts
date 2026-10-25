@@ -19,6 +19,11 @@ export function canApproveFreeStock(role: string): boolean {
   return role === "GROUP_OWNER" || role === "ACCOUNTANT";
 }
 
+/** Turning count shortages into lost stock changes the books: not for the cashier. */
+export function canWriteOffStockCount(role: string): boolean {
+  return role === "GROUP_OWNER" || role === "ACCOUNTANT";
+}
+
 /** Joining two customer records into one is not for the cashier. */
 export function canMergeCustomers(role: string): boolean {
   return role === "GROUP_OWNER" || role === "ACCOUNTANT";
@@ -56,6 +61,7 @@ export type Feature =
   | "free_stock"
   | "approval_items"
   | "cash_closing"
+  | "stock_count"
   | "customers";
 
 const FEATURE_ROLES: Record<Feature, Role[]> = {
@@ -72,6 +78,7 @@ const FEATURE_ROLES: Record<Feature, Role[]> = {
   free_stock: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
   approval_items: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
   cash_closing: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
+  stock_count: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
   customers: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
 };
 
@@ -103,6 +110,8 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/free-stock", "free_stock"],
   ["/accounting/approval-items", "approval_items"],
   ["/accounting/cash-closing", "cash_closing"],
+  ["/accounting/stock-count", "stock_count"],
+  ["/accounting/low-stock", "stock"],
   ["/accounting/stock", "stock"],
   ["/accounting/stock-reports", "stock"],
   ["/accounting/warehouse-inventory", "stock"],

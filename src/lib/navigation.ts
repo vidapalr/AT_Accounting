@@ -66,6 +66,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Move stock", href: "/accounting/stock-transfers", hint: "Send stock between warehouse and shops" },
       { label: "Give stock free", href: "/accounting/free-stock", hint: "Gifts, samples and promotions (a business expense)" },
       { label: "Close the day (cash count)", href: "/accounting/cash-closing", hint: "Count the cash drawer and compare with what the system expects" },
+      { label: "Count stock", href: "/accounting/stock-count", hint: "Count what is on the shelf and compare with the books" },
       { label: "Items on approval", href: "/accounting/approval-items", hint: "Customer takes items home to try, pays only for what they keep" },
       { label: "Expenses", href: "/accounting/expenses", hint: "Rent, salaries, transport and other costs" },
       { label: "Advances and deposits", href: "/accounting/advances-deposits", hint: "Money paid in advance or as deposit" },
@@ -77,6 +78,7 @@ export const NAVIGATION: NavSection[] = [
     icon: "stock",
     items: [
       { label: "Stock on hand", href: "/accounting/stock", hint: "What is in every warehouse and shop right now" },
+      { label: "Running low", href: "/accounting/low-stock", hint: "Items below the minimum you set, ready to reorder" },
       { label: "Staff stock reports", href: "/accounting/stock-reports", hint: "Approve what staff report on WhatsApp" },
       { label: "Catalogue", href: "/accounting/catalogue", hint: "Photos and videos of every product" },
       { label: "New stock arrivals", href: "/accounting/catalogue/new-stock", hint: "Newly received stock, ready to announce" },
