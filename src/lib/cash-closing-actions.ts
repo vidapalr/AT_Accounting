@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { canRedoCashClosing } from "@/lib/access";
 import { dayBefore, loadCashMovements, previousClosing } from "@/lib/cash-closing";
+import { denominationTotal, parseDenominations } from "@/lib/cash-denominations";
 import { cashDifference, expectedCash, paiseText, parseRupees } from "@/lib/cash-math";
 
 const PAGE = "/accounting/cash-closing";
@@ -39,6 +40,20 @@ export async function closeCashDayAction(formData: FormData) {
     go(accountId, date, "error", "Enter the amounts in rupees, for example 12500 or 12500.50.");
   }
 
+  let denomJson: string | null = null;
+  try {
+    const d = parseDenominations(text("denominations"));
+    if (d) {
+      if (denominationTotal(d.notes, d.coins) !== counted) {
+        go(accountId, date, "error", "The notes do not add up to the amount counted. Please count again.");
+      }
+      denomJson = JSON.stringify({ notes: d.notes, coins: Number(d.coins) });
+    }
+  } catch (e) {
+    if (e && typeof e === "object" && "digest" in e && String((e as { digest: unknown }).digest).startsWith("NEXT_REDIRECT")) throw e;
+    go(accountId, date, "error", "The note counts are not valid. Please count again.");
+  }
+
   const [accounts] = await db.execute<RowDataPacket[]>(
     `SELECT id FROM acct_cash_accounts WHERE id = ? AND legal_business_id = ? AND status = 'ACTIVE'`,
     [accountId, businessId]
@@ -66,13 +81,13 @@ export async function closeCashDayAction(formData: FormData) {
 
   const values = [
     paiseText(opening), paiseText(cashIn), paiseText(cashOut), paiseText(takenOut),
-    paiseText(expected), paiseText(counted), paiseText(diff), note || null,
+    paiseText(expected), paiseText(counted), paiseText(diff), note || null, denomJson,
   ];
   if (existing.length > 0) {
     await db.execute(
       `UPDATE acct_cash_closings
           SET opening_amount = ?, cash_in = ?, cash_out = ?, taken_out = ?, expected_amount = ?,
-              counted_amount = ?, difference = ?, note = ?, redone_by = ?, redone_at = NOW()
+              counted_amount = ?, difference = ?, note = ?, denominations_json = ?, redone_by = ?, redone_at = NOW()
         WHERE id = ? AND legal_business_id = ?`,
       [...values, user.id, existing[0].id, businessId]
     );
@@ -80,8 +95,8 @@ export async function closeCashDayAction(formData: FormData) {
     await db.execute(
       `INSERT INTO acct_cash_closings
          (legal_business_id, cash_account_id, closing_date, opening_amount, cash_in, cash_out, taken_out,
-          expected_amount, counted_amount, difference, note, closed_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          expected_amount, counted_amount, difference, note, denominations_json, closed_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [businessId, accountId, date, ...values, user.id]
     );
   }
@@ -89,7 +104,7 @@ export async function closeCashDayAction(formData: FormData) {
     `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
      VALUES (?, ?, ?, 'CASH_CLOSING', ?, ?)`,
     [businessId, user.id, existing.length > 0 ? "CASH_CLOSING_REDONE" : "CASH_CLOSED", accountId,
-     JSON.stringify({ date, expected: paiseText(expected), counted: paiseText(counted), difference: paiseText(diff), note })]
+     JSON.stringify({ date, expected: paiseText(expected), counted: paiseText(counted), difference: paiseText(diff), note, denominations: denomJson ? JSON.parse(denomJson) : null })]
   );
   revalidatePath(PAGE);
   go(accountId, date, "saved",

@@ -8,6 +8,7 @@ import { canRedoCashClosing } from "@/lib/access";
 import { closeCashDayAction } from "@/lib/cash-closing-actions";
 import { dayBefore, loadCashMovements, previousClosing } from "@/lib/cash-closing";
 import { expectedCash, paiseText } from "@/lib/cash-math";
+import NoteCounter from "@/components/accounting/NoteCounter";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 type Props = { searchParams: Promise<{ account?: string; date?: string; saved?: string; error?: string }> };
@@ -22,6 +23,18 @@ const right: React.CSSProperties = { ...cell, textAlign: "right" };
 const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
 const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0 };
 const bigBtn: React.CSSProperties = { cursor: "pointer", fontSize: 16, padding: "12px 22px" };
+
+function noteLine(json: unknown): string {
+  if (!json) return "";
+  try {
+    const d = JSON.parse(String(json)) as { notes?: Record<string, number>; coins?: number };
+    const parts = Object.entries(d.notes ?? {}).sort((a, b) => Number(b[0]) - Number(a[0])).map(([k, n]) => `${n} × ₹${k}`);
+    if (d.coins) parts.push(`coins ₹${Math.round(d.coins / 100)}`);
+    return parts.join(", ");
+  } catch {
+    return "";
+  }
+}
 
 async function CashClosingContent({ searchParams }: Props) {
   const user = await requireAccess("cash_closing");
@@ -48,7 +61,7 @@ async function CashClosingContent({ searchParams }: Props) {
 
     const [done] = await db.execute<Row[]>(
       `SELECT ROUND(opening_amount*100) AS o, ROUND(cash_in*100) AS i, ROUND(cash_out*100) AS ou, ROUND(taken_out*100) AS t,
-              ROUND(expected_amount*100) AS e, ROUND(counted_amount*100) AS c, ROUND(difference*100) AS df, note, u.full_name
+              ROUND(expected_amount*100) AS e, ROUND(counted_amount*100) AS c, ROUND(difference*100) AS df, note, denominations_json, u.full_name
          FROM acct_cash_closings k LEFT JOIN acct_app_users u ON u.id = k.closed_by
         WHERE k.legal_business_id = ? AND k.cash_account_id = ? AND k.closing_date = ?`,
       [businessId, accountId, date]
@@ -96,6 +109,7 @@ async function CashClosingContent({ searchParams }: Props) {
               )}
               {closed.note ? ` Note: ${closed.note}` : ""}
             </p>
+            {noteLine(closed.denominations_json) && <p style={{ color: "#64748b" }}>Notes counted: {noteLine(closed.denominations_json)}</p>}
           </section>
         )}
 
@@ -111,9 +125,7 @@ async function CashClosingContent({ searchParams }: Props) {
                     <input name="opening" inputMode="decimal" defaultValue="0" style={{ ...field, width: 170 }} />
                   </label>
                 )}
-                <label>Cash you counted now (₹)<br />
-                  <input name="counted" inputMode="decimal" required placeholder="0" style={{ ...field, width: 170 }} />
-                </label>
+                <NoteCounter />
                 <label>Cash taken to bank or owner (₹)<br />
                   <input name="taken_out" inputMode="decimal" defaultValue="0" style={{ ...field, width: 170 }} />
                 </label>
