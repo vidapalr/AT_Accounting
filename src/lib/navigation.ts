@@ -53,6 +53,7 @@ export const NAVIGATION: NavSection[] = [
     label: "Buying",
     icon: "buy",
     items: [
+      { label: "Purchase orders", href: "/accounting/purchase-orders", hint: "Order from a supplier, then turn it into a purchase when goods arrive" },
       { label: "Buy stock (purchases)", href: "/accounting/purchases", hint: "Record stock bought from suppliers" },
       { label: "Supplier bills and payments", href: "/accounting/purchase-management", hint: "Receive goods and pay supplier bills" },
       { label: "Return goods to supplier", href: "/accounting/supplier-returns", hint: "Send items back and get credit, refund or replacement" },
