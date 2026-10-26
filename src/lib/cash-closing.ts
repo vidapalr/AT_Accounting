@@ -60,6 +60,24 @@ export async function loadCashMovements(
         AND payment_date > ? AND payment_date <= ?`,
     "OUT", (r) => `Paid to supplier, ${r.payment_no}`
   );
+  await run(
+    `SELECT DATE_FORMAT(a.given_on, '%Y-%m-%d') AS d, ROUND(a.amount * 100) AS paise, e.full_name
+       FROM acct_staff_advances a JOIN acct_employees e ON e.id = a.employee_id
+      WHERE a.legal_business_id = ? AND a.cash_account_id = ? AND a.given_on > ? AND a.given_on <= ?`,
+    "OUT", (r) => `Advance to ${String(r.full_name).slice(0, 40)}`
+  );
+  await run(
+    `SELECT DATE_FORMAT(purchase_date, '%Y-%m-%d') AS d, ROUND(cost * 100) AS paise, asset_name
+       FROM acct_fixed_assets
+      WHERE legal_business_id = ? AND cash_account_id = ? AND paid_from = 'CASH' AND purchase_date > ? AND purchase_date <= ?`,
+    "OUT", (r) => `Bought: ${String(r.asset_name).slice(0, 50)}`
+  );
+  await run(
+    `SELECT DATE_FORMAT(disposed_on, '%Y-%m-%d') AS d, ROUND(proceeds * 100) AS paise, asset_name
+       FROM acct_fixed_assets
+      WHERE legal_business_id = ? AND proceeds_cash_account_id = ? AND status = 'DISPOSED' AND proceeds > 0 AND disposed_on > ? AND disposed_on <= ?`,
+    "IN", (r) => `Sold: ${String(r.asset_name).slice(0, 50)}`
+  );
   return lines.sort((a, b) => a.date.localeCompare(b.date));
 }
 

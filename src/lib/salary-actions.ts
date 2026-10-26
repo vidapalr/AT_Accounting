@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { normalizePhone } from "@/lib/customer-phone";
 import { QuickExpenseError, recordQuickExpense } from "@/lib/expense-quick";
+import { spreadOldestFirst } from "@/lib/setoff-math";
 
 const PAGE = "/accounting/salaries";
 const todayIso = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
@@ -99,6 +100,10 @@ export async function paySalaryAction(formData: FormData) {
   const id = Number(text("employee_id"));
   const amount = text("amount").replaceAll(",", "");
   const note = text("note").slice(0, 300);
+  const deductText = text("deduct").replaceAll(",", "");
+  if (deductText !== "" && !money.test(deductText)) go(month, "error", "Type the advance to take off in rupees, or leave it empty.");
+  const toPaise = (v: string) => { const [w, f = ""] = v.split("."); return BigInt(w || "0") * 100n + BigInt(f.padEnd(2, "0") || "0"); };
+  const rupeesOf = (p: bigint) => `${p / 100n}.${String(p % 100n).padStart(2, "0")}`;
   const account = /^(CASH|BANK):([1-9]\d*)$/.exec(text("account"));
   const how = text("how");
   if (!Number.isInteger(id) || id <= 0) go(month, "error", "Choose a person.");
@@ -124,6 +129,20 @@ export async function paySalaryAction(formData: FormData) {
     );
     if (already.length > 0) throw new QuickExpenseError(`${emp.full_name} has already been paid for this month.`);
 
+    // Advances given earlier, oldest first, with what is still to be taken back.
+    const [adv] = await conn.execute<RowDataPacket[]>(
+      `SELECT a.id, DATE_FORMAT(a.given_on, '%Y-%m-%d') AS d, ROUND(a.amount * 100) - COALESCE((SELECT SUM(ROUND(r.amount * 100)) FROM acct_staff_advance_recoveries r WHERE r.advance_id = a.id), 0) AS left_paise
+         FROM acct_staff_advances a WHERE a.legal_business_id = ? AND a.employee_id = ? ORDER BY a.given_on, a.id FOR UPDATE`,
+      [businessId, id]
+    );
+    const open = adv.map((a) => ({ id: Number(a.id), date: String(a.d), due: BigInt(a.left_paise) })).filter((a) => a.due > 0n);
+    const owed = open.reduce((t, a) => t + a.due, 0n);
+    const gross = toPaise(amount);
+    const deduct = deductText === "" ? 0n : toPaise(deductText);
+    if (deduct > owed) throw new QuickExpenseError(`${emp.full_name} owes only ₹${rupeesOf(owed)} of advance.`);
+    if (deduct > gross) throw new QuickExpenseError("The advance taken off cannot be more than the salary.");
+    const cashPart = gross - deduct;
+
     const label = new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
     const saved = await recordQuickExpense(conn, {
       businessId,
@@ -132,6 +151,7 @@ export async function paySalaryAction(formData: FormData) {
       category: "SALARY",
       description: `Salary ${label}: ${emp.full_name}`,
       amount,
+      payAmount: rupeesOf(cashPart),
       remarks: note || undefined,
       divisionId: emp.division_id === null ? null : Number(emp.division_id),
       branchId: emp.branch_id === null ? null : Number(emp.branch_id),
@@ -141,20 +161,36 @@ export async function paySalaryAction(formData: FormData) {
         method: how as "CASH" | "UPI" | "BANK_TRANSFER" | "CHEQUE",
       },
     });
-    await conn.execute(
-      `INSERT INTO acct_salary_payments (legal_business_id, employee_id, salary_month, amount, note, expense_id, paid_on, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [businessId, id, month, amount, note || null, saved.id, todayIso(), user.id]
+    const [salaryRow] = await conn.execute<ResultSetHeader>(
+      `INSERT INTO acct_salary_payments (legal_business_id, employee_id, salary_month, amount, advance_deducted, note, expense_id, paid_on, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [businessId, id, month, amount, rupeesOf(deduct), note || null, saved.id, todayIso(), user.id]
     );
+    void salaryRow;
+    if (deduct > 0n) {
+      // The part of the salary that clears advances: no cash or bank moves.
+      const [clearing] = await conn.execute<ResultSetHeader>(
+        `INSERT INTO acct_expense_payments
+           (legal_business_id, division_id, expense_id, payment_date, payment_method, payment_source, amount, remarks, status, created_by)
+         VALUES (?, ?, ?, ?, 'ADVANCE', 'BUSINESS_CASH', ?, 'Taken off salary against advance', 'RECORDED', ?)`,
+        [businessId, emp.division_id === null ? null : Number(emp.division_id), saved.id, todayIso(), rupeesOf(deduct), user.id]
+      );
+      for (const share of spreadOldestFirst(open, deduct) ?? []) {
+        await conn.execute(
+          `INSERT INTO acct_staff_advance_recoveries (advance_id, employee_id, expense_payment_id, amount, recovered_on) VALUES (?, ?, ?, ?, ?)`,
+          [share.id, id, clearing.insertId, rupeesOf(share.amount), todayIso()]
+        );
+      }
+    }
     await conn.execute(
       `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
        VALUES (?, ?, 'SALARY_PAID', 'EMPLOYEE', ?, ?)`,
-      [businessId, user.id, id, JSON.stringify({ month, amount, expense: saved.expenseNo })]
+      [businessId, user.id, id, JSON.stringify({ month, amount, advanceTakenOff: rupeesOf(deduct), expense: saved.expenseNo })]
     );
     await conn.commit();
     revalidatePath(PAGE);
     revalidatePath("/accounting/cash-closing");
-    go(month, "saved", `${emp.full_name}: ₹${Number(amount).toLocaleString("en-IN")} paid (${saved.expenseNo}).`);
+    go(month, "saved", `${emp.full_name}: ₹${Number(amount).toLocaleString("en-IN")} salary done (${saved.expenseNo})` + (deduct > 0n ? `, of which ₹${Number(rupeesOf(deduct)).toLocaleString("en-IN")} taken off the advance.` : "."));
   } catch (error) {
     await conn.rollback().catch(() => {});
     rethrowRedirect(error);

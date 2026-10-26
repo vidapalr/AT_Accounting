@@ -34,7 +34,11 @@ async function SalariesContent({ searchParams }: Props) {
 
   const [people] = await db.execute<Row[]>(
     `SELECT e.id, e.full_name, e.phone, e.job_title, e.monthly_salary, e.status,
-            s.amount AS paid_amount, DATE_FORMAT(s.paid_on, '%d %b') AS paid_on
+            s.amount AS paid_amount, s.advance_deducted, DATE_FORMAT(s.paid_on, '%d %b') AS paid_on,
+            COALESCE((SELECT SUM(a.amount) FROM acct_staff_advances a WHERE a.employee_id = e.id AND a.legal_business_id = e.legal_business_id), 0)
+              - COALESCE((SELECT SUM(r.amount) FROM acct_staff_advance_recoveries r WHERE r.employee_id = e.id), 0) AS advance_left,
+            (SELECT MAX(a.instalment) FROM acct_staff_advances a WHERE a.employee_id = e.id AND a.legal_business_id = e.legal_business_id
+               AND a.amount > COALESCE((SELECT SUM(r.amount) FROM acct_staff_advance_recoveries r WHERE r.advance_id = a.id), 0)) AS instalment
        FROM acct_employees e
        LEFT JOIN acct_salary_payments s
          ON s.employee_id = e.id AND s.legal_business_id = e.legal_business_id AND s.salary_month = ?
@@ -77,11 +81,13 @@ async function SalariesContent({ searchParams }: Props) {
         Monthly salaries {inr(payable)} · paid {inr(paid)} · {waiting === 0 ? "everyone is paid" : `${waiting} still to pay`}
       </p>
 
+      <p><a className="btn-link" href="/accounting/staff-advances">Staff advances</a></p>
+
       <section style={box}>
         {people.map((p) => {
           const left = p.status !== "ACTIVE";
           const slip = p.paid_amount !== null && p.phone
-            ? `https://wa.me/91${p.phone}?text=${encodeURIComponent(`Hello ${p.full_name}, your salary for ${monthLabel(month)} of ₹${Number(p.paid_amount).toLocaleString("en-IN")} was paid on ${p.paid_on}. - Abhiram Textiles`)}`
+            ? `https://wa.me/91${p.phone}?text=${encodeURIComponent(`Hello ${p.full_name}, your salary for ${monthLabel(month)} of ₹${Number(p.paid_amount).toLocaleString("en-IN")} was paid on ${p.paid_on}.` + (Number(p.advance_deducted) > 0 ? ` ₹${Number(p.advance_deducted).toLocaleString("en-IN")} was taken off for your advance; advance balance ₹${Number(p.advance_left).toLocaleString("en-IN")}.` : "") + ` - Abhiram Textiles`)}`
             : null;
           return (
             <div key={String(p.id)} style={{ ...cell, display: "grid", gap: 8 }}>
@@ -92,7 +98,7 @@ async function SalariesContent({ searchParams }: Props) {
                 </span>
                 <span style={{ textAlign: "right" }}>
                   {p.paid_amount !== null ? (
-                    <><strong style={{ color: "#166534" }}>✓ Paid {inr(p.paid_amount)}</strong><br /><span style={{ color: "#64748b", fontSize: 14 }}>on {p.paid_on}</span></>
+                    <><strong style={{ color: "#166534" }}>✓ Paid {inr(p.paid_amount)}</strong>{Number(p.advance_deducted) > 0 && <><br /><span style={{ fontSize: 14 }}>{inr(p.advance_deducted)} taken off an advance</span></>}<br /><span style={{ color: "#64748b", fontSize: 14 }}>on {p.paid_on}</span></>
                   ) : (
                     <>Salary {inr(p.monthly_salary)}</>
                   )}
@@ -119,6 +125,11 @@ async function SalariesContent({ searchParams }: Props) {
                       <option value="CHEQUE">Cheque</option>
                     </select>
                   </label>
+                  {Number(p.advance_left) > 0 && (
+                    <label>Advance to take off (₹) · they owe {inr(p.advance_left)}
+                      <input name="deduct" inputMode="decimal" defaultValue={String(Math.min(Number(p.advance_left), Number(p.monthly_salary), Number(p.instalment ?? p.advance_left)))} style={field} />
+                    </label>
+                  )}
                   <label>Note (leaves, bonus…)<input name="note" maxLength={300} style={field} /></label>
                   <SubmitButton label="Pay" question={`Pay ${p.full_name} for ${monthLabel(month)}? This is saved as an expense.`} />
                 </form>

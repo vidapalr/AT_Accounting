@@ -17,6 +17,7 @@ import type {
 } from "mysql2/promise";
 
 import {
+  ACCOUNT,
   salesRefundEntry,
   setupCapitalisationEntry,
   salesReturnEntry,
@@ -33,6 +34,7 @@ import {
   fixedAssetPurchaseEntry,
   assetDepreciationEntry,
   assetDisposalEntry,
+  staffAdvanceEntry,
   purchasePaymentEntry,
   purchaseReceiptEntry,
   saleInvoiceEntry,
@@ -90,6 +92,7 @@ const SOURCE_ORDER: SourceType[] = [
   "FIXED_ASSET",
   "ASSET_DEPRECIATION",
   "ASSET_DISPOSAL",
+  "STAFF_ADVANCE",
 ];
 
 const str = (v: unknown): string => String(v ?? "");
@@ -554,6 +557,27 @@ export async function buildLedgerDrafts(
     );
   }
 
+  // ------------------------------------------------------- staff advances
+  const advances = await select(
+    conn,
+    `SELECT a.id, a.advance_no, a.amount, a.paid_from, a.bank_account_id, a.cash_account_id,
+            DATE_FORMAT(a.given_on, '%Y-%m-%d') AS d, e.full_name, e.division_id, e.branch_id
+     FROM acct_staff_advances a JOIN acct_employees e ON e.id = a.employee_id
+     WHERE a.legal_business_id = ? ORDER BY a.given_on, a.id`,
+    [businessId]
+  );
+  for (const a of advances) {
+    const label = `Staff advance ${str(a.advance_no)}`;
+    add(label, () => {
+      const settlement = settle(label, str(a.paid_from) === "BANK" ? "BUSINESS_BANK" : "BUSINESS_CASH", a.bank_account_id, a.cash_account_id);
+      if (!settlement) return null;
+      return staffAdvanceEntry({
+        id: Number(a.id), advanceNo: str(a.advance_no), employeeName: str(a.full_name), date: str(a.d), amount: str(a.amount),
+        dims: dims(a.division_id, a.branch_id), settlement,
+      });
+    });
+  }
+
   // ----------------------------------------- fixed assets and depreciation
   const assets = await select(
     conn,
@@ -645,7 +669,7 @@ export async function buildLedgerDrafts(
   const expensePayments = await select(
     conn,
     `SELECT p.id, p.expense_id, DATE_FORMAT(p.payment_date, '%Y-%m-%d') AS d,
-            p.amount, p.payment_source, p.bank_account_id, p.cash_account_id
+            p.amount, p.payment_method, p.payment_source, p.bank_account_id, p.cash_account_id
      FROM acct_expense_payments p
      JOIN acct_expenses e
        ON e.legal_business_id = p.legal_business_id AND e.id = p.expense_id
@@ -660,7 +684,10 @@ export async function buildLedgerDrafts(
     const label = `Expense payment ${str(p.id)}`;
     add(label, () => {
       if (!expense) throw new Error("its expense is not confirmed");
-      const settlement = settle(
+      // Part of a salary settled by taking back an advance: no cash or bank moves.
+      const settlement: Settlement | null = str(p.payment_method) === "ADVANCE"
+        ? { kind: "ACCOUNT", accountCode: ACCOUNT.STAFF_ADVANCES }
+        : settle(
         label,
         str(p.payment_source),
         p.bank_account_id,

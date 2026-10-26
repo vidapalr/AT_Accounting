@@ -40,6 +40,7 @@ export const ACCOUNT = {
   DAMAGED_STOCK: "5150",
   SUPPLIER_RETURN_LOSS: "5160",
   GIFTS: "6045",
+  STAFF_ADVANCES: "1330",
   FIXED_ASSETS: "1500",
   ACCUMULATED_DEPRECIATION: "1510",
   DEPRECIATION: "6100",
@@ -81,7 +82,8 @@ export type SourceType =
   | "PARTY_SETOFF"
   | "FIXED_ASSET"
   | "ASSET_DEPRECIATION"
-  | "ASSET_DISPOSAL";
+  | "ASSET_DISPOSAL"
+  | "STAFF_ADVANCE";
 
 export type Dimensions = {
   divisionId: number | null;
@@ -280,6 +282,18 @@ export function salesSettlementDiscountEntry(d: {
   return makeDraft("SALES_RECEIPT", d.id, d.date, memo, [
     debit(ACCOUNT.SALES_DISCOUNTS, amount, d.dims, memo),
     credit(ACCOUNT.RECEIVABLES, amount, d.dims, memo),
+  ]);
+}
+
+/** Money given to a staff member before payday: Staff Advances up, paid from bank or cash. */
+export function staffAdvanceEntry(a: {
+  id: number; advanceNo: string; employeeName: string; date: string; amount: string; dims: Dimensions; settlement: Settlement;
+}): JournalDraft {
+  const amount = parseMoney(a.amount);
+  const memo = `Staff advance ${a.advanceNo}: ${a.employeeName}`;
+  return makeDraft("STAFF_ADVANCE", a.id, a.date, memo, [
+    debit(ACCOUNT.STAFF_ADVANCES, amount, a.dims, memo),
+    credit(settlementAccount(a.settlement), amount, a.dims, memo),
   ]);
 }
 

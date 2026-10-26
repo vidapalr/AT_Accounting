@@ -648,6 +648,7 @@ async function getAccountSnapshots(
             AND ca.id = ep.cash_account_id
            WHERE ep.legal_business_id = ?
              AND ep.status = 'RECORDED'
+             AND ep.payment_method <> 'ADVANCE'
              AND e.status = 'CONFIRMED'
              AND ep.payment_date > ?
              AND ep.payment_date <= ?
@@ -732,10 +733,40 @@ async function getAccountSnapshots(
              AND ft.status = 'VERIFIED'
              AND ft.transaction_date > ?
              AND ft.transaction_date <= ?
+
+           UNION ALL
+
+           SELECT sa.given_on,
+             CASE WHEN sa.bank_account_id IS NOT NULL THEN 'GROUP_BANK'
+                  WHEN sa.cash_account_id IS NOT NULL THEN 'CASH' ELSE 'INCOMPLETE' END,
+             -sa.amount
+           FROM acct_staff_advances sa
+           WHERE sa.legal_business_id = ? AND sa.given_on > ? AND sa.given_on <= ?
+
+           UNION ALL
+
+           SELECT fa.purchase_date,
+             CASE WHEN fa.bank_account_id IS NOT NULL THEN 'GROUP_BANK'
+                  WHEN fa.cash_account_id IS NOT NULL THEN 'CASH' ELSE 'INCOMPLETE' END,
+             -fa.cost
+           FROM acct_fixed_assets fa
+           WHERE fa.legal_business_id = ? AND fa.paid_from <> 'EARLIER' AND fa.purchase_date > ? AND fa.purchase_date <= ?
+
+           UNION ALL
+
+           SELECT fa.disposed_on,
+             CASE WHEN fa.proceeds_bank_account_id IS NOT NULL THEN 'GROUP_BANK'
+                  WHEN fa.proceeds_cash_account_id IS NOT NULL THEN 'CASH' ELSE 'INCOMPLETE' END,
+             fa.proceeds
+           FROM acct_fixed_assets fa
+           WHERE fa.legal_business_id = ? AND fa.status = 'DISPOSED' AND fa.proceeds > 0 AND fa.disposed_on > ? AND fa.disposed_on <= ?
          ) account_movements
          GROUP BY movement_date, category
          ORDER BY movement_date`,
         [
+          businessId, openingDate, maxDate,
+          businessId, openingDate, maxDate,
+          businessId, openingDate, maxDate,
           businessId, openingDate, maxDate,
           businessId, openingDate, maxDate,
           businessId, openingDate, maxDate,

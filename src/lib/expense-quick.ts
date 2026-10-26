@@ -11,6 +11,8 @@ export type QuickExpense = {
   category: string;
   description: string;
   amount: string; // plain rupees, two decimals at most, greater than zero
+  /** Paid in cash or bank now, when that is less than the whole amount (the rest is settled another way). Zero means no cash or bank payment. */
+  payAmount?: string;
   remarks?: string;
   divisionId: number | null;
   branchId: number | null;
@@ -107,15 +109,18 @@ export async function recordQuickExpense(conn: PoolConnection, e: QuickExpense):
       e.category, e.description.slice(0, 500), e.amount, e.remarks || null, e.userId, e.userId,
     ]
   );
-  await conn.execute(
-    `INSERT INTO acct_expense_payments
-       (legal_business_id, division_id, expense_id, payment_date, payment_method, payment_source,
-        bank_account_id, cash_account_id, amount, payment_reference, status, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECORDED', ?)`,
-    [
-      e.businessId, e.divisionId, saved.insertId, e.date, e.pay.method, e.pay.source,
-      bankId, cashId, e.amount, e.pay.reference || null, e.userId,
-    ]
-  );
+  const paid = e.payAmount ?? e.amount;
+  if (Number(paid) > 0) {
+    await conn.execute(
+      `INSERT INTO acct_expense_payments
+         (legal_business_id, division_id, expense_id, payment_date, payment_method, payment_source,
+          bank_account_id, cash_account_id, amount, payment_reference, status, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECORDED', ?)`,
+      [
+        e.businessId, e.divisionId, saved.insertId, e.date, e.pay.method, e.pay.source,
+        bankId, cashId, paid, e.pay.reference || null, e.userId,
+      ]
+    );
+  }
   return { id: saved.insertId, expenseNo };
 }

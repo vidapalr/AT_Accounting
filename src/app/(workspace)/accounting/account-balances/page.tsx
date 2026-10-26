@@ -199,9 +199,27 @@ async function AccountBalancesContent({
       AND e.division_id <=> ep.division_id
      WHERE ep.legal_business_id = ?
        AND ep.status = 'RECORDED'
+       AND ep.payment_method <> 'ADVANCE'
        AND e.status = 'CONFIRMED'
      ORDER BY ep.payment_date, ep.id`,
     [businessId]
+  );
+
+  // Staff advances and fixed assets are paid from business bank or cash accounts too.
+  type OtherMove = RowDataPacket & { id: number; ref: string; d: string; method: string; amount: string; bank_id: number | null; cash_id: number | null; purpose: string; incoming: number };
+  const [otherMoves] = await db.execute<OtherMove[]>(
+    `SELECT id, advance_no AS ref, DATE_FORMAT(given_on, '%Y-%m-%d') AS d, payment_method AS method, amount,
+            bank_account_id AS bank_id, cash_account_id AS cash_id, 'Staff advance' AS purpose, 0 AS incoming, 'ADV' AS k
+       FROM acct_staff_advances WHERE legal_business_id = ?
+     UNION ALL
+     SELECT id, asset_no, DATE_FORMAT(purchase_date, '%Y-%m-%d'), IF(paid_from = 'CASH', 'CASH', 'BANK_TRANSFER'), cost,
+            bank_account_id, cash_account_id, 'Fixed asset bought', 0, 'FA'
+       FROM acct_fixed_assets WHERE legal_business_id = ? AND paid_from <> 'EARLIER'
+     UNION ALL
+     SELECT id, asset_no, DATE_FORMAT(disposed_on, '%Y-%m-%d'), IF(proceeds_cash_account_id IS NOT NULL, 'CASH', 'BANK_TRANSFER'), proceeds,
+            proceeds_bank_account_id, proceeds_cash_account_id, 'Fixed asset sold', 1, 'FAS'
+       FROM acct_fixed_assets WHERE legal_business_id = ? AND status = 'DISPOSED' AND proceeds > 0`,
+    [businessId, businessId, businessId]
   );
 
   const accounts: Account[] = [
@@ -317,6 +335,21 @@ async function AccountBalancesContent({
       method: payment.payment_method,
       credit: 0n,
       debit: expensePaymentPaise(payment.amount),
+    });
+  }
+
+  for (const m of otherMoves) {
+    const accountKey = m.bank_id !== null ? `BANK:${m.bank_id}` : m.cash_id !== null ? `CASH:${m.cash_id}` : "UNALLOCATED";
+    const cents = expensePaymentPaise(m.amount);
+    addMovement({
+      key: `${(m as unknown as { k: string }).k}:${m.id}`,
+      accountKey,
+      date: m.d,
+      reference: m.ref,
+      purpose: m.purpose,
+      method: m.method,
+      credit: m.incoming ? cents : 0n,
+      debit: m.incoming ? 0n : cents,
     });
   }
 

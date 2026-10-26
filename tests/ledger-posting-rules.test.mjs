@@ -427,3 +427,11 @@ test("fixed assets: purchase, monthly wear and a sale at a loss all balance on t
   assert.equal(scrap.lines.length, 2);
   assert.throws(() => assetDisposalEntry({ id: 4, assetNo: "FA-4", name: "x", date: "2026-10-10", cost: "10.00", accumulated: "0", proceeds: "5.00", dims, proceedsSettlement: null }));
 });
+
+import { staffAdvanceEntry } from "../src/lib/ledger/posting-rules.ts";
+
+test("a staff advance is an asset paid from cash or bank, not an expense", () => {
+  const d = staffAdvanceEntry({ id: 1, advanceNo: "ADV-0001", employeeName: "Test", date: "2026-10-26", amount: "5000.00", dims, settlement: { kind: "ACCOUNT", accountCode: "1000" } });
+  assert.deepEqual(d.lines.map((l) => l.accountCode).sort(), ["1000", "1330"]);
+  assert.equal(d.lines.find((l) => l.accountCode === "1330").debit, 500000n);
+});
