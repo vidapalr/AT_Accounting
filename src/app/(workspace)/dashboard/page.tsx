@@ -4,6 +4,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { autoPostPending } from "@/lib/ledger/auto-post";
 import { getSyncStatus } from "@/lib/ledger/sync-status";
 import { BACKUP_REMINDER_DAYS, lastBackup } from "@/lib/backup-status";
 import {
@@ -51,6 +52,7 @@ async function DashboardContent({ searchParams }: Props) {
   const from = showYear ? fyStart : monthStart;
   const periodLabel = showYear ? "this financial year" : "this month";
 
+  await autoPostPending(db, businessId).catch(() => undefined);
   const [sync, scopes, todayScopes, positions, balances, daily, expenses, owed] = await Promise.all([
     getSyncStatus(db, businessId),
     getProfitReport(db, businessId, from, today),

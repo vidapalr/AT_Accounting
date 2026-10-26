@@ -5,6 +5,8 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { postPendingEntriesAction } from "@/lib/ledger-sync-actions";
+import { autoPostPending, isAutoPostOn } from "@/lib/ledger/auto-post";
+import { setAutoPostAction } from "@/lib/ledger-sync-actions";
 import { getSyncStatus } from "@/lib/ledger/sync-status";
 import { getBalanceReport, getProfitReport } from "@/lib/reports/report-data";
 import { inr, isDate, percent, todayInIndia } from "@/lib/reports/money";
@@ -40,6 +42,8 @@ async function ReportsContent({ searchParams }: Props) {
   const from = isDate(query.from) ? query.from : String(years[0]?.starts_on ?? `${today.slice(0, 4)}-04-01`);
   const to = isDate(query.to) ? query.to : today;
 
+  await autoPostPending(db, businessId).catch(() => undefined);
+  const autoOn = await isAutoPostOn(db, businessId);
   const sync = await getSyncStatus(db, businessId);
   const needsReview =
     sync.changedAfterPosting.length + sync.noLongerValid.length + sync.problems.length;
@@ -89,6 +93,18 @@ async function ReportsContent({ searchParams }: Props) {
         {sync.pending.length > 0 && user.role === "GROUP_OWNER" && (
           <form action={postPendingEntriesAction} style={{ marginTop: 8 }}>
             <button type="submit">Post {sync.pending.length} pending entries to the ledger</button>
+          </form>
+        )}
+        {user.role === "GROUP_OWNER" && (
+          <form action={setAutoPostAction} style={{ marginTop: 8 }}>
+            <input type="hidden" name="mode" value={autoOn ? "OFF" : "ON"} />
+            <span style={{ color: "#64748b" }}>
+              Automatic posting is <strong>{autoOn ? "ON" : "OFF"}</strong>.{" "}
+              {autoOn
+                ? "New sales, payments and expenses reach the ledger by themselves. Anything unusual is left here for you."
+                : "Turn it on to stop posting by hand."}
+            </span>{" "}
+            <button type="submit">{autoOn ? "Turn off" : "Turn on automatic posting"}</button>
           </form>
         )}
         {needsReview > 0 && (

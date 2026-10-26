@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { autoPostPending } from "@/lib/ledger/auto-post";
 import { getSyncStatus } from "@/lib/ledger/sync-status";
 
 /**
@@ -8,6 +9,7 @@ import { getSyncStatus } from "@/lib/ledger/sync-status";
  * so no page quietly shows numbers that disagree with the books.
  */
 export default async function LedgerStatusNote({ businessId }: { businessId: number }) {
+  await autoPostPending(db, businessId).catch(() => undefined);
   const sync = await getSyncStatus(db, businessId);
   const review = sync.changedAfterPosting.length + sync.noLongerValid.length + sync.problems.length;
   const ok = sync.pending.length === 0 && review === 0;
