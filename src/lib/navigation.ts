@@ -77,6 +77,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Shop spending", href: "/accounting/shop-spending", hint: "Note small cash spending: auto, tea, packing, repairs" },
       { label: "Salaries", href: "/accounting/salaries", hint: "Pay the staff each month and send pay slips" },
       { label: "Expenses", href: "/accounting/expenses", hint: "Rent, salaries, transport and other costs" },
+      { label: "Fixed assets", href: "/accounting/fixed-assets", hint: "Shop fittings, machines, computers: cost, yearly wear and value now" },
       { label: "Advances and deposits", href: "/accounting/advances-deposits", hint: "Money paid in advance or as deposit" },
     ],
   },

@@ -410,3 +410,20 @@ test("a set-off lowers payables and receivables by the same amount, with no cash
     payableParts: [{ amount: "10.00", dims }], receivableParts: [{ amount: "9.00", dims }],
   }));
 });
+
+import { fixedAssetPurchaseEntry, assetDepreciationEntry, assetDisposalEntry } from "../src/lib/ledger/posting-rules.ts";
+
+test("fixed assets: purchase, monthly wear and a sale at a loss all balance on the right accounts", () => {
+  const bank = { kind: "ACCOUNT", accountCode: "1010" };
+  const buy = fixedAssetPurchaseEntry({ id: 1, assetNo: "FA-1", name: "Racks", date: "2026-07-10", cost: "120000.00", dims, settlement: bank });
+  assert.deepEqual(buy.lines.map((l) => l.accountCode).sort(), ["1010", "1500"]);
+  const dep = assetDepreciationEntry({ id: 1, period: "2026-07", date: "2026-07-31", total: "2000.00", dims });
+  assert.deepEqual(dep.lines.map((l) => l.accountCode).sort(), ["1510", "6100"]);
+  const loss = assetDisposalEntry({ id: 1, assetNo: "FA-1", name: "Racks", date: "2026-10-10", cost: "120000.00", accumulated: "6000.00", proceeds: "90000.00", dims, proceedsSettlement: bank });
+  assert.equal(loss.lines.find((l) => l.accountCode === "6110").debit, 2400000n);
+  const gain = assetDisposalEntry({ id: 2, assetNo: "FA-2", name: "PC", date: "2026-10-10", cost: "50000.00", accumulated: "10000.00", proceeds: "45000.00", dims, proceedsSettlement: bank });
+  assert.equal(gain.lines.find((l) => l.accountCode === "6110").credit, 500000n);
+  const scrap = assetDisposalEntry({ id: 3, assetNo: "FA-3", name: "Old", date: "2026-10-10", cost: "10000.00", accumulated: "10000.00", proceeds: "0", dims, proceedsSettlement: null });
+  assert.equal(scrap.lines.length, 2);
+  assert.throws(() => assetDisposalEntry({ id: 4, assetNo: "FA-4", name: "x", date: "2026-10-10", cost: "10.00", accumulated: "0", proceeds: "5.00", dims, proceedsSettlement: null }));
+});

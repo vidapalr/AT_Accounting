@@ -40,6 +40,10 @@ export const ACCOUNT = {
   DAMAGED_STOCK: "5150",
   SUPPLIER_RETURN_LOSS: "5160",
   GIFTS: "6045",
+  FIXED_ASSETS: "1500",
+  ACCUMULATED_DEPRECIATION: "1510",
+  DEPRECIATION: "6100",
+  DISPOSAL_LOSS: "6110",
 } as const;
 
 export const EXPENSE_ACCOUNT_BY_CATEGORY: Record<string, string> = {
@@ -74,7 +78,10 @@ export type SourceType =
   | "FREE_STOCK"
   | "SETUP_CAPITALISATION"
   | "AUDITOR_ADJUSTMENT"
-  | "PARTY_SETOFF";
+  | "PARTY_SETOFF"
+  | "FIXED_ASSET"
+  | "ASSET_DEPRECIATION"
+  | "ASSET_DISPOSAL";
 
 export type Dimensions = {
   divisionId: number | null;
@@ -273,6 +280,50 @@ export function salesSettlementDiscountEntry(d: {
   return makeDraft("SALES_RECEIPT", d.id, d.date, memo, [
     debit(ACCOUNT.SALES_DISCOUNTS, amount, d.dims, memo),
     credit(ACCOUNT.RECEIVABLES, amount, d.dims, memo),
+  ]);
+}
+
+/** An asset bought: Fixed Assets up, paid from bank or cash (or the owner's / investor's own money). */
+export function fixedAssetPurchaseEntry(a: {
+  id: number; assetNo: string; name: string; date: string; cost: string; dims: Dimensions; settlement: Settlement;
+}): JournalDraft {
+  const cost = parseMoney(a.cost);
+  const memo = `Asset ${a.assetNo}: ${a.name}`;
+  return makeDraft("FIXED_ASSET", a.id, a.date, memo, [
+    debit(ACCOUNT.FIXED_ASSETS, cost, a.dims, memo),
+    credit(settlementAccount(a.settlement), cost, a.dims, memo),
+  ]);
+}
+
+/** One month's wear on all assets of a division: Depreciation expense up, Accumulated Depreciation up. */
+export function assetDepreciationEntry(r: { id: number; period: string; date: string; total: string; dims: Dimensions }): JournalDraft {
+  const total = parseMoney(r.total);
+  const memo = `Depreciation for ${r.period}`;
+  return makeDraft("ASSET_DEPRECIATION", r.id, r.date, memo, [
+    debit(ACCOUNT.DEPRECIATION, total, r.dims, memo),
+    credit(ACCOUNT.ACCUMULATED_DEPRECIATION, total, r.dims, memo),
+  ]);
+}
+
+/**
+ * An asset sold, scrapped or given away. The asset and its wear leave the books; whatever
+ * money came in is received; the difference is the loss (or gain) on disposal.
+ */
+export function assetDisposalEntry(a: {
+  id: number; assetNo: string; name: string; date: string; cost: string; accumulated: string; proceeds: string;
+  dims: Dimensions; proceedsSettlement: Settlement | null;
+}): JournalDraft {
+  const cost = parseMoney(a.cost);
+  const accumulated = parseMoney(a.accumulated);
+  const proceeds = parseMoney(a.proceeds);
+  const memo = `Disposal of asset ${a.assetNo}: ${a.name}`;
+  if (proceeds > 0n && !a.proceedsSettlement) throw new Error("money received for the asset has no account");
+  const lossOrGain = cost - accumulated - proceeds; // positive is a loss
+  return makeDraft("ASSET_DISPOSAL", a.id, a.date, memo, [
+    ...(proceeds > 0n ? [debit(settlementAccount(a.proceedsSettlement!), proceeds, a.dims, memo)] : []),
+    debit(ACCOUNT.ACCUMULATED_DEPRECIATION, accumulated, a.dims, memo),
+    lossOrGain > 0n ? debit(ACCOUNT.DISPOSAL_LOSS, lossOrGain, a.dims, memo) : credit(ACCOUNT.DISPOSAL_LOSS, -lossOrGain, a.dims, memo),
+    credit(ACCOUNT.FIXED_ASSETS, cost, a.dims, memo),
   ]);
 }
 

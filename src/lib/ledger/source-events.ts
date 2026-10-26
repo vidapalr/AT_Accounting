@@ -30,6 +30,9 @@ import {
   expensePaymentEntry,
   openingBalanceEntry,
   partySetoffEntry,
+  fixedAssetPurchaseEntry,
+  assetDepreciationEntry,
+  assetDisposalEntry,
   purchasePaymentEntry,
   purchaseReceiptEntry,
   saleInvoiceEntry,
@@ -83,6 +86,10 @@ const SOURCE_ORDER: SourceType[] = [
   "SUPPLIER_RETURN",
   "SUPPLIER_REFUND",
   "FREE_STOCK",
+  "PARTY_SETOFF",
+  "FIXED_ASSET",
+  "ASSET_DEPRECIATION",
+  "ASSET_DISPOSAL",
 ];
 
 const str = (v: unknown): string => String(v ?? "");
@@ -544,6 +551,55 @@ export async function buildLedgerDrafts(
         payableParts: purchaseParts.map((r) => ({ amount: str(r.amount), dims: dims(r.division_id, null) })),
         receivableParts: saleParts.map((r) => ({ amount: str(r.amount), dims: dims(r.division_id, r.branch_id) })),
       })
+    );
+  }
+
+  // ----------------------------------------- fixed assets and depreciation
+  const assets = await select(
+    conn,
+    `SELECT id, asset_no, asset_name, division_id, paid_from, bank_account_id, cash_account_id, status,
+            DATE_FORMAT(purchase_date, '%Y-%m-%d') AS d, cost,
+            DATE_FORMAT(disposed_on, '%Y-%m-%d') AS disposed_d, proceeds,
+            proceeds_bank_account_id, proceeds_cash_account_id,
+            COALESCE((SELECT SUM(x.amount) FROM acct_asset_depreciation x WHERE x.asset_id = acct_fixed_assets.id), 0) AS accumulated
+     FROM acct_fixed_assets WHERE legal_business_id = ? ORDER BY id`,
+    [businessId]
+  );
+  for (const a of assets) {
+    const label = `Asset ${str(a.asset_no)}`;
+    if (str(a.paid_from) !== "EARLIER") {
+      add(label, () => {
+        const settlement = settle(label, str(a.paid_from) === "BANK" ? "BUSINESS_BANK" : "BUSINESS_CASH", a.bank_account_id, a.cash_account_id);
+        if (!settlement) return null;
+        return fixedAssetPurchaseEntry({
+          id: Number(a.id), assetNo: str(a.asset_no), name: str(a.asset_name), date: str(a.d), cost: str(a.cost),
+          dims: dims(a.division_id, null), settlement,
+        });
+      });
+    }
+    if (str(a.status) === "DISPOSED") {
+      add(`${label} disposal`, () => {
+        const hasProceeds = Number(a.proceeds) > 0;
+        const settlement = hasProceeds
+          ? settle(`${label} disposal`, a.proceeds_bank_account_id ? "BUSINESS_BANK" : "BUSINESS_CASH", a.proceeds_bank_account_id, a.proceeds_cash_account_id)
+          : null;
+        if (hasProceeds && !settlement) return null;
+        return assetDisposalEntry({
+          id: Number(a.id), assetNo: str(a.asset_no), name: str(a.asset_name), date: str(a.disposed_d), cost: str(a.cost),
+          accumulated: str(a.accumulated), proceeds: str(a.proceeds), dims: dims(a.division_id, null), proceedsSettlement: settlement,
+        });
+      });
+    }
+  }
+  const depRuns = await select(
+    conn,
+    `SELECT id, division_id, period, total, DATE_FORMAT(LAST_DAY(CONCAT(period, '-01')), '%Y-%m-%d') AS d
+     FROM acct_asset_dep_runs WHERE legal_business_id = ? AND total > 0 ORDER BY period, id`,
+    [businessId]
+  );
+  for (const r of depRuns) {
+    add(`Depreciation ${str(r.period)}`, () =>
+      assetDepreciationEntry({ id: Number(r.id), period: str(r.period), date: str(r.d), total: str(r.total), dims: dims(r.division_id, null) })
     );
   }
 

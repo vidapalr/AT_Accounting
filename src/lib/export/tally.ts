@@ -44,6 +44,7 @@ export function tallyGroup(code: string, type: string): string {
   if (code === "1100") return "Sundry Debtors";
   if (code === "1200") return "Stock-in-Hand";
   if (code === "1310") return "Deposits (Asset)";
+  if (code === "1500" || code === "1510") return "Fixed Assets";
   if (code === "2000") return "Sundry Creditors";
   if (code === "2100" || code === "2110" || code === "2120") return "Loans (Liability)";
   if (type === "ASSET") return "Current Assets";
