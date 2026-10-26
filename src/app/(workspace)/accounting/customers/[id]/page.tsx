@@ -5,6 +5,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import OtherSideNote from "@/components/accounting/OtherSideNote";
 import { updateCustomerAction } from "@/lib/customer-actions";
 import ConfirmButton from "@/components/ConfirmButton";
 import { mergeCustomersAction } from "@/lib/customer-merge-actions";
@@ -121,6 +122,7 @@ async function CustomerPage({ params, searchParams }: Props) {
       </nav>
 
       <h1 style={{ marginBottom: 4 }}>{c.full_name}</h1>
+      <OtherSideNote businessId={businessId} role={user.role} customerId={customerId} />
       <p style={{ color: "#64748b", marginTop: 0 }}>
         {c.customer_code} · {c.phone ? prettyPhone(c.phone) : "No mobile number yet"}
         {c.customer_type === "WHOLESALE" ? " · Wholesale" : ""}

@@ -72,6 +72,7 @@ export type Feature =
   | "audit_view"
   | "shop_spending"
   | "salary"
+  | "both_sides"
   | "customers";
 
 const FEATURE_ROLES: Record<Feature, Role[]> = {
@@ -94,6 +95,8 @@ const FEATURE_ROLES: Record<Feature, Role[]> = {
   // Anyone at the counter can note small cash spending (the cashier has a limit); salary is for owner and accountant.
   shop_spending: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
   salary: ["GROUP_OWNER", "ACCOUNTANT"],
+  // Suppliers who are also customers: link them and set one amount off against the other.
+  both_sides: ["GROUP_OWNER", "ACCOUNTANT"],
   customers: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
 };
 
@@ -129,6 +132,7 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/cash-closing", "cash_closing"],
   ["/accounting/shop-spending", "shop_spending"],
   ["/accounting/salaries", "salary"],
+  ["/accounting/both-sides", "both_sides"],
   ["/accounting/stock-count", "stock_count"],
   ["/accounting/low-stock", "stock"],
   ["/accounting/stock", "stock"],

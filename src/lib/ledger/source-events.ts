@@ -29,6 +29,7 @@ import {
   expenseEntry,
   expensePaymentEntry,
   openingBalanceEntry,
+  partySetoffEntry,
   purchasePaymentEntry,
   purchaseReceiptEntry,
   saleInvoiceEntry,
@@ -318,6 +319,7 @@ export async function buildLedgerDrafts(
     const label = `Receipt ${str(p.id)} for invoice ${sale ? str(sale.invoice_no) : str(p.sale_id)}`;
     add(label, () => {
       if (!sale) throw new Error("its invoice is not posted");
+      if (str(p.payment_method) === "SET_OFF") return null; // posted once, as the set-off itself
       if (str(p.payment_method) === "DISCOUNT") {
         return salesSettlementDiscountEntry({
           id: Number(p.id),
@@ -483,6 +485,7 @@ export async function buildLedgerDrafts(
       );
     }
     add(label, () => {
+      if (str(p.payment_method) === "SET_OFF") return null; // posted once, as the set-off itself
       const settlement = settle(
         label,
         str(p.payment_source),
@@ -499,6 +502,49 @@ export async function buildLedgerDrafts(
         settlement,
       });
     });
+  }
+
+  // ------------------------------------------- supplier / customer set-offs
+  const setoffs = await select(
+    conn,
+    `SELECT o.id, o.setoff_no, DATE_FORMAT(o.setoff_date, '%Y-%m-%d') AS d,
+            s.supplier_name, c.full_name AS customer_name
+     FROM acct_party_setoffs o
+     JOIN acct_suppliers s ON s.id = o.supplier_id
+     JOIN acct_customers c ON c.id = o.customer_id
+     WHERE o.legal_business_id = ? AND o.status = 'RECORDED'
+     ORDER BY o.id`,
+    [businessId]
+  );
+  for (const o of setoffs) {
+    const saleParts = await select(
+      conn,
+      `SELECT h.division_id, h.branch_id, SUM(l.amount) AS amount
+       FROM acct_party_setoff_lines l
+       JOIN acct_sales_headers h ON h.id = l.doc_id
+       WHERE l.setoff_id = ? AND l.side = 'SALE'
+       GROUP BY h.division_id, h.branch_id`,
+      [Number(o.id)]
+    );
+    const purchaseParts = await select(
+      conn,
+      `SELECT h.division_id, SUM(l.amount) AS amount
+       FROM acct_party_setoff_lines l
+       JOIN acct_purchase_headers h ON h.id = l.doc_id
+       WHERE l.setoff_id = ? AND l.side = 'PURCHASE'
+       GROUP BY h.division_id`,
+      [Number(o.id)]
+    );
+    add(`Set-off ${str(o.setoff_no)}`, () =>
+      partySetoffEntry({
+        id: Number(o.id),
+        setoffNo: str(o.setoff_no),
+        date: str(o.d),
+        partyName: str(o.supplier_name) === str(o.customer_name) ? str(o.supplier_name) : `${str(o.supplier_name)} / ${str(o.customer_name)}`,
+        payableParts: purchaseParts.map((r) => ({ amount: str(r.amount), dims: dims(r.division_id, null) })),
+        receivableParts: saleParts.map((r) => ({ amount: str(r.amount), dims: dims(r.division_id, r.branch_id) })),
+      })
+    );
   }
 
   // ------------------------------------------------------------ expenses

@@ -73,7 +73,8 @@ export type SourceType =
   | "SUPPLIER_REFUND"
   | "FREE_STOCK"
   | "SETUP_CAPITALISATION"
-  | "AUDITOR_ADJUSTMENT";
+  | "AUDITOR_ADJUSTMENT"
+  | "PARTY_SETOFF";
 
 export type Dimensions = {
   divisionId: number | null;
@@ -272,6 +273,30 @@ export function salesSettlementDiscountEntry(d: {
   return makeDraft("SALES_RECEIPT", d.id, d.date, memo, [
     debit(ACCOUNT.SALES_DISCOUNTS, amount, d.dims, memo),
     credit(ACCOUNT.RECEIVABLES, amount, d.dims, memo),
+  ]);
+}
+
+/**
+ * A supplier who is also a customer: what they owe us is cancelled against what we owe
+ * them. Payables down, Receivables down, no cash or bank. Each side may span divisions,
+ * so it is given as parts; the two totals must be equal.
+ */
+export function partySetoffEntry(d: {
+  id: number;
+  setoffNo: string;
+  date: string;
+  partyName: string;
+  payableParts: { amount: string; dims: Dimensions }[];
+  receivableParts: { amount: string; dims: Dimensions }[];
+}): JournalDraft {
+  const memo = `Set-off ${d.setoffNo} with ${d.partyName}`;
+  const pay = d.payableParts.map((p) => ({ amount: parseMoney(p.amount), dims: p.dims }));
+  const rec = d.receivableParts.map((p) => ({ amount: parseMoney(p.amount), dims: p.dims }));
+  const sum = (xs: { amount: bigint }[]) => xs.reduce((s, x) => s + x.amount, 0n);
+  if (sum(pay) !== sum(rec) || sum(pay) <= 0n) throw new Error("the two sides of the set-off do not match");
+  return makeDraft("PARTY_SETOFF", d.id, d.date, memo, [
+    ...pay.map((p) => debit(ACCOUNT.PAYABLES, p.amount, p.dims, memo)),
+    ...rec.map((p) => credit(ACCOUNT.RECEIVABLES, p.amount, p.dims, memo)),
   ]);
 }
 

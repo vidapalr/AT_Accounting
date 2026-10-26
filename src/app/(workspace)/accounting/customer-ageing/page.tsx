@@ -4,6 +4,8 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { canAccess } from "@/lib/access";
+import { loadLinkedPeople } from "@/lib/party-link";
 import { todayInIndia } from "@/lib/reports/money";
 import { normalizePhone } from "@/lib/customer-phone";
 import UnpaidWalkIns from "@/components/accounting/UnpaidWalkIns";
@@ -43,6 +45,11 @@ async function AgeingContent({ searchParams }: Props) {
     [businessId]
   );
   const byId = new Map(customers.map((c) => [Number(c.id), c]));
+
+  // People who are also our suppliers: show what we owe them next to what they owe us.
+  const alsoSupplier = new Map(
+    (canAccess(user.role, "both_sides") ? await loadLinkedPeople(db, businessId) : []).map((p) => [p.customerId, p])
+  );
 
   const grouped = new Map<number, { bills: { date: string; amount: bigint }[]; paid: bigint }>();
   for (const s of sales) {
@@ -122,6 +129,12 @@ async function AgeingContent({ searchParams }: Props) {
                 <tr key={x.id}>
                   <td style={cell}>
                     <Link href={`/accounting/customers/${x.id}`}>{String(x.c!.full_name)}</Link>
+                    {alsoSupplier.get(x.id) && (
+                      <div style={{ color: "#1d4ed8", fontSize: 13 }}>
+                        Also a supplier: we owe them {rupees(alsoSupplier.get(x.id)!.weOweThem)}{" "}
+                        <Link href={`/accounting/both-sides/${alsoSupplier.get(x.id)!.supplierId}`}>Set off</Link>
+                      </div>
+                    )}
                     {phone ? <div style={{ color: "#64748b", fontSize: 13 }}>{phone}</div> : <div style={{ color: "#b45309", fontSize: 13 }}>No mobile number</div>}
                   </td>
                   <td style={right}><strong>{rupees(x.ageing.totalDue)}</strong></td>

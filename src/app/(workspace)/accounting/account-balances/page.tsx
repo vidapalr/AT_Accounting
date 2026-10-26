@@ -156,6 +156,7 @@ async function AccountBalancesContent({
         AND sh.id = sp.sale_id
        WHERE sp.legal_business_id = ?
          AND sp.status = 'RECORDED'
+         AND sp.payment_method <> 'SET_OFF'
          AND sh.status = 'POSTED'
        ORDER BY sp.payment_date, sp.id`,
       [businessId]
@@ -181,6 +182,7 @@ async function AccountBalancesContent({
         AND ph.id = pp.purchase_id
        WHERE pp.legal_business_id = ?
          AND pp.status = 'VERIFIED'
+         AND pp.payment_method <> 'SET_OFF'
        ORDER BY pp.payment_date, pp.id`,
       [businessId]
     );

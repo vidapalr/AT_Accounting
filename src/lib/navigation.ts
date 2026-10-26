@@ -45,6 +45,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "All customers", href: "/accounting/customers", hint: "Customer list, history and credit limits" },
       { label: "Money customers owe", href: "/accounting/customers?view=dues", hint: "Customers with unpaid bills" },
       { label: "Who owes, and how long", href: "/accounting/customer-ageing", hint: "Unpaid bills by age, with a WhatsApp reminder" },
+      { label: "Both sides (also a supplier)", href: "/accounting/both-sides", hint: "People who buy from us and sell to us: link them and set off" },
     ],
   },
   {
@@ -56,6 +57,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Supplier bills and payments", href: "/accounting/purchase-management", hint: "Receive goods and pay supplier bills" },
       { label: "Return goods to supplier", href: "/accounting/supplier-returns", hint: "Send items back and get credit, refund or replacement" },
       { label: "Supplier statement", href: "/accounting/supplier-statement", hint: "What you owe each supplier, and how old it is" },
+      { label: "Both sides (also a customer)", href: "/accounting/both-sides", hint: "Suppliers who also buy from us: link them and set off" },
     ],
   },
   {

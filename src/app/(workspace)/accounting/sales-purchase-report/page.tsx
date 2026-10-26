@@ -561,7 +561,7 @@ async function getAccountSnapshots(
             AND ca.id = sp.cash_account_id
            WHERE sp.legal_business_id = ?
              AND sp.status = 'RECORDED'
-             AND sp.payment_method <> 'DISCOUNT'
+             AND sp.payment_method NOT IN ('DISCOUNT', 'SET_OFF')
              AND sh.status = 'POSTED'
              AND sp.payment_date > ?
              AND sp.payment_date <= ?
@@ -605,6 +605,7 @@ async function getAccountSnapshots(
             AND ca.id = pp.source_cash_account_id
            WHERE pp.legal_business_id = ?
              AND pp.status = 'VERIFIED'
+             AND pp.payment_method <> 'SET_OFF'
              AND ph.status = 'POSTED'
              AND pp.payment_date > ?
              AND pp.payment_date <= ?

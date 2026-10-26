@@ -393,3 +393,20 @@ test("an auditor adjustment posts exactly the lines given and must balance", () 
     ],
   }), /does not balance/);
 });
+
+import { partySetoffEntry } from "../src/lib/ledger/posting-rules.ts";
+
+test("a set-off lowers payables and receivables by the same amount, with no cash or bank", () => {
+  const d = partySetoffEntry({
+    id: 1, setoffNo: "SO-0001", date: "2026-10-26", partyName: "Test",
+    payableParts: [{ amount: "900.00", dims }],
+    receivableParts: [{ amount: "400.00", dims }, { amount: "500.00", dims }],
+  });
+  assert.equal(d.sourceType, "PARTY_SETOFF");
+  assert.equal(d.lines.reduce((s, l) => s + l.debit - l.credit, 0n), 0n);
+  assert.deepEqual([...new Set(d.lines.map((l) => l.accountCode))].sort(), ["1100", "2000"]);
+  assert.throws(() => partySetoffEntry({
+    id: 2, setoffNo: "SO-2", date: "2026-10-26", partyName: "x",
+    payableParts: [{ amount: "10.00", dims }], receivableParts: [{ amount: "9.00", dims }],
+  }));
+});

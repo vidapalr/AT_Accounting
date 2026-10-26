@@ -5,6 +5,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import OtherSideNote from "@/components/accounting/OtherSideNote";
 import PrintButton from "@/components/PrintButton";
 import PrintHeader from "@/components/PrintHeader";
 import { todayInIndia } from "@/lib/reports/money";
@@ -82,6 +83,7 @@ async function StatementContent({ searchParams }: Props) {
       <main style={{ padding: 24, maxWidth: 1000 }}>
         <PrintHeader title={`Account statement: ${supplier.supplier_name}`} subtitle={`As on ${prettyDate(today)}`} />
         <h1 className="no-print">{supplier.supplier_name}</h1>
+        <OtherSideNote businessId={businessId} role={user.role} supplierId={supplierId} />
         <p style={{ fontSize: 20 }}>
           <strong>{balanceWords(balance)}</strong>
           {supplier.gstin ? <span style={{ color: "#64748b", fontSize: 14 }}> · GSTIN {supplier.gstin}</span> : null}

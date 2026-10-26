@@ -338,9 +338,9 @@ async function InvoiceDetails({ params, searchParams }: Props) {
             {payments.map(payment => (
               <tr key={payment.id}>
                 <td style={cell}>{payment.payment_date}</td>
-                <td style={cell}>{payment.payment_method === "DISCOUNT" ? "Discount given" : payment.payment_method}</td>
+                <td style={cell}>{payment.payment_method === "DISCOUNT" ? "Discount given" : payment.payment_method === "SET_OFF" ? "Set off (they sell to us too)" : payment.payment_method}</td>
                 <td style={cell}>
-                  {payment.payment_method === "DISCOUNT" ? "—" : (payment.account_name || "Not allocated")}
+                  {payment.payment_method === "DISCOUNT" || payment.payment_method === "SET_OFF" ? "—" : (payment.account_name || "Not allocated")}
                   {payment.bank_ownership === "INVESTOR" &&
                     " (Investor account)"}
                 </td>
