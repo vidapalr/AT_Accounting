@@ -28,7 +28,7 @@ async function WorkspaceContent({
 }) {
   const user = await requireUser();
 
-  const divisions = await listDivisions(user.legal_business_id);
+  const divisions = await listDivisions(user.legal_business_id, user.scope_division_id);
   const activeDivisionId = divisions.length > 1 ? await getActiveDivisionId(user) : (divisions[0]?.id ?? 0);
 
   const sections = NAVIGATION
@@ -62,7 +62,7 @@ async function WorkspaceContent({
           </div>
 
           <div className={styles.userArea}>
-            {divisions.length > 1 && (
+            {divisions.length > 1 && user.role !== "INVESTOR" && (
               <DivisionSwitcher divisions={divisions} activeId={activeDivisionId} />
             )}
             <span>{user.full_name} · {ROLE_LABELS[user.role] ?? user.role}</span>

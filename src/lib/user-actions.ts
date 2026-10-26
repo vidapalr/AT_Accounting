@@ -28,8 +28,27 @@ function checkPassword(password: string) {
 }
 
 function checkRole(role: string) {
-  if (!(ASSIGNABLE_ROLES as string[]).includes(role)) throw new UserError("Choose Accountant, Cashier or Auditor.");
+  if (!(ASSIGNABLE_ROLES as string[]).includes(role)) throw new UserError("Choose one of the listed access levels.");
 }
+
+/** The division a Manager works in, or the investor an Investor login belongs to. Other roles carry neither. */
+async function scopeFor(role: string, form: FormData, businessId: number): Promise<{ divisionId: number | null; partyId: number | null }> {
+  if (role === "DIVISION_MANAGER") {
+    const divisionId = Number(form.get("scope_division_id"));
+    const [rows] = await db.execute<RowDataPacket[]>(`SELECT id FROM acct_divisions WHERE legal_business_id = ? AND id = ? AND status = 'ACTIVE'`, [businessId, divisionId]);
+    if (rows.length !== 1) throw new UserError("Choose the division this manager works in.");
+    return { divisionId, partyId: null };
+  }
+  if (role === "INVESTOR") {
+    const partyId = Number(form.get("party_id"));
+    const [rows] = await db.execute<RowDataPacket[]>(`SELECT id FROM acct_funding_parties WHERE legal_business_id = ? AND id = ?`, [businessId, partyId]);
+    if (rows.length !== 1) throw new UserError("Choose which investor this login belongs to.");
+    return { divisionId: null, partyId };
+  }
+  return { divisionId: null, partyId: null };
+}
+
+const ROLE_WORDS: Record<string, string> = { ACCOUNTANT: "Accountant", CASHIER: "Cashier", DIVISION_MANAGER: "Manager", AUDITOR: "Auditor", INVESTOR: "Investor" };
 
 async function audit(
   conn: { execute: typeof db.execute },
@@ -79,6 +98,7 @@ export async function addUserAction(form: FormData) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 190) throw new UserError("Enter a valid email address.");
     checkRole(role);
     checkPassword(password);
+    const scope = await scopeFor(role, form, owner.legal_business_id);
 
     const hash = await bcrypt.hash(password, 12);
     const conn = await db.getConnection();
@@ -96,13 +116,13 @@ export async function addUserAction(form: FormData) {
         [fullName, email, hash]
       );
       await conn.execute(
-        `INSERT INTO acct_user_access (user_id, legal_business_id, division_id, role)
-         VALUES (?, ?, NULL, ?)`,
-        [created.insertId, owner.legal_business_id, role]
+        `INSERT INTO acct_user_access (user_id, legal_business_id, division_id, role, scope_division_id, party_id)
+         VALUES (?, ?, NULL, ?, ?, ?)`,
+        [created.insertId, owner.legal_business_id, role, scope.divisionId, scope.partyId]
       );
       await audit(conn, owner.legal_business_id, owner.id, "USER_CREATED", created.insertId, { email, role });
       await conn.commit();
-      message = `${fullName} can now sign in as ${role === "CASHIER" ? "Cashier" : "Accountant"}.`;
+      message = `${fullName} can now sign in as ${ROLE_WORDS[role] ?? role}.`;
     } catch (error) {
       await conn.rollback();
       throw error;
@@ -127,6 +147,7 @@ export async function changeRoleAction(form: FormData) {
     const userId = Number(form.get("user_id"));
     const role = text(form, "role");
     checkRole(role);
+    const scope = await scopeFor(role, form, owner.legal_business_id);
     const target = await staffTarget(userId, owner.id, owner.legal_business_id);
 
     const conn = await db.getConnection();
@@ -137,9 +158,9 @@ export async function changeRoleAction(form: FormData) {
         [userId, owner.legal_business_id]
       );
       await conn.execute(
-        `INSERT INTO acct_user_access (user_id, legal_business_id, division_id, role)
-         VALUES (?, ?, NULL, ?)`,
-        [userId, owner.legal_business_id, role]
+        `INSERT INTO acct_user_access (user_id, legal_business_id, division_id, role, scope_division_id, party_id)
+         VALUES (?, ?, NULL, ?, ?, ?)`,
+        [userId, owner.legal_business_id, role, scope.divisionId, scope.partyId]
       );
       await audit(conn, owner.legal_business_id, owner.id, "USER_ROLE_CHANGED", userId, { email: target.email, role });
       await conn.commit();

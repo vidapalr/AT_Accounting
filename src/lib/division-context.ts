@@ -10,22 +10,24 @@ export const ACTIVE_DIVISION_COOKIE = "active_division";
 export type DivisionOption = { id: number; name: string };
 
 /** Divisions this person may work in. Everyone who can sign in today has group-wide access. */
-export async function listDivisions(businessId: number): Promise<DivisionOption[]> {
+export async function listDivisions(businessId: number, onlyDivisionId?: number | null): Promise<DivisionOption[]> {
   const [rows] = await db.execute<RowDataPacket[]>(
     `SELECT id, name FROM acct_divisions
       WHERE legal_business_id = ? AND status = 'ACTIVE'
       ORDER BY id`,
     [businessId]
   );
-  return rows.map(r => ({ id: Number(r.id), name: String(r.name) }));
+  const all = rows.map(r => ({ id: Number(r.id), name: String(r.name) }));
+  // A Manager sees their own division only.
+  return onlyDivisionId ? all.filter(d => d.id === onlyDivisionId) : all;
 }
 
 /**
  * The division the person is working in. It is the one they picked in the top
  * bar, otherwise the first division, so single-division use is unchanged.
  */
-export async function getActiveDivisionId(user: { legal_business_id: number }): Promise<number> {
-  const divisions = await listDivisions(user.legal_business_id);
+export async function getActiveDivisionId(user: { legal_business_id: number; scope_division_id?: number | null }): Promise<number> {
+  const divisions = await listDivisions(user.legal_business_id, user.scope_division_id);
   const jar = await cookies();
   const picked = Number(jar.get(ACTIVE_DIVISION_COOKIE)?.value);
   const match = divisions.find(d => d.id === picked);

@@ -34,12 +34,24 @@ test("unlisted paths and look-alike prefixes are not opened to staff", () => {
   assert.equal(canOpenPath("CASHIER", "/accounting/sales-purchase-report"), false);
 });
 
-test("investor and lender roles cannot open anything yet", () => {
-  for (const role of ["INVESTOR", "LENDER", "DIVISION_MANAGER"]) {
-    assert.equal(canAccess(role, "dashboard"), false);
-    assert.equal(canAccess(role, "sales"), false);
+test("lender cannot open anything yet; investor sees only their own page; manager runs the floor", () => {
+  assert.equal(canAccess("LENDER", "dashboard"), false);
+  assert.equal(canAccess("LENDER", "sales"), false);
+  assert.equal(canOpenPath("INVESTOR", "/accounting/my-investment"), true);
+  for (const p of ["/dashboard", "/accounting/sales", "/accounting/reports", "/accounting/investor-shares", "/accounting/journals", "/users", "/accounting/customers", "/accounting/audit/ledger"]) {
+    assert.equal(canOpenPath("INVESTOR", p), false, p);
   }
-  assert.deepEqual(ASSIGNABLE_ROLES, ["ACCOUNTANT", "CASHIER", "AUDITOR"]);
+  assert.equal(homePath("INVESTOR"), "/accounting/my-investment");
+  assert.equal(canOpenPath("CASHIER", "/accounting/my-investment"), false);
+  assert.equal(canOpenPath("ACCOUNTANT", "/accounting/my-investment"), false);
+  for (const p of ["/accounting/sales", "/accounting/returns", "/accounting/customers", "/accounting/stock-count", "/accounting/cash-closing", "/accounting/shop-spending", "/accounting/free-stock"]) {
+    assert.equal(canOpenPath("DIVISION_MANAGER", p), true, p);
+  }
+  for (const p of ["/dashboard", "/accounting/reports", "/accounting/purchases", "/accounting/journals", "/accounting/investor-shares", "/accounting/bank-accounts", "/users", "/accounting/both-sides", "/accounting/backup"]) {
+    assert.equal(canOpenPath("DIVISION_MANAGER", p), false, p);
+  }
+  assert.equal(homePath("DIVISION_MANAGER"), "/accounting/sales");
+  assert.deepEqual(ASSIGNABLE_ROLES, ["ACCOUNTANT", "CASHIER", "DIVISION_MANAGER", "AUDITOR", "INVESTOR"]);
 });
 
 test("supplier returns are for owner and accountant; free stock can be asked by cashier but approved only by owner and accountant", async () => {

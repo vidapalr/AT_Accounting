@@ -11,7 +11,7 @@ export async function setActiveDivisionAction(form: FormData): Promise<void> {
   const user = await requireUser();
   const id = Number(form.get("division_id"));
   const back = String(form.get("back") ?? "/dashboard");
-  const divisions = await listDivisions(user.legal_business_id);
+  const divisions = await listDivisions(user.legal_business_id, user.scope_division_id);
 
   if (divisions.some(d => d.id === id)) {
     const jar = await cookies();

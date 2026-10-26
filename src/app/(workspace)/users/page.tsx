@@ -29,12 +29,29 @@ async function UsersContent({ searchParams }: Props) {
   const [users] = await db.execute<RowDataPacket[]>(
     `SELECT u.id, u.full_name, u.email, u.status,
             DATE_FORMAT(u.created_at, '%Y-%m-%d') AS created,
-            MAX(a.role) AS role
+            MAX(a.role) AS role, MAX(a.scope_division_id) AS scope_division_id, MAX(a.party_id) AS party_id
      FROM acct_app_users u
      JOIN acct_user_access a ON a.user_id = u.id AND a.legal_business_id = ?
      GROUP BY u.id, u.full_name, u.email, u.status, u.created_at
      ORDER BY u.id`,
     [owner.legal_business_id]
+  );
+
+  const [divisions] = await db.execute<RowDataPacket[]>(
+    `SELECT id, name FROM acct_divisions WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY id`, [owner.legal_business_id]);
+  const [parties] = await db.execute<RowDataPacket[]>(
+    `SELECT id, full_name FROM acct_funding_parties WHERE legal_business_id = ? ORDER BY full_name`, [owner.legal_business_id]);
+  const scopeFields = (divisionId: unknown, partyId: unknown) => (
+    <>
+      <select name="scope_division_id" defaultValue={divisionId ? String(divisionId) : ""} aria-label="Division (for a Manager)">
+        <option value="">Division (for a Manager)…</option>
+        {divisions.map((d) => <option key={String(d.id)} value={String(d.id)}>{String(d.name)}</option>)}
+      </select>{" "}
+      <select name="party_id" defaultValue={partyId ? String(partyId) : ""} aria-label="Investor (for an Investor login)">
+        <option value="">Investor (for an Investor login)…</option>
+        {parties.map((p) => <option key={String(p.id)} value={String(p.id)}>{String(p.full_name)}</option>)}
+      </select>
+    </>
   );
 
   return (
@@ -75,6 +92,7 @@ async function UsersContent({ searchParams }: Props) {
                             <option key={r} value={r}>{ROLE_LABELS[r]}</option>
                           ))}
                         </select>{" "}
+                        {scopeFields(u.scope_division_id, u.party_id)}{" "}
                         <button type="submit">Change access</button>
                       </form>
                       <form action={resetPasswordAction}>
@@ -107,6 +125,10 @@ async function UsersContent({ searchParams }: Props) {
               <option key={r} value={r}>{ROLE_LABELS[r]}</option>
             ))}
           </select>
+        </label>
+        <label>
+          Only for a Manager (division) or an Investor (which investor)
+          <div style={{ display: "grid", gap: 6 }}>{scopeFields(null, null)}</div>
         </label>
         <label>
           Starting password (10+ characters, with a letter and a number)

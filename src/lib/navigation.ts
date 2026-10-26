@@ -25,7 +25,10 @@ export const NAVIGATION: NavSection[] = [
     id: "home",
     label: "Home",
     icon: "home",
-    items: [{ label: "Dashboard", href: "/dashboard", hint: "Today's sales, profit and money at a glance" }],
+    items: [
+      { label: "Dashboard", href: "/dashboard", hint: "Today's sales, profit and money at a glance" },
+      { label: "My investment", href: "/accounting/my-investment", hint: "Your money in, paid back, and your profit share" },
+    ],
   },
   {
     id: "sell",

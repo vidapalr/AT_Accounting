@@ -9,7 +9,7 @@ import { mediaSize, readMediaRange } from "@/lib/media-storage";
 /** Show a photo or play a video. Signed-in staff only; supports seeking in videos. */
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
-  if (!user) return new NextResponse("Unauthorized", { status: 401 });
+  if (!user || user.role === "INVESTOR") return new NextResponse("Unauthorized", { status: 401 });
 
   const { id } = await context.params;
   if (!/^[1-9]\d*$/.test(id)) return new NextResponse("Not found", { status: 404 });

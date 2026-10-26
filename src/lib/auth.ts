@@ -26,6 +26,10 @@ interface SessionUser extends RowDataPacket {
   email: string;
   role: string;
   legal_business_id: number;
+  /** A Manager works in this division only. */
+  scope_division_id: number | null;
+  /** An Investor login is tied to this investor. */
+  party_id: number | null;
 }
 
 function hashToken(token: string): string {
@@ -119,7 +123,9 @@ export async function getSessionUser() {
        u.full_name,
        u.email,
        a.role,
-       a.legal_business_id
+       a.legal_business_id,
+       a.scope_division_id,
+       a.party_id
      FROM acct_sessions s
      JOIN acct_app_users u
        ON u.id = s.user_id
@@ -131,7 +137,7 @@ export async function getSessionUser() {
        AND a.legal_business_id = 1
        AND a.division_id IS NULL
        AND a.role IN (${LOGIN_ROLES.map((r) => `'${r}'`).join(",")})
-     ORDER BY FIELD(a.role, 'GROUP_OWNER', 'ACCOUNTANT', 'CASHIER', 'AUDITOR')
+     ORDER BY FIELD(a.role, 'GROUP_OWNER', 'ACCOUNTANT', 'DIVISION_MANAGER', 'CASHIER', 'AUDITOR', 'INVESTOR')
      LIMIT 1`,
     [hashToken(token)]
   );
