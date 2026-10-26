@@ -7,51 +7,13 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
+import { generatePeriods, yearLabel } from "@/lib/period-math";
 
 const PAGE = "/accounting/periods";
 
 function value(form: FormData, key: string) {
   const v = form.get(key);
   return typeof v === "string" ? v.trim() : "";
-}
-
-function yearLabel(start: number): string {
-  return `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
-}
-
-function dateText(
-  year: number,
-  month: number,
-  day: number
-): string {
-  return [
-    String(year).padStart(4, "0"),
-    String(month).padStart(2, "0"),
-    String(day).padStart(2, "0"),
-  ].join("-");
-}
-
-function generatePeriods(startYear: number) {
-  return Array.from({ length: 12 }, (_, index) => {
-    const monthIndex = 3 + index;
-    const year = startYear + Math.floor(monthIndex / 12);
-    const month = (monthIndex % 12) + 1;
-    const endDay = new Date(
-      Date.UTC(year, month, 0)
-    ).getUTCDate();
-
-    const monthName = new Intl.DateTimeFormat(
-      "en-GB",
-      { month: "long", timeZone: "UTC" }
-    ).format(new Date(Date.UTC(year, month - 1, 1)));
-
-    return {
-      periodNo: index + 1,
-      periodName: `${monthName} ${year}`,
-      start: dateText(year, month, 1),
-      end: dateText(year, month, endDay),
-    };
-  });
 }
 
 export async function createAccountingPeriodsAction(
@@ -140,6 +102,12 @@ export async function createAccountingPeriodsAction(
             ]
           );
         }
+
+        await conn.execute(
+          `INSERT IGNORE INTO acct_financial_years (legal_business_id, label, starts_on, ends_on, status)
+           VALUES (?, ?, ?, ?, 'OPEN')`,
+          [user.legal_business_id, label, months[0].start, months[11].end]
+        );
 
         await conn.execute(
           `INSERT INTO acct_audit_events
