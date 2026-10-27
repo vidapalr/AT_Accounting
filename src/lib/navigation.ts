@@ -36,6 +36,7 @@ export const NAVIGATION: NavSection[] = [
     icon: "sell",
     items: [
       { label: "New sale / bill", href: "/accounting/sales", hint: "Make a bill and take payment" },
+      { label: "Online orders", href: "/accounting/online-orders", hint: "Orders customers placed on the website" },
       { label: "Invoices", href: "/accounting/invoices", hint: "Find, view and print past bills" },
       { label: "Returns and refunds", href: "/accounting/returns", hint: "Customer returns, refunds, damaged stock" },
     ],

@@ -102,12 +102,21 @@ async function DashboardContent({ searchParams }: Props) {
   const discountsOnly = f.discounts - f.returns;
   const costOnly = f.costOfGoods - f.damagedStock;
 
+  const [orderRows] = await db
+    .execute<RowDataPacket[]>(`SELECT COUNT(*) AS n FROM acct_online_orders WHERE legal_business_id = ? AND status = 'REQUESTED'`, [businessId])
+    .catch(() => [[{ n: 0 }]] as unknown as [RowDataPacket[]]);
+  const newOrders = Number(orderRows[0]?.n ?? 0);
   const backup = user.role === "GROUP_OWNER" ? await lastBackup(db, businessId) : null;
 
   return (
     <div className={styles.page}>
       <div className={styles.titleRow}>
         <h1>Dashboard</h1>
+        {newOrders > 0 && (
+          <p role="status" style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 14px" }}>
+            {newOrders} new online order{newOrders === 1 ? "" : "s"} waiting. <a href="/accounting/online-orders">Open Online orders</a>
+          </p>
+        )}
         <span className={styles.asAt}>As at {today} · all figures from posted accounts</span>
       </div>
 

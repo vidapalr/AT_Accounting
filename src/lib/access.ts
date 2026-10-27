@@ -79,6 +79,7 @@ export type Feature =
   | "shop_spending"
   | "salary"
   | "both_sides"
+  | "online_orders"
   | "investor_view"
   | "customers";
 
@@ -104,6 +105,8 @@ const FEATURE_ROLES: Record<Feature, Role[]> = {
   salary: ["GROUP_OWNER", "ACCOUNTANT"],
   // Suppliers who are also customers: link them and set one amount off against the other.
   both_sides: ["GROUP_OWNER", "ACCOUNTANT"],
+  // Orders customers place on the public shop; staff confirm and reply.
+  online_orders: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER"],
   // An investor sees only their own investment (the page filters to the investor tied to the login).
   investor_view: ["INVESTOR"],
   customers: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER", "DIVISION_MANAGER"],
@@ -122,6 +125,7 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/product-profitability", "reports"],
   ["/accounting/account-balances", "reports"],
   ["/accounting/cash-flow", "reports"],
+  ["/accounting/online-orders", "online_orders"],
   ["/accounting/sales", "sales"],
   ["/accounting/invoices", "sales"],
   ["/accounting/returns", "returns"],
