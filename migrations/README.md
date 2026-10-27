@@ -19,3 +19,5 @@ Take a database backup before applying to production.
 The base schema (the `acct_*` tables) is not in this repository yet.
 Export it with `mysqldump --no-data` and commit it as
 `migrations/000_base_schema.sql` so the database can be rebuilt.
+
+See docs/SCHEMA_EXPORT.md for the one-time steps to save the base structure from phpMyAdmin.

@@ -97,6 +97,7 @@ export default function CheckoutForm({ me }: { me: { name: string; email: string
         </div>
         {error && <p className={styles.err} role="alert">{error}</p>}
         <div>
+          <p className={styles.muted} style={{ marginTop: 0 }}>This is an order request. We keep each piece only after we confirm stock with you, and you pay nothing until then.</p>
           <button type="submit" className={styles.btn} disabled={busy}>{busy ? "Sending…" : "Send order request"}</button>{" "}
           <Link href="/shop/cart" className={styles.btnGhost}>Back to cart</Link>
         </div>

@@ -13,7 +13,7 @@ async function Thanks({ searchParams }: { searchParams: Promise<{ no?: string }>
       <h1>Thank you!</h1>
       <p>We have your order request.</p>
       {no && <div className={styles.orderNo}>{no}</div>}
-      <p className={styles.muted}>We will message you soon on WhatsApp or email to confirm availability, shipping and how to pay. Please keep this number for reference.</p>
+      <p className={styles.muted}>We will message you soon on WhatsApp or email to confirm that the items are in stock, plus shipping and how to pay. Please keep this number for reference.</p>
       <Link href="/shop" className={styles.btn}>Keep shopping</Link>
     </div>
   );
