@@ -171,6 +171,8 @@ export function featureForPath(path: string): Feature | null {
 }
 
 export function canOpenPath(role: string, path: string): boolean {
+  // "My investment" is only for investor logins; for everyone else it just bounced to the dashboard.
+  if (featureForPath(path) === "investor_view") return role === "INVESTOR";
   if (role === "GROUP_OWNER") return true;
   const feature = featureForPath(path);
   return feature !== null && canAccess(role, feature);
