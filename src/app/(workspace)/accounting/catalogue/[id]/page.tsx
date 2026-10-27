@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { toggleShopAction } from "@/lib/shop-actions";
+import { saveOnlineDetailsAction, toggleShopAction } from "@/lib/shop-actions";
 import { notFound } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
 
@@ -11,7 +11,7 @@ import CopyTextButton from "@/components/CopyTextButton";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ upload?: string }>;
+  searchParams: Promise<{ upload?: string; details?: string }>;
 };
 
 function uploadMessage(code?: string): { ok: boolean; text: string } | null {
@@ -33,13 +33,13 @@ function uploadMessage(code?: string): { ok: boolean; text: string } | null {
 async function ProductMedia({ params, searchParams }: Props) {
   const user = await requireAccess("products");
   const { id } = await params;
-  const { upload } = await searchParams;
+  const { upload, details } = await searchParams;
   const productId = Number(id);
   if (!Number.isSafeInteger(productId) || productId <= 0) notFound();
   const businessId = user.legal_business_id;
 
   const [prod] = await db.execute<RowDataPacket[]>(
-    `SELECT id, product_code, product_name, brand_name, fabric, design_name, description, show_in_shop
+    `SELECT id, product_code, product_name, brand_name, fabric, design_name, description, highlights, care_text, size_guide, show_in_shop
        FROM acct_products WHERE legal_business_id = ? AND id = ?`,
     [businessId, productId]
   );
@@ -55,7 +55,7 @@ async function ProductMedia({ params, searchParams }: Props) {
   );
 
   const [variants] = await db.execute<RowDataPacket[]>(
-    `SELECT v.id, v.sku, v.barcode, v.size_label, v.color_name, v.unit_of_measure,
+    `SELECT v.id, v.sku, v.barcode, v.size_label, v.color_name, v.unit_of_measure, v.shop_price, v.compare_price, v.photo_media_id,
             (SELECT COALESCE(SUM(sm.quantity_change), 0) FROM acct_stock_movements sm
               WHERE sm.legal_business_id = v.legal_business_id AND sm.variant_id = v.id) AS in_stock
        FROM acct_product_variants v
@@ -153,6 +153,52 @@ async function ProductMedia({ params, searchParams }: Props) {
           </div>
         ))}
       </div>
+
+      <section style={{ marginTop: 28, padding: 18, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12 }}>
+        <h2 style={{ marginTop: 0 }}>Online details</h2>
+        <p style={{ color: "#64748b", marginTop: 0 }}>This is what customers read on the website. Good words and clear sizes sell.</p>
+        {details === "saved" && <p role="status" style={{ color: "#166534" }}>Saved. The shop page is updated.</p>}
+        {details && details !== "saved" && <p role="alert" style={{ color: "#b91c1c" }}>{details === "badprice" ? "A crossed-out price must be a number, for example 1299." : "Could not save. Please try again."}</p>}
+        <form action={saveOnlineDetailsAction} style={{ display: "grid", gap: 14 }}>
+          <input type="hidden" name="product_id" value={String(p.id)} />
+          <label>Description<br />
+            <textarea name="description" rows={4} defaultValue={p.description ? String(p.description) : ""} style={{ width: "100%", padding: 10, fontSize: 16, boxSizing: "border-box" }} placeholder="Soft pure cotton set with a block print. Comfortable for the whole day." />
+          </label>
+          <label>Highlights (one point per line, up to 6)<br />
+            <textarea name="highlights" rows={4} defaultValue={p.highlights ? String(p.highlights) : ""} style={{ width: "100%", padding: 10, fontSize: 16, boxSizing: "border-box" }} placeholder={"3-piece set: kurta, pant, dupatta\nPure cotton, breathable\nLength 42 inches"} />
+          </label>
+          <label>Care instructions<br />
+            <textarea name="care_text" rows={2} defaultValue={p.care_text ? String(p.care_text) : ""} style={{ width: "100%", padding: 10, fontSize: 16, boxSizing: "border-box" }} placeholder="Gentle machine wash in cold water. Wash dark colours separately." />
+          </label>
+          <label>Size guide<br />
+            <textarea name="size_guide" rows={4} defaultValue={p.size_guide ? String(p.size_guide) : ""} style={{ width: "100%", padding: 10, fontSize: 16, boxSizing: "border-box" }} placeholder={"M: bust 36, length 42\nL: bust 38, length 42\nXL: bust 40, length 43"} />
+          </label>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}>
+              <thead><tr>{["Size / colour", "Shop price", "Crossed-out price (optional)", "Photo for this colour"].map(h => <th key={h} style={{ padding: "8px 10px", textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>{h}</th>)}</tr></thead>
+              <tbody>
+                {variants.map(v => (
+                  <tr key={String(v.id)}>
+                    <td style={{ padding: "8px 10px" }}>{[v.size_label, v.color_name].filter(Boolean).join(", ") || "Standard"}</td>
+                    <td style={{ padding: "8px 10px" }}>{v.shop_price ? `₹${Number(v.shop_price)}` : <Link href="/accounting/catalogue/prices">Set price</Link>}</td>
+                    <td style={{ padding: "8px 10px" }}>
+                      <input name={`compare_${v.id}`} inputMode="decimal" defaultValue={v.compare_price ? String(Number(v.compare_price)) : ""} placeholder="e.g. 1299" style={{ padding: 8, width: 130, fontSize: 16 }} />
+                    </td>
+                    <td style={{ padding: "8px 10px" }}>
+                      <select name={`photo_${v.id}`} defaultValue={v.photo_media_id ? String(v.photo_media_id) : ""} style={{ padding: 8, fontSize: 16 }}>
+                        <option value="">Cover photo</option>
+                        {media.filter(m => m.media_type === "IMAGE").map((m, i) => <option key={String(m.id)} value={String(m.id)}>Photo {i + 1}{m.is_cover ? " (cover)" : ""}</option>)}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer", justifySelf: "start", fontSize: 16, padding: "10px 20px" }}>Save online details</button>
+        </form>
+      </section>
 
       <h2 style={{ marginTop: 28 }}>Sizes, colours and stock</h2>
       <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }}>

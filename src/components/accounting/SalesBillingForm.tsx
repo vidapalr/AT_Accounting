@@ -35,6 +35,7 @@ type ProductOption = {
   active: boolean;
   minPrice: number | null;
   suggestedPrice: number | null;
+  offer?: { name: string; offPerUnit: number } | null;
 };
 
 type SaleRow = {
@@ -494,6 +495,10 @@ export default function SalesBillingForm({
                             : selected?.minPrice != null
                               ? String(selected.minPrice)
                               : "",
+                        // A store offer fills in the discount; staff can still change it.
+                        discount: selected?.offer
+                          ? (selected.offer.offPerUnit * Number(row.quantity || 1)).toFixed(2)
+                          : row.discount,
                         reason: "",
                       });
                     }}
@@ -508,6 +513,12 @@ export default function SalesBillingForm({
                     ))}
                   </select>
                 </label>
+
+                {product?.offer && (
+                  <p className={styles.stock}>
+                    Offer: {product.offer.name} (₹{product.offer.offPerUnit.toFixed(2)} off each) is in the discount below.
+                  </p>
+                )}
 
                 {product && (
                   <p className={insufficient ? styles.bad : styles.stock}>
@@ -526,7 +537,19 @@ export default function SalesBillingForm({
                       min={fractionalQuantity ? "0.001" : "1"}
                       step={fractionalQuantity ? "0.001" : "1"}
                       value={row.quantity}
-                      onChange={e => updateRow(row.key, { quantity: e.target.value })}
+                      onChange={e => {
+                        const nextQty = e.target.value;
+                        const autoBefore = product?.offer
+                          ? (product.offer.offPerUnit * Number(row.quantity || 0)).toFixed(2)
+                          : null;
+                        // Keep the offer discount in step with the quantity, unless staff typed their own.
+                        updateRow(row.key, {
+                          quantity: nextQty,
+                          ...(product?.offer && autoBefore !== null && Number(row.discount).toFixed(2) === autoBefore
+                            ? { discount: (product.offer.offPerUnit * Number(nextQty || 0)).toFixed(2) }
+                            : {}),
+                        });
+                      }}
                     />
                   </label>
                   <label className={styles.field}>

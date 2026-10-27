@@ -26,7 +26,7 @@ async function Product({ params }: Props) {
     <>
       <p><Link href="/shop" className={styles.muted}>← All products</Link></p>
       <ProductPicker
-        product={{ id: product.id, name: product.name, fabric: product.fabric, description: product.description, coverId: product.coverId, variants: product.variants }}
+        product={{ id: product.id, name: product.name, fabric: product.fabric, description: product.description, highlights: product.highlights, care: product.care, sizeGuide: product.sizeGuide, coverId: product.coverId, variants: product.variants }}
         media={media}
         whatsapp={settings.whatsapp}
       />

@@ -50,11 +50,15 @@ async function Products({ searchParams }: Props) {
                   <img src={`/api/shop/media/${p.coverId}`} alt={p.name} loading="lazy" />
                 )}
                 {!p.available && <span className={styles.soldOut}>Sold out</span>}
+                {p.available && p.offerName && <span className={styles.offerBadge}>{p.offerName}</span>}
               </div>
               <div className={styles.cardBody}>
                 <h3>{p.name}</h3>
                 {p.fabric && <div className={styles.muted}>{p.fabric}</div>}
-                <div className={styles.price}>{p.fromPrice !== null ? `${p.variants.length > 1 ? "From " : ""}${inr(p.fromPrice)}` : "Ask for price"}</div>
+                <div className={styles.price}>
+                  {p.fromPrice !== null ? `${p.variants.length > 1 ? "From " : ""}${inr(p.fromPrice)}` : "Ask for price"}
+                  {p.fromWas !== null && <s className={styles.cardWas}>{inr(p.fromWas)}</s>}
+                </div>
               </div>
             </Link>
           ))}
@@ -82,6 +86,11 @@ export default function ShopPage(props: Props) {
           {/* eslint-enable @next/next/no-img-element */}
         </div>
       </section>
+      <div className={styles.strip}>
+        <div><strong>Ships worldwide</strong><span>From Hyderabad to your door, anywhere in the world</span></div>
+        <div><strong>Soft, honest fabrics</strong><span>Cotton sets, sarees and everyday wear we stand behind</span></div>
+        <div><strong>We are one message away</strong><span>Questions about size or colour? Ask us on WhatsApp</span></div>
+      </div>
       <Suspense fallback={<p className={styles.muted}>Loading…</p>}><Products {...props} /></Suspense>
     </>
   );

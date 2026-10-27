@@ -4,6 +4,8 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { bestOffer } from "@/lib/offer-math";
+import { loadOffers } from "@/lib/shop";
 import SalesBillingForm from
   "@/components/accounting/SalesBillingForm";
 
@@ -88,6 +90,8 @@ async function SalesContent({ searchParams }: Props) {
   const [products] = await db.execute<RowDataPacket[]>(
     `SELECT
        v.id,
+       p.id AS product_id,
+       p.fabric AS fabric,
        l.branch_id AS branchId,
        p.product_name AS name,
        v.sku,
@@ -113,7 +117,7 @@ async function SalesContent({ searchParams }: Props) {
        AND l.location_type = 'RETAIL'
        AND l.status = 'ACTIVE'
      GROUP BY
-       l.id, l.branch_id, v.id,
+       l.id, l.branch_id, v.id, p.id, p.fabric,
        p.product_name, v.sku, v.unit_of_measure,
        v.status, p.status
      ORDER BY p.product_name, v.sku`,
@@ -225,8 +229,15 @@ async function SalesContent({ searchParams }: Props) {
     }
   }
 
+  const storeOffers = await loadOffers(businessId).catch(() => []);
+  const todayIst = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+
   const billingProducts = products.map(p => {
     const pricing = latestPrices.get(`${p.branchId}-${p.id}`);
+    const hit = pricing?.suggestedPrice != null
+      ? bestOffer(storeOffers, "STORE", { productId: Number(p.product_id), fabric: p.fabric ? String(p.fabric) : null },
+          BigInt(Math.round(pricing.suggestedPrice * 100)), todayIst)
+      : null;
 
     return {
       id: Number(p.id),
@@ -240,6 +251,7 @@ async function SalesContent({ searchParams }: Props) {
         p.product_status === "ACTIVE",
       minPrice: pricing?.minPrice ?? null,
       suggestedPrice: pricing?.suggestedPrice ?? null,
+      offer: hit ? { name: hit.offer.name, offPerUnit: Number(hit.offPaise) / 100 } : null,
     };
   });
 

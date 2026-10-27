@@ -108,3 +108,65 @@ export async function saveShopPricesAction(formData: FormData) {
   revalidatePath("/shop");
   redirect("/accounting/catalogue/prices?result=saved");
 }
+
+/** Save the online details of one product: description, highlights, care, size guide, crossed-out prices and colour photos. */
+export async function saveOnlineDetailsAction(formData: FormData) {
+  const user = await requireAccess("products");
+  const businessId = user.legal_business_id;
+  const productId = Number(formData.get("product_id"));
+  if (!Number.isSafeInteger(productId) || productId <= 0) redirect("/accounting/catalogue");
+  const back = (r: string): never => redirect(`/accounting/catalogue/${productId}?details=${r}`);
+  const text = (n: string, max: number) =>
+    String(formData.get(n) ?? "").replace(/\r\n/g, "\n").replace(/[\u0000-\u0008\u000b-\u001f]/g, "").trim().slice(0, max) || null;
+
+  const [owned] = await db.execute<import("mysql2").RowDataPacket[]>(
+    `SELECT id FROM acct_products WHERE id = ? AND legal_business_id = ?`, [productId, businessId]
+  );
+  if (owned.length !== 1) back("failed");
+
+  const [mediaRows] = await db.execute<import("mysql2").RowDataPacket[]>(
+    `SELECT id FROM acct_product_media WHERE legal_business_id = ? AND product_id = ? AND status = 'ACTIVE' AND media_type = 'IMAGE'`,
+    [businessId, productId]
+  );
+  const okMedia = new Set(mediaRows.map(r => Number(r.id)));
+  const [varRows] = await db.execute<import("mysql2").RowDataPacket[]>(
+    `SELECT id FROM acct_product_variants WHERE legal_business_id = ? AND product_id = ?`, [businessId, productId]
+  );
+  const variantIds = varRows.map(r => Number(r.id));
+
+  const updates: Array<[string | null, number | null, number]> = [];
+  for (const id of variantIds) {
+    const raw = String(formData.get(`compare_${id}`) ?? "").trim().replace(/,/g, "");
+    let compare: string | null = null;
+    if (raw !== "") {
+      if (!/^\d{1,9}(\.\d{1,2})?$/.test(raw) || Number(raw) <= 0) back("badprice");
+      compare = raw;
+    }
+    const photo = Number(formData.get(`photo_${id}`));
+    updates.push([compare, okMedia.has(photo) ? photo : null, id]);
+  }
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.execute(
+      `UPDATE acct_products SET description = ?, highlights = ?, care_text = ?, size_guide = ? WHERE id = ? AND legal_business_id = ?`,
+      [text("description", 4000), text("highlights", 1500), text("care_text", 1500), text("size_guide", 3000), productId, businessId]
+    );
+    for (const [compare, photo, id] of updates) {
+      await conn.execute(
+        `UPDATE acct_product_variants SET compare_price = ?, photo_media_id = ? WHERE id = ? AND legal_business_id = ? AND product_id = ?`,
+        [compare, photo, id, businessId, productId]
+      );
+    }
+    await conn.commit();
+  } catch {
+    await conn.rollback();
+    back("failed");
+  } finally {
+    conn.release();
+  }
+  revalidatePath("/shop");
+  revalidatePath(`/shop/${productId}`);
+  back("saved");
+}
