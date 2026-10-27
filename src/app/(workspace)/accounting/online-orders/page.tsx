@@ -29,7 +29,8 @@ async function Content({ searchParams }: Props) {
   const count = (s: string) => Number(counts.find((c) => c.status === s)?.n ?? 0);
   const [orders] = await db.execute<Row[]>(
     `SELECT id, order_no, status, customer_name, phone, email, country, address_line, city, state_region, postal_code,
-            customer_note, items_total, shipping_charge, staff_note, DATE_FORMAT(created_at, '%d %b %Y, %H:%i') AS at
+            customer_note, items_total, shipping_charge, staff_note, sale_id,
+            (SELECT h.invoice_no FROM acct_sales_headers h WHERE h.id = acct_online_orders.sale_id AND h.legal_business_id = acct_online_orders.legal_business_id) AS invoice_no, DATE_FORMAT(created_at, '%d %b %Y, %H:%i') AS at
        FROM acct_online_orders WHERE legal_business_id = ? AND status = ? ORDER BY created_at DESC LIMIT 100`,
     [businessId, status]
   );
@@ -42,8 +43,7 @@ async function Content({ searchParams }: Props) {
     <main style={{ padding: 24, maxWidth: 900 }}>
       <h1>Online orders</h1>
       <p style={{ color: "#64748b" }}>
-        Orders customers send from the website. Reply on WhatsApp, confirm with the shipping charge, make the bill on{" "}
-        <Link href="/accounting/sales">New sale</Link>, then mark the order done. Nothing changes in stock or the books until you make that bill.
+        Orders customers send from the website. Reply on WhatsApp, confirm with the shipping charge, press Make the bill (it fills the sale for you), then mark the order done. Nothing changes in stock or the books until the bill is saved.
       </p>
       {q.saved && <p style={{ color: "#166534" }}>{q.saved.slice(0, 200)}</p>}
       {q.error && <p style={{ color: "#b91c1c" }}>{q.error.slice(0, 200)}</p>}
@@ -92,7 +92,12 @@ async function Content({ searchParams }: Props) {
             </table>
             {o.staff_note && <p>Our note: {String(o.staff_note)}</p>}
 
+            {o.sale_id && <p style={{ color: "#166534" }}>Billed as invoice {o.invoice_no ? String(o.invoice_no) : `#${o.sale_id}`}.</p>}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "end", marginTop: 12 }}>
+              {!o.sale_id && (o.status === "REQUESTED" || o.status === "CONFIRMED") && (
+                <Link className="btn-link btn-link-primary" style={bigBtn} href={`/accounting/sales?from_online=${o.id}`}>Make the bill</Link>
+              )}
+              {o.sale_id && <Link className="btn-link" style={bigBtn} href={`/accounting/sales?view=${o.sale_id}`}>Open the bill</Link>}
               {phone && o.status !== "CANCELLED" && (
                 <a className="btn-link btn-link-primary" style={bigBtn} href={whatsappLink(phone, msg)} target="_blank" rel="noreferrer">Reply on WhatsApp</a>
               )}

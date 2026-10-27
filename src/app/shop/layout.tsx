@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import AnnounceBar from "@/components/shop/AnnounceBar";
+import AccountLink from "@/components/shop/AccountLink";
 import CartLink from "@/components/shop/CartLink";
 import styles from "./shop.module.css";
 
@@ -26,6 +27,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
             <Link href="/shop?q=saree#products" className={styles.hideSm}>Sarees</Link>
             <Link href="/shop?q=cotton#products" className={styles.hideSm}>Cotton sets</Link>
             <Link href="/shop#products" className={styles.hideSm}>All</Link>
+            <Suspense fallback={null}><AccountLink /></Suspense>
             <CartLink />
           </nav>
         </div>

@@ -27,7 +27,7 @@ export async function currentLines(variantIds: number[]) {
 
 export type PlaceOrderResult = { ok: true; orderNo: string; total: number } | { ok: false; error: string };
 
-export async function placeOrder(raw: unknown): Promise<PlaceOrderResult> {
+export async function placeOrder(raw: unknown, shopCustomerId: number): Promise<PlaceOrderResult> {
   const checked = checkOrder(raw);
   if (!checked.ok) return checked;
   const { order } = checked;
@@ -54,10 +54,10 @@ export async function placeOrder(raw: unknown): Promise<PlaceOrderResult> {
       await conn.beginTransaction();
       const [head] = await conn.execute<ResultSetHeader>(
         `INSERT INTO acct_online_orders
-           (legal_business_id, order_no, customer_name, phone, email, country, address_line, city, state_region, postal_code, customer_note, items_total)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (legal_business_id, order_no, customer_name, phone, email, country, address_line, city, state_region, postal_code, customer_note, items_total, shop_customer_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [SHOP_BUSINESS_ID, orderNo, order.name, order.phone, order.email || null, order.country, order.address,
-         order.city, order.state || null, order.postal || null, order.note || null, total.toFixed(2)]
+         order.city, order.state || null, order.postal || null, order.note || null, total.toFixed(2), shopCustomerId]
       );
       for (const p of priced) {
         await conn.execute(

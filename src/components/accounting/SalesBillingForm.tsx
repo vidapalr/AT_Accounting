@@ -89,7 +89,9 @@ type CustomerOption = {
 type Prefill = {
   reportId: number;
   branchId: number | null;
-  lines: Array<{ variantId: number; quantity: string; price: string }>;
+  lines: Array<{ variantId: number; quantity: string; price: string; discount?: string }>;
+  /** Set when the bill starts from an order placed on the website. */
+  onlineOrder?: { id: number; orderNo: string };
   /** Set when the bill starts from items a customer took on approval. */
   customerName?: string;
   customerPhone?: string;
@@ -173,6 +175,7 @@ export default function SalesBillingForm({
             variantId: line.variantId,
             quantity: line.quantity,
             price: line.price,
+            discount: line.discount ?? "0",
           }))
         : [newSaleRow()]
   );
@@ -308,7 +311,15 @@ export default function SalesBillingForm({
       )}
       {prefill && !initialInvoice && (
         <>
-          {prefill.approvalItemIds && prefill.approvalItemIds.length > 0 ? (
+          {prefill.onlineOrder ? (
+            <>
+              <input type="hidden" name="online_order_id" value={prefill.onlineOrder.id} />
+              <p style={{ background: "#eff6ff", padding: 10, borderRadius: 8 }}>
+                Filled from website order {prefill.onlineOrder.orderNo}. Check the items and prices, add the payment, then
+                save the bill. Shipping is not on the bill: collect it separately.
+              </p>
+            </>
+          ) : prefill.approvalItemIds && prefill.approvalItemIds.length > 0 ? (
             <>
               <input type="hidden" name="approval_item_ids" value={prefill.approvalItemIds.join(",")} />
               <p style={{ background: "#eff6ff", padding: 10, borderRadius: 8 }}>

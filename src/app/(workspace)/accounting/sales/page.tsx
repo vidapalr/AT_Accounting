@@ -4,6 +4,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { normalizePhone as normalizeIndianPhone } from "@/lib/customer-phone";
 import { bestOffer } from "@/lib/offer-math";
 import { loadOffers } from "@/lib/shop";
 import SalesBillingForm from
@@ -17,6 +18,7 @@ type Props = {
     edit?: string;
     from_report?: string;
     from_approval?: string;
+    from_online?: string;
   }>;
 };
 
@@ -65,7 +67,7 @@ const messages: Record<string, string> = {
 
 async function SalesContent({ searchParams }: Props) {
   const user = await requireAccess("sales");
-  const { result, id, view, edit, from_report, from_approval } = await searchParams;
+  const { result, id, view, edit, from_report, from_approval, from_online } = await searchParams;
   const businessId = user.legal_business_id;
 
   const [branches] = await db.execute<RowDataPacket[]>(
@@ -260,7 +262,8 @@ async function SalesContent({ searchParams }: Props) {
     | {
         reportId: number;
         branchId: number | null;
-        lines: Array<{ variantId: number; quantity: string; price: string }>;
+        lines: Array<{ variantId: number; quantity: string; price: string; discount?: string }>;
+        onlineOrder?: { id: number; orderNo: string };
         customerName?: string;
         customerPhone?: string;
         approvalItemIds?: number[];
@@ -304,6 +307,40 @@ async function SalesContent({ searchParams }: Props) {
         customerPhone: kept[0].phone ? String(kept[0].phone) : "",
         approvalItemIds: kept.map(k => Number(k.id)),
         approvalBack: [...byVariant].map(([variantId, quantity]) => ({ variantId, quantity })),
+      };
+    }
+  }
+  // An order a customer placed on the website: start the bill from it.
+  const onlineId = Number(from_online);
+  if (!prefill && Number.isSafeInteger(onlineId) && onlineId > 0) {
+    const [ord] = await db.execute<RowDataPacket[]>(
+      `SELECT id, order_no, customer_name, phone FROM acct_online_orders
+        WHERE id = ? AND legal_business_id = ? AND status IN ('REQUESTED','CONFIRMED') AND sale_id IS NULL`,
+      [onlineId, businessId]
+    );
+    if (ord[0]) {
+      const [ol] = await db.execute<RowDataPacket[]>(
+        `SELECT variant_id, quantity, unit_price, list_price FROM acct_online_order_lines WHERE order_id = ? ORDER BY id`,
+        [onlineId]
+      );
+      const phone10 = normalizeIndianPhone(String(ord[0].phone));
+      prefill = {
+        reportId: 0,
+        branchId: null,
+        onlineOrder: { id: Number(ord[0].id), orderNo: String(ord[0].order_no) },
+        lines: ol.map(l => {
+          const unit = Number(l.unit_price);
+          const list = l.list_price === null ? unit : Number(l.list_price);
+          const qty = Number(l.quantity);
+          return {
+            variantId: Number(l.variant_id),
+            quantity: String(qty),
+            price: String(list),
+            discount: list > unit ? ((list - unit) * qty).toFixed(2) : "0",
+          };
+        }),
+        customerName: String(ord[0].customer_name),
+        customerPhone: phone10 ?? "",
       };
     }
   }

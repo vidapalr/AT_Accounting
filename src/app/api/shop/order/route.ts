@@ -1,3 +1,4 @@
+import { getShopCustomer } from "@/lib/shop-account";
 import { placeOrder } from "@/lib/shop-order";
 import { allowRequest } from "@/lib/shop-order-math";
 
@@ -16,6 +17,8 @@ export async function POST(request: Request) {
   }
   // Hidden field that real customers never fill; bots do.
   if (String((body as { website?: unknown })?.website ?? "") !== "") return Response.json({ ok: true, orderNo: "WEB-00000", total: 0 });
-  const result = await placeOrder(body);
+  const customer = await getShopCustomer();
+  if (!customer) return Response.json({ ok: false, needLogin: true, error: "Please log in to place your order." }, { status: 401 });
+  const result = await placeOrder(body, customer.id);
   return Response.json(result, { status: result.ok ? 200 : 400 });
 }

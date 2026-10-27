@@ -843,6 +843,17 @@ export async function createSaleAction(
         )
         .catch(() => {});
     }
+    // If this bill was made from a website order, remember which bill it became.
+    const onlineOrderId = Number(String(form.get("online_order_id") ?? ""));
+    if (Number.isSafeInteger(onlineOrderId) && onlineOrderId > 0) {
+      await db
+        .execute(
+          `UPDATE acct_online_orders SET sale_id = ? WHERE id = ? AND legal_business_id = ? AND sale_id IS NULL`,
+          [createdId, onlineOrderId, user.legal_business_id]
+        )
+        .catch(() => {});
+      revalidatePath("/accounting/online-orders");
+    }
     revalidatePath(PAGE);
     revalidatePath("/accounting/stock");
     redirect(`${PAGE}?result=created&id=${createdId}`);

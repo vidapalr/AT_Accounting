@@ -10,7 +10,7 @@ import { clearCart, useCart } from "./cart-store";
 const inr = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const COUNTRIES = ["India", "United States", "United Kingdom", "Canada", "Australia", "United Arab Emirates", "Singapore", "Saudi Arabia", "Qatar", "Kuwait", "Germany", "New Zealand"];
 
-export default function CheckoutForm() {
+export default function CheckoutForm({ me }: { me: { name: string; email: string; phone: string } }) {
   const lines = useCart();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -47,7 +47,8 @@ export default function CheckoutForm() {
           lines: lines.map((l) => ({ variantId: l.variantId, qty: l.qty })),
         }),
       });
-      const data = (await res.json()) as { ok: boolean; error?: string; orderNo?: string };
+      const data = (await res.json()) as { ok: boolean; error?: string; orderNo?: string; needLogin?: boolean };
+      if (data.needLogin) { router.push("/shop/account/login?next=/shop/checkout"); return; }
       if (!data.ok) { setError(data.error ?? "Something went wrong."); setBusy(false); return; }
       setPlaced(true);
       clearCart();
@@ -64,10 +65,10 @@ export default function CheckoutForm() {
       <p className={styles.muted} style={{ marginBottom: 20 }}>Send us your order request. We will reply on WhatsApp or email to confirm availability, shipping and how to pay. You pay nothing now.</p>
       <form className={styles.form} onSubmit={submit}>
         <div className={styles.hp} aria-hidden="true"><label>Website<input name="website" tabIndex={-1} autoComplete="off" /></label></div>
-        <label>Full name<input name="name" required autoComplete="name" /></label>
+        <label>Full name<input name="name" required autoComplete="name" defaultValue={me.name} /></label>
         <div className={styles.two}>
-          <label>Phone / WhatsApp (with country code)<input name="phone" type="tel" required autoComplete="tel" placeholder="+91 98765 43210" /></label>
-          <label>Email (optional)<input name="email" type="email" autoComplete="email" /></label>
+          <label>Phone / WhatsApp (with country code)<input name="phone" type="tel" required autoComplete="tel" defaultValue={me.phone} placeholder="+91 98765 43210" /></label>
+          <label>Email (optional)<input name="email" type="email" autoComplete="email" defaultValue={me.email} /></label>
         </div>
         <label>Country
           <select name="country" defaultValue="India" required>
