@@ -52,6 +52,7 @@ export default function AuthForm({ mode, next }: { mode: "login" | "register"; n
         </label>
         {error && <p className={styles.err} role="alert">{error}</p>}
         <div><button type="submit" className={styles.btn} disabled={busy}>{busy ? "Please wait…" : register ? "Create account" : "Log in"}</button></div>
+        {!register && <p className={styles.muted}><Link href="/shop/account/forgot">Forgot password?</Link></p>}
         <p className={styles.muted}>
           {register ? "Already have an account? " : "New here? "}
           <Link href={other}>{register ? "Log in" : "Create an account"}</Link>

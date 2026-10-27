@@ -43,7 +43,7 @@ async function Content({ searchParams }: Props) {
     <main style={{ padding: 24, maxWidth: 900 }}>
       <h1>Online orders</h1>
       <p style={{ color: "#64748b" }}>
-        Orders customers send from the website. Reply on WhatsApp, confirm with the shipping charge, press Make the bill (it fills the sale for you), then mark the order done. Nothing changes in stock or the books until the bill is saved.
+        Orders customers send from the website. Reply on WhatsApp, confirm with the shipping charge, press Make the bill (it fills the sale for you), then mark the order done. Nothing changes in stock or the books until the bill is saved. The customer also gets an email at each step when the shop mailbox is set up.
       </p>
       {q.saved && <p style={{ color: "#166534" }}>{q.saved.slice(0, 200)}</p>}
       {q.error && <p style={{ color: "#b91c1c" }}>{q.error.slice(0, 200)}</p>}
@@ -66,6 +66,10 @@ async function Content({ searchParams }: Props) {
         const msg =
           o.status === "REQUESTED"
             ? `Hello ${o.customer_name}, thank you for your order ${o.order_no} at Abhiram Textiles. We are checking availability and shipping to ${o.country} and will confirm shortly.`
+            : o.status === "COMPLETED"
+            ? `Hello ${o.customer_name}, your order ${o.order_no} has been billed and is on its way. Thank you for shopping with Abhiram Textiles!`
+            : o.status === "CANCELLED"
+            ? `Hello ${o.customer_name}, your order ${o.order_no} has been cancelled. Please message us if you have any questions.`
             : `Hello ${o.customer_name}, your order ${o.order_no} is confirmed. Items ${inr(items)}, shipping ${inr(ship)}, total ${inr(items + ship)}. Please let us know when you are ready to pay.`;
         return (
           <section key={String(o.id)} style={box}>
@@ -98,7 +102,7 @@ async function Content({ searchParams }: Props) {
                 <Link className="btn-link btn-link-primary" style={bigBtn} href={`/accounting/sales?from_online=${o.id}`}>Make the bill</Link>
               )}
               {o.sale_id && <Link className="btn-link" style={bigBtn} href={`/accounting/sales?view=${o.sale_id}`}>Open the bill</Link>}
-              {phone && o.status !== "CANCELLED" && (
+              {phone && (
                 <a className="btn-link btn-link-primary" style={bigBtn} href={whatsappLink(phone, msg)} target="_blank" rel="noreferrer">Reply on WhatsApp</a>
               )}
               {o.email && (

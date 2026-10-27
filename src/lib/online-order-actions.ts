@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { emailOrderStatus } from "@/lib/order-mail";
 import { parseRupees, paiseText } from "@/lib/cash-math";
 
 const PAGE = "/accounting/online-orders";
@@ -42,6 +43,7 @@ export async function updateOnlineOrderAction(formData: FormData) {
      VALUES (?, ?, 'ONLINE_ORDER_UPDATED', 'ONLINE_ORDER', ?, ?)`,
     [user.legal_business_id, user.id, id, JSON.stringify({ status: op, shipping })]
   );
+  await emailOrderStatus(id, op as "CONFIRMED" | "COMPLETED" | "CANCELLED");
   revalidatePath(PAGE);
   return back("saved", op === "CONFIRMED" ? "Order confirmed." : op === "COMPLETED" ? "Order marked complete." : "Order cancelled.");
 }

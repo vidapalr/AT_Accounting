@@ -1,4 +1,5 @@
 import "server-only";
+import { emailOrderStatus } from "@/lib/order-mail";
 import type { ResultSetHeader } from "mysql2";
 
 import { db } from "@/lib/db";
@@ -67,6 +68,7 @@ export async function placeOrder(raw: unknown, shopCustomerId: number): Promise<
         );
       }
       await conn.commit();
+      await emailOrderStatus(head.insertId, "REQUESTED");
       return { ok: true, orderNo, total };
     } catch (error) {
       await conn.rollback().catch(() => {});
