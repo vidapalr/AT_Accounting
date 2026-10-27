@@ -45,7 +45,7 @@ export default function CartView() {
 
   return (
     <>
-      <h1 style={{ fontFamily: "Georgia, serif", fontWeight: 400 }}>Your cart</h1>
+      <h1 style={{ fontFamily: "var(--font-display), Georgia, serif", fontWeight: 400 }}>Your cart</h1>
       {lines.map((l) => (
         <div key={l.variantId} className={styles.cartRow}>
           {l.coverId ? (

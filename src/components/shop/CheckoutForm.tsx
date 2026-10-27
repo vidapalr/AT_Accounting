@@ -60,7 +60,7 @@ export default function CheckoutForm() {
 
   return (
     <>
-      <h1 style={{ fontFamily: "Georgia, serif", fontWeight: 400 }}>Your details</h1>
+      <h1 style={{ fontFamily: "var(--font-display), Georgia, serif", fontWeight: 400 }}>Your details</h1>
       <p className={styles.muted} style={{ marginBottom: 20 }}>Send us your order request. We will reply on WhatsApp or email to confirm availability, shipping and how to pay. You pay nothing now.</p>
       <form className={styles.form} onSubmit={submit}>
         <div className={styles.hp} aria-hidden="true"><label>Website<input name="website" tabIndex={-1} autoComplete="off" /></label></div>

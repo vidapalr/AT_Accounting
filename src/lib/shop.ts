@@ -44,6 +44,7 @@ const todayIst = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().sl
 
 /** Active offers as the maths module wants them. */
 export async function loadOffers(businessId = SHOP_BUSINESS_ID): Promise<Offer[]> {
+  await connection(); // read at request time, never while the site is being built
   const [rows] = await db.execute<RowDataPacket[]>(
     `SELECT id, offer_name, channel, kind, offer_value, scope, fabric,
             DATE_FORMAT(starts_on, '%Y-%m-%d') AS starts_on, DATE_FORMAT(ends_on, '%Y-%m-%d') AS ends_on, status

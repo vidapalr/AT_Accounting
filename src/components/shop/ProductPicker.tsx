@@ -82,7 +82,7 @@ export default function ProductPicker({ product, media, whatsapp }: Props) {
             <img src={`/api/shop/media/${current.id}`} alt={product.name} />
           )
         ) : (
-          <div style={{ aspectRatio: "4 / 5", background: "#f1e9dd", borderRadius: 16 }} aria-hidden="true" />
+          <div style={{ aspectRatio: "4 / 5", background: "#ebe8f3", borderRadius: 16 }} aria-hidden="true" />
         )}
         {media.length > 1 && (
           <div className={styles.thumbs}>
