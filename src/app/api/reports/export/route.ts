@@ -49,7 +49,7 @@ export async function GET(request: Request) {
   }
   profit.columns.forEach((c, i) => {
     c.width = i === 0 ? 34 : 20;
-    if (i > 0) c.numFmt = MONEY;
+    if (i > 0) profit.getColumn(i + 1).numFmt = MONEY;
   });
 
   // Balance sheet
