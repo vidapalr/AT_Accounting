@@ -26,3 +26,13 @@ export function parseRupees(text: string): bigint {
 }
 
 export const paiseText = (p: bigint) => `${p < 0n ? "-" : ""}${(p < 0n ? -p : p) / 100n}.${String((p < 0n ? -p : p) % 100n).padStart(2, "0")}`;
+
+/**
+ * Drawer against the books. Cash taken to the bank or owner is recorded on the daily closing but
+ * not in the ledger, so it is taken off the books figure before comparing.
+ * Positive difference = more cash counted than the books explain.
+ */
+export function drawerVsBooks(f: { books: bigint; takenAway: bigint; counted: bigint }) {
+  const booksAfterTaken = f.books - f.takenAway;
+  return { booksAfterTaken, difference: f.counted - booksAfterTaken };
+}

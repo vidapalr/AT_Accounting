@@ -7,7 +7,8 @@ import { requireAccess } from "@/lib/auth";
 import { canRedoCashClosing } from "@/lib/access";
 import { closeCashDayAction } from "@/lib/cash-closing-actions";
 import { dayBefore, loadCashMovements, previousClosing } from "@/lib/cash-closing";
-import { expectedCash, paiseText } from "@/lib/cash-math";
+import { drawerVsBooks, expectedCash, paiseText } from "@/lib/cash-math";
+import { getAccountPositions } from "@/lib/reports/report-data";
 import NoteCounter from "@/components/accounting/NoteCounter";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -68,6 +69,20 @@ async function CashClosingContent({ searchParams }: Props) {
     );
     const closed = done[0];
 
+    let booksCheck: { books: bigint; takenAway: bigint; booksAfterTaken: bigint; difference: bigint } | null = null;
+    if (closed) {
+      const positions = await getAccountPositions(db, businessId, date);
+      const mine = positions.cash.find((c) => c.id === accountId);
+      const [takenRows] = await db.execute<Row[]>(
+        `SELECT ROUND(COALESCE(SUM(taken_out), 0) * 100) AS t FROM acct_cash_closings WHERE legal_business_id = ? AND cash_account_id = ? AND closing_date <= ?`,
+        [businessId, accountId, date]
+      );
+      if (mine) {
+        const takenAway = BigInt(Math.round(Number(takenRows[0]?.t ?? 0)));
+        booksCheck = { books: mine.balance, takenAway, ...drawerVsBooks({ books: mine.balance, takenAway, counted: BigInt(closed.c) }) };
+      }
+    }
+
     body = (
       <>
         <section style={box}>
@@ -112,6 +127,26 @@ async function CashClosingContent({ searchParams }: Props) {
             {noteLine(closed.denominations_json) && <p style={{ color: "#64748b" }}>Notes counted: {noteLine(closed.denominations_json)}</p>}
           </section>
         )}
+
+        {closed && (booksCheck ? (
+          <section style={{ ...box, borderColor: booksCheck.difference === 0n ? "#86efac" : "#fcd34d" }}>
+            <h2>Does the drawer match the books?</h2>
+            <table style={{ borderCollapse: "collapse", minWidth: 340 }}>
+              <tbody>
+                <tr><td style={cell}>Cash in the books on {pretty(date)}</td><td style={right}>{inr(booksCheck.books)}</td></tr>
+                <tr><td style={cell}>− Cash taken to bank or owner so far (not in the books yet)</td><td style={right}>{inr(booksCheck.takenAway)}</td></tr>
+                <tr><td style={cell}><strong>Books say the drawer should hold</strong></td><td style={right}><strong>{inr(booksCheck.booksAfterTaken)}</strong></td></tr>
+                <tr><td style={cell}>Counted in the drawer</td><td style={right}>{inr(BigInt(closed.c))}</td></tr>
+                <tr><td style={cell}><strong>Difference</strong></td><td style={{ ...right, color: booksCheck.difference === 0n ? "#166534" : "#b91c1c" }}><strong>{booksCheck.difference === 0n ? "Matches" : `${booksCheck.difference < 0n ? "Short" : "Extra"} ${inr(booksCheck.difference < 0n ? -booksCheck.difference : booksCheck.difference)}`}</strong></td></tr>
+              </tbody>
+            </table>
+            {booksCheck.difference !== 0n && (
+              <p style={{ color: "#92400e" }}>
+                A difference usually means sales or expenses are not in the books yet (see <Link href="/accounting/health">Accounting health</Link>), the opening balance is not posted, or cash taken to the bank was never entered in the bank account.
+              </p>
+            )}
+          </section>
+        ) : <p style={{ color: "#64748b" }}>The books figure is not available for this drawer yet.</p>)}
 
         {(!closed || redo) && (
           <section style={box}>

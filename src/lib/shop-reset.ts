@@ -12,7 +12,7 @@ import { resetEmail } from "@/lib/shop-mail-text";
 const hits = new Map<string, number[]>();
 const tokenHash = (t: string) => createHash("sha256").update(t).digest("hex");
 const sqlDate = (d: Date) => d.toISOString().slice(0, 19).replace("T", " ");
-export const shopBaseUrl = () => (process.env.SHOP_PUBLIC_URL || "https://textiles.abhiraminc.com").replace(/\/+$/, "");
+import { shopBaseUrl } from "@/lib/shop-url";
 
 /** Makes a one-hour, one-time link for an active customer and emails it. Returns whether an email was sent. */
 export async function sendResetLink(customerId: number): Promise<boolean> {
