@@ -282,7 +282,7 @@ export async function buildLedgerDrafts(
     conn,
     `SELECT s.id, s.invoice_no, DATE_FORMAT(s.invoice_date, '%Y-%m-%d') AS d,
             s.division_id, s.branch_id, s.subtotal, s.discount_amount,
-            s.grand_total,
+            s.grand_total, s.shipping_charge,
             COALESCE(SUM(l.total_cost), 0) AS cogs,
             COUNT(l.id) AS line_count,
             COUNT(l.total_cost) AS costed_lines
@@ -292,7 +292,7 @@ export async function buildLedgerDrafts(
       AND l.sale_id = s.id
      WHERE s.legal_business_id = ? AND s.status = 'POSTED'
      GROUP BY s.id, s.invoice_no, s.invoice_date, s.division_id,
-              s.branch_id, s.subtotal, s.discount_amount, s.grand_total
+              s.branch_id, s.subtotal, s.discount_amount, s.grand_total, s.shipping_charge
      ORDER BY s.invoice_date, s.id`,
     [businessId]
   );
@@ -312,6 +312,7 @@ export async function buildLedgerDrafts(
         subtotal: str(s.subtotal),
         discount: str(s.discount_amount),
         grandTotal: str(s.grand_total),
+        shipping: str(s.shipping_charge),
         costOfGoodsSold: str(s.cogs),
       });
     });

@@ -24,7 +24,7 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
   if (!/^[a-f0-9]{32}$/.test(token)) notFound();
   const [heads] = await db.execute<Row[]>(
     `SELECT s.id, s.legal_business_id, s.invoice_no, DATE_FORMAT(s.invoice_date, '%d %b %Y') AS d, s.customer_name,
-            s.subtotal, s.discount_amount, s.grand_total, s.status,
+            s.subtotal, s.discount_amount, s.grand_total, s.shipping_charge, s.status,
             b.address_line1, b.address_line2, b.city, b.state, b.postal_code
        FROM acct_invoice_shares sh JOIN acct_sales_headers s ON s.id = sh.sale_id AND s.legal_business_id = sh.legal_business_id
        LEFT JOIN acct_branches b ON b.legal_business_id = s.legal_business_id AND b.division_id = s.division_id AND b.id = s.branch_id
@@ -76,6 +76,7 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
           ))}
         </tbody>
       </table>
+      {Number(h.shipping_charge) > 0 && <p style={{ textAlign: "right", margin: "14px 0 0" }}>Delivery {inr(Number(h.shipping_charge))}</p>}
       <p style={{ textAlign: "right", margin: "14px 0 0" }}>Total <strong style={{ fontSize: 20 }}>{inr(total)}</strong></p>
       <p style={{ textAlign: "right", margin: 0 }}>Paid {inr(paidAmt)}</p>
       <p style={{ textAlign: "right", margin: 0 }}>{due > 0 ? <>Balance due <strong>{inr(due)}</strong></> : <strong>Paid in full. Thank you!</strong>}</p>

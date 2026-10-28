@@ -173,6 +173,7 @@ export async function createSaleAction(
   const requestedBySku = new Map<number, bigint>();
   let totalLineValue = 0n;
   let invoiceDiscount = 0n;
+  let shipping = 0n;
   let grandTotal = 0n;
   let paymentTotal = 0n;
 
@@ -235,7 +236,8 @@ export async function createSaleAction(
       throw new Error("Invoice discount exceeds subtotal");
     }
 
-    grandTotal = totalLineValue - invoiceDiscount;
+    shipping = parseAmount(String(form.get("shipping_charge") ?? "0"));
+    grandTotal = totalLineValue - invoiceDiscount + shipping;
 
     for (const payment of payments) {
       if (!PAYMENT_METHODS.has(payment.method)) {
@@ -582,7 +584,7 @@ export async function createSaleAction(
             await conn.execute(
               `UPDATE acct_sales_headers
                SET invoice_date = ?, customer_name = ?, customer_phone = ?, customer_id = ?,
-                   status = 'POSTED', subtotal = ?, discount_amount = ?, grand_total = ?,
+                   status = 'POSTED', subtotal = ?, discount_amount = ?, grand_total = ?, shipping_charge = ?,
                    remarks = ?, posted_by = ?, posted_at = CURRENT_TIMESTAMP
                WHERE id = ? AND legal_business_id = ? AND status = 'DRAFT'`,
               [
@@ -592,6 +594,7 @@ export async function createSaleAction(
                 moneyFromPaise(subtotal),
                 moneyFromPaise(totalDiscount),
                 moneyFromPaise(grandTotal),
+                moneyFromPaise(shipping),
                 remarks || null, user.id,
                 confirmDraftId, businessId,
               ]
@@ -604,11 +607,11 @@ export async function createSaleAction(
                  branch_id, location_id, invoice_no,
                  invoice_date, customer_name, customer_phone, customer_id,
                  status, subtotal, discount_amount,
-                 grand_total, remarks, created_by,
+                 grand_total, shipping_charge, remarks, created_by,
                  posted_by, posted_at, submit_token
                ) VALUES (
                  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                 ?, ?, ?, ?, ?, ?,
+                 ?, ?, ?, ?, ?, ?, ?,
                  ${mode === "POSTED" ? "CURRENT_TIMESTAMP" : "NULL"}, ?
                )`,
               [
@@ -619,6 +622,7 @@ export async function createSaleAction(
                 mode, moneyFromPaise(subtotal),
                 moneyFromPaise(totalDiscount),
                 moneyFromPaise(grandTotal),
+                moneyFromPaise(shipping),
                 remarks || null, user.id,
                 mode === "POSTED" ? user.id : null,
                 submitToken,
@@ -910,6 +914,7 @@ export async function updateSaleAction(
   }>;
   const requestedBySku = new Map<number, bigint>();
   let invoiceDiscount = 0n;
+  let shipping = 0n;
   let grandTotal = 0n;
 
   try {
@@ -976,7 +981,8 @@ export async function updateSaleAction(
     if (invoiceDiscount > lineTotal) {
       throw new Error("Invoice discount exceeds subtotal");
     }
-    grandTotal = lineTotal - invoiceDiscount;
+    shipping = parseAmount(String(form.get("shipping_charge") ?? "0"));
+    grandTotal = lineTotal - invoiceDiscount + shipping;
   } catch {
     redirect(`${PAGE}?result=invalid-edit&id=${saleId}`);
   }
@@ -1310,6 +1316,7 @@ export async function updateSaleAction(
                    subtotal = ?,
                    discount_amount = ?,
                    grand_total = ?,
+                   shipping_charge = ?,
                    remarks = ?
                WHERE legal_business_id = ?
                  AND division_id = ?
@@ -1322,6 +1329,7 @@ export async function updateSaleAction(
                 moneyFromPaise(subtotal),
                 moneyFromPaise(discountTotal),
                 moneyFromPaise(grandTotal),
+                moneyFromPaise(shipping),
                 remarks || null,
                 businessId,
                 DIVISION_ID,

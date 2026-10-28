@@ -465,3 +465,21 @@ test("investor money received: bank up, Investor Capital up; repaid is the rever
   const p = _fund({ ...base, kind: "REPAID" });
   assert.equal(p.lines[0].accountCode, "3200"); assert.equal(p.lines[1].accountCode, "1010");
 });
+
+test("sale with delivery charge: delivery income credited, totals still balance", () => {
+  const d = saleInvoiceEntry({
+    id: 9, invoiceNo: "AB_AT_AT_SA_09", date: "2026-10-28", dims,
+    subtotal: "1000.00", discount: "100.00", shipping: "450.00", grandTotal: "1350.00", costOfGoodsSold: "600.00",
+  });
+  const a = byAccount(d);
+  assert.equal(a[ACCOUNT.RECEIVABLES].debit, 135000n);
+  assert.equal(a[ACCOUNT.DELIVERY_INCOME].credit, 45000n);
+  assert.equal(a[ACCOUNT.SALES].credit, 100000n);
+});
+
+test("sale whose total does not include its delivery is refused", () => {
+  assert.throws(() => saleInvoiceEntry({
+    id: 9, invoiceNo: "X", date: "2026-10-28", dims,
+    subtotal: "1000.00", discount: "0.00", shipping: "450.00", grandTotal: "1000.00", costOfGoodsSold: "0.00",
+  }));
+});

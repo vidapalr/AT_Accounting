@@ -68,6 +68,7 @@ type InitialInvoice = {
   customerName: string;
   customerPhone: string;
   invoiceDiscount: string;
+  shippingCharge?: string;
   remarks: string;
   collected: number;
   lines: Array<{
@@ -92,6 +93,8 @@ type Prefill = {
   lines: Array<{ variantId: number; quantity: string; price: string; discount?: string }>;
   /** Set when the bill starts from an order placed on the website. */
   onlineOrder?: { id: number; orderNo: string };
+  /** Delivery charge carried over from the website order. */
+  shipping?: string;
   /** Set when the bill starts from items a customer took on approval. */
   customerName?: string;
   customerPhone?: string;
@@ -187,6 +190,9 @@ export default function SalesBillingForm({
   useEffect(() => {
     setSubmitToken(crypto.randomUUID());
   }, [addressKey]);
+  const [shipping, setShipping] = useState(
+    initialInvoice?.shippingCharge ?? prefill?.shipping ?? "0"
+  );
   const [invoiceDiscount, setInvoiceDiscount] = useState(
     initialInvoice?.invoiceDiscount ?? "0"
   );
@@ -271,7 +277,7 @@ export default function SalesBillingForm({
   );
 
   const grandTotal = Math.max(
-    0, subtotal - Number(invoiceDiscount || 0)
+    0, subtotal - Number(invoiceDiscount || 0) + Number(shipping || 0)
   );
 
   const collected = payments.reduce(
@@ -316,7 +322,7 @@ export default function SalesBillingForm({
               <input type="hidden" name="online_order_id" value={prefill.onlineOrder.id} />
               <p style={{ background: "#eff6ff", padding: 10, borderRadius: 8 }}>
                 Filled from website order {prefill.onlineOrder.orderNo}. Check the items and prices, add the payment, then
-                save the bill. Shipping is not on the bill: collect it separately.
+                save the bill. The delivery charge from the order is filled in below; check it.
               </p>
             </>
           ) : prefill.approvalItemIds && prefill.approvalItemIds.length > 0 ? (
@@ -657,6 +663,18 @@ export default function SalesBillingForm({
               name="invoice_discount"
               value={invoiceDiscount}
               onChange={e => setInvoiceDiscount(e.target.value)}
+            />
+          </label>
+          <label className={`${styles.field}`}>
+            Delivery charge ₹ (leave 0 if none)
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              name="shipping_charge"
+              value={shipping}
+              onChange={e => setShipping(e.target.value)}
             />
           </label>
           <div className={`${styles.totalRow} ${styles.grand}`}>
