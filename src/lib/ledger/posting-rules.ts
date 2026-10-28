@@ -84,7 +84,8 @@ export type SourceType =
   | "ASSET_DEPRECIATION"
   | "ASSET_DISPOSAL"
   | "STAFF_ADVANCE"
-  | "OWNER_MONEY";
+  | "OWNER_MONEY"
+  | "CASH_TAKEN";
 
 export type Dimensions = {
   divisionId: number | null;
@@ -311,6 +312,24 @@ export function ownerMoneyEntry(a: {
   return makeDraft("OWNER_MONEY", a.id, a.date, memo, a.direction === "IN"
     ? [debit(account, amount, a.dims, memo), credit(ACCOUNT.PROPRIETOR_CAPITAL, amount, a.dims, memo)]
     : [debit(ACCOUNT.PROPRIETOR_CAPITAL, amount, a.dims, memo), credit(account, amount, a.dims, memo)]);
+}
+
+/**
+ * Cash taken out of a drawer at day end: deposited to a business bank account (bank up), or taken by
+ * the owner (Proprietor Capital down). Either way the cash drawer goes down.
+ */
+export function cashTakenEntry(a: {
+  id: number; date: string; amount: string; to: "BANK" | "OWNER"; dims: Dimensions; cash: Settlement; target: Settlement | null;
+}): JournalDraft {
+  const amount = parseMoney(a.amount);
+  const memo = a.to === "BANK" ? "Cash taken from the drawer to the bank" : "Cash taken from the drawer by the owner";
+  const toAccount = a.to === "BANK"
+    ? (a.target ? settlementAccount(a.target) : (() => { throw new Error("no bank account recorded"); })())
+    : ACCOUNT.PROPRIETOR_CAPITAL;
+  return makeDraft("CASH_TAKEN", a.id, a.date, memo, [
+    debit(toAccount, amount, a.dims, memo),
+    credit(settlementAccount(a.cash), amount, a.dims, memo),
+  ]);
 }
 
 /** An asset bought: Fixed Assets up, paid from bank or cash (or the owner's / investor's own money). */
