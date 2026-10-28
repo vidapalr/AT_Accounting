@@ -6,6 +6,10 @@ import { connection } from "next/server";
 
 import { db } from "@/lib/db";
 import styles from "../../shop.module.css";
+import { getShopSettings } from "@/lib/shop";
+import { normalizePhone } from "@/lib/whatsapp/core";
+
+const TAGLINE = "Your neighbourhood women's wear shop";
 
 export const metadata: Metadata = { title: "Your bill", robots: { index: false, follow: false } };
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -19,8 +23,10 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
   if (!/^[a-f0-9]{32}$/.test(token)) notFound();
   const [heads] = await db.execute<Row[]>(
     `SELECT s.id, s.legal_business_id, s.invoice_no, DATE_FORMAT(s.invoice_date, '%d %b %Y') AS d, s.customer_name,
-            s.subtotal, s.discount_amount, s.grand_total, s.status
+            s.subtotal, s.discount_amount, s.grand_total, s.status,
+            b.address_line1, b.address_line2, b.city, b.state, b.postal_code
        FROM acct_invoice_shares sh JOIN acct_sales_headers s ON s.id = sh.sale_id AND s.legal_business_id = sh.legal_business_id
+       LEFT JOIN acct_branches b ON b.legal_business_id = s.legal_business_id AND b.division_id = s.division_id AND b.id = s.branch_id
       WHERE sh.token = ?`, [token]
   );
   const h = heads[0];
@@ -36,14 +42,25 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
     `SELECT COALESCE(SUM(amount), 0) AS paid FROM acct_sales_payments WHERE legal_business_id = ? AND sale_id = ? AND status = 'RECORDED'`,
     [h.legal_business_id, h.id]
   );
+  const { whatsapp } = await getShopSettings(Number(h.legal_business_id));
+  const phone = normalizePhone(whatsapp);
+  const address = [h.address_line1, h.address_line2, h.city, h.state, h.postal_code].filter(Boolean).join(", ") || "Kapra, Hyderabad";
   const total = Number(h.grand_total);
   const paidAmt = Number(paid[0]?.paid ?? 0);
   const due = Math.max(0, total - paidAmt);
 
   return (
     <div style={{ maxWidth: 640, margin: "10px auto" }}>
-      <h1 style={{ fontFamily: "var(--font-display), Georgia, serif", fontWeight: 400, color: "var(--indigo)", marginBottom: 4 }}>Abhiram Textiles</h1>
-      <p className={styles.muted} style={{ marginTop: 0 }}>Bill {String(h.invoice_no)} · {String(h.d)}{h.customer_name ? ` · ${h.customer_name}` : ""}</p>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, borderBottom: "2px solid var(--indigo)", paddingBottom: 12, marginBottom: 10 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/abhiram-logo-192.png" alt="Abhiram Textiles logo" width={64} height={64} />
+        <div>
+          <h1 style={{ fontFamily: "var(--font-display), Georgia, serif", fontWeight: 400, color: "var(--indigo)", margin: 0 }}>Abhiram Textiles</h1>
+          <div className={styles.muted}>{TAGLINE}</div>
+        </div>
+      </div>
+      <p className={styles.muted} style={{ margin: "0 0 4px" }}>{address}{phone ? <> · <a href={`tel:${phone}`}>{whatsapp}</a></> : null}</p>
+      <p style={{ margin: "0 0 12px" }}><strong>Bill {String(h.invoice_no)}</strong> · {String(h.d)}{h.customer_name ? ` · ${h.customer_name}` : ""}</p>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead><tr><th style={cell}>Item</th><th style={right}>Qty</th><th style={right}>Amount</th></tr></thead>
         <tbody>
@@ -60,7 +77,10 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
       <p style={{ textAlign: "right", margin: "14px 0 0" }}>Total <strong style={{ fontSize: 20 }}>{inr(total)}</strong></p>
       <p style={{ textAlign: "right", margin: 0 }}>Paid {inr(paidAmt)}</p>
       <p style={{ textAlign: "right", margin: 0 }}>{due > 0 ? <>Balance due <strong>{inr(due)}</strong></> : <strong>Paid in full. Thank you!</strong>}</p>
-      <p className={styles.muted} style={{ marginTop: 24 }}>Please message us on WhatsApp if anything looks wrong.</p>
+      <p style={{ marginTop: 28, fontSize: 18, textAlign: "center", color: "var(--indigo)" }}><strong>Thanks for shopping with Abhiram Textiles!</strong></p>
+      <p className={styles.muted} style={{ textAlign: "center" }}>
+        If anything looks wrong, message us{phone ? <> on <a href={`https://wa.me/${phone.replace(/\D/g, "")}`}>WhatsApp {whatsapp}</a></> : " on WhatsApp"}.
+      </p>
     </div>
   );
 }
