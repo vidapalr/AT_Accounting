@@ -35,6 +35,7 @@ export const ACCOUNT = {
   SETUP_COSTS: "6900",
   SETUP_ASSET: "1320",
   SALES_DISCOUNTS: "4200",
+  DELIVERY_INCOME: "4300",
   SALES_RETURNS: "4210",
   COGS: "5000",
   DAMAGED_STOCK: "5150",
@@ -228,16 +229,19 @@ export function saleInvoiceEntry(sale: {
   discount: string; // line discounts + invoice discount
   grandTotal: string;
   costOfGoodsSold: string;
+  /** Delivery charged on the bill (optional). */
+  shipping?: string;
 }): JournalDraft {
   const subtotal = parseMoney(sale.subtotal);
+  const shipping = parseMoney(sale.shipping ?? "0");
   const discount = parseMoney(sale.discount);
   const grandTotal = parseMoney(sale.grandTotal);
   const cogs = parseMoney(sale.costOfGoodsSold);
 
-  if (subtotal - discount !== grandTotal) {
+  if (subtotal - discount + shipping !== grandTotal) {
     throw new Error(
       `Invoice ${sale.invoiceNo}: subtotal ${sale.subtotal} less discount ` +
-        `${sale.discount} does not equal total ${sale.grandTotal}`
+        `${sale.discount} plus delivery ${sale.shipping ?? "0"} does not equal total ${sale.grandTotal}`
     );
   }
 
@@ -247,6 +251,7 @@ export function saleInvoiceEntry(sale: {
     debit(ACCOUNT.RECEIVABLES, grandTotal, sale.dims, memo),
     debit(ACCOUNT.SALES_DISCOUNTS, discount, sale.dims, memo),
     credit(ACCOUNT.SALES, subtotal, sale.dims, memo),
+    credit(ACCOUNT.DELIVERY_INCOME, shipping, sale.dims, `${memo} delivery`),
     debit(ACCOUNT.COGS, cogs, sale.dims, `${memo} cost of goods`),
     credit(ACCOUNT.INVENTORY, cogs, sale.dims, `${memo} cost of goods`),
   ]);

@@ -82,6 +82,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
        s.subtotal,
        s.discount_amount,
        s.grand_total,
+       s.shipping_charge,
        s.remarks,
        b.branch_name
      FROM acct_sales_headers s
@@ -332,6 +333,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
       }}>
         <p>Subtotal: ₹{money(invoice.subtotal)}</p>
         <p>Discount: ₹{money(invoice.discount_amount)}</p>
+        {Number(invoice.shipping_charge) > 0 && <p>Delivery: ₹{money(invoice.shipping_charge)}</p>}
         <h2>Invoice Total: ₹{money(total)}</h2>
       </section>
 

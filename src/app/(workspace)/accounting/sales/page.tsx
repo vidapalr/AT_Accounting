@@ -266,6 +266,7 @@ async function SalesContent({ searchParams }: Props) {
         branchId: number | null;
         lines: Array<{ variantId: number; quantity: string; price: string; discount?: string }>;
         onlineOrder?: { id: number; orderNo: string };
+        shipping?: string;
         customerName?: string;
         customerPhone?: string;
         approvalItemIds?: number[];
@@ -316,7 +317,7 @@ async function SalesContent({ searchParams }: Props) {
   const onlineId = Number(from_online);
   if (!prefill && Number.isSafeInteger(onlineId) && onlineId > 0) {
     const [ord] = await db.execute<RowDataPacket[]>(
-      `SELECT id, order_no, customer_name, phone FROM acct_online_orders
+      `SELECT id, order_no, customer_name, phone, shipping_charge FROM acct_online_orders
         WHERE id = ? AND legal_business_id = ? AND status IN ('REQUESTED','CONFIRMED') AND sale_id IS NULL`,
       [onlineId, businessId]
     );
@@ -330,6 +331,7 @@ async function SalesContent({ searchParams }: Props) {
         reportId: 0,
         branchId: null,
         onlineOrder: { id: Number(ord[0].id), orderNo: String(ord[0].order_no) },
+        shipping: String(Number(ord[0].shipping_charge ?? 0)),
         lines: ol.map(l => {
           const unit = Number(l.unit_price);
           const list = l.list_price === null ? unit : Number(l.list_price);
@@ -399,6 +401,7 @@ async function SalesContent({ searchParams }: Props) {
            s.subtotal,
            s.discount_amount,
            s.grand_total,
+           s.shipping_charge,
            s.remarks,
            b.branch_name
          FROM acct_sales_headers s
@@ -583,6 +586,7 @@ async function SalesContent({ searchParams }: Props) {
               customerPhone: String(
                 selectedInvoice.customer_phone ?? ""
               ),
+              shippingCharge: String(Number(selectedInvoice.shipping_charge ?? 0)),
               invoiceDiscount: (
                 Number(selectedInvoice.discount_amount) -
                 selectedLines.reduce(
