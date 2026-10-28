@@ -11,10 +11,6 @@ import { TAGLINE } from "@/lib/brand";
 import BillWatermark from "@/components/BillWatermark";
 import { normalizePhone } from "@/lib/whatsapp/core";
 
-<<<<<<< HEAD
-const TAGLINE = "Elegance in every thread";
-=======
->>>>>>> e90016f3c18962550cf7fc9190eb78701dcfd9aa
 
 export const metadata: Metadata = { title: "Your bill", robots: { index: false, follow: false } };
 type Row = RowDataPacket & Record<string, string | number | null>;
