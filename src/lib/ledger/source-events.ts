@@ -32,6 +32,7 @@ import {
   openingBalanceEntry,
   partySetoffEntry,
   fixedAssetPurchaseEntry,
+  ownerMoneyEntry,
   assetDepreciationEntry,
   assetDisposalEntry,
   staffAdvanceEntry,
@@ -93,6 +94,7 @@ const SOURCE_ORDER: SourceType[] = [
   "ASSET_DEPRECIATION",
   "ASSET_DISPOSAL",
   "STAFF_ADVANCE",
+  "OWNER_MONEY",
 ];
 
 const str = (v: unknown): string => String(v ?? "");
@@ -574,6 +576,26 @@ export async function buildLedgerDrafts(
       return staffAdvanceEntry({
         id: Number(a.id), advanceNo: str(a.advance_no), employeeName: str(a.full_name), date: str(a.d), amount: str(a.amount),
         dims: dims(a.division_id, a.branch_id), settlement,
+      });
+    });
+  }
+
+  // --------------------------------------------------- owner money in / out
+  const ownerMoney = await select(
+    conn,
+    `SELECT id, entry_no, direction, account_kind, bank_account_id, cash_account_id, note,
+            DATE_FORMAT(entry_date, '%Y-%m-%d') AS d, amount
+     FROM acct_owner_money WHERE legal_business_id = ? ORDER BY entry_date, id`,
+    [businessId]
+  ).catch(() => [] as Row[]); // before migration 037 is run
+  for (const o of ownerMoney) {
+    const label = `Owner money ${str(o.entry_no)}`;
+    add(label, () => {
+      const settlement = settle(label, str(o.account_kind) === "BANK" ? "BUSINESS_BANK" : "BUSINESS_CASH", o.bank_account_id, o.cash_account_id);
+      if (!settlement) return null;
+      return ownerMoneyEntry({
+        id: Number(o.id), entryNo: str(o.entry_no), direction: str(o.direction) === "OUT" ? "OUT" : "IN", date: str(o.d),
+        amount: str(o.amount), note: str(o.note), dims: dims(null, null), settlement,
       });
     });
   }

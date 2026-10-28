@@ -83,7 +83,8 @@ export type SourceType =
   | "FIXED_ASSET"
   | "ASSET_DEPRECIATION"
   | "ASSET_DISPOSAL"
-  | "STAFF_ADVANCE";
+  | "STAFF_ADVANCE"
+  | "OWNER_MONEY";
 
 export type Dimensions = {
   divisionId: number | null;
@@ -295,6 +296,21 @@ export function staffAdvanceEntry(a: {
     debit(ACCOUNT.STAFF_ADVANCES, amount, a.dims, memo),
     credit(settlementAccount(a.settlement), amount, a.dims, memo),
   ]);
+}
+
+/**
+ * The owner puts money into a business bank or cash account (Proprietor Capital up),
+ * or takes money back out (Proprietor Capital down).
+ */
+export function ownerMoneyEntry(a: {
+  id: number; entryNo: string; direction: "IN" | "OUT"; date: string; amount: string; note: string; dims: Dimensions; settlement: Settlement;
+}): JournalDraft {
+  const amount = parseMoney(a.amount);
+  const memo = `${a.direction === "IN" ? "Owner put in" : "Owner took out"} ${a.entryNo}${a.note ? `: ${a.note}` : ""}`;
+  const account = settlementAccount(a.settlement);
+  return makeDraft("OWNER_MONEY", a.id, a.date, memo, a.direction === "IN"
+    ? [debit(account, amount, a.dims, memo), credit(ACCOUNT.PROPRIETOR_CAPITAL, amount, a.dims, memo)]
+    : [debit(ACCOUNT.PROPRIETOR_CAPITAL, amount, a.dims, memo), credit(account, amount, a.dims, memo)]);
 }
 
 /** An asset bought: Fixed Assets up, paid from bank or cash (or the owner's / investor's own money). */
