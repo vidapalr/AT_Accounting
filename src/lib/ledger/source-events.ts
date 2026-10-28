@@ -34,6 +34,7 @@ import {
   fixedAssetPurchaseEntry,
   ownerMoneyEntry,
   cashTakenEntry,
+  fundingReceiptEntry,
   assetDepreciationEntry,
   assetDisposalEntry,
   staffAdvanceEntry,
@@ -97,6 +98,7 @@ const SOURCE_ORDER: SourceType[] = [
   "STAFF_ADVANCE",
   "OWNER_MONEY",
   "CASH_TAKEN",
+  "FUNDING_RECEIPT",
 ];
 
 const str = (v: unknown): string => String(v ?? "");
@@ -598,6 +600,30 @@ export async function buildLedgerDrafts(
       return ownerMoneyEntry({
         id: Number(o.id), entryNo: str(o.entry_no), direction: str(o.direction) === "OUT" ? "OUT" : "IN", date: str(o.d),
         amount: str(o.amount), note: str(o.note), dims: dims(null, null), settlement,
+      });
+    });
+  }
+
+  // ------------------------------------ investor money received / paid back
+  const funding = await select(
+    conn,
+    `SELECT t.id, t.transaction_no, t.transaction_type, t.bank_account_id, t.cash_account_id, t.amount,
+            DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS d, a.agreement_no, a.division_id, a.branch_id
+     FROM acct_funding_transactions t
+     JOIN acct_funding_agreements a ON a.legal_business_id = t.legal_business_id AND a.id = t.agreement_id
+     WHERE t.legal_business_id = ? AND t.status = 'VERIFIED' ORDER BY t.transaction_date, t.id`,
+    [businessId]
+  );
+  for (const f of funding) {
+    const label = `Funding ${str(f.transaction_no)}`;
+    add(label, () => {
+      const type = str(f.transaction_type);
+      if (type === "RETURN_PAID") throw new Error("returns paid to investors have no ledger rule yet");
+      const settlement = settle(label, str(f.bank_account_id) ? "BUSINESS_BANK" : "BUSINESS_CASH", f.bank_account_id, f.cash_account_id);
+      if (!settlement) return null;
+      return fundingReceiptEntry({
+        id: Number(f.id), txNo: str(f.transaction_no), kind: type === "PRINCIPAL_REPAID" ? "REPAID" : "RECEIVED", date: str(f.d),
+        amount: str(f.amount), agreementNo: str(f.agreement_no), dims: dims(f.division_id, f.branch_id), settlement,
       });
     });
   }

@@ -456,3 +456,12 @@ test("cash taken to the bank: bank up, cash down; taken by owner: capital down, 
   const o = _taken({ ...base, to: "OWNER", target: null });
   assert.equal(o.lines[0].accountCode, "3000"); assert.equal(o.lines[1].accountCode, "1000");
 });
+
+import { fundingReceiptEntry as _fund } from "../src/lib/ledger/posting-rules.ts";
+test("investor money received: bank up, Investor Capital up; repaid is the reverse", () => {
+  const base = { id: 1, txNo: "FTX-0001", date: "2026-10-28", amount: "100000.00", agreementNo: "AGR-1", dims: { divisionId: 1, branchId: 1 }, settlement: { kind: "ACCOUNT", accountCode: "1010" } };
+  const r = _fund({ ...base, kind: "RECEIVED" });
+  assert.equal(r.lines[0].accountCode, "1010"); assert.equal(r.lines[1].accountCode, "3200"); assert.equal(r.lines[1].credit, 10000000n);
+  const p = _fund({ ...base, kind: "REPAID" });
+  assert.equal(p.lines[0].accountCode, "3200"); assert.equal(p.lines[1].accountCode, "1010");
+});

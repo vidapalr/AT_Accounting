@@ -85,7 +85,8 @@ export type SourceType =
   | "ASSET_DISPOSAL"
   | "STAFF_ADVANCE"
   | "OWNER_MONEY"
-  | "CASH_TAKEN";
+  | "CASH_TAKEN"
+  | "FUNDING_RECEIPT";
 
 export type Dimensions = {
   divisionId: number | null;
@@ -330,6 +331,21 @@ export function cashTakenEntry(a: {
     debit(toAccount, amount, a.dims, memo),
     credit(settlementAccount(a.cash), amount, a.dims, memo),
   ]);
+}
+
+/**
+ * Investor money received into a business bank or cash account (Investor Capital up), or the
+ * principal paid back (Investor Capital down). Posted only after the owner confirmed it against the bank.
+ */
+export function fundingReceiptEntry(a: {
+  id: number; txNo: string; kind: "RECEIVED" | "REPAID"; date: string; amount: string; agreementNo: string; dims: Dimensions; settlement: Settlement;
+}): JournalDraft {
+  const amount = parseMoney(a.amount);
+  const memo = `${a.kind === "RECEIVED" ? "Investor money received" : "Investor principal paid back"} ${a.txNo} (${a.agreementNo})`;
+  const account = settlementAccount(a.settlement);
+  return makeDraft("FUNDING_RECEIPT", a.id, a.date, memo, a.kind === "RECEIVED"
+    ? [debit(account, amount, a.dims, memo), credit(ACCOUNT.INVESTOR_CAPITAL, amount, a.dims, memo)]
+    : [debit(ACCOUNT.INVESTOR_CAPITAL, amount, a.dims, memo), credit(account, amount, a.dims, memo)]);
 }
 
 /** An asset bought: Fixed Assets up, paid from bank or cash (or the owner's / investor's own money). */

@@ -434,3 +434,43 @@ export async function createFundingReceiptAction(
 
   redirect(`/funding/transactions?result=${outcome}`);
 }
+
+
+/** Owner confirms a Draft receipt matches the bank statement. It then counts for the investor and reaches the books. */
+export async function confirmFundingReceiptAction(form: FormData) {
+  const user = await requireGroupOwner();
+  const id = Number(read(form, "transaction_id"));
+  if (!Number.isSafeInteger(id) || id <= 0) redirect("/funding/transactions?result=invalid");
+  const [res] = await db.execute(
+    `UPDATE acct_funding_transactions SET status = 'VERIFIED', verified_by = ?, verified_at = NOW()
+      WHERE id = ? AND legal_business_id = ? AND status = 'DRAFT'`,
+    [user.id, id, user.legal_business_id]
+  );
+  if ((res as { affectedRows: number }).affectedRows !== 1) redirect("/funding/transactions?result=failed");
+  await db.execute(
+    `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
+     VALUES (?, ?, 'FUNDING_RECEIPT_CONFIRMED', 'FUNDING_TRANSACTION', ?, ?)`,
+    [user.legal_business_id, user.id, id, JSON.stringify({ checkedAgainst: "bank statement" })]
+  );
+  revalidatePath("/funding/transactions");
+  redirect("/funding/transactions?result=confirmed");
+}
+
+/** Owner cancels a Draft receipt that never happened. A confirmed receipt cannot be cancelled here. */
+export async function cancelFundingReceiptAction(form: FormData) {
+  const user = await requireGroupOwner();
+  const id = Number(read(form, "transaction_id"));
+  if (!Number.isSafeInteger(id) || id <= 0) redirect("/funding/transactions?result=invalid");
+  const [res] = await db.execute(
+    `UPDATE acct_funding_transactions SET status = 'VOID' WHERE id = ? AND legal_business_id = ? AND status = 'DRAFT'`,
+    [id, user.legal_business_id]
+  );
+  if ((res as { affectedRows: number }).affectedRows !== 1) redirect("/funding/transactions?result=failed");
+  await db.execute(
+    `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
+     VALUES (?, ?, 'FUNDING_RECEIPT_CANCELLED', 'FUNDING_TRANSACTION', ?, '{}')`,
+    [user.legal_business_id, user.id, id]
+  );
+  revalidatePath("/funding/transactions");
+  redirect("/funding/transactions?result=cancelled");
+}
