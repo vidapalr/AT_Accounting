@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Hanken_Grotesk, Young_Serif } from "next/font/google";
 import Link from "next/link";
+import { TAGLINE } from "@/lib/brand";
 import { Suspense } from "react";
 
 import AnnounceBar from "@/components/shop/AnnounceBar";
@@ -12,7 +13,7 @@ const display = Young_Serif({ subsets: ["latin"], weight: "400", variable: "--fo
 const body = Hanken_Grotesk({ subsets: ["latin"], variable: "--font-body", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Abhiram Textiles | Cotton, sarees and everyday wear", template: "%s | Abhiram Textiles" },
+  title: { default: "Abhiram Textiles | Elegance in every thread", template: "%s | Abhiram Textiles" },
   description: "Cotton sets, everyday essentials and traditional sarees from Abhiram Textiles, Kapra, Hyderabad. We ship across India and worldwide.",
 };
 
@@ -22,7 +23,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
       <Suspense fallback={null}><AnnounceBar /></Suspense>
       <header className={styles.header}>
         <div className={styles.bar}>
-          <Link href="/shop" className={styles.brand}>Abhiram Textiles<small>Kapra, Hyderabad</small></Link>
+          <Link href="/shop" className={styles.brand}>Abhiram Textiles<small>{TAGLINE}</small></Link>
           <nav className={styles.nav}>
             <Link href="/shop?q=saree#products" className={styles.hideSm}>Sarees</Link>
             <Link href="/shop?q=cotton#products" className={styles.hideSm}>Cotton sets</Link>
@@ -34,6 +35,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
       </header>
       <div className={styles.main}>{children}</div>
       <footer className={styles.footer}>
+        <p style={{ fontStyle: "italic" }}>{TAGLINE}</p>
         <p>Abhiram Textiles, Kapra, Hyderabad. We ship across India and worldwide.</p>
         <p><a href="https://abhiraminc.com">A part of Abhiram Group</a></p>
       </footer>

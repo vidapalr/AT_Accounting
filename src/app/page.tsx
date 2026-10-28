@@ -22,7 +22,7 @@ export default function Home() {
         <Link href="/login" prefetch={false} className={styles.login}>Login <span aria-hidden="true">↗</span></Link>
       </header>
       <section className={styles.intro} aria-labelledby="welcome">
-        <p className={styles.eyebrow}>COTTON COMFORT. TIMELESS TRADITION.</p>
+        <p className={styles.eyebrow}>ELEGANCE IN EVERY THREAD</p>
         <h1 id="welcome">A little colour.<br />A lot of comfort.</h1>
         <p className={styles.description}>Welcome to Abhiram Textiles, your neighbourhood women’s wear shop in Kapra, Hyderabad. Explore comfortable cotton sets, everyday essentials and traditional sarees for moments big and small.</p>
         <p><Link href="/shop" className={styles.login}>Shop online <span aria-hidden="true">→</span></Link></p>
