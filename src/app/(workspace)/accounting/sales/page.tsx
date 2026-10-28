@@ -7,6 +7,8 @@ import { requireAccess } from "@/lib/auth";
 import { normalizePhone as normalizeIndianPhone } from "@/lib/customer-phone";
 import { bestOffer } from "@/lib/offer-math";
 import { loadOffers } from "@/lib/shop";
+import { sendBillOnWhatsAppAction } from "@/lib/bill-share-actions";
+import { normalizePhone as normalizeWaPhone } from "@/lib/whatsapp/core";
 import SalesBillingForm from
   "@/components/accounting/SalesBillingForm";
 
@@ -369,6 +371,15 @@ async function SalesContent({ searchParams }: Props) {
     }
   }
 
+  const createdId = result === "created" ? Number(id) : 0;
+  const [createdRows] = Number.isSafeInteger(createdId) && createdId > 0
+    ? await db.execute<RowDataPacket[]>(
+        `SELECT id, invoice_no, status, customer_phone FROM acct_sales_headers WHERE legal_business_id = ? AND id = ?`,
+        [businessId, createdId]
+      )
+    : [[] as RowDataPacket[]];
+  const createdSale = createdRows[0];
+
   const selectedInvoiceId = Number(edit ?? view);
   const hasSelectedInvoice =
     Number.isSafeInteger(selectedInvoiceId) &&
@@ -517,6 +528,15 @@ async function SalesContent({ searchParams }: Props) {
           Customer returns
         </a>
       </nav>
+
+      {result === "created" && createdSale?.status === "POSTED" && normalizeWaPhone(String(createdSale.customer_phone ?? "")) ? (
+        <form action={sendBillOnWhatsAppAction} style={{ margin: "0 0 12px" }}>
+          <input type="hidden" name="sale_id" value={String(createdSale.id)} />
+          <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer", fontSize: 18, padding: "14px 22px" }}>
+            Send bill {String(createdSale.invoice_no)} on WhatsApp
+          </button>
+        </form>
+      ) : null}
 
       {result && (
         <p role="status" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
