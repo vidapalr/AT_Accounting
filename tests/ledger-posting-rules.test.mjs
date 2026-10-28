@@ -435,3 +435,14 @@ test("a staff advance is an asset paid from cash or bank, not an expense", () =>
   assert.deepEqual(d.lines.map((l) => l.accountCode).sort(), ["1000", "1330"]);
   assert.equal(d.lines.find((l) => l.accountCode === "1330").debit, 500000n);
 });
+
+import { ownerMoneyEntry as _owner } from "../src/lib/ledger/posting-rules.ts";
+test("owner money in debits the bank and credits Proprietor Capital; out is the reverse", () => {
+  const base = { id: 1, entryNo: "OWN-0001", date: "2026-10-28", amount: "516.00", note: "", dims: { divisionId: null, branchId: null }, settlement: { kind: "ACCOUNT", accountCode: "1010" } };
+  const inn = _owner({ ...base, direction: "IN" });
+  assert.equal(inn.lines[0].accountCode, "1010"); assert.equal(inn.lines[0].debit, 51600n);
+  assert.equal(inn.lines[1].accountCode, "3000"); assert.equal(inn.lines[1].credit, 51600n);
+  const out = _owner({ ...base, direction: "OUT" });
+  assert.equal(out.lines[0].accountCode, "3000"); assert.equal(out.lines[0].debit, 51600n);
+  assert.equal(out.lines[1].accountCode, "1010"); assert.equal(out.lines[1].credit, 51600n);
+});

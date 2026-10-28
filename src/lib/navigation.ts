@@ -119,6 +119,7 @@ export const NAVIGATION: NavSection[] = [
     label: "Investors",
     icon: "investors",
     items: [
+      { label: "Owner money in and out", href: "/accounting/owner-money", hint: "Your own money put into, or taken from, the business" },
       { label: "Investors and lenders", href: "/funding", hint: "People who put money into the business" },
       { label: "Agreements", href: "/funding/agreements", hint: "Profit-sharing and loan agreements" },
       { label: "Profit shares", href: "/accounting/investor-shares", hint: "What each investor has earned" },
