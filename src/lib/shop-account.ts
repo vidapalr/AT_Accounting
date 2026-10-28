@@ -1,3 +1,4 @@
+import { sendVerifyLink } from "@/lib/shop-verify";
 import "server-only";
 import { randomBytes, createHash } from "node:crypto";
 import { cookies } from "next/headers";
@@ -41,6 +42,7 @@ export async function registerCustomer(raw: unknown, ip: string): Promise<Result
       [SHOP_BUSINESS_ID, email, name, phone, hash]
     );
     await startSession(res.insertId);
+    sendVerifyLink(res.insertId).catch((e) => console.error("Verify link failed:", e));
     return { ok: true };
   } catch (error) {
     if ((error as { code?: string }).code === "ER_DUP_ENTRY") return { ok: false, error: "There is already an account with this email. Please log in instead." };
