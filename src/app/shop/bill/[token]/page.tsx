@@ -7,9 +7,10 @@ import { connection } from "next/server";
 import { db } from "@/lib/db";
 import styles from "../../shop.module.css";
 import { getShopSettings } from "@/lib/shop";
+import { TAGLINE } from "@/lib/brand";
+import BillWatermark from "@/components/BillWatermark";
 import { normalizePhone } from "@/lib/whatsapp/core";
 
-const TAGLINE = "Your neighbourhood women's wear shop";
 
 export const metadata: Metadata = { title: "Your bill", robots: { index: false, follow: false } };
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -50,7 +51,8 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
   const due = Math.max(0, total - paidAmt);
 
   return (
-    <div style={{ maxWidth: 640, margin: "10px auto" }}>
+    <div style={{ maxWidth: 640, margin: "10px auto", position: "relative", zIndex: 1 }}>
+      <BillWatermark />
       <div style={{ display: "flex", alignItems: "center", gap: 14, borderBottom: "2px solid var(--indigo)", paddingBottom: 12, marginBottom: 10 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/abhiram-logo-192.png" alt="Abhiram Textiles logo" width={64} height={64} />

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { TAGLINE } from "@/lib/brand";
 import Link from "next/link";
 
 import { getShopProducts, getShopSettings } from "@/lib/shop";
@@ -108,6 +109,7 @@ async function Home({ searchParams }: Props) {
     <>
       <section className={styles.homeHero}>
         <div className={styles.heroCopy}>
+          <p style={{ color: "var(--gold)", letterSpacing: ".14em", textTransform: "uppercase", fontSize: ".85rem", fontWeight: 700, margin: "0 0 10px" }}>{TAGLINE}</p>
           <h1><span style={{ display: "block" }}>A little colour.</span><span style={{ display: "block" }}>A lot of comfort.</span></h1>
           <p>Cotton sets for every day, sarees for the days that matter, and Kalamkari prints made to be loved. From our shop in Kapra, Hyderabad to your door, anywhere in the world.</p>
           <div className={styles.heroBtns}>
