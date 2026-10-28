@@ -13,13 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-<<<<<<< HEAD
   title: "An Abhiram Group",
   description: "Abhiram Textiles is a part of Abhiram Group, a leading textile retailer specializing in high-quality fabrics and garments.",
-=======
-  title: "An Abhiram Group Project",
-  description: "Abhiram Textiles, An Abhiram Group Project",
->>>>>>> feat/ledger-dry-run
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
