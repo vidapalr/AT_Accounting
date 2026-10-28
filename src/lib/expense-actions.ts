@@ -61,6 +61,7 @@ export async function createExpenseAction(
   const description = String(form.get("description") ?? "").trim();
   const amount = String(form.get("amount") ?? "").trim();
   const remarks = String(form.get("remarks") ?? "").trim();
+  const isSetupCost = form.get("is_setup_cost") === "1" ? 1 : 0;
   const mode = String(form.get("mode") ?? "CONFIRMED");
   const paymentSource = String(
     form.get("initial_payment_source") ?? "UNPAID"
@@ -255,9 +256,9 @@ export async function createExpenseAction(
            legal_business_id, division_id, branch_id,
            allocation_level, expense_no, expense_date,
            category, description, amount, status,
-           remarks, created_by, confirmed_by, confirmed_at
+           remarks, created_by, confirmed_by, is_setup_cost, confirmed_at
          ) VALUES (
-           ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+           ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
            ${mode === "CONFIRMED" ? "CURRENT_TIMESTAMP" : "NULL"}
          )`,
         [
@@ -266,6 +267,7 @@ export async function createExpenseAction(
           category, description, amount, mode,
           remarks || null, user.id,
           mode === "CONFIRMED" ? user.id : null,
+          isSetupCost,
         ]
       );
 

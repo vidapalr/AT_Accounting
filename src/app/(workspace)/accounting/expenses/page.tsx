@@ -312,6 +312,14 @@ async function ExpensesContent({ searchParams }: Props) {
             />
           </label>
 
+          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <input type="checkbox" name="is_setup_cost" value="1" style={{ width: 22, height: 22 }} />
+            <span>
+              This is a set-up cost (one-time cost of starting up, like fittings or the first stock of shelves).
+              It is kept apart from running costs and does not reduce operating profit.
+            </span>
+          </label>
+
           <ExpenseInitialPaymentFields
             banks={banks.map(b => ({
               id: Number(b.id),

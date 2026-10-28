@@ -64,7 +64,7 @@ export async function resetPassword(raw: unknown, ip: string): Promise<{ ok: tru
     );
     if (!rows[0]) { await conn.rollback(); return bad; }
     await conn.execute(`UPDATE acct_shop_password_resets SET used_at = NOW() WHERE id = ?`, [rows[0].id]);
-    await conn.execute(`UPDATE acct_shop_customers SET password_hash = ? WHERE id = ?`, [hash, rows[0].customer_id]);
+    await conn.execute(`UPDATE acct_shop_customers SET password_hash = ?, email_verified_at = COALESCE(email_verified_at, NOW()) WHERE id = ?`, [hash, rows[0].customer_id]);
     await conn.execute(`DELETE FROM acct_shop_sessions WHERE customer_id = ?`, [rows[0].customer_id]);
     await conn.commit();
     return { ok: true };

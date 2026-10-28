@@ -155,6 +155,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Branches", href: "/branches" },
       { label: "Bank accounts", href: "/accounting/bank-accounts" },
       { label: "Cash accounts", href: "/accounting/cash-accounts" },
+      { label: "Group rules", href: "/accounting/group-rules", hint: "Least share you keep; funding limits" },
       { label: "GST settings", href: "/accounting/gst-settings", hint: "Not registered yet; keeps the app ready" },
       { label: "Backup", href: "/accounting/backup", hint: "Download a full copy of your accounting data" },
       { label: "Users and access", href: "/users", hint: "Who can sign in and what they can open" },

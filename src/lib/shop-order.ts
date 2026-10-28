@@ -5,6 +5,7 @@ import type { ResultSetHeader } from "mysql2";
 import { db } from "@/lib/db";
 import { nextCode } from "@/lib/codes";
 import { getShopProducts, SHOP_BUSINESS_ID } from "@/lib/shop";
+import { emailOkToOrder } from "@/lib/shop-verify";
 import { checkOrder, orderTotalPaise } from "@/lib/shop-order-math";
 
 /** Looks up current shop prices and stock for the cart lines. Never trust prices sent by the browser. */
@@ -32,6 +33,9 @@ export async function placeOrder(raw: unknown, shopCustomerId: number): Promise<
   const checked = checkOrder(raw);
   if (!checked.ok) return checked;
   const { order } = checked;
+  if (!(await emailOkToOrder(shopCustomerId))) {
+    return { ok: false, error: "Please confirm your email first. We sent you a link when you signed up (check spam too). You can ask for a new one on your account page." };
+  }
 
   const found = await currentLines(order.lines.map((l) => l.variantId));
   const priced: { variantId: number; product: string; detail: string; qty: number; unitPrice: number; listPrice: number | null; offerName: string | null }[] = [];

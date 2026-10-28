@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import type { RowDataPacket } from "mysql2";
 
+import VerifyBanner from "@/components/shop/VerifyBanner";
+import { mailConfigured } from "@/lib/mailer";
 import LogoutButton from "@/components/shop/LogoutButton";
 import { db } from "@/lib/db";
 import { getShopCustomer } from "@/lib/shop-account";
@@ -16,6 +18,8 @@ const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigi
 async function Content() {
   const me = await getShopCustomer();
   if (!me) redirect("/shop/account/login");
+  const [vrows] = await db.execute<RowDataPacket[]>(`SELECT email_verified_at FROM acct_shop_customers WHERE id = ?`, [me.id]);
+  const needsVerify = mailConfigured() && !vrows[0]?.email_verified_at;
   const [orders] = await db.execute<RowDataPacket[]>(
     `SELECT order_no, status, items_total, shipping_charge, DATE_FORMAT(created_at, '%d %b %Y') AS d
        FROM acct_online_orders WHERE shop_customer_id = ? ORDER BY created_at DESC LIMIT 50`,
@@ -25,6 +29,7 @@ async function Content() {
     <div style={{ maxWidth: 680 }}>
       <h1 style={{ fontFamily: "var(--font-display), Georgia, serif", fontWeight: 400, color: "var(--indigo)" }}>Hello, {me.name}</h1>
       <p className={styles.muted}>{me.email} · {me.phone}</p>
+      {needsVerify && <VerifyBanner />}
       <h2>Your orders</h2>
       {orders.length === 0 && <p className={styles.muted}>No orders yet. <Link href="/shop">Start shopping</Link>.</p>}
       {orders.map((o) => {

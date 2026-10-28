@@ -14,6 +14,15 @@ export function resetEmail(name: string, link: string): MailText {
   };
 }
 
+export function verifyEmail(name: string, link: string): MailText {
+  return {
+    subject: `Please confirm your email for ${BRAND}`,
+    text:
+      `Hello ${name},\n\nWelcome to ${BRAND}. Please confirm that this is your email by opening this link. It works for 2 days:\n\n${link}\n\n` +
+      `If you did not create an account, you can ignore this email.${sign}`,
+  };
+}
+
 export type OrderMailInfo = { orderNo: string; name: string; items: number; shipping: number; country: string; note?: string | null };
 
 export function orderMail(status: "REQUESTED" | "CONFIRMED" | "COMPLETED" | "CANCELLED", o: OrderMailInfo): MailText {
