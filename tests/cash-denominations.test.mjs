@@ -19,3 +19,11 @@ test("empty form value means no note counting was used", () => {
   assert.deepEqual(p.notes, { "500": 2 });
   assert.equal(p.coins, 1500n);
 });
+
+import { drawerVsBooks } from "../src/lib/cash-math.ts";
+test("drawer against books takes cash sent to the bank off the books figure", () => {
+  const r = drawerVsBooks({ books: 1000000n, takenAway: 400000n, counted: 600000n });
+  assert.equal(r.booksAfterTaken, 600000n);
+  assert.equal(r.difference, 0n);
+  assert.equal(drawerVsBooks({ books: 100n, takenAway: 0n, counted: 90n }).difference, -10n);
+});

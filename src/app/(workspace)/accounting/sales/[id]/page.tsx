@@ -12,10 +12,12 @@ import { receiveSalePaymentAction, giveBillDiscountAction } from "@/lib/sale-pay
 import { canGiveBillDiscount } from "@/lib/access";
 import ConfirmButton from "@/components/ConfirmButton";
 import { setInvoiceMobileAction } from "@/lib/customer-merge-actions";
+import { sendBillOnWhatsAppAction } from "@/lib/bill-share-actions";
+import { normalizePhone } from "@/lib/whatsapp/core";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ pay?: string; mobile?: string }>;
+  searchParams?: Promise<{ pay?: string; mobile?: string; share?: string }>;
 };
 
 const PAY_MESSAGES: Record<string, { ok: boolean; text: string }> = {
@@ -63,6 +65,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
   const query = await searchParams;
   const payResult = query?.pay;
   const mobileResult = query?.mobile;
+  const shareResult = query?.share;
 
   const [headers] = await db.execute<RowDataPacket[]>(
     `SELECT
@@ -255,6 +258,17 @@ async function InvoiceDetails({ params, searchParams }: Props) {
               </button>
             </form>
           )}
+          {invoice.status === "POSTED" && (
+            <form action={sendBillOnWhatsAppAction} className="no-print" style={{ marginTop: 8 }}>
+              <input type="hidden" name="sale_id" value={invoice.id} />
+              <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer", fontSize: 16, padding: "10px 18px" }}
+                disabled={!normalizePhone(String(invoice.customer_phone ?? ""))}>
+                Send bill on WhatsApp
+              </button>
+              {!normalizePhone(String(invoice.customer_phone ?? "")) && <span style={{ color: "#64748b" }}> Add a mobile number first.</span>}
+            </form>
+          )}
+          {shareResult && <p role="status" className="no-print" style={{ color: "#b91c1c" }}>{shareResult.slice(0, 200)}</p>}
           {mobileResult && MOBILE_MESSAGES[mobileResult] && (
             <p role="status" className="no-print" style={{ color: MOBILE_MESSAGES[mobileResult].ok ? "#166534" : "#b91c1c" }}>
               {MOBILE_MESSAGES[mobileResult].text}
