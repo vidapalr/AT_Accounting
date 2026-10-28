@@ -51,6 +51,10 @@ async function CashClosingContent({ searchParams }: Props) {
   const account = accounts.find((a) => Number(a.id) === accountId);
   const date = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) && q.date <= today() ? q.date : today();
 
+  const [banks] = await db.execute<Row[]>(
+    `SELECT id, bank_name, account_number_last4 FROM acct_bank_accounts WHERE legal_business_id = ? AND ownership_type = 'BUSINESS' AND status = 'ACTIVE' ORDER BY bank_name`,
+    [businessId]
+  );
   let body: React.ReactNode = <p>There is no cash drawer set up yet.</p>;
   if (account) {
     const prev = await previousClosing(db, businessId, accountId, date);
@@ -62,7 +66,7 @@ async function CashClosingContent({ searchParams }: Props) {
 
     const [done] = await db.execute<Row[]>(
       `SELECT ROUND(opening_amount*100) AS o, ROUND(cash_in*100) AS i, ROUND(cash_out*100) AS ou, ROUND(taken_out*100) AS t,
-              ROUND(expected_amount*100) AS e, ROUND(counted_amount*100) AS c, ROUND(difference*100) AS df, note, denominations_json, u.full_name
+              ROUND(expected_amount*100) AS e, ROUND(counted_amount*100) AS c, ROUND(difference*100) AS df, note, denominations_json, taken_to, taken_bank_id, u.full_name
          FROM acct_cash_closings k LEFT JOIN acct_app_users u ON u.id = k.closed_by
         WHERE k.legal_business_id = ? AND k.cash_account_id = ? AND k.closing_date = ?`,
       [businessId, accountId, date]
@@ -74,7 +78,7 @@ async function CashClosingContent({ searchParams }: Props) {
       const positions = await getAccountPositions(db, businessId, date);
       const mine = positions.cash.find((c) => c.id === accountId);
       const [takenRows] = await db.execute<Row[]>(
-        `SELECT ROUND(COALESCE(SUM(taken_out), 0) * 100) AS t FROM acct_cash_closings WHERE legal_business_id = ? AND cash_account_id = ? AND closing_date <= ?`,
+        `SELECT ROUND(COALESCE(SUM(taken_out), 0) * 100) AS t FROM acct_cash_closings WHERE legal_business_id = ? AND cash_account_id = ? AND closing_date <= ? AND taken_to IS NULL`,
         [businessId, accountId, date]
       );
       if (mine) {
@@ -118,7 +122,7 @@ async function CashClosingContent({ searchParams }: Props) {
             <h2>This day is closed{closed.full_name ? ` by ${closed.full_name}` : ""}</h2>
             <p>
               Counted <strong>{inr(BigInt(closed.c))}</strong>, expected {inr(BigInt(closed.e))}
-              {Number(closed.t) > 0 ? `, cash taken away ${inr(BigInt(closed.t))}` : ""}.{" "}
+              {Number(closed.t) > 0 ? `, cash taken away ${inr(BigInt(closed.t))}${closed.taken_to === "OWNER" ? " by the owner" : closed.taken_to === "BANK" ? " to the bank" : ""}` : ""}.{" "}
               {Number(closed.df) === 0 ? "It matched exactly." : (
                 <strong style={{ color: "#b91c1c" }}>{Number(closed.df) < 0 ? "Short" : "Extra"} by {inr(BigInt(Math.abs(Number(closed.df))))}.</strong>
               )}
@@ -134,7 +138,7 @@ async function CashClosingContent({ searchParams }: Props) {
             <table style={{ borderCollapse: "collapse", minWidth: 340 }}>
               <tbody>
                 <tr><td style={cell}>Cash in the books on {pretty(date)}</td><td style={right}>{inr(booksCheck.books)}</td></tr>
-                <tr><td style={cell}>− Cash taken to bank or owner so far (not in the books yet)</td><td style={right}>{inr(booksCheck.takenAway)}</td></tr>
+                <tr><td style={cell}>− Cash taken away earlier that was never entered in the books</td><td style={right}>{inr(booksCheck.takenAway)}</td></tr>
                 <tr><td style={cell}><strong>Books say the drawer should hold</strong></td><td style={right}><strong>{inr(booksCheck.booksAfterTaken)}</strong></td></tr>
                 <tr><td style={cell}>Counted in the drawer</td><td style={right}>{inr(BigInt(closed.c))}</td></tr>
                 <tr><td style={cell}><strong>Difference</strong></td><td style={{ ...right, color: booksCheck.difference === 0n ? "#166534" : "#b91c1c" }}><strong>{booksCheck.difference === 0n ? "Matches" : `${booksCheck.difference < 0n ? "Short" : "Extra"} ${inr(booksCheck.difference < 0n ? -booksCheck.difference : booksCheck.difference)}`}</strong></td></tr>
@@ -161,8 +165,15 @@ async function CashClosingContent({ searchParams }: Props) {
                   </label>
                 )}
                 <NoteCounter />
-                <label>Cash taken to bank or owner (₹)<br />
+                <label>Cash taken away (₹)<br />
                   <input name="taken_out" inputMode="decimal" defaultValue="0" style={{ ...field, width: 170 }} />
+                </label>
+                <label>Where did it go?<br />
+                  <select name="taken_to" defaultValue={closed?.taken_to === "OWNER" ? "OWNER" : closed?.taken_bank_id ? `BANK:${closed.taken_bank_id}` : ""} style={{ ...field, width: 240 }}>
+                    <option value="">Nothing taken</option>
+                    {banks.map((b) => <option key={String(b.id)} value={`BANK:${b.id}`}>Deposited to {String(b.bank_name)}{b.account_number_last4 ? ` ••${b.account_number_last4}` : ""}</option>)}
+                    <option value="OWNER">Taken by the owner</option>
+                  </select>
                 </label>
               </div>
               <p>
@@ -172,7 +183,7 @@ async function CashClosingContent({ searchParams }: Props) {
               </p>
               <p style={{ color: "#64748b" }}>
                 Count what is in the drawer after taking out anything you deposited or handed to the owner, and enter that
-                amount under &ldquo;taken to bank or owner&rdquo;.
+                amount under &ldquo;cash taken away&rdquo; and say where it went. It is entered in the books for you.
               </p>
               <button type="submit" className="btn-link btn-link-primary" style={bigBtn}>{closed ? "Save the change" : "Close the day"}</button>
             </form>

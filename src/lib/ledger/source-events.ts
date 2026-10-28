@@ -33,6 +33,7 @@ import {
   partySetoffEntry,
   fixedAssetPurchaseEntry,
   ownerMoneyEntry,
+  cashTakenEntry,
   assetDepreciationEntry,
   assetDisposalEntry,
   staffAdvanceEntry,
@@ -95,6 +96,7 @@ const SOURCE_ORDER: SourceType[] = [
   "ASSET_DISPOSAL",
   "STAFF_ADVANCE",
   "OWNER_MONEY",
+  "CASH_TAKEN",
 ];
 
 const str = (v: unknown): string => String(v ?? "");
@@ -163,7 +165,7 @@ export async function buildLedgerDrafts(
   const cashAccounts = new Map<number, Row>();
   for (const c of await select(
     conn,
-    `SELECT id, cash_name, gl_account_id
+    `SELECT id, cash_name, gl_account_id, division_id, branch_id
      FROM acct_cash_accounts WHERE legal_business_id = ?`,
     [businessId]
   )) {
@@ -596,6 +598,28 @@ export async function buildLedgerDrafts(
       return ownerMoneyEntry({
         id: Number(o.id), entryNo: str(o.entry_no), direction: str(o.direction) === "OUT" ? "OUT" : "IN", date: str(o.d),
         amount: str(o.amount), note: str(o.note), dims: dims(null, null), settlement,
+      });
+    });
+  }
+
+  // ------------------------------------------- cash taken away at closing
+  const takenRows = await select(
+    conn,
+    `SELECT id, cash_account_id, taken_to, taken_bank_id, taken_out, DATE_FORMAT(closing_date, '%Y-%m-%d') AS d
+     FROM acct_cash_closings WHERE legal_business_id = ? AND taken_out > 0 AND taken_to IS NOT NULL ORDER BY closing_date, id`,
+    [businessId]
+  ).catch(() => [] as Row[]); // before migration 039 is run
+  for (const t of takenRows) {
+    const label = `Cash taken ${str(t.d)}`;
+    add(label, () => {
+      const cash = settle(label, "BUSINESS_CASH", null, t.cash_account_id);
+      if (!cash) return null;
+      const to = str(t.taken_to) === "BANK" ? "BANK" : "OWNER";
+      const target = to === "BANK" ? settle(label, "BUSINESS_BANK", t.taken_bank_id, null) : null;
+      if (to === "BANK" && !target) return null;
+      const drawer = cashAccounts.get(Number(t.cash_account_id));
+      return cashTakenEntry({
+        id: Number(t.id), date: str(t.d), amount: str(t.taken_out), to, dims: dims(drawer?.division_id, drawer?.branch_id), cash, target,
       });
     });
   }

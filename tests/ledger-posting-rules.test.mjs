@@ -446,3 +446,13 @@ test("owner money in debits the bank and credits Proprietor Capital; out is the 
   assert.equal(out.lines[0].accountCode, "3000"); assert.equal(out.lines[0].debit, 51600n);
   assert.equal(out.lines[1].accountCode, "1010"); assert.equal(out.lines[1].credit, 51600n);
 });
+
+import { cashTakenEntry as _taken } from "../src/lib/ledger/posting-rules.ts";
+test("cash taken to the bank: bank up, cash down; taken by owner: capital down, cash down", () => {
+  const base = { id: 1, date: "2026-10-28", amount: "500.00", dims: { divisionId: null, branchId: null }, cash: { kind: "ACCOUNT", accountCode: "1000" } };
+  const b = _taken({ ...base, to: "BANK", target: { kind: "ACCOUNT", accountCode: "1010" } });
+  assert.equal(b.lines[0].accountCode, "1010"); assert.equal(b.lines[0].debit, 50000n);
+  assert.equal(b.lines[1].accountCode, "1000"); assert.equal(b.lines[1].credit, 50000n);
+  const o = _taken({ ...base, to: "OWNER", target: null });
+  assert.equal(o.lines[0].accountCode, "3000"); assert.equal(o.lines[1].accountCode, "1000");
+});

@@ -35,8 +35,9 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
       </header>
       <div className={styles.main}>{children}</div>
       <footer className={styles.footer}>
+        <p style={{ fontWeight: 700 }}>Abhiram Textiles</p>
         <p style={{ fontStyle: "italic" }}>{TAGLINE}</p>
-        <p>Abhiram Textiles, Kapra, Hyderabad. We ship across India and worldwide.</p>
+        <p>We ship across India and worldwide.</p>
         <p><a href="https://abhiraminc.com">A part of Abhiram Group</a></p>
       </footer>
     </div>

@@ -40,6 +40,24 @@ export async function closeCashDayAction(formData: FormData) {
     go(accountId, date, "error", "Enter the amounts in rupees, for example 12500 or 12500.50.");
   }
 
+  // Where the cash taken away went: nothing, the owner, or one of the business bank accounts.
+  const toRaw = text("taken_to");
+  let takenTo: "BANK" | "OWNER" | null = null;
+  let takenBankId: number | null = null;
+  if (takenOut > 0n) {
+    const m = /^BANK:([1-9]\d*)$/.exec(toRaw);
+    if (toRaw === "OWNER") takenTo = "OWNER";
+    else if (m) { takenTo = "BANK"; takenBankId = Number(m[1]); }
+    else go(accountId, date, "error", "Say where the cash taken away went: a bank account, or the owner.");
+    if (takenBankId !== null) {
+      const [b] = await db.execute<RowDataPacket[]>(
+        `SELECT id FROM acct_bank_accounts WHERE id = ? AND legal_business_id = ? AND ownership_type = 'BUSINESS' AND status = 'ACTIVE'`,
+        [takenBankId, businessId]
+      );
+      if (b.length !== 1) go(accountId, date, "error", "That bank account cannot be used.");
+    }
+  }
+
   let denomJson: string | null = null;
   try {
     const d = parseDenominations(text("denominations"));
@@ -68,6 +86,22 @@ export async function closeCashDayAction(formData: FormData) {
     go(accountId, date, "error", "This day is already closed. Ask the owner or accountant to change it.");
   }
 
+  if (existing.length > 0) {
+    // Once the cash taken away is in the books, changing it would make the books and this record disagree.
+    const [old] = await db.execute<RowDataPacket[]>(`SELECT taken_out, taken_to, taken_bank_id FROM acct_cash_closings WHERE id = ?`, [existing[0].id]);
+    const [posted] = await db.execute<RowDataPacket[]>(
+      `SELECT j.id FROM acct_journal_entries j
+        WHERE j.legal_business_id = ? AND j.source_type = 'CASH_TAKEN' AND j.source_id = ? AND j.status = 'POSTED'
+          AND NOT EXISTS (SELECT 1 FROM acct_journal_reversals r WHERE r.legal_business_id = j.legal_business_id AND r.original_journal_id = j.id) LIMIT 1`,
+      [businessId, existing[0].id]
+    );
+    const o = old[0];
+    const changed = paiseText(takenOut) !== paiseText(BigInt(Math.round(Number(o?.taken_out ?? 0) * 100))) || (o?.taken_to ?? null) !== takenTo || (o?.taken_bank_id ? Number(o.taken_bank_id) : null) !== takenBankId;
+    if (posted.length > 0 && changed) {
+      go(accountId, date, "error", "The cash taken away on this day is already in the books, so it cannot be changed here. Ask for it to be reversed first.");
+    }
+  }
+
   const prev = await previousClosing(db, businessId, accountId, date);
   const opening = prev ? prev.counted : (openingTyped ?? 0n);
   const lines = await loadCashMovements(db, businessId, accountId, prev ? prev.date : dayBefore(date), date);
@@ -81,13 +115,13 @@ export async function closeCashDayAction(formData: FormData) {
 
   const values = [
     paiseText(opening), paiseText(cashIn), paiseText(cashOut), paiseText(takenOut),
-    paiseText(expected), paiseText(counted), paiseText(diff), note || null, denomJson,
+    paiseText(expected), paiseText(counted), paiseText(diff), note || null, denomJson, takenTo, takenBankId,
   ];
   if (existing.length > 0) {
     await db.execute(
       `UPDATE acct_cash_closings
           SET opening_amount = ?, cash_in = ?, cash_out = ?, taken_out = ?, expected_amount = ?,
-              counted_amount = ?, difference = ?, note = ?, denominations_json = ?, redone_by = ?, redone_at = NOW()
+              counted_amount = ?, difference = ?, note = ?, denominations_json = ?, taken_to = ?, taken_bank_id = ?, redone_by = ?, redone_at = NOW()
         WHERE id = ? AND legal_business_id = ?`,
       [...values, user.id, existing[0].id, businessId]
     );
@@ -95,8 +129,8 @@ export async function closeCashDayAction(formData: FormData) {
     await db.execute(
       `INSERT INTO acct_cash_closings
          (legal_business_id, cash_account_id, closing_date, opening_amount, cash_in, cash_out, taken_out,
-          expected_amount, counted_amount, difference, note, denominations_json, closed_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          expected_amount, counted_amount, difference, note, denominations_json, taken_to, taken_bank_id, closed_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [businessId, accountId, date, ...values, user.id]
     );
   }
