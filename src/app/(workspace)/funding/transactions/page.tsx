@@ -13,8 +13,11 @@ import {
 
 import {
   createFundingReceiptAction,
+  confirmFundingReceiptAction,
+  cancelFundingReceiptAction,
 } from "@/lib/funding-receipt-actions";
 
+import SubmitButton from "@/components/SubmitButton";
 import styles from "../funding.module.css";
 
 type Props = {
@@ -25,6 +28,8 @@ type Props = {
 
 const messages: Record<string, string> = {
   created: "Draft funding receipt saved successfully.",
+  confirmed: "Receipt confirmed. It now counts for the investor and reaches the books by itself.",
+  cancelled: "Draft receipt cancelled.",
   invalid: "Please check the receipt details.",
   "not-active":
     "The selected agreement is not active.",
@@ -374,6 +379,7 @@ async function FundingTransactionsContent({
                 <th>Payment Mode</th>
                 <th>Deposit Account</th>
                 <th>Status</th>
+                <th>Next step</th>
               </tr>
             </thead>
 
@@ -417,12 +423,26 @@ async function FundingTransactionsContent({
                       {transaction.status}
                     </span>
                   </td>
+                  <td>
+                    {transaction.status === "DRAFT" ? (
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <form action={confirmFundingReceiptAction}>
+                          <input type="hidden" name="transaction_id" value={transaction.id} />
+                          <SubmitButton label="Confirm: it is in the bank" question="Confirm that this money is in the bank statement? It will count for the investor and go into the books." />
+                        </form>
+                        <form action={cancelFundingReceiptAction}>
+                          <input type="hidden" name="transaction_id" value={transaction.id} />
+                          <SubmitButton label="Cancel" className="btn-link" question="Cancel this draft receipt?" />
+                        </form>
+                      </div>
+                    ) : transaction.status === "VERIFIED" ? "In the books" : "—"}
+                  </td>
                 </tr>
               ))}
 
               {transactions.length === 0 && (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     No funding transactions recorded.
                   </td>
                 </tr>
