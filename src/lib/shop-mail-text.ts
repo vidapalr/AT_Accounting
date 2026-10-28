@@ -1,7 +1,7 @@
 // The words of the emails the shop sends. Pure functions, easy to test and change.
-const BRAND = "Abhiram Textiles";
+import { BRAND_NAME as BRAND, TAGLINE } from "./brand.ts";
 const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const sign = `\n\nWarm regards,\n${BRAND}, Kapra, Hyderabad`;
+const sign = `\n\nWarm regards,\n${BRAND}, Kapra, Hyderabad\n${TAGLINE}`;
 
 export type MailText = { subject: string; text: string };
 

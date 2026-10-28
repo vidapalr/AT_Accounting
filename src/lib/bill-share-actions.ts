@@ -56,7 +56,7 @@ export async function sendBillOnWhatsAppAction(formData: FormData): Promise<void
   const due = Math.max(0, total - Number(s.paid));
   const name = String(s.customer_name ?? "").trim();
   const text =
-    `Hello${name ? ` ${name}` : ""}, thank you for shopping at Abhiram Textiles.\n` +
+    `Hello${name ? ` ${name}` : ""}, thanks for shopping with Abhiram Textiles.\n` +
     `Your bill ${s.invoice_no}: ${inr(total)}${due > 0 ? ` (balance due ${inr(due)})` : " (paid in full)"}.\n` +
     `See your bill: ${shopBaseUrl()}/shop/bill/${token}`;
   redirect(whatsappLink(phone, text));

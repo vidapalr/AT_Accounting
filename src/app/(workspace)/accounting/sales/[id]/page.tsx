@@ -1,6 +1,8 @@
 
 import { Suspense } from "react";
 import PrintHeader from "@/components/PrintHeader";
+import BillWatermark from "@/components/BillWatermark";
+import { TAGLINE } from "@/lib/brand";
 import PrintButton from "@/components/PrintButton";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -204,7 +206,8 @@ async function InvoiceDetails({ params, searchParams }: Props) {
       margin: "0 auto",
       maxWidth: 1100,
     }}>
-      <PrintHeader title={`Invoice ${invoice.invoice_no}`} />
+      <BillWatermark />
+      <PrintHeader title={`Invoice ${invoice.invoice_no}`} tagline={TAGLINE} />
       <nav className="no-print" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between" }}>
         <Link href="/accounting/invoices">
           ← All Invoices
