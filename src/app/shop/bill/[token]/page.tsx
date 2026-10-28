@@ -9,7 +9,7 @@ import styles from "../../shop.module.css";
 import { getShopSettings } from "@/lib/shop";
 import { normalizePhone } from "@/lib/whatsapp/core";
 
-const TAGLINE = "Your neighbourhood women's wear shop";
+const TAGLINE = "Elegance in every thread";
 
 export const metadata: Metadata = { title: "Your bill", robots: { index: false, follow: false } };
 type Row = RowDataPacket & Record<string, string | number | null>;
