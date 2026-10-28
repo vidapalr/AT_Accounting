@@ -16,8 +16,7 @@ mysql -h <host> -u <user> -p <database> < migrations/001_investor_capital_accoun
 
 Take a database backup before applying to production.
 
-The base schema (the `acct_*` tables) is not in this repository yet.
-Export it with `mysqldump --no-data` and commit it as
-`migrations/000_base_schema.sql` so the database can be rebuilt.
-
-See docs/SCHEMA_EXPORT.md for the one-time steps to save the base structure from phpMyAdmin.
+The base schema is saved in `db/base_schema_2026-10-28.sql` (accounting tables only, current through
+migration 040). To build a brand new empty database, load that file, then apply any migration numbered
+above 040. Do not run the older migrations after it. Loading it into an empty database gives 106 tables
+and 5 triggers. Do not load it into the live database.
