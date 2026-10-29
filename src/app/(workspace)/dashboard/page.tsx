@@ -62,14 +62,15 @@ async function DashboardContent({ searchParams }: Props) {
     getDailySeries(db, businessId, addDays(today, -29), today),
     getExpenseBreakdown(db, businessId, from, today),
     db.execute<RowDataPacket[]>(
-      `SELECT COALESCE(SUM(r.refund_value), 0) - COALESCE(SUM(f.paid), 0) AS owed
+      `SELECT COALESCE(SUM(r.refund_value), 0) - COALESCE(SUM(f.paid), 0)
+              - COALESCE((SELECT SUM(px.amount) FROM acct_sales_payments px WHERE px.legal_business_id = ? AND px.exchange_return_id IS NOT NULL AND px.status = 'RECORDED'), 0) AS owed
        FROM acct_sales_returns r
        LEFT JOIN (
          SELECT return_id, SUM(amount) AS paid FROM acct_sales_refunds
          WHERE status = 'RECORDED' GROUP BY return_id
        ) f ON f.return_id = r.id
        WHERE r.legal_business_id = ? AND r.status = 'POSTED'`,
-      [businessId]
+      [businessId, businessId]
     ),
   ]);
 

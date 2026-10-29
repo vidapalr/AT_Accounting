@@ -9,6 +9,7 @@ import { requireAccess } from "@/lib/auth";
 import { canWriteOffStockCount } from "@/lib/access";
 import { nextCode } from "@/lib/codes";
 import { UserError, applyStockDamage } from "@/lib/stock-damage";
+import { applyStockFind } from "@/lib/stock-find";
 import { parseQtyMilli } from "@/lib/returns-math";
 import { countDifference, parseCounted } from "@/lib/stock-count-math";
 
@@ -185,6 +186,63 @@ export async function writeOffCountShortagesAction(formData: FormData) {
   revalidatePath(PAGE);
   revalidatePath("/accounting/stock");
   go(`${PAGE}?location=${locationId}&view=${countId}`, "saved", `Shortages written off as lost stock (${written} item${written === 1 ? "" : "s"}). Post the pending entries on Reports.`);
+}
+
+/** Adds the extra items counted to stock at their last buying cost. Owner or accountant. */
+export async function acceptExtraStockAction(formData: FormData) {
+  const user = await requireAccess("stock_count");
+  if (!canWriteOffStockCount(user.role)) redirect(PAGE);
+  const businessId = user.legal_business_id;
+  const countId = Number(formData.get("count_id"));
+  if (!Number.isInteger(countId) || countId <= 0) redirect(PAGE);
+
+  const conn = await db.getConnection();
+  let locationId = 0;
+  let added = 0;
+  let skipped = 0;
+  try {
+    await conn.beginTransaction();
+    const [counts] = await conn.execute<Row[]>(
+      `SELECT id, location_id, count_no FROM acct_stock_counts WHERE id = ? AND legal_business_id = ? FOR UPDATE`,
+      [countId, businessId]
+    );
+    const count = counts[0];
+    if (!count) throw new UserError("That count was not found.");
+    locationId = Number(count.location_id);
+    const [lines] = await conn.execute<Row[]>(
+      `SELECT id, variant_id, difference FROM acct_stock_count_lines
+        WHERE legal_business_id = ? AND count_id = ? AND difference > 0 AND found = 0 ORDER BY id`,
+      [businessId, countId]
+    );
+    for (const line of lines) {
+      try {
+        await conn.execute("SAVEPOINT one_find");
+        const r = await applyStockFind(conn, {
+          businessId, userId: user.id, locationId, variantId: Number(line.variant_id),
+          date: todayIso(), remarks: `Stock count ${count.count_no}`, qtyMilli: parseQtyMilli(String(line.difference)),
+        });
+        await conn.execute(`UPDATE acct_stock_count_lines SET found = 1, find_id = ? WHERE id = ?`, [r.id, Number(line.id)]);
+        added++;
+      } catch (e) {
+        if (!(e instanceof UserError)) throw e;
+        await conn.execute("ROLLBACK TO SAVEPOINT one_find");
+        skipped++;
+      }
+    }
+    if (added === 0 && skipped === 0) throw new UserError("There is no extra stock to add.");
+    await conn.commit();
+  } catch (error) {
+    await conn.rollback().catch(() => {});
+    const msg = error instanceof UserError ? error.message : "Could not add the extra stock. Nothing was changed.";
+    if (!(error instanceof UserError)) console.error("Accept extra stock failed:", error);
+    go(`${PAGE}?location=${locationId || ""}&view=${countId}`, "error", msg);
+  } finally {
+    conn.release();
+  }
+  revalidatePath(PAGE);
+  revalidatePath("/accounting/stock");
+  go(`${PAGE}?location=${locationId}&view=${countId}`, "saved",
+    `Extra stock added (${added} item${added === 1 ? "" : "s"})${skipped ? `; ${skipped} could not be valued because no buying cost is on record` : ""}. Post the pending entries on Reports.`);
 }
 
 /** Sets how many of an item should always be kept. Blank clears it. */

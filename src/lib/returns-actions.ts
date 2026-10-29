@@ -104,7 +104,8 @@ export async function createSalesReturnAction(formData: FormData) {
   const date = text("return_date");
   const reason = text("reason");
   const remarks = text("remarks").slice(0, 500);
-  const refundNow = text("refund_now") === "FULL";
+  const isExchange = text("exchange") === "1";
+  const refundNow = !isExchange && text("refund_now") === "FULL";
   const refundAccountValue = text("refund_account");
   const refundMethod = text("refund_method");
 
@@ -276,6 +277,7 @@ export async function createSalesReturnAction(formData: FormData) {
 
   revalidatePath(PAGE);
   if (successId === 0) fail(message);
+  if (isExchange) redirect(`/accounting/sales?from_exchange=${successId}`);
   redirect(`${PAGE}?saved=${encodeURIComponent(message)}`);
 }
 
@@ -304,7 +306,9 @@ export async function recordRefundAction(formData: FormData) {
         `SELECT r.id, r.division_id, r.refund_value, r.return_no,
                 DATE_FORMAT(r.return_date, '%Y-%m-%d') AS return_date,
                 COALESCE((SELECT SUM(f.amount) FROM acct_sales_refunds f
-                          WHERE f.return_id = r.id AND f.status = 'RECORDED'), 0) AS refunded
+                          WHERE f.return_id = r.id AND f.status = 'RECORDED'), 0)
+                + COALESCE((SELECT SUM(px.amount) FROM acct_sales_payments px
+                          WHERE px.exchange_return_id = r.id AND px.status = 'RECORDED'), 0) AS refunded
          FROM acct_sales_returns r
          WHERE r.id = ? AND r.legal_business_id = ? AND r.status = 'POSTED' FOR UPDATE`,
         [returnId, businessId]

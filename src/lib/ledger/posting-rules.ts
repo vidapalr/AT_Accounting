@@ -75,6 +75,7 @@ export type SourceType =
   | "SALES_RETURN"
   | "SALES_REFUND"
   | "STOCK_DAMAGE"
+  | "STOCK_FIND"
   | "SUPPLIER_RETURN"
   | "SUPPLIER_REFUND"
   | "FREE_STOCK"
@@ -633,6 +634,16 @@ export function salesRefundEntry(refund: {
   return makeDraft("SALES_REFUND", refund.id, refund.date, memo, [
     debit(ACCOUNT.RECEIVABLES, amount, refund.dims, memo),
     credit(settlementAccount(refund.settlement), amount, refund.dims, memo),
+  ]);
+}
+
+/** Extra stock found at a count: stock goes up and the lost-stock cost goes down by the same amount. */
+export function stockFindEntry(find: { id: number; date: string; cost: string; dims: Dimensions }): JournalDraft {
+  const cost = parseMoney(find.cost);
+  const memo = `Stock found at count (record ${find.id})`;
+  return makeDraft("STOCK_FIND", find.id, find.date, memo, [
+    debit(ACCOUNT.INVENTORY, cost, find.dims, memo),
+    credit(ACCOUNT.DAMAGED_STOCK, cost, find.dims, memo),
   ]);
 }
 

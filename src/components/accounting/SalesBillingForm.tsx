@@ -93,6 +93,8 @@ type Prefill = {
   lines: Array<{ variantId: number; quantity: string; price: string; discount?: string }>;
   /** Set when the bill starts from an order placed on the website. */
   onlineOrder?: { id: number; orderNo: string };
+  /** Set when the bill is an exchange: the value of the items just returned. */
+  exchange?: { returnId: number; returnNo: string; credit: string };
   /** Delivery charge carried over from the website order. */
   shipping?: string;
   /** Set when the bill starts from items a customer took on approval. */
@@ -172,7 +174,7 @@ export default function SalesBillingForm({
           discount: line.discount,
           reason: line.reason,
         }))
-      : prefill
+      : prefill && prefill.lines.length > 0
         ? prefill.lines.map(line => ({
             ...newSaleRow(),
             variantId: line.variantId,
@@ -286,7 +288,11 @@ export default function SalesBillingForm({
     0
   );
 
-  const outstanding = grandTotal - collected;
+  const exchangeCredit = prefill?.exchange && !initialInvoice ? Number(prefill.exchange.credit) : 0;
+  const creditUsed = Math.min(exchangeCredit, grandTotal);
+  const creditLeft = exchangeCredit - creditUsed;
+  const toPay = grandTotal - creditUsed;
+  const outstanding = toPay - collected;
 
   const overStock = rows.some(r => {
     const p = findProduct(r.variantId);
@@ -295,12 +301,12 @@ export default function SalesBillingForm({
   const firstCash = paymentAccounts.find(a => a.value.startsWith("CASH:"));
 
   function payFull() {
-    if (!firstCash || grandTotal <= 0) return;
+    if (!firstCash || toPay <= 0) return;
     setPayments([
       {
         ...newPaymentRow(),
         method: "CASH",
-        amount: grandTotal.toFixed(2),
+        amount: toPay.toFixed(2),
         account: firstCash.value,
       },
     ]);
@@ -309,6 +315,7 @@ export default function SalesBillingForm({
   return (
     <form action={action} className={styles.form}>
       <input type="hidden" name="submit_token" value={submitToken} />
+      {prefill?.exchange && !initialInvoice && <input type="hidden" name="exchange_return_id" value={prefill.exchange.returnId} />}
       {initialInvoice && (
         <input type="hidden" name="sale_id" value={initialInvoice.id} />
       )}
@@ -325,6 +332,11 @@ export default function SalesBillingForm({
                 save the bill. The delivery charge from the order is filled in below; check it.
               </p>
             </>
+          ) : prefill.exchange ? (
+            <p style={{ background: "#eff6ff", padding: 10, borderRadius: 8 }}>
+              Exchange: the customer returned items (return {prefill.exchange.returnNo}). Choose the new items they are taking.
+              The value of the returned items is taken off the bill.
+            </p>
           ) : prefill.approvalItemIds && prefill.approvalItemIds.length > 0 ? (
             <>
               <input type="hidden" name="approval_item_ids" value={prefill.approvalItemIds.join(",")} />
@@ -701,7 +713,7 @@ export default function SalesBillingForm({
               <button
                 type="button"
                 className={styles.btn}
-                disabled={!firstCash || grandTotal <= 0}
+                disabled={!firstCash || toPay <= 0}
                 onClick={payFull}
               >
                 Paid in full (cash)
@@ -792,6 +804,15 @@ export default function SalesBillingForm({
               </div>
             ))}
 
+            {prefill?.exchange && !initialInvoice && (
+              <p style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", padding: 10, borderRadius: 8 }}>
+                Exchange credit from return {prefill.exchange.returnNo}: <strong>₹{amount(exchangeCredit)}</strong>.
+                {" "}This is taken off the bill. The customer pays <strong>₹{amount(Math.max(toPay, 0))}</strong>
+                {creditLeft > 0.004 ? (
+                  <> and is still owed <strong>₹{amount(creditLeft)}</strong>. After you save, you can pay it back (cash, UPI or bank) or leave it as credit on the Returns page.</>
+                ) : "."}
+              </p>
+            )}
             <div className={styles.balance}>
               <div>
                 <div>Paid now</div>
@@ -863,7 +884,7 @@ export default function SalesBillingForm({
             >
               Confirm sale
             </SubmitBtn>
-            <SubmitBtn
+            {!prefill?.exchange && <SubmitBtn
               type="submit"
               name="mode"
               value="DRAFT"
@@ -872,7 +893,7 @@ export default function SalesBillingForm({
               title="Keeps the bill without changing stock. Cannot be used when a payment is entered."
             >
               Save for later
-            </SubmitBtn>
+            </SubmitBtn>}
           </>
         )}
       </div>

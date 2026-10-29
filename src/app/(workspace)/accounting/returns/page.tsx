@@ -77,7 +77,9 @@ async function ReturnsContent({ searchParams }: Props) {
     `SELECT r.id, r.return_no, DATE_FORMAT(r.return_date, '%Y-%m-%d') AS d, r.reason,
             r.refund_value, s.invoice_no,
             COALESCE((SELECT SUM(f.amount) FROM acct_sales_refunds f
-                      WHERE f.return_id = r.id AND f.status = 'RECORDED'), 0) AS refunded
+                      WHERE f.return_id = r.id AND f.status = 'RECORDED'), 0) AS refunded,
+            COALESCE((SELECT SUM(px.amount) FROM acct_sales_payments px
+                      WHERE px.exchange_return_id = r.id AND px.status = 'RECORDED'), 0) AS exchanged
      FROM acct_sales_returns r
      JOIN acct_sales_headers s ON s.id = r.sale_id
      WHERE r.legal_business_id = ? AND r.status = 'POSTED'
@@ -207,7 +209,13 @@ async function ReturnsContent({ searchParams }: Props) {
               <label>Paid from<br /><select name="refund_account" defaultValue="">{accountOptions}</select></label>
               <label>Method<br /><select name="refund_method" defaultValue="CASH">{methodOptions}</select></label>
             </p>
-            <button type="submit">Save return</button>
+            <button type="submit">Save return only</button>{" "}
+            <button type="submit" name="exchange" value="1" className="btn-link btn-link-primary" style={{ cursor: "pointer", fontSize: 16, padding: "10px 18px" }}>
+              Exchange: save the return, then choose the new items
+            </button>
+            <p style={{ color: "#64748b", marginBottom: 0 }}>
+              For an exchange the refund choices above are ignored. The value of the returned pieces is used as part payment on the new bill.
+            </p>
           </form>
         )}
       </section>
@@ -222,7 +230,7 @@ async function ReturnsContent({ searchParams }: Props) {
           </thead>
           <tbody>
             {returns.map((r) => {
-              const owed = Math.round((Number(r.refund_value) - Number(r.refunded)) * 100) / 100;
+              const owed = Math.round((Number(r.refund_value) - Number(r.refunded) - Number(r.exchanged)) * 100) / 100;
               return (
                 <tr key={r.id}>
                   <td style={cell}>{r.return_no}</td>
@@ -230,7 +238,7 @@ async function ReturnsContent({ searchParams }: Props) {
                   <td style={cell}>{r.invoice_no}</td>
                   <td style={cell}>{String(r.reason).replaceAll("_", " ").toLowerCase()}</td>
                   <td style={cell}>{inr(r.refund_value)}</td>
-                  <td style={cell}>{inr(r.refunded)}</td>
+                  <td style={cell}>{inr(Number(r.refunded) + Number(r.exchanged))}</td>
                   <td style={cell}>{inr(owed)}</td>
                   <td style={cell}>
                     {owed > 0 ? (

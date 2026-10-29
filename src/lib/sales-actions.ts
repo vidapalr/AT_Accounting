@@ -93,6 +93,10 @@ export async function createSaleAction(
   const draftField = Number(form.get("confirm_draft_id") ?? 0);
   const confirmDraftId = Number.isSafeInteger(draftField) && draftField > 0 ? draftField : 0;
   const mode = confirmDraftId > 0 ? "POSTED" : String(form.get("mode") ?? "DRAFT");
+  // An exchange: the value of items just returned is used as part payment on this bill.
+  const exchangeField = Number(form.get("exchange_return_id") ?? 0);
+  const exchangeReturnId = mode === "POSTED" && Number.isSafeInteger(exchangeField) && exchangeField > 0 ? exchangeField : 0;
+  let exchangeApplied = 0n;
   // Items a customer took on approval and has now decided to buy (comma separated item ids).
   const approvalItemIds =
     mode === "POSTED"
@@ -564,8 +568,24 @@ export async function createSaleAction(
               })
             : null;
 
+          if (exchangeReturnId > 0) {
+            const [rets] = await conn.execute<RowDataPacket[]>(
+              `SELECT r.refund_value,
+                      COALESCE((SELECT SUM(f.amount) FROM acct_sales_refunds f WHERE f.return_id = r.id AND f.status = 'RECORDED'), 0) AS refunded,
+                      COALESCE((SELECT SUM(p.amount) FROM acct_sales_payments p WHERE p.exchange_return_id = r.id AND p.status = 'RECORDED'), 0) AS used
+                 FROM acct_sales_returns r
+                WHERE r.id = ? AND r.legal_business_id = ? AND r.status = 'POSTED' FOR UPDATE`,
+              [exchangeReturnId, businessId]
+            );
+            if (!rets[0]) throw new Error("EXCHANGE_GONE");
+            const available =
+              parseAmount(String(rets[0].refund_value)) - parseAmount(String(rets[0].refunded)) - parseAmount(String(rets[0].used));
+            const room = grandTotal - paymentTotal;
+            exchangeApplied = available > 0n && room > 0n ? (available < room ? available : room) : 0n;
+          }
+
           if (customer && mode === "POSTED" && customer.credit_limit_paise > 0n) {
-            const creditNow = grandTotal - paymentTotal;
+            const creditNow = grandTotal - paymentTotal - exchangeApplied;
             if (creditNow > 0n) {
               const dues = await customerDuesPaise(conn, businessId, customer.id);
               if (dues + creditNow > customer.credit_limit_paise) {
@@ -794,6 +814,17 @@ export async function createSaleAction(
             }
           }
 
+          if (mode === "POSTED" && exchangeApplied > 0n) {
+            await conn.execute(
+              `INSERT INTO acct_sales_payments (
+                 legal_business_id, division_id, sale_id, payment_date, payment_method,
+                 payment_account_type, bank_account_id, cash_account_id, payment_account,
+                 amount, payment_reference, remarks, status, created_by, exchange_return_id
+               ) VALUES (?, ?, ?, ?, 'EXCHANGE', 'OTHERS', NULL, NULL, NULL, ?, NULL, 'Exchange credit', 'RECORDED', ?, ?)`,
+              [businessId, DIVISION_ID, createdId, saleDate, moneyFromPaise(exchangeApplied), user.id, exchangeReturnId]
+            );
+          }
+
           await conn.commit();
           result = "created";
         }
@@ -811,6 +842,8 @@ export async function createSaleAction(
       result = "approval-gone";
     } else if (error instanceof Error && error.message === "APPROVAL_MISMATCH") {
       result = "approval-mismatch";
+    } else if (error instanceof Error && error.message === "EXCHANGE_GONE") {
+      result = "exchange-gone";
     } else if (error instanceof Error && error.message === "CREDIT_LIMIT") {
       result = "credit-limit";
     } else if ((error as { code?: string }).code === "ER_DUP_ENTRY" && submitToken) {
