@@ -142,6 +142,7 @@ const JOB_OF: Record<ReportType, Job> = {
   DAILY_FULL: "daily",
   STOCK_DAILY: "daily",
   ALERTS: "morning",
+  MORNING_DIGEST: "morning",
   STOCK_MONTHLY: "monthly",
   INVESTOR_STATEMENT: "monthly",
 };
