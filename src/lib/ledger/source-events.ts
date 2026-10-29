@@ -339,6 +339,7 @@ export async function buildLedgerDrafts(
     add(label, () => {
       if (!sale) throw new Error("its invoice is not posted");
       if (str(p.payment_method) === "SET_OFF") return null; // posted once, as the set-off itself
+      if (str(p.payment_method) === "EXCHANGE") return null; // paid by a returned item: the return already sits in the books
       if (str(p.payment_method) === "DISCOUNT") {
         return salesSettlementDiscountEntry({
           id: Number(p.id),

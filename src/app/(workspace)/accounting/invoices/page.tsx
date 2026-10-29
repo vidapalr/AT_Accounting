@@ -104,6 +104,7 @@ async function InvoiceList() {
                THEN cash.cash_name
              WHEN pay.payment_method = 'DISCOUNT' THEN 'Discount'
              WHEN pay.payment_method = 'SET_OFF' THEN 'Set off against supplier bill'
+             WHEN pay.payment_method = 'EXCHANGE' THEN 'Exchange credit'
              ELSE 'Not allocated'
            END
            SEPARATOR ', '
@@ -301,17 +302,11 @@ async function InvoiceList() {
                       View
                     </Link>
                     {" "}
-                    <span title="Refund workflow pending">
-                      Refund
-                    </span>
-                    {" · "}
-                    <span title="Return workflow pending">
-                      Return
-                    </span>
-                    {" · "}
-                    <span title="Exchange workflow pending">
-                      Exchange
-                    </span>
+                    {invoice.status === "POSTED" ? (
+                      <Link className="btn-link" href={`/accounting/returns?sale=${invoice.id}`}>
+                        Return or exchange
+                      </Link>
+                    ) : null}
                   </td>
                 </tr>
               );
@@ -331,9 +326,7 @@ async function InvoiceList() {
       }}>
         Showing up to 500 latest invoices.
         Summary totals cover displayed posted invoices only.
-        Receiving bank/cash allocation and refund,
-        return and exchange actions will be enabled
-        after their respective workflows are implemented.
+        Returns, refunds and exchanges are done from the Return or exchange link on each posted invoice.
       </p>
     </main>
   );

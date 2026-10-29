@@ -21,6 +21,7 @@ type Props = {
     from_report?: string;
     from_approval?: string;
     from_online?: string;
+    from_exchange?: string;
   }>;
 };
 
@@ -63,13 +64,14 @@ const messages: Record<string, string> = {
     "Some of the items taken on approval were already dealt with. Open Items on approval and check them.",
   "approval-mismatch":
     "The bill must include every item the customer is keeping. Nothing was saved.",
+  "exchange-gone": "The exchange credit could not be found. Nothing was saved.",
   "credit-limit": "This sale would take the customer over their credit limit. Collect some payment, or raise the limit on the customer's page.",
   failed: "Unable to save invoice. Check server logs.",
 };
 
 async function SalesContent({ searchParams }: Props) {
   const user = await requireAccess("sales");
-  const { result, id, view, edit, from_report, from_approval, from_online } = await searchParams;
+  const { result, id, view, edit, from_report, from_approval, from_online, from_exchange } = await searchParams;
   const businessId = user.legal_business_id;
 
   const [branches] = await db.execute<RowDataPacket[]>(
@@ -266,6 +268,7 @@ async function SalesContent({ searchParams }: Props) {
         branchId: number | null;
         lines: Array<{ variantId: number; quantity: string; price: string; discount?: string }>;
         onlineOrder?: { id: number; orderNo: string };
+        exchange?: { returnId: number; returnNo: string; credit: string };
         shipping?: string;
         customerName?: string;
         customerPhone?: string;
@@ -348,6 +351,32 @@ async function SalesContent({ searchParams }: Props) {
       };
     }
   }
+  // An exchange: the customer just returned items; their value is credited to this new bill.
+  const exchangeId = Number(from_exchange);
+  if (!prefill && Number.isSafeInteger(exchangeId) && exchangeId > 0) {
+    const [ex] = await db.execute<RowDataPacket[]>(
+      `SELECT r.id, r.return_no, r.branch_id, r.refund_value, s.customer_name, s.customer_phone,
+              COALESCE((SELECT SUM(f.amount) FROM acct_sales_refunds f WHERE f.return_id = r.id AND f.status = 'RECORDED'), 0) AS refunded,
+              COALESCE((SELECT SUM(p.amount) FROM acct_sales_payments p WHERE p.exchange_return_id = r.id AND p.status = 'RECORDED'), 0) AS used
+         FROM acct_sales_returns r JOIN acct_sales_headers s ON s.id = r.sale_id AND s.legal_business_id = r.legal_business_id
+        WHERE r.id = ? AND r.legal_business_id = ? AND r.status = 'POSTED'`,
+      [exchangeId, businessId]
+    );
+    if (ex[0]) {
+      const credit = Number(ex[0].refund_value) - Number(ex[0].refunded) - Number(ex[0].used);
+      if (credit > 0.004) {
+        const exBranch = Number(ex[0].branch_id);
+        prefill = {
+          reportId: 0,
+          branchId: branches.some(b => Number(b.id) === exBranch) ? exBranch : null,
+          lines: [],
+          exchange: { returnId: Number(ex[0].id), returnNo: String(ex[0].return_no), credit: credit.toFixed(2) },
+          customerName: ex[0].customer_name ? String(ex[0].customer_name) : "",
+          customerPhone: ex[0].customer_phone ? String(ex[0].customer_phone) : "",
+        };
+      }
+    }
+  }
   const reportId = Number(from_report);
   if (!prefill && Number.isSafeInteger(reportId) && reportId > 0) {
     const [reports] = await db.execute<RowDataPacket[]>(
@@ -381,6 +410,18 @@ async function SalesContent({ searchParams }: Props) {
       )
     : [[] as RowDataPacket[]];
   const createdSale = createdRows[0];
+  // Exchange bill: is the customer still owed something from the returned items?
+  const [owedRows] = createdSale
+    ? await db.execute<RowDataPacket[]>(
+        `SELECT r.id, r.return_no,
+                r.refund_value - COALESCE((SELECT SUM(f.amount) FROM acct_sales_refunds f WHERE f.return_id = r.id AND f.status = 'RECORDED'), 0)
+                               - COALESCE((SELECT SUM(p.amount) FROM acct_sales_payments p WHERE p.exchange_return_id = r.id AND p.status = 'RECORDED'), 0) AS owed
+           FROM acct_sales_returns r
+          WHERE r.legal_business_id = ? AND r.id IN (SELECT exchange_return_id FROM acct_sales_payments WHERE sale_id = ? AND exchange_return_id IS NOT NULL)`,
+        [businessId, createdId]
+      )
+    : [[] as RowDataPacket[]];
+  const stillOwed = owedRows[0] && Number(owedRows[0].owed) > 0.004 ? owedRows[0] : null;
 
   const selectedInvoiceId = Number(edit ?? view);
   const hasSelectedInvoice =
@@ -539,6 +580,13 @@ async function SalesContent({ searchParams }: Props) {
             Send bill {String(createdSale.invoice_no)} on WhatsApp
           </button>
         </form>
+      ) : null}
+
+      {result === "created" && stillOwed ? (
+        <p role="status" style={{ background: "#fffbeb", border: "1px solid #fde68a", padding: 12, borderRadius: 8 }}>
+          The customer is still owed <strong>₹{Number(stillOwed.owed).toFixed(2)}</strong> from the returned items ({String(stillOwed.return_no)}).{" "}
+          <a className="btn-link btn-link-primary" href="/accounting/returns">Pay it back now, or leave it as credit</a>
+        </p>
       ) : null}
 
       {result && (

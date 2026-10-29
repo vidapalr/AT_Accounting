@@ -94,7 +94,7 @@ async function dailySales({ db, businessId, place, today }: BuildInput): Promise
   const [methods] = await db.execute<Row[]>(
     `SELECT p.payment_method AS method, SUM(p.amount) AS total
      FROM acct_sales_payments p JOIN acct_sales_headers h ON h.id = p.sale_id AND h.legal_business_id = p.legal_business_id
-     WHERE p.legal_business_id = ? AND p.status = 'RECORDED' AND p.payment_method NOT IN ('DISCOUNT','SET_OFF') AND h.status = 'POSTED' AND p.payment_date = ?${s.sql}
+     WHERE p.legal_business_id = ? AND p.status = 'RECORDED' AND p.payment_method NOT IN ('DISCOUNT','SET_OFF','EXCHANGE') AND h.status = 'POSTED' AND p.payment_date = ?${s.sql}
      GROUP BY p.payment_method ORDER BY total DESC`,
     [businessId, date, ...s.values]
   );
@@ -295,6 +295,7 @@ async function alerts({ db, businessId, place, today }: BuildInput): Promise<Rep
             SUM(h.grand_total
                 - COALESCE((SELECT SUM(p.amount) FROM acct_sales_payments p WHERE p.sale_id = h.id AND p.status = 'RECORDED'), 0)
                 - COALESCE((SELECT SUM(r.refund_value) FROM acct_sales_returns r WHERE r.sale_id = h.id AND r.status = 'POSTED'), 0)
+                + COALESCE((SELECT SUM(px.amount) FROM acct_sales_payments px JOIN acct_sales_returns r3 ON r3.id = px.exchange_return_id WHERE r3.sale_id = h.id AND px.status = 'RECORDED'), 0)
                 + COALESCE((SELECT SUM(f.amount) FROM acct_sales_refunds f JOIN acct_sales_returns r2 ON r2.id = f.return_id WHERE r2.sale_id = h.id AND f.status = 'RECORDED'), 0)
             ) AS due,
             MIN(h.invoice_date) AS since

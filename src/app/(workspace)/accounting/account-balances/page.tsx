@@ -156,7 +156,7 @@ async function AccountBalancesContent({
         AND sh.id = sp.sale_id
        WHERE sp.legal_business_id = ?
          AND sp.status = 'RECORDED'
-         AND sp.payment_method <> 'SET_OFF'
+         AND sp.payment_method NOT IN ('SET_OFF', 'EXCHANGE')
          AND sh.status = 'POSTED'
        ORDER BY sp.payment_date, sp.id`,
       [businessId]
