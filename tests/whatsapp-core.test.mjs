@@ -77,3 +77,14 @@ test("whatsapp link uses digits only and encodes the text", () => {
   const url = whatsappLink("+919876543210", "Hi & bye\nline 2");
   assert.equal(url, "https://wa.me/919876543210?text=Hi%20%26%20bye%0Aline%202");
 });
+
+test("morning digest is a morning job and reads as plain lines", async () => {
+  const core = await import("../src/lib/whatsapp/core.ts");
+  assert.ok(core.JOB_REPORTS.morning.includes("MORNING_DIGEST"));
+  assert.ok(core.REPORT_TYPES.includes("MORNING_DIGEST"));
+  const text = core.composeMessage({
+    type: "MORNING_DIGEST", title: "Morning Digest", subtitle: "Whole group - 29 Oct 2026", params: [],
+    sections: [{ heading: "Needs you", columns: ["", ""], rows: [["New website orders", "3"]] }],
+  }, "Owner");
+  assert.match(text, /New website orders: 3/);
+});

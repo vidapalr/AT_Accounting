@@ -73,6 +73,8 @@ export async function buildReport(input: BuildInput): Promise<ReportContent> {
       return stockReport(input);
     case "ALERTS":
       return alerts(input);
+    case "MORNING_DIGEST":
+      return morningDigest(input);
     case "INVESTOR_STATEMENT":
       return investorStatement(input);
   }
@@ -340,6 +342,107 @@ async function alerts({ db, businessId, place, today }: BuildInput): Promise<Rep
     params: [fmtDate(today), label, String(low.length), String(owing.length), inrShort(customerTotal), inrShort(supplierTotal)].map((v) => cleanParam(v)),
     sections,
     empty: sections.length === 0,
+  };
+}
+
+function dayBefore(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** One message for the morning: yesterday, money now, and what needs the owner. Read-only. */
+async function morningDigest({ db, businessId, place, today }: BuildInput): Promise<ReportContent> {
+  const label = await placeLabel(db, businessId, place);
+  const yesterday = dayBefore(today);
+  const y = await profitDetail(db, businessId, place, yesterday, yesterday);
+  const net = y.sales - y.discounts;
+
+  const s = scope("h", place);
+  const [bills] = await db.execute<Row[]>(
+    `SELECT COUNT(*) AS n FROM acct_sales_headers h WHERE h.legal_business_id = ? AND h.status = 'POSTED' AND h.invoice_date = ?${s.sql}`,
+    [businessId, yesterday, ...s.values]
+  );
+  const [coll] = await db.execute<Row[]>(
+    `SELECT COALESCE(SUM(p.amount), 0) AS t
+       FROM acct_sales_payments p JOIN acct_sales_headers h ON h.id = p.sale_id AND h.legal_business_id = p.legal_business_id
+      WHERE p.legal_business_id = ? AND p.status = 'RECORDED' AND p.payment_method NOT IN ('DISCOUNT','SET_OFF','EXCHANGE')
+        AND h.status = 'POSTED' AND p.payment_date = ?${s.sql}`,
+    [businessId, yesterday, ...s.values]
+  );
+
+  const positions = await getAccountPositions(db, businessId, today);
+  const held = [...positions.banks, ...positions.cash].reduce((sum, a) => sum + a.balance, 0n);
+
+  let newOrders = 0;
+  try {
+    const [o] = await db.execute<Row[]>(`SELECT COUNT(*) AS n FROM acct_online_orders WHERE legal_business_id = ? AND status = 'REQUESTED'`, [businessId]);
+    newOrders = Number(o[0]?.n ?? 0);
+  } catch {
+    newOrders = 0;
+  }
+
+  const limit = await lowStockLimit(db, businessId);
+  const lowCount = (await stockRows(db, businessId, place, today)).filter((r) => r.qty <= limit).length;
+
+  let waiting = 0;
+  let review = 0;
+  try {
+    const sync = await getSyncStatus(db, businessId);
+    waiting = sync.pending.length;
+    review = sync.changedAfterPosting.length + sync.noLongerValid.length + sync.problems.length;
+  } catch {
+    waiting = 0;
+  }
+
+  const [owing] = await db.execute<Row[]>(
+    `SELECT COUNT(*) AS n, COALESCE(SUM(due), 0) AS total FROM (
+       SELECT h.customer_name,
+              SUM(h.grand_total
+                  - COALESCE((SELECT SUM(p.amount) FROM acct_sales_payments p WHERE p.sale_id = h.id AND p.status = 'RECORDED'), 0)
+                  - COALESCE((SELECT SUM(r.refund_value) FROM acct_sales_returns r WHERE r.sale_id = h.id AND r.status = 'POSTED'), 0)
+                  + COALESCE((SELECT SUM(px.amount) FROM acct_sales_payments px JOIN acct_sales_returns r3 ON r3.id = px.exchange_return_id WHERE r3.sale_id = h.id AND px.status = 'RECORDED'), 0)
+                  + COALESCE((SELECT SUM(f.amount) FROM acct_sales_refunds f JOIN acct_sales_returns r2 ON r2.id = f.return_id WHERE r2.sale_id = h.id AND f.status = 'RECORDED'), 0)
+              ) AS due
+         FROM acct_sales_headers h
+        WHERE h.legal_business_id = ? AND h.status = 'POSTED'${s.sql}
+        GROUP BY h.customer_name HAVING due > 0.004) d`,
+    [businessId, ...s.values]
+  );
+  const owingN = Number(owing[0]?.n ?? 0);
+  const owingTotal = toPaise(owing[0]?.total ?? 0);
+
+  const attention = newOrders + lowCount + waiting + review;
+  const sections: ReportContent["sections"] = [
+    {
+      heading: `Yesterday, ${fmtDate(yesterday)}`,
+      columns: ["", ""],
+      rows: [
+        ["Bills", String(Number(bills[0]?.n ?? 0))],
+        ["Net sales", inr(net)],
+        ["Money collected", inr(toPaise(coll[0]?.t ?? 0))],
+        ["Gross profit", inr(y.gross)],
+      ],
+    },
+    { heading: "Money now", columns: ["", ""], rows: [["Cash and bank", inr(held)], ["Customers owe you", `${inr(owingTotal)} (${owingN})`]] },
+    {
+      heading: "Needs you",
+      columns: ["", ""],
+      rows: [
+        ["New website orders", String(newOrders)],
+        ["Low or out-of-stock items", String(lowCount)],
+        ["Records waiting to post", String(waiting)],
+        ["Records to review", String(review)],
+      ],
+    },
+  ];
+  return {
+    type: "MORNING_DIGEST",
+    title: "Morning Digest",
+    subtitle: `${label} - ${fmtDate(today)}`,
+    params: [fmtDate(today), label, inrShort(net), inrShort(held), String(newOrders), String(attention)].map((v) => cleanParam(v)),
+    sections,
+    footnote: "Profit counts only entries already posted to the books.",
   };
 }
 

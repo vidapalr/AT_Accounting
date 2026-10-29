@@ -9,6 +9,7 @@ export type ReportType =
   | "STOCK_DAILY"
   | "STOCK_MONTHLY"
   | "ALERTS"
+  | "MORNING_DIGEST"
   | "INVESTOR_STATEMENT";
 
 export const REPORT_TYPES: ReportType[] = [
@@ -17,6 +18,7 @@ export const REPORT_TYPES: ReportType[] = [
   "STOCK_DAILY",
   "STOCK_MONTHLY",
   "ALERTS",
+  "MORNING_DIGEST",
   "INVESTOR_STATEMENT",
 ];
 
@@ -26,6 +28,7 @@ export const REPORT_LABELS: Record<ReportType, string> = {
   STOCK_DAILY: "Current stock, daily (9 PM)",
   STOCK_MONTHLY: "Current stock, monthly (1st of month)",
   ALERTS: "Low stock and pending dues alerts (8 AM)",
+  MORNING_DIGEST: "Morning digest: yesterday, cash, orders, what needs you (8 AM)",
   INVESTOR_STATEMENT: "Monthly investor statement (1st of month)",
 };
 
@@ -33,7 +36,7 @@ export type Job = "daily" | "morning" | "monthly";
 
 export const JOB_REPORTS: Record<Job, ReportType[]> = {
   daily: ["DAILY_SALES", "DAILY_FULL", "STOCK_DAILY"],
-  morning: ["ALERTS"],
+  morning: ["ALERTS", "MORNING_DIGEST"],
   monthly: ["STOCK_MONTHLY", "INVESTOR_STATEMENT"],
 };
 
@@ -132,6 +135,13 @@ export const TEMPLATES: TemplateDef[] = [
     name: "abhiram_alerts",
     language: "en",
     body: "Abhiram Group alerts for {{1}} - {{2}}. Low-stock items: {{3}}. Customers owing: {{4}} totalling {{5}}. Suppliers to pay: {{6}}. Details are attached.",
+    paramCount: 6,
+  },
+  {
+    type: "MORNING_DIGEST",
+    name: "abhiram_morning_digest",
+    language: "en",
+    body: "Abhiram Group morning digest for {{1}} - {{2}}. Yesterday's net sales: {{3}}. Cash and bank: {{4}}. New website orders: {{5}}. Items needing your attention: {{6}}.",
     paramCount: 6,
   },
   {
