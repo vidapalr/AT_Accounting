@@ -9,6 +9,8 @@ import {
   recordRefundAction,
   recordStockDamageAction,
 } from "@/lib/returns-actions";
+import { cancelWriteOffAction } from "@/lib/write-off-cancel-actions";
+import ConfirmButton from "@/components/ConfirmButton";
 
 type Props = {
   searchParams: Promise<{ sale?: string; saved?: string; error?: string }>;
@@ -293,7 +295,7 @@ async function ReturnsContent({ searchParams }: Props) {
         </form>
 
         <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16 }}>
-          <thead><tr>{["Date", "Product", "Qty", "Cost", "Reason"].map((h) => <th key={h} style={cell}>{h}</th>)}</tr></thead>
+          <thead><tr>{["Date", "Product", "Qty", "Cost", "Reason", ""].map((h) => <th key={h} style={cell}>{h}</th>)}</tr></thead>
           <tbody>
             {damages.map((d) => (
               <tr key={d.id}>
@@ -302,9 +304,21 @@ async function ReturnsContent({ searchParams }: Props) {
                 <td style={cell}>{String(d.quantity)}</td>
                 <td style={cell}>{inr(d.total_cost)}</td>
                 <td style={cell}>{String(d.reason).toLowerCase()}</td>
+                <td style={cell}>
+                  {user.role === "GROUP_OWNER" && (
+                    <form action={cancelWriteOffAction}>
+                      <input type="hidden" name="damage_id" value={String(d.id)} />
+                      <ConfirmButton
+                        label="Cancel this write-off"
+                        question="Put these pieces back into stock because the write-off was a mistake?"
+                        className="btn-link"
+                      />
+                    </form>
+                  )}
+                </td>
               </tr>
             ))}
-            {damages.length === 0 && <tr><td style={cell} colSpan={5}>Nothing recorded.</td></tr>}
+            {damages.length === 0 && <tr><td style={cell} colSpan={6}>Nothing recorded.</td></tr>}
           </tbody>
         </table>
       </section>
