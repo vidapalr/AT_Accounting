@@ -6,6 +6,7 @@ import {
   parseMoney,
   formatMoney,
   saleInvoiceEntry,
+  stockFindEntry,
   salesReceiptEntry,
   purchaseReceiptEntry,
   purchasePaymentEntry,
@@ -482,4 +483,11 @@ test("sale whose total does not include its delivery is refused", () => {
     id: 9, invoiceNo: "X", date: "2026-10-28", dims,
     subtotal: "1000.00", discount: "0.00", shipping: "450.00", grandTotal: "1000.00", costOfGoodsSold: "0.00",
   }));
+});
+
+test("stock found at a count: stock up, lost-stock cost down by the same amount", () => {
+  const d = stockFindEntry({ id: 3, date: "2026-10-29", cost: "250.00", dims });
+  const a = byAccount(d);
+  assert.equal(a[ACCOUNT.INVENTORY].debit, 25000n);
+  assert.equal(a[ACCOUNT.DAMAGED_STOCK].credit, 25000n);
 });

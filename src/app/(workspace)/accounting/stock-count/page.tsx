@@ -5,7 +5,7 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { canWriteOffStockCount } from "@/lib/access";
-import { saveStockCountAction, writeOffCountShortagesAction } from "@/lib/stock-count-actions";
+import { saveStockCountAction, writeOffCountShortagesAction, acceptExtraStockAction } from "@/lib/stock-count-actions";
 import ConfirmButton from "@/components/ConfirmButton";
 
 type Props = {
@@ -49,7 +49,7 @@ async function StockCountContent({ searchParams }: Props) {
     count = c[0];
     if (count) {
       const [l] = await db.execute<Row[]>(
-        `SELECT l.id, l.books_qty, l.counted_qty, l.difference, l.written_off,
+        `SELECT l.id, l.books_qty, l.counted_qty, l.difference, l.written_off, l.found,
                 v.sku, v.size_label, v.color_name, p.product_name
            FROM acct_stock_count_lines l
            JOIN acct_product_variants v ON v.id = l.variant_id AND v.legal_business_id = l.legal_business_id
@@ -160,7 +160,7 @@ async function StockCountContent({ searchParams }: Props) {
             <>
               <h3>Extra (you counted more than the books say)</h3>
               <p style={{ color: "#64748b" }}>
-                Not changed automatically. Look for a purchase, return or transfer that was never recorded.
+                First look for a purchase, return or transfer that was never recorded. If there is none, add the extra to stock at its last buying cost.
               </p>
               <table style={{ borderCollapse: "collapse", width: "100%" }}>
                 <thead><tr><th style={cell}>Item</th><th style={cell}>Books</th><th style={cell}>Counted</th><th style={cell}>Extra</th></tr></thead>
@@ -170,12 +170,22 @@ async function StockCountContent({ searchParams }: Props) {
                       <td style={cell}>{itemName(l)} <span style={{ color: "#64748b" }}>({l.sku})</span></td>
                       <td style={cell}>{qty(l.books_qty)}</td>
                       <td style={cell}>{qty(l.counted_qty)}</td>
-                      <td style={{ ...cell, color: "#92400e" }}>{qty(l.difference)}</td>
+                      <td style={{ ...cell, color: "#92400e" }}>{qty(l.difference)}{l.found ? " (added to stock)" : ""}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </>
+          )}
+          {extra.some((l) => !l.found) && canSettle && (
+            <form action={acceptExtraStockAction} style={{ margin: "10px 0" }}>
+              <input type="hidden" name="count_id" value={String(count.id)} />
+              <ConfirmButton
+                label="Add the extra items to stock"
+                question="Add the extra items to stock at their last buying cost? The cost is taken off your lost-stock figure."
+                className="btn-link btn-link-primary"
+              />
+            </form>
           )}
           {short.length === 0 && extra.length === 0 && <p style={{ color: "#166534" }}>Everything counted matches the books.</p>}
           <p style={{ marginTop: 12 }}>

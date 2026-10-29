@@ -22,6 +22,7 @@ import {
   setupCapitalisationEntry,
   salesReturnEntry,
   stockDamageEntry,
+  stockFindEntry,
   supplierReturnEntry,
   supplierRefundEntry,
   freeStockEntry,
@@ -88,6 +89,7 @@ const SOURCE_ORDER: SourceType[] = [
   "SALES_RETURN",
   "SALES_REFUND",
   "STOCK_DAMAGE",
+  "STOCK_FIND",
   "SUPPLIER_RETURN",
   "SUPPLIER_REFUND",
   "FREE_STOCK",
@@ -446,6 +448,18 @@ export async function buildLedgerDrafts(
         cost: str(m.total_cost),
         dims: dims(m.division_id, m.branch_id),
       })
+    );
+  }
+
+  const finds = await select(
+    conn,
+    `SELECT id, division_id, branch_id, total_cost, DATE_FORMAT(find_date, '%Y-%m-%d') AS d
+       FROM acct_stock_finds WHERE legal_business_id = ? AND status = 'POSTED' ORDER BY find_date, id`,
+    [businessId]
+  );
+  for (const f of finds) {
+    add(`Stock found ${str(f.id)}`, () =>
+      stockFindEntry({ id: Number(f.id), date: str(f.d), cost: str(f.total_cost), dims: dims(f.division_id, f.branch_id) })
     );
   }
 

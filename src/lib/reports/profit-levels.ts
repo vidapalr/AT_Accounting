@@ -64,7 +64,7 @@ function add(target: Raw, line: LedgerTotal) {
   const credit = line.credit - line.debit;
   const debit = line.debit - line.credit;
 
-  if (code === "4000") target.sales += credit;
+  if (code === "4000" || code === "4300") target.sales += credit; // 4300 = delivery charged to customers
   else if (code.startsWith("4")) {
     target.discounts += debit; // 4200, 4210 and any other contra-sales
     if (code === "4210") target.returns += debit;
