@@ -235,3 +235,9 @@ Checked against what exists today. None of the 15 was in the plan as its own ite
 15. **Forecasting engine** - MISSING (Phase 5 already lists forecasts). Plan: sales demand, cash runway and low stock first, each shown with its data window and against a simple baseline.
 
 Suggested build order inside Phase 1: MFA (smallest, protects everything) -> customer timeline -> leads -> pipeline -> batch -> serial.
+
+### Priority order set by the owner (30 Oct 2026)
+Day-to-day trading must not be held up. Work in this order, and the 15 enhancements above come after:
+1. Core trading: customers, billing, supplying, purchases, general ledger, profit and loss. Only fixes and gaps found in daily use; no change to the current flow.
+2. Then the pending items (chatbot go-live, Instagram live test, Phase 1 enhancements starting with MFA).
+Known core gaps to close first: leftover exchange credit cannot be used on a later bill (only refunded); online orders do not reserve stock; investor "returns paid" has no ledger rule or screen; Tally export for the auditor; stock-correction label on today's profit (owner declined for now).
