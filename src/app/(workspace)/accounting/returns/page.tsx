@@ -243,7 +243,12 @@ async function ReturnsContent({ searchParams }: Props) {
                   <td style={cell}>{inr(Number(r.refunded) + Number(r.exchanged))}</td>
                   <td style={cell}>{inr(owed)}</td>
                   <td style={cell}>
-                    {owed > 0 ? (
+                    {owed > 0 ? (<>
+                      <p style={{ margin: "0 0 8px" }}>
+                        <a className="btn-link btn-link-primary" style={{ fontSize: 15, padding: "8px 14px" }} href={`/accounting/sales?from_exchange=${r.id}`}>
+                          Use {inr(owed)} credit on a new bill
+                        </a>
+                      </p>
                       <form action={recordRefundAction} style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         <input type="hidden" name="return_id" value={String(r.id)} />
                         <input name="amount" defaultValue={owed.toFixed(2)} size={8} inputMode="decimal" />
@@ -252,7 +257,7 @@ async function ReturnsContent({ searchParams }: Props) {
                         <select name="method" defaultValue="CASH">{methodOptions}</select>
                         <button type="submit">Pay</button>
                       </form>
-                    ) : "Settled"}
+                    </>) : "Settled"}
                   </td>
                 </tr>
               );
