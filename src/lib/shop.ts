@@ -64,15 +64,29 @@ export async function loadOffers(businessId = SHOP_BUSINESS_ID): Promise<Offer[]
   })) as Offer[];
 }
 
-async function inStock(variantIds: number[]): Promise<Set<number>> {
-  if (variantIds.length === 0) return new Set();
-  const [rows] = await db.query<RowDataPacket[]>(
-    `SELECT variant_id FROM acct_stock_movements
-      WHERE legal_business_id = ? AND variant_id IN (?)
-      GROUP BY variant_id HAVING SUM(quantity_change) > 0`,
+/** Pieces that can still be sold online: stock on hand minus pieces held by website orders not yet billed or cancelled. */
+export async function sellableQty(variantIds: number[], conn: { query: typeof db.query } = db): Promise<Map<number, number>> {
+  const out = new Map<number, number>();
+  if (variantIds.length === 0) return out;
+  const [stock] = await conn.query<RowDataPacket[]>(
+    `SELECT variant_id, SUM(quantity_change) AS qty FROM acct_stock_movements
+      WHERE legal_business_id = ? AND variant_id IN (?) GROUP BY variant_id`,
     [SHOP_BUSINESS_ID, variantIds]
   );
-  return new Set(rows.map(r => Number(r.variant_id)));
+  const [held] = await conn.query<RowDataPacket[]>(
+    `SELECT l.variant_id, SUM(l.quantity) AS qty FROM acct_online_order_lines l
+       JOIN acct_online_orders o ON o.id = l.order_id
+      WHERE o.legal_business_id = ? AND o.status IN ('REQUESTED','CONFIRMED') AND o.sale_id IS NULL AND l.variant_id IN (?) GROUP BY l.variant_id`,
+    [SHOP_BUSINESS_ID, variantIds]
+  );
+  for (const r of stock) out.set(Number(r.variant_id), Number(r.qty));
+  for (const r of held) out.set(Number(r.variant_id), (out.get(Number(r.variant_id)) ?? 0) - Number(r.qty));
+  return out;
+}
+
+async function inStock(variantIds: number[]): Promise<Set<number>> {
+  const qty = await sellableQty(variantIds);
+  return new Set([...qty].filter(([, q]) => q > 0).map(([id]) => id));
 }
 
 export type ShopVariant = {

@@ -4,7 +4,7 @@ import type { ResultSetHeader } from "mysql2";
 
 import { db } from "@/lib/db";
 import { nextCode } from "@/lib/codes";
-import { getShopProducts, SHOP_BUSINESS_ID } from "@/lib/shop";
+import { getShopProducts, sellableQty, SHOP_BUSINESS_ID } from "@/lib/shop";
 import { emailOkToOrder } from "@/lib/shop-verify";
 import { checkOrder, orderTotalPaise } from "@/lib/shop-order-math";
 
@@ -57,6 +57,19 @@ export async function placeOrder(raw: unknown, shopCustomerId: number): Promise<
         where: "legal_business_id = ?", params: [SHOP_BUSINESS_ID],
       });
       await conn.beginTransaction();
+      // Lock these items so two customers cannot take the last piece at the same moment, then check what is left.
+      const ids = [...new Set(priced.map((p) => p.variantId))].sort((a, b) => a - b);
+      await conn.query(`SELECT id FROM acct_product_variants WHERE id IN (?) ORDER BY id FOR UPDATE`, [ids]);
+      const left = await sellableQty(ids, conn);
+      for (const id of ids) {
+        const want = priced.filter((p) => p.variantId === id).reduce((n, p) => n + p.qty, 0);
+        const have = left.get(id) ?? 0;
+        if (want > have) {
+          await conn.rollback();
+          const name = priced.find((p) => p.variantId === id)!.product;
+          return { ok: false, error: have > 0 ? `Only ${have} of ${name} left. Please change the quantity in your cart.` : `${name} was just taken by another order. Please remove it from your cart.` };
+        }
+      }
       const [head] = await conn.execute<ResultSetHeader>(
         `INSERT INTO acct_online_orders
            (legal_business_id, order_no, customer_name, phone, email, country, address_line, city, state_region, postal_code, customer_note, items_total, shop_customer_id)
