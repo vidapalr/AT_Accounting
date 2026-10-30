@@ -20,6 +20,7 @@ export interface FundingReceipt extends RowDataPacket {
   payment_reference: string | null;
   remarks: string | null;
   status: "DRAFT" | "VERIFIED" | "VOID";
+  return_treatment: string | null;
 }
 
 export interface ReceiptAgreement extends RowDataPacket {
@@ -65,7 +66,8 @@ export async function getFundingReceipts(
        ) AS deposit_account,
        t.payment_reference,
        t.remarks,
-       t.status
+       t.status,
+       t.return_treatment
      FROM acct_funding_transactions t
      JOIN acct_funding_agreements a
        ON a.id = t.agreement_id
