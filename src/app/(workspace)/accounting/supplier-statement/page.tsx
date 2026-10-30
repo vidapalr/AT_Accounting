@@ -12,6 +12,8 @@ import { todayInIndia } from "@/lib/reports/money";
 import { normalizePhone } from "@/lib/customer-phone";
 import { loadSupplierBalances, loadSupplierEvents } from "@/lib/supplier-ledger";
 import { ageDues, buildStatement } from "@/lib/supplier-statement";
+import { canAccess } from "@/lib/access";
+import { loadCustomerEntries, loadOtherSide } from "@/lib/party-link";
 
 type Props = { searchParams: Promise<{ supplier?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -60,7 +62,25 @@ async function StatementContent({ searchParams }: Props) {
     if (!supplier) notFound();
 
     const events = await loadSupplierEvents(db, businessId, supplierId);
-    const { rows, balance } = buildStatement(events);
+    const { rows: supplierRows, balance: supplierBalance } = buildStatement(events);
+    // Same person is also a customer: show both sides in one statement, with one running net.
+    const other = canAccess(user.role, "both_sides") ? await loadOtherSide(db, businessId, { supplierId }) : null;
+    const customerEntries = other ? await loadCustomerEntries(db, businessId, other.customerId) : [];
+    type Line = { date: string; what: string; ref: string; effect: bigint; side: "S" | "C"; order: number };
+    const lines: Line[] = [
+      ...supplierRows.map((r, i) => ({ date: r.date, what: LABEL[r.kind], ref: r.ref, effect: r.effect, side: "S" as const, order: i })),
+      ...customerEntries.map((e, i) => ({
+        date: e.date,
+        what: e.kind === "INVOICE" ? "Sale bill (they owe us)" : "Payment received from them",
+        ref: e.ref,
+        effect: e.kind === "INVOICE" ? -e.amount : e.amount,
+        side: "C" as const,
+        order: 100000 + i,
+      })),
+    ].sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order);
+    let running = 0n;
+    const rows = lines.map((l) => { running += l.effect; return { ...l, balance: running }; });
+    const balance = other ? running : supplierBalance;
     const bills = events.filter((e) => e.kind === "BILL").map((e) => ({ date: e.date, amount: e.amount }));
     const reductions = events.reduce(
       (s, e) => (e.kind === "PAYMENT" || e.kind === "RETURN" ? s + e.amount : e.kind === "REFUND" ? s - e.amount : s),
@@ -85,7 +105,7 @@ async function StatementContent({ searchParams }: Props) {
         <h1 className="no-print">{supplier.supplier_name}</h1>
         <OtherSideNote businessId={businessId} role={user.role} supplierId={supplierId} />
         <p style={{ fontSize: 20 }}>
-          <strong>{balanceWords(balance)}</strong>
+          <strong>{balanceWords(supplierBalance)}</strong>{other ? <span style={{ color: "#475569", fontSize: 16 }}> as supplier. After what they owe us as a customer: <strong>{balanceWords(balance)}</strong></span> : null}
           {supplier.gstin ? <span style={{ color: "#64748b", fontSize: 14 }}> · GSTIN {supplier.gstin}</span> : null}
         </p>
 
@@ -111,20 +131,20 @@ async function StatementContent({ searchParams }: Props) {
         )}
 
         <section style={box}>
-          <h2>Every entry</h2>
+          <h2>Every entry{other ? " (supplier and customer together)" : ""}</h2>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
               <thead>
                 <tr>
                   <th style={cell}>Date</th><th style={cell}>What</th><th style={cell}>Reference</th>
-                  <th style={right}>You owe more</th><th style={right}>You owe less</th><th style={right}>Balance</th>
+                  <th style={right}>You owe more</th><th style={right}>You owe less</th><th style={right}>{other ? "Net balance" : "Balance"}</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
                   <tr key={i}>
                     <td style={cell}>{prettyDate(r.date)}</td>
-                    <td style={cell}>{LABEL[r.kind]}</td>
+                    <td style={cell}>{r.what}</td>
                     <td style={cell}>{r.ref}</td>
                     <td style={right}>{r.effect > 0n ? rupees(r.effect) : ""}</td>
                     <td style={right}>{r.effect < 0n ? rupees(-r.effect) : ""}</td>
