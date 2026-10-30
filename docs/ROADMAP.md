@@ -111,7 +111,7 @@ Migrations so far (see GO_LIVE for the full list): 001 investor capital account;
 - Opening balance: post it, then close October.
 - Investor deposits not yet entered (the investor bank shows a negative balance until they are).
 - A supplier payment of ₹1,41,525 is recorded with a cash method but came from a bank account.
-- Funding transaction types (funding received, principal repaid, returns paid) have no ledger rules yet.
+- Funding transaction types: funding received and principal repaid post (migration 040); returns paid to investors post from migration 047 (see below).
 - Settings screens: owner minimum (51%), funding limit (₹10 lakh), low-stock level.
 - Expense form needs a "set-up cost" checkbox.
 - Repo hygiene: private uploads are committed, there is no base schema file, billing uses floating-point money in one form, login has no rate limit, the website and accounting app share one database, expired sessions are never cleaned.
@@ -244,3 +244,4 @@ Known core gaps to close first: leftover exchange credit cannot be used on a lat
 - Supplier statement for a person who is also a customer (30 Oct 2026): "Every entry" now lists their sale bills and payments (cash, discount, set-off) together with the supplier entries, with one running net balance that ends at the same figure as the blue "Also a customer" note. Only for roles with both-sides access; other suppliers unchanged. No migration.
 - Leftover credit from a return (30 Oct 2026): every return with credit still owed shows "Use ₹X credit on a new bill" on Returns and refunds. It opens a new bill with the customer filled in and the credit applied as part payment (same exchange mechanism); the rest can still be refunded. No migration.
 - Stock held for website orders (30 Oct 2026): pieces in open website orders (requested or confirmed, not yet billed) are held back, so the shop shows "out of stock" when on-hand minus held is 0. Placing an order locks the items, checks quantities, and refuses an order for more than what is left ("Only 2 of X left"). Once the order is billed, the hold is released as the sale takes the stock. Cancelling an order releases the hold. No migration.
+- Pay an investor (migration 047, 30 Oct 2026): Investors > Funding transactions has a "Pay an investor" form (owner only): principal given back, or a return on their money. Each return is marked by the accountant as Share of profit (Dr 3250 Investor Profit Share Paid, equity, does not reduce profit) or Cost (Dr 6120 Investor Returns, reduces operating profit). Saved as Draft, then "Confirm: it has left the bank" posts it (Cr bank or cash). Principal repaid cannot exceed the principal still owed. Old returns without a choice still show as a problem on Accounting health until re-entered.

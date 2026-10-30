@@ -31,6 +31,8 @@ export const ACCOUNT = {
   ACCRUED_EXPENSES: "2200",
   PROPRIETOR_CAPITAL: "3000",
   INVESTOR_CAPITAL: "3200",
+  INVESTOR_PROFIT_SHARE: "3250",
+  INVESTOR_RETURN_COST: "6120",
   SALES: "4000",
   SETUP_COSTS: "6900",
   SETUP_ASSET: "1320",
@@ -344,14 +346,15 @@ export function cashTakenEntry(a: {
  * principal paid back (Investor Capital down). Posted only after the owner confirmed it against the bank.
  */
 export function fundingReceiptEntry(a: {
-  id: number; txNo: string; kind: "RECEIVED" | "REPAID"; date: string; amount: string; agreementNo: string; dims: Dimensions; settlement: Settlement;
+  id: number; txNo: string; kind: "RECEIVED" | "REPAID" | "RETURN_SHARE" | "RETURN_COST"; date: string; amount: string; agreementNo: string; dims: Dimensions; settlement: Settlement;
 }): JournalDraft {
   const amount = parseMoney(a.amount);
-  const memo = `${a.kind === "RECEIVED" ? "Investor money received" : "Investor principal paid back"} ${a.txNo} (${a.agreementNo})`;
+  const words = { RECEIVED: "Investor money received", REPAID: "Investor principal paid back", RETURN_SHARE: "Investor profit share paid", RETURN_COST: "Investor return paid (cost)" };
+  const memo = `${words[a.kind]} ${a.txNo} (${a.agreementNo})`;
   const account = settlementAccount(a.settlement);
-  return makeDraft("FUNDING_RECEIPT", a.id, a.date, memo, a.kind === "RECEIVED"
-    ? [debit(account, amount, a.dims, memo), credit(ACCOUNT.INVESTOR_CAPITAL, amount, a.dims, memo)]
-    : [debit(ACCOUNT.INVESTOR_CAPITAL, amount, a.dims, memo), credit(account, amount, a.dims, memo)]);
+  if (a.kind === "RECEIVED") return makeDraft("FUNDING_RECEIPT", a.id, a.date, memo, [debit(account, amount, a.dims, memo), credit(ACCOUNT.INVESTOR_CAPITAL, amount, a.dims, memo)]);
+  const from = a.kind === "REPAID" ? ACCOUNT.INVESTOR_CAPITAL : a.kind === "RETURN_SHARE" ? ACCOUNT.INVESTOR_PROFIT_SHARE : ACCOUNT.INVESTOR_RETURN_COST;
+  return makeDraft("FUNDING_RECEIPT", a.id, a.date, memo, [debit(from, amount, a.dims, memo), credit(account, amount, a.dims, memo)]);
 }
 
 /** An asset bought: Fixed Assets up, paid from bank or cash (or the owner's / investor's own money). */

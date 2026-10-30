@@ -465,6 +465,10 @@ test("investor money received: bank up, Investor Capital up; repaid is the rever
   assert.equal(r.lines[0].accountCode, "1010"); assert.equal(r.lines[1].accountCode, "3200"); assert.equal(r.lines[1].credit, 10000000n);
   const p = _fund({ ...base, kind: "REPAID" });
   assert.equal(p.lines[0].accountCode, "3200"); assert.equal(p.lines[1].accountCode, "1010");
+  const sh = _fund({ ...base, kind: "RETURN_SHARE" });
+  assert.equal(sh.lines[0].accountCode, "3250"); assert.equal(sh.lines[1].accountCode, "1010");
+  const co = _fund({ ...base, kind: "RETURN_COST" });
+  assert.equal(co.lines[0].accountCode, "6120"); assert.equal(co.lines[0].debit, 10000000n);
 });
 
 test("sale with delivery charge: delivery income credited, totals still balance", () => {

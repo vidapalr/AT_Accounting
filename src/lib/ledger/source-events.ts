@@ -621,24 +621,24 @@ export async function buildLedgerDrafts(
   }
 
   // ------------------------------------ investor money received / paid back
-  const funding = await select(
-    conn,
-    `SELECT t.id, t.transaction_no, t.transaction_type, t.bank_account_id, t.cash_account_id, t.amount,
+  const fundingSql = (treatment: string) =>
+    `SELECT t.id, t.transaction_no, t.transaction_type, t.bank_account_id, t.cash_account_id, t.amount, ${treatment} AS return_treatment,
             DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS d, a.agreement_no, a.division_id, a.branch_id
      FROM acct_funding_transactions t
      JOIN acct_funding_agreements a ON a.legal_business_id = t.legal_business_id AND a.id = t.agreement_id
-     WHERE t.legal_business_id = ? AND t.status = 'VERIFIED' ORDER BY t.transaction_date, t.id`,
-    [businessId]
-  );
+     WHERE t.legal_business_id = ? AND t.status = 'VERIFIED' ORDER BY t.transaction_date, t.id`;
+  const funding = await select(conn, fundingSql("t.return_treatment"), [businessId])
+    .catch(() => select(conn, fundingSql("NULL"), [businessId])); // before migration 047 is run
   for (const f of funding) {
     const label = `Funding ${str(f.transaction_no)}`;
     add(label, () => {
       const type = str(f.transaction_type);
-      if (type === "RETURN_PAID") throw new Error("returns paid to investors have no ledger rule yet");
+      const treatment = str(f.return_treatment);
+      if (type === "RETURN_PAID" && treatment !== "PROFIT_SHARE" && treatment !== "COST") throw new Error("a return paid to an investor needs 'share of profit' or 'cost' chosen (migration 047)");
       const settlement = settle(label, str(f.bank_account_id) ? "BUSINESS_BANK" : "BUSINESS_CASH", f.bank_account_id, f.cash_account_id);
       if (!settlement) return null;
       return fundingReceiptEntry({
-        id: Number(f.id), txNo: str(f.transaction_no), kind: type === "PRINCIPAL_REPAID" ? "REPAID" : "RECEIVED", date: str(f.d),
+        id: Number(f.id), txNo: str(f.transaction_no), kind: type === "PRINCIPAL_REPAID" ? "REPAID" : type === "RETURN_PAID" ? (treatment === "COST" ? "RETURN_COST" : "RETURN_SHARE") : "RECEIVED", date: str(f.d),
         amount: str(f.amount), agreementNo: str(f.agreement_no), dims: dims(f.division_id, f.branch_id), settlement,
       });
     });
