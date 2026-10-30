@@ -207,3 +207,41 @@ Note for later: cash payments to suppliers use no branch on the journal while ca
 - Exchange bill (migration 044): on Returns (or "Return or exchange" on any posted invoice) the button "Exchange: save the return, then choose the new items" saves the return as usual and opens the billing form with the customer filled in and the returned value shown as "Exchange credit". On confirm, the credit is recorded as a payment of method EXCHANGE (no cash or bank, no journal of its own: the return already sits in the books). The customer pays any extra with normal payments (cash, UPI, card, part, or on credit). If the new items cost less, the rest stays owed to the customer: the cashier pays it back from the Returns page (recorded as a refund) or leaves it as credit. Owed amounts on Returns, the dashboard and the daily owing report all subtract exchange credit. Not built: using a left-over credit on a later bill.
 - Cancel a write-off (no migration, 29 Oct 2026): owner only, button on Returns > damaged stock list. Marks the write-off cancelled and puts the pieces back at the cost they left at. If its journal was already posted, Accounting health shows it as no longer valid and the owner reverses it.
 - Insights and morning digest (migration 045): /accounting/insights (Reports menu, same access as reports, read-only): last 7 days against the week before, best sellers, each branch over 30 days, who owes and for how long, good customers quiet for 60 days, items about to run out (days of stock left at the 30-day pace), slow movers over 60 days, and what customers and suppliers owe. The Morning digest is a new WhatsApp report on the existing 8 AM job (subscribe on WhatsApp reports): yesterday's bills, net sales, collected and gross profit, cash and bank, what customers owe, new website orders, low-stock count, records waiting to post or review. Tap-to-send, no cost.
+<<<<<<< HEAD
+=======
+- WhatsApp chatbot on the shop number (migration 046): /accounting/chatbot (Selling menu). Webhook `/api/whatsapp/webhook` now also feeds the bot. No AI service: the bot answers only from (1) saved "Quick answers" the team adds (keyword phrases), (2) live shop data (price from, in/out of stock, never quantities, only shop-visible items), (3) order status by WEB-number, only to the phone number that placed the order. Anything else, or "3", hands the chat to a person ("Needs a person" list with Open in WhatsApp / Mark done). New customers get a greeting menu (1 prices, 2 order status, 3 person). When a person replies from the phone (`smb_message_echoes`) the bot stays quiet for 12 hours. Owner numbers saved on the page can ask by WhatsApp: sales today/yesterday, stock <item>, who owes, orders (read-only). Bot is OFF until the owner ticks "Turn the bot on". Questions it could not answer are listed with "Add an answer". Max 20 bot replies per number per hour. Secrets only in Hostinger: WHATSAPP_VERIFY_TOKEN, WHATSAPP_APP_SECRET, WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID.
+
+## Project manager's critical enhancements (30 Oct 2026)
+
+Checked against what exists today. None of the 15 was in the plan as its own item; some have a foundation already. Order is the project manager's. Nothing here is built yet and nothing changes the current flow. Items marked * are textile-specific suggestions for the owner to decide.
+
+**Phase 1 (immediate)**
+1. **CRM leads** - MISSING. Foundation: customer master (010), website sign-ups (035), WhatsApp chatbot chats (046). Plan: a lead is a person who asked but has not bought (from chatbot, website, Instagram, walk-in), with source and owner; becomes a customer on first sale.
+2. **Opportunity pipeline** - MISSING. Plan: a simple board (Asked, Quoted, Order placed, Won, Lost) for bigger or wholesale deals, with expected value and next date. Foundation: online orders, items on approval (019).
+3. **Customer timeline** - PARTIAL. Customer page has statement, visits, spend and last purchase. Plan: one list per customer of everything in date order: bills, payments, returns, exchanges, online orders, WhatsApp chats, notes.
+4. **Batch tracking** - MISSING. * For textiles this means dye lot / purchase lot (shade differs between lots). Plan: lot on each purchase receipt, carried through stock and sales, so a return or complaint traces to the lot and supplier. Needs a change to stock movements, so it is designed carefully first.
+5. **Serial tracking** - MISSING. * Needed only for one-of-a-kind or high-value pieces (each barcoded individually). Plan: optional per product; off by default.
+6. **MFA security** - MISSING. Sessions and roles exist (acct_sessions, deny-by-default access). Plan: authenticator-app code (TOTP) at login, required for owner and accountant, optional for others, with recovery codes. No SMS cost. Secrets stay on the server, never in code.
+
+**Phase 2**
+7. **Workflow engine** - PARTIAL. Fixed flows exist (draft to confirm, approvals for amendments and stock drafts, auto-post). Plan: owner-defined rules ("when X, ask Y to approve / notify Z") built on those, not a free-form engine.
+8. **Approval designer** - PARTIAL. Plan: screen for the owner to choose which actions need approval (discount above a limit, write-off, large expense, refund) and who approves. Builds on approval-items and amendment approvals.
+9. **CRM activities** - MISSING. Plan: calls, visits, follow-ups and reminders against a lead or customer with due dates, and a "today's follow-ups" list (also in the morning digest).
+10. **Customer service tickets** - MISSING. Plan: complaints and return/exchange requests as tickets with status and owner, raised from the chatbot "Needs a person" list or from a bill.
+11. **Loyalty program** - MISSING. Plan: points per spend, redeem on a bill as a discount (posts like other discounts, 4200). Rules to be decided by the owner (earn rate, expiry, wholesale excluded).
+
+**Phase 3**
+12. **AI copilot** - MISSING. Foundation: Insights page, owner commands on WhatsApp (read-only). Plan: ask questions in plain words over the owner's own data, read-only, no changes. Needs an AI service and a cost decision.
+13. **Predictive inventory** - PARTIAL. Low-stock and "days of stock left" exist (Insights). Plan: seasonal and festival-aware reorder suggestions with the assumptions and window shown.
+14. **AI WhatsApp assistant** - PARTIAL. The chatbot (046) is rule-based by the owner's decision (no AI service). Later step: free-text understanding that still answers only from saved answers and shop data and hands over to a person when unsure.
+15. **Forecasting engine** - MISSING (Phase 5 already lists forecasts). Plan: sales demand, cash runway and low stock first, each shown with its data window and against a simple baseline.
+
+Suggested build order inside Phase 1: MFA (smallest, protects everything) -> customer timeline -> leads -> pipeline -> batch -> serial.
+
+### Priority order set by the owner (30 Oct 2026)
+Day-to-day trading must not be held up. Work in this order, and the 15 enhancements above come after:
+1. Core trading: customers, billing, supplying, purchases, general ledger, profit and loss. Only fixes and gaps found in daily use; no change to the current flow.
+2. Then the pending items (chatbot go-live, Instagram live test, Phase 1 enhancements starting with MFA).
+Known core gaps to close first: leftover exchange credit cannot be used on a later bill (only refunded); online orders do not reserve stock; investor "returns paid" has no ledger rule or screen; Tally export for the auditor; stock-correction label on today's profit (owner declined for now).
+- Supplier statement for a person who is also a customer (30 Oct 2026): "Every entry" now lists their sale bills and payments (cash, discount, set-off) together with the supplier entries, with one running net balance that ends at the same figure as the blue "Also a customer" note. Only for roles with both-sides access; other suppliers unchanged. No migration.
+>>>>>>> feat/ledger-dry-run

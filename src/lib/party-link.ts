@@ -105,3 +105,29 @@ export async function loadOtherSide(
   const all = await loadLinkedPeople(db, businessId);
   return all.find((p) => p.supplierId === Number(rows[0].supplier_id)) ?? null;
 }
+
+export type CustomerEntry = { date: string; kind: "INVOICE" | "PAYMENT"; ref: string; amount: bigint };
+
+/** The customer side of a person who is also a supplier: our invoices to them and what they paid (same basis as loadCustomerBills). */
+export async function loadCustomerEntries(db: Queryable, businessId: number, customerId: number): Promise<CustomerEntry[]> {
+  const [inv] = await db.query<Row[]>(
+    `SELECT s.invoice_no, DATE_FORMAT(s.invoice_date, '%Y-%m-%d') AS d, ROUND(s.grand_total * 100) AS paise
+       FROM acct_sales_headers s WHERE s.legal_business_id = ? AND s.status = 'POSTED' AND s.customer_id = ?`,
+    [businessId, customerId]
+  );
+  const [pay] = await db.query<Row[]>(
+    `SELECT s.invoice_no, p.payment_method, DATE_FORMAT(p.payment_date, '%Y-%m-%d') AS d, ROUND(p.amount * 100) AS paise
+       FROM acct_sales_payments p JOIN acct_sales_headers s ON s.legal_business_id = p.legal_business_id AND s.id = p.sale_id
+      WHERE p.legal_business_id = ? AND p.status = 'RECORDED' AND s.status = 'POSTED' AND s.customer_id = ?`,
+    [businessId, customerId]
+  );
+  const words: Record<string, string> = { SET_OFF: "set off", EXCHANGE: "exchange credit", DISCOUNT: "discount" };
+  return [
+    ...inv.map((r) => ({ date: String(r.d), kind: "INVOICE" as const, ref: String(r.invoice_no), amount: BigInt(r.paise as number | string) })),
+    ...pay.map((r) => ({
+      date: String(r.d), kind: "PAYMENT" as const,
+      ref: `${r.invoice_no} (${words[String(r.payment_method)] ?? String(r.payment_method).toLowerCase().replace(/_/g, " ")})`,
+      amount: BigInt(r.paise as number | string),
+    })),
+  ];
+}
