@@ -67,6 +67,9 @@ type InitialInvoice = {
   branchId: number;
   customerName: string;
   customerPhone: string;
+  customerAddress?: string;
+  isEstimate?: boolean;
+  estimateNo?: string;
   invoiceDiscount: string;
   shippingCharge?: string;
   remarks: string;
@@ -83,6 +86,7 @@ type InitialInvoice = {
 type CustomerOption = {
   name: string;
   phone: string;
+  address?: string;
   dues: number;
   creditLimit: number;
 };
@@ -100,6 +104,7 @@ type Prefill = {
   /** Set when the bill starts from items a customer took on approval. */
   customerName?: string;
   customerPhone?: string;
+  customerAddress?: string;
   approvalItemIds?: number[];
   approvalBack?: Array<{ variantId: number; quantity: number }>;
 };
@@ -112,6 +117,8 @@ type Props = {
   paymentAccounts: PaymentAccountOption[];
   today: string;
   initialInvoice?: InitialInvoice;
+  /** A new estimate (quote): no payment, saved with its own EST number. */
+  estimateMode?: boolean;
 };
 
 const inputStyle: React.CSSProperties = {
@@ -155,9 +162,11 @@ export default function SalesBillingForm({
   today,
   initialInvoice,
   prefill,
+  estimateMode = false,
 }: Props) {
   const [custPhone, setCustPhone] = useState(initialInvoice?.customerPhone ?? prefill?.customerPhone ?? "");
   const [custName, setCustName] = useState(initialInvoice?.customerName ?? prefill?.customerName ?? "");
+  const [custAddress, setCustAddress] = useState(initialInvoice?.customerAddress ?? prefill?.customerAddress ?? "");
   const digits = custPhone.replace(/\D/g, "").slice(-10);
   const known = digits.length === 10 ? customers.find(c => c.phone === digits) : undefined;
 
@@ -407,6 +416,7 @@ export default function SalesBillingForm({
                 const match =
                   d.length === 10 ? customers.find(c => c.phone === d) : undefined;
                 if (match && custName.trim() === "") setCustName(match.name);
+                if (match?.address && custAddress.trim() === "") setCustAddress(match.address);
               }}
             />
             <datalist id="known-customers">
@@ -427,6 +437,18 @@ export default function SalesBillingForm({
             />
           </label>
         </div>
+
+        <label className={styles.field} style={{ marginTop: 12 }}>
+          Address (optional, for delivery and for the printed bill)
+          <textarea
+            name="customer_address"
+            rows={2}
+            maxLength={500}
+            placeholder="House no, street, area, city, pincode"
+            value={custAddress}
+            onChange={e => setCustAddress(e.target.value)}
+          />
+        </label>
 
         {digits.length === 10 && (
           <p
@@ -695,7 +717,11 @@ export default function SalesBillingForm({
           </div>
         </div>
 
-        {editing && !editingDraft ? (
+        {estimateMode ? (
+          <p style={{ color: "#475569", marginTop: 12 }}>
+            An estimate is a quote. No stock moves and no payment is taken. Turn it into an invoice when the customer buys.
+          </p>
+        ) : editing && !editingDraft ? (
           <p style={{ color: "#475569" }}>
             Payments already received (₹{amount(initialInvoice.collected)}) are kept.
             The new bill total cannot be less than this.
@@ -844,7 +870,16 @@ export default function SalesBillingForm({
       </section>
 
       <div className={styles.actions}>
-        {editingDraft ? (
+        {estimateMode ? (
+          <SubmitBtn
+            type="submit"
+            name="mode"
+            value="ESTIMATE"
+            className={`${styles.btn} ${styles.btnPrimary}`}
+          >
+            Save estimate
+          </SubmitBtn>
+        ) : editingDraft ? (
           <>
             <SubmitBtn
               type="submit"
@@ -854,15 +889,15 @@ export default function SalesBillingForm({
               className={`${styles.btn} ${styles.btnPrimary}`}
               disabled={outstanding < 0 || overStock}
             >
-              Confirm sale
+              {initialInvoice?.isEstimate ? "Convert to invoice" : "Confirm sale"}
             </SubmitBtn>
             <SubmitBtn
               type="submit"
               className={`${styles.btn} ${styles.btnQuiet}`}
               disabled={overStock || payments.length > 0}
-              title="Keeps the bill as a draft. Cannot be used when a payment is entered."
+              title="Keeps it unconfirmed. Cannot be used when a payment is entered."
             >
-              Save changes, still a draft
+              {initialInvoice?.isEstimate ? "Save changes, still an estimate" : "Save changes, still a draft"}
             </SubmitBtn>
           </>
         ) : editing ? (
