@@ -51,6 +51,24 @@ export async function postToSocialAction(input: { mediaIds: number[]; caption: s
 
   const messages: string[] = [];
   let anyOk = false;
+
+  // Check that each photo can really be fetched from the internet, the way Instagram/Facebook will.
+  // A network error here is ignored (the server may not reach its own address); a clear problem stops the post.
+  const problems: string[] = [];
+  for (const [i, id] of ids.entries()) {
+    try {
+      const res = await fetch(url(id), { redirect: "manual", signal: AbortSignal.timeout(10000) });
+      const type = res.headers.get("content-type") ?? "";
+      const len = Number(res.headers.get("content-length") ?? 0);
+      const label = ids.length > 1 ? `Photo ${i + 1}` : "The photo";
+      if (res.status >= 300 && res.status < 400) problems.push(`${label} is behind a redirect (${res.status}). Instagram cannot follow it. Check SHOP_PUBLIC_URL is the exact public address.`);
+      else if (res.status !== 200) problems.push(`${label} cannot be opened from the internet (answer ${res.status}).`);
+      else if (!/^(image|video)\//.test(type)) problems.push(`${label} is not served as a photo (it came back as "${type.slice(0, 40) || "unknown"}"). Check SHOP_PUBLIC_URL.`);
+      else if (!hasVideo && len > 8 * 1024 * 1024) problems.push(`${label} is larger than 8 MB. Instagram refuses it. Upload a smaller copy.`);
+      await res.body?.cancel();
+    } catch { /* cannot test from here: carry on */ }
+  }
+  if (problems.length > 0) return { ok: false, messages: problems };
   const log = async (channel: "INSTAGRAM" | "FACEBOOK", ok: boolean, remoteId: string | null, error: string | null) => {
     const base = [user.legal_business_id, Number(chosen[0].product_id), ids[0], text.slice(0, 2200), ok ? "POSTED" : "FAILED", remoteId, error ? error.slice(0, 300) : null, user.id];
     await db.execute(
