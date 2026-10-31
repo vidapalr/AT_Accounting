@@ -16,7 +16,7 @@ export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
   if (host === SHOP_HOST) {
-    if (pathname === "/") return NextResponse.redirect(new URL("/shop", request.url), 308);
+    if (pathname === "/") return NextResponse.redirect(`https://${SHOP_HOST}/shop`, 308);
     if (SHOP_ALLOWED.some((r) => r.test(pathname))) return NextResponse.next();
     return NextResponse.redirect(`https://${APP_HOST}${pathname}${search}`, 308);
   }

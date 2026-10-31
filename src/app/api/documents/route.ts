@@ -1,5 +1,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
+import { seeOther } from "@/lib/redirect";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -15,10 +16,7 @@ function goBack(
   request: NextRequest,
   status: string
 ) {
-  return NextResponse.redirect(
-    new URL(`/group?document=${status}`, request.url),
-    303
-  );
+  return seeOther(`/group?document=${status}`);
 }
 
 export async function POST(request: NextRequest) {

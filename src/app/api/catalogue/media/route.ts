@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
+import { seeOther } from "@/lib/redirect";
 import { getSessionUser } from "@/lib/auth";
 import { canAccess } from "@/lib/access";
 import {
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
   const form = await request.formData();
   const productId = Number(form.get("product_id"));
   const back = (extra: string) =>
-    NextResponse.redirect(new URL(`/accounting/catalogue/${productId}?${extra}`, request.url), 303);
+    seeOther(`/accounting/catalogue/${productId}?${extra}`);
 
   if (!Number.isSafeInteger(productId) || productId <= 0) {
     return new NextResponse("Bad request", { status: 400 });
