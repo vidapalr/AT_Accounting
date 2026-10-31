@@ -18,6 +18,8 @@ type InvoiceRow = RowDataPacket & {
   paid_amount: string;
   payment_types: string | null;
   payment_accounts: string | null;
+  is_estimate: number;
+  estimate_no: string | null;
 };
 
 type TotalsRow = RowDataPacket & {
@@ -60,6 +62,8 @@ async function InvoiceList() {
     `SELECT
        s.id,
        s.invoice_no,
+       s.is_estimate,
+       s.estimate_no,
        DATE_FORMAT(
          s.invoice_date, '%Y-%m-%d'
        ) AS invoice_date,
@@ -172,6 +176,10 @@ async function InvoiceList() {
           + New Invoice
         </Link>
 
+        <Link href="/accounting/sales?estimate=1">
+          + New Estimate
+        </Link>
+
         <Link href="/accounting/returns">
           Customer returns
         </Link>
@@ -239,7 +247,7 @@ async function InvoiceList() {
               return (
                 <tr key={invoice.id}>
                   <td style={cell}>
-                    <strong>{invoice.invoice_no}</strong>
+                    <strong>{Number(invoice.is_estimate) === 1 && invoice.status !== "POSTED" ? invoice.estimate_no : invoice.invoice_no}</strong>
                   </td>
 
                   <td style={cell}>
@@ -261,7 +269,9 @@ async function InvoiceList() {
                   </td>
 
                   <td style={cell}>
-                    {paidStatus(invoice.status, total, paid)}
+                    {Number(invoice.is_estimate) === 1 && invoice.status !== "POSTED"
+                      ? (invoice.status === "VOID" ? "ESTIMATE (VOID)" : "ESTIMATE")
+                      : paidStatus(invoice.status, total, paid)}
                   </td>
 
                   <td style={cell}>
@@ -279,7 +289,7 @@ async function InvoiceList() {
                           className="btn-link btn-link-small btn-link-primary"
                           href={`/accounting/sales?edit=${invoice.id}`}
                         >
-                          Confirm sale
+                          {Number(invoice.is_estimate) === 1 ? "Convert to invoice" : "Confirm sale"}
                         </Link>
                         {" "}
                       </>

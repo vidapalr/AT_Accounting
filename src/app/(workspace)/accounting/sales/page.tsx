@@ -22,6 +22,7 @@ type Props = {
     from_approval?: string;
     from_online?: string;
     from_exchange?: string;
+    estimate?: string;
   }>;
 };
 
@@ -71,7 +72,7 @@ const messages: Record<string, string> = {
 
 async function SalesContent({ searchParams }: Props) {
   const user = await requireAccess("sales");
-  const { result, id, view, edit, from_report, from_approval, from_online, from_exchange } = await searchParams;
+  const { result, id, view, edit, from_report, from_approval, from_online, from_exchange, estimate } = await searchParams;
   const businessId = user.legal_business_id;
 
   const [branches] = await db.execute<RowDataPacket[]>(
@@ -178,7 +179,7 @@ async function SalesContent({ searchParams }: Props) {
   );
 
   const [customerRows] = await db.execute<RowDataPacket[]>(
-    `SELECT c.full_name, c.phone, ROUND(c.credit_limit * 100) AS limit_paise,
+    `SELECT c.full_name, c.phone, c.address, c.city, ROUND(c.credit_limit * 100) AS limit_paise,
             COALESCE((SELECT SUM(ROUND(h.grand_total * 100)) FROM acct_sales_headers h
                        WHERE h.legal_business_id = c.legal_business_id
                          AND h.customer_id = c.id AND h.status = 'POSTED'), 0)
@@ -197,6 +198,7 @@ async function SalesContent({ searchParams }: Props) {
   const customerOptions = customerRows.map(c => ({
     name: String(c.full_name),
     phone: String(c.phone),
+    address: [c.address, c.city].filter(Boolean).join(", "),
     dues: Number(c.dues_paise) / 100,
     creditLimit: Number(c.limit_paise) / 100,
   }));
@@ -272,6 +274,7 @@ async function SalesContent({ searchParams }: Props) {
         shipping?: string;
         customerName?: string;
         customerPhone?: string;
+        customerAddress?: string;
         approvalItemIds?: number[];
         approvalBack?: Array<{ variantId: number; quantity: number }>;
       }
@@ -320,7 +323,7 @@ async function SalesContent({ searchParams }: Props) {
   const onlineId = Number(from_online);
   if (!prefill && Number.isSafeInteger(onlineId) && onlineId > 0) {
     const [ord] = await db.execute<RowDataPacket[]>(
-      `SELECT id, order_no, customer_name, phone, shipping_charge FROM acct_online_orders
+      `SELECT id, order_no, customer_name, phone, shipping_charge, address_line, city, state_region, postal_code FROM acct_online_orders
         WHERE id = ? AND legal_business_id = ? AND status IN ('REQUESTED','CONFIRMED') AND sale_id IS NULL`,
       [onlineId, businessId]
     );
@@ -348,6 +351,7 @@ async function SalesContent({ searchParams }: Props) {
         }),
         customerName: String(ord[0].customer_name),
         customerPhone: phone10 ?? "",
+        customerAddress: [ord[0].address_line, ord[0].city, ord[0].state_region, ord[0].postal_code].filter(Boolean).join(", "),
       };
     }
   }
@@ -405,7 +409,7 @@ async function SalesContent({ searchParams }: Props) {
   const createdId = result === "created" ? Number(id) : 0;
   const [createdRows] = Number.isSafeInteger(createdId) && createdId > 0
     ? await db.execute<RowDataPacket[]>(
-        `SELECT id, invoice_no, status, customer_phone FROM acct_sales_headers WHERE legal_business_id = ? AND id = ?`,
+        `SELECT id, invoice_no, status, customer_phone, is_estimate, estimate_no FROM acct_sales_headers WHERE legal_business_id = ? AND id = ?`,
         [businessId, createdId]
       )
     : [[] as RowDataPacket[]];
@@ -438,6 +442,9 @@ async function SalesContent({ searchParams }: Props) {
            s.location_id,
            s.customer_name,
            s.customer_phone,
+           s.customer_address,
+           s.is_estimate,
+           s.estimate_no,
            s.status,
            s.subtotal,
            s.discount_amount,
@@ -520,6 +527,7 @@ async function SalesContent({ searchParams }: Props) {
        s.customer_phone,
        s.grand_total,
        s.status,
+       s.is_estimate,
        b.branch_name,
        COALESCE(SUM(
          CASE WHEN pay.status = 'RECORDED'
@@ -538,7 +546,7 @@ async function SalesContent({ searchParams }: Props) {
      GROUP BY
        s.id, s.invoice_no, s.invoice_date,
        s.customer_name, s.customer_phone,
-       s.grand_total, s.status, b.branch_name
+       s.grand_total, s.status, s.is_estimate, b.branch_name
      ORDER BY s.id DESC
      LIMIT 30`,
     [businessId]
@@ -565,6 +573,9 @@ async function SalesContent({ searchParams }: Props) {
         marginBottom: 22,
         flexWrap: "wrap",
       }}>
+        <a className="btn-link btn-link-primary" href="/accounting/sales?estimate=1">
+          New estimate (quote)
+        </a>
         <a href="/accounting/invoices">
           See all invoices
         </a>
@@ -591,12 +602,14 @@ async function SalesContent({ searchParams }: Props) {
 
       {result && (
         <p role="status" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
-          {messages[result] ?? "Request completed."}
+          {result === "created" && createdSale && Number(createdSale.is_estimate) === 1
+            ? `Estimate ${createdSale.estimate_no} saved. Nothing left stock.`
+            : messages[result] ?? "Request completed."}
           {result === "created" && id ? (
             <>
               {" "}
               <a className="btn-link btn-link-primary" href={`/accounting/sales/${id}`}>
-                Next: view, print or take payment for this invoice
+                {createdSale && Number(createdSale.is_estimate) === 1 ? "Next: print the estimate, or convert it to an invoice" : "Next: view, print or take payment for this invoice"}
               </a>
             </>
           ) : null}
@@ -607,12 +620,14 @@ async function SalesContent({ searchParams }: Props) {
       ["DRAFT", "POSTED"].includes(selectedInvoice.status) ? (
         <>
           <h2>
-            Edit Invoice {selectedInvoice.invoice_no}
+            {Number(selectedInvoice.is_estimate) === 1 ? `Estimate ${selectedInvoice.estimate_no}` : `Edit Invoice ${selectedInvoice.invoice_no}`}
           </h2>
           <p>
             {selectedInvoice.status === "POSTED"
               ? "Posted invoice edits adjust inventory and preserve recorded payments."
-              : "This bill is a draft: nothing has left stock and no payment is taken yet. Press Confirm sale to finish it, or change it first."}
+              : Number(selectedInvoice.is_estimate) === 1
+                ? "This is an estimate: nothing has left stock and no payment is taken. If the customer buys, press Convert to invoice. You can change it first."
+                : "This bill is a draft: nothing has left stock and no payment is taken yet. Press Confirm sale to finish it, or change it first."}
           </p>
           <SalesBillingForm
             customers={customerOptions}
@@ -634,6 +649,9 @@ async function SalesContent({ searchParams }: Props) {
               customerPhone: String(
                 selectedInvoice.customer_phone ?? ""
               ),
+              customerAddress: String(selectedInvoice.customer_address ?? ""),
+              isEstimate: Number(selectedInvoice.is_estimate) === 1,
+              estimateNo: selectedInvoice.estimate_no ? String(selectedInvoice.estimate_no) : "",
               shippingCharge: String(Number(selectedInvoice.shipping_charge ?? 0)),
               invoiceDiscount: (
                 Number(selectedInvoice.discount_amount) -
@@ -667,17 +685,26 @@ async function SalesContent({ searchParams }: Props) {
       ) : branches.length === 0 ? (
         <p>No eligible retail branch was found.</p>
       ) : (
-        <SalesBillingForm
-          customers={customerOptions}
-          branches={branches.map(b => ({
-            id: Number(b.id),
-            name: String(b.name),
-          }))}
-          products={billingProducts}
-          paymentAccounts={paymentAccounts}
-          today={today}
-          prefill={prefill}
-        />
+        <>
+          {estimate === "1" && (
+            <p role="status" style={{ background: "#eff6ff", padding: 10, borderRadius: 8 }}>
+              <strong>New estimate.</strong> Choose the items and prices to quote. Nothing leaves stock and no money is taken.{" "}
+              <a href="/accounting/sales">Make a normal bill instead</a>
+            </p>
+          )}
+          <SalesBillingForm
+            customers={customerOptions}
+            branches={branches.map(b => ({
+              id: Number(b.id),
+              name: String(b.name),
+            }))}
+            products={billingProducts}
+            paymentAccounts={paymentAccounts}
+            today={today}
+            prefill={prefill}
+            estimateMode={estimate === "1"}
+          />
+        </>
       )}
 
       <h2>Recent Sales & Invoices</h2>
@@ -710,7 +737,7 @@ async function SalesContent({ searchParams }: Props) {
                     ? ` (${s.customer_phone})`
                     : ""}
                 </td>
-                <td>{s.status}</td>
+                <td>{s.status === "DRAFT" && Number(s.is_estimate) === 1 ? "ESTIMATE" : s.status}</td>
                 <td>{Number(s.grand_total).toFixed(2)}</td>
                 <td>{Number(s.collected).toFixed(2)}</td>
                 <td>
@@ -735,7 +762,7 @@ async function SalesContent({ searchParams }: Props) {
                     </a>
                     {s.status === "DRAFT" && (
                       <a className="btn-link btn-link-small btn-link-primary" href={`/accounting/sales?edit=${s.id}`}>
-                        Confirm sale
+                        {Number(s.is_estimate) === 1 ? "Convert to invoice" : "Confirm sale"}
                       </a>
                     )}
                     {["DRAFT", "POSTED"].includes(s.status) && (

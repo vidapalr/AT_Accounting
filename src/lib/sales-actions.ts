@@ -9,6 +9,7 @@ import { normalizePhone } from "@/lib/customer-phone";
 import { db } from "@/lib/db";
 import { divisionOfBranch } from "@/lib/division-context";
 import { requireAccess } from "@/lib/auth";
+import { nextCode } from "@/lib/codes";
 import { releaseItemsForSale } from "@/lib/approval-stock";
 
 const PAGE = "/accounting/sales";
@@ -87,12 +88,16 @@ export async function createSaleAction(
   const saleDate = String(form.get("invoice_date") ?? "");
   const customerName = String(form.get("customer_name") ?? "").trim();
   const customerPhone = String(form.get("customer_phone") ?? "").trim();
+  const customerAddress = String(form.get("customer_address") ?? "").trim();
   const remarks = String(form.get("remarks") ?? "").trim();
   // Set when a saved draft is being confirmed: the same invoice is posted, not a new one.
   // (The button that sends this does not reliably send its own name/value, so this field decides.)
   const draftField = Number(form.get("confirm_draft_id") ?? 0);
   const confirmDraftId = Number.isSafeInteger(draftField) && draftField > 0 ? draftField : 0;
-  const mode = confirmDraftId > 0 ? "POSTED" : String(form.get("mode") ?? "DRAFT");
+  // An estimate is a draft with its own EST- number: it moves no stock and takes no payment.
+  const rawMode = String(form.get("mode") ?? "DRAFT");
+  const isEstimate = confirmDraftId === 0 && rawMode === "ESTIMATE";
+  const mode = confirmDraftId > 0 ? "POSTED" : isEstimate ? "DRAFT" : rawMode;
   // An exchange: the value of items just returned is used as part payment on this bill.
   const exchangeField = Number(form.get("exchange_return_id") ?? 0);
   const exchangeReturnId = mode === "POSTED" && Number.isSafeInteger(exchangeField) && exchangeField > 0 ? exchangeField : 0;
@@ -114,6 +119,7 @@ export async function createSaleAction(
     !["DRAFT", "POSTED"].includes(mode) ||
     customerName.length > 150 ||
     customerPhone.length > 20 ||
+    customerAddress.length > 500 ||
     remarks.length > 500
   ) {
     errorRedirect("invalid");
@@ -482,7 +488,7 @@ export async function createSaleAction(
           let draftInvoiceNo: string | null = null;
           if (confirmDraftId > 0) {
             const [drafts] = await conn.execute<RowDataPacket[]>(
-              `SELECT invoice_no FROM acct_sales_headers
+              `SELECT invoice_no, is_estimate FROM acct_sales_headers
                WHERE id = ? AND legal_business_id = ? AND branch_id = ? AND status = 'DRAFT'
                FOR UPDATE`,
               [confirmDraftId, businessId, branchId]
@@ -493,12 +499,18 @@ export async function createSaleAction(
               [businessId, confirmDraftId]
             );
             if (anyPay.length > 0) throw new Error("DRAFT_GONE");
-            draftInvoiceNo = String(drafts[0].invoice_no);
+            // An estimate has no invoice number yet: it gets the next real one when it is converted.
+            draftInvoiceNo = Number(drafts[0].is_estimate) === 1 ? null : String(drafts[0].invoice_no);
           }
 
           let invoiceNo: string;
+          let estimateNo: string | null = null;
           if (draftInvoiceNo !== null) {
             invoiceNo = draftInvoiceNo;
+          } else if (isEstimate) {
+            // Estimates have their own numbers and never use up an invoice number.
+            estimateNo = await nextCode(conn, { table: "acct_sales_headers", column: "estimate_no", prefix: "EST-", width: 4, where: "legal_business_id = ?", params: [businessId] });
+            invoiceNo = estimateNo;
           } else {
             const branchPrefix = String(
               branches[0].branch_code
@@ -603,14 +615,14 @@ export async function createSaleAction(
             );
             await conn.execute(
               `UPDATE acct_sales_headers
-               SET invoice_date = ?, customer_name = ?, customer_phone = ?, customer_id = ?,
+               SET invoice_no = ?, invoice_date = ?, customer_name = ?, customer_phone = ?, customer_id = ?, customer_address = ?,
                    status = 'POSTED', subtotal = ?, discount_amount = ?, grand_total = ?, shipping_charge = ?,
                    remarks = ?, posted_by = ?, posted_at = CURRENT_TIMESTAMP
                WHERE id = ? AND legal_business_id = ? AND status = 'DRAFT'`,
               [
-                saleDate,
+                invoiceNo, saleDate,
                 customerName || customer?.full_name || null,
-                phone10 ?? null, customer?.id ?? null,
+                phone10 ?? null, customer?.id ?? null, customerAddress || null,
                 moneyFromPaise(subtotal),
                 moneyFromPaise(totalDiscount),
                 moneyFromPaise(grandTotal),
@@ -628,11 +640,11 @@ export async function createSaleAction(
                  invoice_date, customer_name, customer_phone, customer_id,
                  status, subtotal, discount_amount,
                  grand_total, shipping_charge, remarks, created_by,
-                 posted_by, posted_at, submit_token
+                 posted_by, posted_at, submit_token, customer_address, is_estimate, estimate_no
                ) VALUES (
                  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                  ?, ?, ?, ?, ?, ?, ?,
-                 ${mode === "POSTED" ? "CURRENT_TIMESTAMP" : "NULL"}, ?
+                 ${mode === "POSTED" ? "CURRENT_TIMESTAMP" : "NULL"}, ?, ?, ?, ?
                )`,
               [
                 businessId, DIVISION_ID, branchId,
@@ -645,11 +657,19 @@ export async function createSaleAction(
                 moneyFromPaise(shipping),
                 remarks || null, user.id,
                 mode === "POSTED" ? user.id : null,
-                submitToken,
+                submitToken, customerAddress || null, isEstimate ? 1 : 0, estimateNo,
               ]
             );
 
             createdId = header.insertId;
+          }
+
+          if (customer?.id && customerAddress) {
+            // Remember the address on the customer, but never overwrite one that is already there.
+            await conn.execute(
+              `UPDATE acct_customers SET address = ? WHERE legal_business_id = ? AND id = ? AND (address IS NULL OR address = '')`,
+              [customerAddress.slice(0, 300), businessId, customer.id]
+            );
           }
 
           if (approvalItemIds.length > 0) {
@@ -909,6 +929,7 @@ export async function updateSaleAction(
   const saleDate = String(form.get("invoice_date") ?? "");
   const customerName = String(form.get("customer_name") ?? "").trim();
   const customerPhone = String(form.get("customer_phone") ?? "").trim();
+  const customerAddress = String(form.get("customer_address") ?? "").trim();
   const remarks = String(form.get("remarks") ?? "").trim();
 
   if (
@@ -919,6 +940,7 @@ export async function updateSaleAction(
     !validDate(saleDate) ||
     customerName.length > 150 ||
     customerPhone.length > 20 ||
+    customerAddress.length > 500 ||
     remarks.length > 500
   ) {
     redirect(`${PAGE}?result=invalid-edit`);
@@ -1345,6 +1367,7 @@ export async function updateSaleAction(
                SET customer_name = ?,
                    customer_phone = ?,
                    customer_id = ?,
+                   customer_address = ?,
                    invoice_date = ?,
                    subtotal = ?,
                    discount_amount = ?,
@@ -1358,6 +1381,7 @@ export async function updateSaleAction(
                 customerName || customer?.full_name || null,
                 phone10 ?? null,
                 customer?.id ?? null,
+                customerAddress || null,
                 saleDate,
                 moneyFromPaise(subtotal),
                 moneyFromPaise(discountTotal),
@@ -1526,4 +1550,41 @@ function parseSignedMoney(value: string): bigint {
     return -parseAmount(value.slice(1));
   }
   return parseAmount(value);
+}
+
+
+/** Closes an estimate nobody bought. Only an unconverted estimate can be voided; nothing else is touched. */
+export async function voidEstimateAction(form: FormData): Promise<void> {
+  const user = await requireAccess("sales");
+  const saleId = Number(form.get("sale_id"));
+  if (!Number.isSafeInteger(saleId) || saleId <= 0) redirect("/accounting/invoices");
+  const [res] = await db.execute(
+    `UPDATE acct_sales_headers SET status = 'VOID'
+      WHERE id = ? AND legal_business_id = ? AND is_estimate = 1 AND status = 'DRAFT'`,
+    [saleId, user.legal_business_id]
+  );
+  if ((res as { affectedRows: number }).affectedRows === 1) {
+    await db.execute(
+      `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
+       VALUES (?, ?, 'ESTIMATE_VOIDED', 'SALE', ?, '{}')`,
+      [user.legal_business_id, user.id, saleId]
+    );
+  }
+  revalidatePath("/accounting/invoices");
+  redirect(`/accounting/sales/${saleId}`);
+}
+
+/** Saves or changes the delivery address on a draft, estimate or posted bill. Address is not money, so it can change any time. */
+export async function setInvoiceAddressAction(form: FormData): Promise<void> {
+  const user = await requireAccess("sales");
+  const saleId = Number(form.get("sale_id"));
+  const address = String(form.get("address") ?? "").trim().slice(0, 500);
+  if (!Number.isSafeInteger(saleId) || saleId <= 0) redirect("/accounting/invoices");
+  await db.execute(
+    `UPDATE acct_sales_headers SET customer_address = ?
+      WHERE id = ? AND legal_business_id = ? AND status IN ('DRAFT','POSTED')`,
+    [address || null, saleId, user.legal_business_id]
+  );
+  revalidatePath(`/accounting/sales/${saleId}`);
+  redirect(`/accounting/sales/${saleId}`);
 }

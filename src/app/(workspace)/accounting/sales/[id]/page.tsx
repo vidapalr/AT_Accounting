@@ -1,8 +1,9 @@
 
 import { Suspense } from "react";
-import PrintHeader from "@/components/PrintHeader";
+import DocumentHeader from "@/components/DocumentHeader";
+import { getShopSettings } from "@/lib/shop";
+import { setInvoiceAddressAction, voidEstimateAction } from "@/lib/sales-actions";
 import BillWatermark from "@/components/BillWatermark";
-import { TAGLINE } from "@/lib/brand";
 import PrintButton from "@/components/PrintButton";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -79,12 +80,16 @@ async function InvoiceDetails({ params, searchParams }: Props) {
        s.customer_name,
        s.customer_phone,
        s.customer_id,
+       s.customer_address,
+       s.is_estimate,
+       s.estimate_no,
        s.subtotal,
        s.discount_amount,
        s.grand_total,
        s.shipping_charge,
        s.remarks,
-       b.branch_name
+       b.branch_name,
+       b.address_line1, b.address_line2, b.city, b.state, b.postal_code
      FROM acct_sales_headers s
      JOIN acct_branches b
        ON b.legal_business_id = s.legal_business_id
@@ -98,6 +103,11 @@ async function InvoiceDetails({ params, searchParams }: Props) {
   if (headers.length !== 1) notFound();
 
   const invoice = headers[0];
+  const isEstimate = Number(invoice.is_estimate) === 1 && invoice.status !== "POSTED";
+  const docWord = isEstimate ? "Estimate" : "Invoice";
+  const docNo = isEstimate ? String(invoice.estimate_no ?? invoice.invoice_no) : String(invoice.invoice_no);
+  const shop = await getShopSettings(businessId);
+  const shopAddress = [invoice.address_line1, invoice.address_line2, invoice.city, invoice.state, invoice.postal_code].filter(Boolean).join(", ") || "Kapra, Hyderabad";
 
   const [items] = await db.execute<RowDataPacket[]>(
     `SELECT
@@ -208,15 +218,27 @@ async function InvoiceDetails({ params, searchParams }: Props) {
       maxWidth: 1100,
     }}>
       <BillWatermark />
-      <PrintHeader title={`Invoice ${invoice.invoice_no}`} tagline={TAGLINE} />
+      <DocumentHeader
+        title={`${docWord} ${docNo}`}
+        date={String(invoice.invoice_date)}
+        shopAddress={shopAddress}
+        shopPhone={shop.whatsapp || undefined}
+        customerName={String(invoice.customer_name || "Walk-in customer")}
+        customerPhone={invoice.customer_phone ? String(invoice.customer_phone) : undefined}
+        customerAddress={invoice.customer_address ? String(invoice.customer_address) : undefined}
+        note={isEstimate ? (invoice.status === "VOID" ? "Estimate cancelled" : "Estimate only. This is not a bill.") : undefined}
+      />
       <nav className="no-print" style={{ marginBottom: 20, display: "flex", justifyContent: "space-between" }}>
         <Link href="/accounting/invoices">
           ← All Invoices
         </Link>
-        <PrintButton label="Print invoice" />
+        <PrintButton label={`Print ${docWord.toLowerCase()}`} />
       </nav>
 
-      <h1>Invoice: {invoice.invoice_no}</h1>
+      <h1>{docWord}: {docNo}</h1>
+      {Number(invoice.is_estimate) === 1 && invoice.status === "POSTED" && (
+        <p className="no-print" style={{ color: "#475569" }}>Converted from estimate {String(invoice.estimate_no)}.</p>
+      )}
 
       <div style={{
         display: "grid",
@@ -226,7 +248,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         marginBottom: 28,
       }}>
         <div>
-          <strong>Invoice Date</strong>
+          <strong>{docWord} Date</strong>
           <p>{invoice.invoice_date}</p>
         </div>
         <div>
@@ -262,6 +284,16 @@ async function InvoiceDetails({ params, searchParams }: Props) {
               </button>
             </form>
           )}
+          {invoice.customer_address ? <p style={{ whiteSpace: "pre-line" }}>{String(invoice.customer_address)}</p> : <p className="no-print" style={{ color: "#64748b" }}>No address</p>}
+          {["DRAFT", "POSTED"].includes(String(invoice.status)) && (
+            <form action={setInvoiceAddressAction} className="no-print" style={{ display: "grid", gap: 6, maxWidth: 360, marginBottom: 8 }}>
+              <input type="hidden" name="sale_id" value={invoice.id} />
+              <textarea name="address" rows={2} maxLength={500} defaultValue={String(invoice.customer_address ?? "")} placeholder="Delivery address" aria-label="Customer address" style={{ padding: "8px 10px", fontSize: 16 }} />
+              <button type="submit" className="btn-link btn-link-small" style={{ cursor: "pointer", justifySelf: "start" }}>
+                {invoice.customer_address ? "Change address" : "Add address"}
+              </button>
+            </form>
+          )}
           {invoice.status === "POSTED" && (
             <form action={sendBillOnWhatsAppAction} className="no-print" style={{ marginTop: 8 }}>
               <input type="hidden" name="sale_id" value={invoice.id} />
@@ -281,11 +313,11 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         </div>
         <div>
           <strong>Status</strong>
-          <p>{invoice.status} / {paymentStatus}</p>
+          <p>{isEstimate ? (invoice.status === "VOID" ? "ESTIMATE / VOID" : "ESTIMATE") : `${invoice.status} / ${paymentStatus}`}</p>
         </div>
       </div>
 
-      <h2>Invoice Items</h2>
+      <h2>{docWord} Items</h2>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%" }}>
           <thead>
@@ -334,9 +366,11 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         <p>Subtotal: ₹{money(invoice.subtotal)}</p>
         <p>Discount: ₹{money(invoice.discount_amount)}</p>
         {Number(invoice.shipping_charge) > 0 && <p>Delivery: ₹{money(invoice.shipping_charge)}</p>}
-        <h2>Invoice Total: ₹{money(total)}</h2>
+        <h2>{isEstimate ? "Estimate Total" : "Invoice Total"}: ₹{money(total)}</h2>
       </section>
 
+      {!isEstimate && (
+      <>
       <h2>Payment Details</h2>
 
       <div style={{ overflowX: "auto" }}>
@@ -395,6 +429,9 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         </div>
       </div>
 
+      </>
+      )}
+
       {invoice.remarks && (
         <p>Remarks: {invoice.remarks}</p>
       )}
@@ -409,7 +446,22 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         </p>
       )}
 
-      {invoice.status === "DRAFT" && (
+      {isEstimate && invoice.status === "DRAFT" && (
+        <div className="no-print" style={{ background: "#eff6ff", padding: 14, borderRadius: 8, margin: "16px 0" }}>
+          <p style={{ marginTop: 0 }}>This is an estimate. No stock has moved and no payment is taken. If the customer buys, convert it. If not, void it.</p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <a href={`/accounting/sales?edit=${invoice.id}`} className="btn-link btn-link-primary" style={{ fontSize: 17, padding: "12px 20px" }}>
+              Convert to invoice
+            </a>
+            <form action={voidEstimateAction}>
+              <input type="hidden" name="sale_id" value={invoice.id} />
+              <ConfirmButton label="Void this estimate" question="Void this estimate? The customer did not buy. It stays on record as void." className="btn-link" />
+            </form>
+          </div>
+        </div>
+      )}
+
+      {invoice.status === "DRAFT" && !isEstimate && (
         <p className="no-print" style={{ background: "#fff7ed", padding: 12, borderRadius: 8 }}>
           This bill is only a draft: stock has not moved and no payment can be taken yet.{" "}
           <a href={`/accounting/sales?edit=${invoice.id}`} className="btn-link btn-link-primary">
