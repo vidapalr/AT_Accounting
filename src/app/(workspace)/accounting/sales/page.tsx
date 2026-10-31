@@ -7,7 +7,7 @@ import { requireAccess } from "@/lib/auth";
 import { normalizePhone as normalizeIndianPhone } from "@/lib/customer-phone";
 import { bestOffer } from "@/lib/offer-math";
 import { loadOffers } from "@/lib/shop";
-import { sendBillOnWhatsAppAction } from "@/lib/bill-share-actions";
+import ShareBillButton from "@/components/ShareBillButton";
 import { normalizePhone as normalizeWaPhone } from "@/lib/whatsapp/core";
 import SalesBillingForm from
   "@/components/accounting/SalesBillingForm";
@@ -585,12 +585,9 @@ async function SalesContent({ searchParams }: Props) {
       </nav>
 
       {result === "created" && createdSale?.status === "POSTED" && normalizeWaPhone(String(createdSale.customer_phone ?? "")) ? (
-        <form action={sendBillOnWhatsAppAction} style={{ margin: "0 0 12px" }}>
-          <input type="hidden" name="sale_id" value={String(createdSale.id)} />
-          <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer", fontSize: 18, padding: "14px 22px" }}>
-            Send bill {String(createdSale.invoice_no)} on WhatsApp
-          </button>
-        </form>
+        <div style={{ margin: "0 0 12px" }}>
+          <ShareBillButton saleId={Number(createdSale.id)} label={`Send bill ${String(createdSale.invoice_no)} on WhatsApp`} style={{ fontSize: 18, padding: "14px 22px" }} />
+        </div>
       ) : null}
 
       {result === "created" && stillOwed ? (

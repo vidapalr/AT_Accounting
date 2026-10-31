@@ -1,7 +1,6 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
-import { redirect } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
@@ -12,11 +11,10 @@ import { normalizePhone, whatsappLink } from "@/lib/whatsapp/core";
 type Row = RowDataPacket & Record<string, string | number | null>;
 const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/** Opens WhatsApp with the customer's number and a private link to their bill. Staff press send. */
-export async function sendBillOnWhatsAppAction(formData: FormData): Promise<void> {
+/** Gives back a WhatsApp link with the customer's number and a private link to their bill. The page opens it in a new tab; staff press send. */
+export async function billWhatsAppLinkAction(saleId: number): Promise<{ url?: string; error?: string }> {
   const user = await requireAccess("sales");
-  const saleId = Number(formData.get("sale_id"));
-  const back = (m: string) => redirect(`/accounting/sales/${saleId}?share=${encodeURIComponent(m)}`);
+  const back = (m: string) => ({ error: m });
   if (!Number.isSafeInteger(saleId) || saleId <= 0) return back("That bill was not found.");
 
   const [rows] = await db.execute<Row[]>(
@@ -59,5 +57,5 @@ export async function sendBillOnWhatsAppAction(formData: FormData): Promise<void
     `Hello${name ? ` ${name}` : ""}, thanks for shopping with Abhiram Textiles.\n` +
     `Your bill ${s.invoice_no}: ${inr(total)}${due > 0 ? ` (balance due ${inr(due)})` : " (paid in full)"}.\n` +
     `See your bill: ${shopBaseUrl()}/shop/bill/${token}`;
-  redirect(whatsappLink(phone, text));
+  return { url: whatsappLink(phone, text) };
 }
