@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { postToInstagramAction } from "@/lib/instagram-actions";
+import { postToSocialAction } from "@/lib/social-actions";
 
 type Media = { id: number; type: "IMAGE" | "VIDEO" };
 
@@ -14,14 +14,22 @@ export default function InstagramPostKit({
   caption: initial,
   media,
   autoPost = false,
+  facebookPost = false,
   lastPosted = null,
 }: {
   caption: string;
   media: Media[];
   autoPost?: boolean;
+  facebookPost?: boolean;
   lastPosted?: string | null;
 }) {
   const [pending, startPost] = useTransition();
+  // Photos ticked for one combined post (all photos, up to 10, to start with).
+  const [picked, setPicked] = useState<number[]>(() => media.filter(m => m.type === "IMAGE").slice(0, 10).map(m => m.id));
+  const [toInstagram, setToInstagram] = useState(autoPost);
+  const [toFacebook, setToFacebook] = useState(facebookPost);
+  const [lines, setLines] = useState<string[]>([]);
+  const togglePick = (id: number) => setPicked(cur => (cur.includes(id) ? cur.filter(x => x !== id) : cur.length >= 10 ? cur : [...cur, id]));
   const [caption, setCaption] = useState(initial);
   const [note, setNote] = useState("");
 
@@ -88,31 +96,59 @@ export default function InstagramPostKit({
                   Share to Instagram
                 </button>
                 <a className="btn-link" href={`/api/catalogue/media/${m.id}?download=1`}>Save to phone</a>
-                {autoPost && (
-                  <button
-                    type="button"
-                    className="btn-link"
-                    disabled={pending}
-                    style={{ cursor: "pointer" }}
-                    onClick={() => {
-                      if (!window.confirm("Post this to your Instagram account now?")) return;
-                      startPost(async () => {
-                        const r = await postToInstagramAction(m.id, caption);
-                        setNote(r.message);
-                      });
-                    }}
-                  >
-                    {pending ? "Posting…" : "Post now"}
-                  </button>
+                {(autoPost || facebookPost) && (
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 16 }}>
+                    <input type="checkbox" checked={picked.includes(m.id)} onChange={() => togglePick(m.id)} style={{ width: 22, height: 22 }} />
+                    Include in the post
+                  </label>
                 )}
               </div>
             </div>
           ))}
         </div>
-        {lastPosted && <p style={{ color: "#64748b" }}>Last posted to Instagram: {lastPosted}.</p>}
+        {(autoPost || facebookPost) && (
+          <div style={{ marginTop: 16, padding: 14, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10 }}>
+            <strong>Post automatically</strong>
+            <p style={{ margin: "6px 0", color: "#475569" }}>
+              {picked.length} selected. Several photos go out as <strong>one post</strong> (a swipe-through post). Up to 10 photos.
+            </p>
+            <div style={{ display: "flex", gap: 18, flexWrap: "wrap", margin: "8px 0" }}>
+              {autoPost && (
+                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input type="checkbox" checked={toInstagram} onChange={e => setToInstagram(e.target.checked)} style={{ width: 22, height: 22 }} /> Instagram
+                </label>
+              )}
+              {facebookPost && (
+                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input type="checkbox" checked={toFacebook} onChange={e => setToFacebook(e.target.checked)} style={{ width: 22, height: 22 }} /> Facebook page
+                </label>
+              )}
+            </div>
+            <button
+              type="button"
+              className="btn-link btn-link-primary"
+              disabled={pending || picked.length === 0 || (!toInstagram && !toFacebook)}
+              style={{ cursor: "pointer", fontSize: 17, padding: "12px 22px" }}
+              onClick={() => {
+                const where = [toInstagram ? "Instagram" : "", toFacebook ? "Facebook" : ""].filter(Boolean).join(" and ");
+                if (!window.confirm(`Post ${picked.length} photo${picked.length === 1 ? "" : "s"} to ${where} now?`)) return;
+                setLines([]);
+                startPost(async () => {
+                  const r = await postToSocialAction({ mediaIds: picked, caption, instagram: toInstagram, facebook: toFacebook });
+                  setLines(r.messages);
+                });
+              }}
+            >
+              {pending ? "Posting… this can take a minute" : `Post ${picked.length} photo${picked.length === 1 ? "" : "s"} now`}
+            </button>
+            {lines.map((l, i) => <p key={i} role="status" style={{ margin: "8px 0 0", color: l.includes("not posted") || l.includes("not set up") ? "#b91c1c" : "#166534" }}>{l}</p>)}
+          </div>
+        )}
+        {lastPosted && <p style={{ color: "#64748b" }}>Last posted: {lastPosted}.</p>}
         {note && <p style={{ background: "#eff6ff", padding: 10, borderRadius: 8 }}>{note}</p>}
         <p style={{ color: "#64748b" }}>
-          Instagram needs you to tap Post yourself. <a href="https://www.instagram.com/" target="_blank" rel="noreferrer">Open Instagram</a>
+          {autoPost || facebookPost ? "Or share one photo by hand with the buttons above. " : "Instagram needs you to tap Post yourself. "}
+          <a href="https://www.instagram.com/" target="_blank" rel="noreferrer">Open Instagram</a>
         </p>
       </section>
     </div>

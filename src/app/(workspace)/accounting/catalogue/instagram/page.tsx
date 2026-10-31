@@ -41,6 +41,7 @@ async function Content({ searchParams }: Props) {
     [businessId, productId]
   );
   const autoPost = Boolean(process.env.INSTAGRAM_USER_ID && process.env.INSTAGRAM_ACCESS_TOKEN && process.env.SHOP_PUBLIC_URL);
+  const facebookPost = Boolean(process.env.FACEBOOK_PAGE_ID && process.env.FACEBOOK_PAGE_ACCESS_TOKEN && process.env.SHOP_PUBLIC_URL);
 
   const caption = buildCaption({
     name: String(p.product_name),
@@ -54,11 +55,12 @@ async function Content({ searchParams }: Props) {
       <nav style={{ marginBottom: 12 }}>
         <Link href={`/accounting/catalogue/${productId}`}>← Photos and videos</Link>
       </nav>
-      <h1>Post to Instagram: {String(p.product_name)}</h1>
-      <p style={{ color: "#475569" }}>Edit the words if you like, then share the photo or video. You tap Post in Instagram.</p>
+      <h1>Post to Instagram and Facebook: {String(p.product_name)}</h1>
+      <p style={{ color: "#475569" }}>Edit the words if you like. Tick the photos to include and post them together, or share one by hand.</p>
       <InstagramPostKit
         caption={caption}
         autoPost={autoPost}
+        facebookPost={facebookPost}
         lastPosted={last[0]?.at ? String(last[0].at) : null}
         media={media.map(m => ({ id: Number(m.id), type: m.media_type === "VIDEO" ? "VIDEO" : "IMAGE" }))}
       />
