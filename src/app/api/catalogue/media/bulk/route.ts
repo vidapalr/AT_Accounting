@@ -6,7 +6,7 @@ import { getSessionUser } from "@/lib/auth";
 import { canAccess } from "@/lib/access";
 import { detectMedia, deleteMedia, saveMedia, MAX_IMAGE_BYTES } from "@/lib/media-storage";
 
-/** One photo for each of many products in one go. Fields are named photo_<productId>. */
+/** One or many photos for each of many products in one go. Fields are named photo_<productId>; a field can hold several files (at most 12 per product). */
 export async function POST(request: NextRequest) {
   const user = await getSessionUser();
   if (!user || !canAccess(user.role, "products")) return new NextResponse("Unauthorized", { status: 401 });
@@ -14,11 +14,15 @@ export async function POST(request: NextRequest) {
   const form = await request.formData();
   let saved = 0;
   let skipped = 0;
+  const perProduct = new Map<number, number>();
 
   for (const [key, value] of form.entries()) {
     const m = /^photo_(\d+)$/.exec(key);
     if (!m || !(value instanceof File) || value.size === 0) continue;
     const productId = Number(m[1]);
+    const taken = (perProduct.get(productId) ?? 0) + 1;
+    perProduct.set(productId, taken);
+    if (taken > 12) { skipped += 1; continue; }
 
     const [products] = await db.execute<RowDataPacket[]>(
       `SELECT id FROM acct_products WHERE legal_business_id = ? AND id = ?`,
