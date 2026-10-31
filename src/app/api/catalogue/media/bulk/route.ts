@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
+import { seeOther } from "@/lib/redirect";
 import { getSessionUser } from "@/lib/auth";
 import { canAccess } from "@/lib/access";
 import { detectMedia, deleteMedia, saveMedia, MAX_IMAGE_BYTES } from "@/lib/media-storage";
@@ -60,5 +61,5 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(new URL(`/accounting/catalogue/photos?done=${saved}-${skipped}`, request.url), 303);
+  return seeOther(`/accounting/catalogue/photos?done=${saved}-${skipped}`);
 }
