@@ -16,6 +16,7 @@ import { canGiveBillDiscount } from "@/lib/access";
 import ConfirmButton from "@/components/ConfirmButton";
 import { setInvoiceMobileAction } from "@/lib/customer-merge-actions";
 import ShareBillButton from "@/components/ShareBillButton";
+import { autoSendSettings } from "@/lib/wa-auto";
 import { normalizePhone } from "@/lib/whatsapp/core";
 
 type Props = {
@@ -107,6 +108,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
   const docWord = isEstimate ? "Estimate" : "Invoice";
   const docNo = isEstimate ? String(invoice.estimate_no ?? invoice.invoice_no) : String(invoice.invoice_no);
   const shop = await getShopSettings(businessId);
+  const autoSend = (await autoSendSettings(businessId)).on;
   const shopAddress = [invoice.address_line1, invoice.address_line2, invoice.city, invoice.state, invoice.postal_code].filter(Boolean).join(", ") || "Kapra, Hyderabad";
 
   const [items] = await db.execute<RowDataPacket[]>(
@@ -299,6 +301,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
               <ShareBillButton
                 saleId={Number(invoice.id)}
                 label="Send bill on WhatsApp"
+                auto={autoSend}
                 style={{ fontSize: 16, padding: "10px 18px" }}
                 disabled={!normalizePhone(String(invoice.customer_phone ?? ""))}
               />

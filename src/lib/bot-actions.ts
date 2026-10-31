@@ -76,3 +76,21 @@ export async function markChatDoneAction(formData: FormData) {
   revalidatePath(BACK);
   redirect(BACK);
 }
+
+/** Owner only: send bills automatically through the WhatsApp service, and which approved template to use. */
+export async function saveAutoSendAction(formData: FormData) {
+  const user = await requireGroupOwner();
+  const on = formData.get("auto") === "1" ? "1" : "0";
+  const template = String(formData.get("template") ?? "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 100);
+  const language = String(formData.get("language") ?? "en").trim().replace(/[^A-Za-z_]/g, "").slice(0, 10) || "en";
+  await setSetting(user.legal_business_id, "wa_auto_send", on, user.id);
+  await setSetting(user.legal_business_id, "wa_bill_template", template, user.id);
+  await setSetting(user.legal_business_id, "wa_bill_language", language, user.id);
+  await db.execute(
+    `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
+     VALUES (?, ?, 'WA_AUTO_SEND_CHANGED', 'SETTING', 0, ?)`,
+    [user.legal_business_id, user.id, JSON.stringify({ on, template, language })]
+  );
+  revalidatePath(BACK);
+  redirect(`${BACK}?result=auto`);
+}

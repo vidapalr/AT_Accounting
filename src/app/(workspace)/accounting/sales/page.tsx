@@ -8,6 +8,7 @@ import { normalizePhone as normalizeIndianPhone } from "@/lib/customer-phone";
 import { bestOffer } from "@/lib/offer-math";
 import { loadOffers } from "@/lib/shop";
 import ShareBillButton from "@/components/ShareBillButton";
+import { autoSendSettings } from "@/lib/wa-auto";
 import { normalizePhone as normalizeWaPhone } from "@/lib/whatsapp/core";
 import SalesBillingForm from
   "@/components/accounting/SalesBillingForm";
@@ -414,6 +415,7 @@ async function SalesContent({ searchParams }: Props) {
       )
     : [[] as RowDataPacket[]];
   const createdSale = createdRows[0];
+  const autoSend = (await autoSendSettings(businessId)).on;
   // Exchange bill: is the customer still owed something from the returned items?
   const [owedRows] = createdSale
     ? await db.execute<RowDataPacket[]>(
@@ -586,7 +588,7 @@ async function SalesContent({ searchParams }: Props) {
 
       {result === "created" && createdSale?.status === "POSTED" && normalizeWaPhone(String(createdSale.customer_phone ?? "")) ? (
         <div style={{ margin: "0 0 12px" }}>
-          <ShareBillButton saleId={Number(createdSale.id)} label={`Send bill ${String(createdSale.invoice_no)} on WhatsApp`} style={{ fontSize: 18, padding: "14px 22px" }} />
+          <ShareBillButton auto={autoSend} saleId={Number(createdSale.id)} label={`Send bill ${String(createdSale.invoice_no)} on WhatsApp`} style={{ fontSize: 18, padding: "14px 22px" }} />
         </div>
       ) : null}
 
