@@ -4,8 +4,9 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { botConfigured } from "@/lib/bot/send";
+import { autoSendSettings } from "@/lib/wa-auto";
 import {
-  saveBotSettingsAction, saveAnswerAction, toggleAnswerAction, deleteAnswerAction, markChatDoneAction,
+  saveBotSettingsAction, saveAutoSendAction, saveAnswerAction, toggleAnswerAction, deleteAnswerAction, markChatDoneAction,
 } from "@/lib/bot-actions";
 
 type Props = { searchParams: Promise<{ result?: string; edit?: string; q?: string }> };
@@ -24,6 +25,9 @@ async function Chatbot({ searchParams }: Props) {
     `SELECT setting_key, setting_value FROM acct_business_settings WHERE legal_business_id = ? AND setting_key IN ('bot_enabled','bot_owner_numbers')`, [biz]);
   const s = new Map(settings.map((r) => [String(r.setting_key), String(r.setting_value)]));
   const enabled = s.get("bot_enabled") === "1";
+  const auto = await autoSendSettings(biz);
+  const [autoRaw] = await db.execute<RowDataPacket[]>(`SELECT setting_value FROM acct_business_settings WHERE legal_business_id = ? AND setting_key = 'wa_auto_send'`, [biz]);
+  const autoChosen = autoRaw[0] ? String(autoRaw[0].setting_value) === "1" : false;
 
   const [waiting] = await db.execute<RowDataPacket[]>(
     `SELECT id, wa_number, contact_name, last_text, last_inbound_at FROM acct_bot_conversations
@@ -40,6 +44,7 @@ async function Chatbot({ searchParams }: Props) {
     <div style={{ maxWidth: 760 }}>
       <h1>WhatsApp chatbot</h1>
       {result === "settings" && <p role="status" style={{ color: "#166534" }}>Saved.</p>}
+      {result === "auto" && <p role="status" style={{ color: "#166534" }}>Saved.</p>}
       {result === "answer" && <p role="status" style={{ color: "#166534" }}>Answer saved. The bot will use it from now on.</p>}
       {result === "missing" && <p role="alert" style={{ color: "#b91c1c" }}>Fill in the name, the words customers use, and the reply.</p>}
 
@@ -60,6 +65,33 @@ async function Chatbot({ searchParams }: Props) {
             <button type="submit" className="btn-link btn-link-primary" style={{ ...btn, marginTop: 12 }}>Save</button>
           </form>
         ) : <p style={{ color: "#475569" }}>Only the owner can switch the bot on or off.</p>}
+      </section>
+
+      <section style={box}>
+        <h2 style={{ marginTop: 0 }}>Send bills automatically</h2>
+        <p style={{ color: "#475569", marginTop: 0 }}>
+          When on, the <strong>Send bill on WhatsApp</strong> button sends the bill by itself through the WhatsApp service, with no need to press send in WhatsApp.
+          If WhatsApp refuses a message, the button falls back to opening WhatsApp so staff send it by hand. Meta charges for messages sent this way.
+        </p>
+        <p style={{ margin: "0 0 8px" }}>Now: <strong>{auto.on ? "ON" : autoChosen ? "ON but the keys are missing, so it is sending by hand" : "OFF, staff send by hand"}</strong></p>
+        {isOwner ? (
+          <form action={saveAutoSendAction} style={{ display: "grid", gap: 12 }}>
+            <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input type="checkbox" name="auto" value="1" defaultChecked={autoChosen} style={{ width: 22, height: 22 }} /> Send bills automatically
+            </label>
+            <label>Approved message template name (from WhatsApp Manager)
+              <br /><input name="template" defaultValue={auto.template} maxLength={100} placeholder="bill_ready" style={input} />
+            </label>
+            <label>Template language
+              <br /><input name="language" defaultValue={auto.language} maxLength={10} placeholder="en" style={{ ...input, width: 120 }} />
+            </label>
+            <p style={{ color: "#64748b", margin: 0, fontSize: 14 }}>
+              Without a template, WhatsApp only allows the message when the customer wrote to you in the last 24 hours, so most bills will fall back to sending by hand.
+              The template needs 4 fill-ins in this order: {"{{1}}"} customer name, {"{{2}}"} bill number, {"{{3}}"} total (with ₹), {"{{4}}"} link to the bill.
+            </p>
+            <div><button type="submit" className="btn-link btn-link-primary" style={btn}>Save</button></div>
+          </form>
+        ) : <p style={{ color: "#475569" }}>Only the owner can change this.</p>}
       </section>
 
       <section style={box}>

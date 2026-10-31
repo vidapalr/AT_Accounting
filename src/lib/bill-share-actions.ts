@@ -7,12 +7,14 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { shopBaseUrl } from "@/lib/shop-url";
 import { normalizePhone, whatsappLink } from "@/lib/whatsapp/core";
+import { autoSendSettings } from "@/lib/wa-auto";
+import { sendWhatsAppTemplate, sendWhatsAppTextDetailed } from "@/lib/bot/send";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /** Gives back a WhatsApp link with the customer's number and a private link to their bill. The page opens it in a new tab; staff press send. */
-export async function billWhatsAppLinkAction(saleId: number): Promise<{ url?: string; error?: string }> {
+export async function billWhatsAppLinkAction(saleId: number): Promise<{ url?: string; sent?: boolean; note?: string; error?: string }> {
   const user = await requireAccess("sales");
   const back = (m: string) => ({ error: m });
   if (!Number.isSafeInteger(saleId) || saleId <= 0) return back("That bill was not found.");
@@ -51,11 +53,27 @@ export async function billWhatsAppLinkAction(saleId: number): Promise<{ url?: st
   );
 
   const total = Number(s.grand_total);
+  const auto = await autoSendSettings(user.legal_business_id);
   const due = Math.max(0, total - Number(s.paid));
   const name = String(s.customer_name ?? "").trim();
   const text =
     `Hello${name ? ` ${name}` : ""}, thanks for shopping with Abhiram Textiles.\n` +
     `Your bill ${s.invoice_no}: ${inr(total)}${due > 0 ? ` (balance due ${inr(due)})` : " (paid in full)"}.\n` +
     `See your bill: ${shopBaseUrl()}/shop/bill/${token}`;
+  if (auto.on) {
+    // Try the WhatsApp service first: an approved template if one is set, otherwise plain text (works only inside 24 hours of their last message).
+    const to = `91${phone.replace(/\D/g, "").slice(-10)}`;
+    const link = `${shopBaseUrl()}/shop/bill/${token}`;
+    const result = auto.template
+      ? await sendWhatsAppTemplate(to, auto.template, auto.language, [name || "Customer", String(s.invoice_no), inr(total), link])
+      : await sendWhatsAppTextDetailed(to, text);
+    await db.execute(
+      `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
+       VALUES (?, ?, 'BILL_AUTO_SEND', 'SALE', ?, ?)`,
+      [user.legal_business_id, user.id, saleId, JSON.stringify({ ok: result.ok, code: result.code ?? null, template: auto.template || null })]
+    );
+    if (result.ok) return { sent: true };
+    return { url: whatsappLink(phone, text), note: `WhatsApp did not send it automatically (${result.reason ?? "unknown reason"}). You can send it by hand instead.` };
+  }
   return { url: whatsappLink(phone, text) };
 }
