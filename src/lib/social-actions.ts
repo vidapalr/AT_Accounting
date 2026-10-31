@@ -5,6 +5,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { mediaSize } from "@/lib/media-storage";
 import { InstagramError, publishCarouselToInstagram, publishToInstagram } from "@/lib/instagram-publish";
 import { FacebookError, publishToFacebook } from "@/lib/facebook-publish";
 
@@ -32,7 +33,7 @@ export async function postToSocialAction(input: { mediaIds: number[]; caption: s
   if (ids.length > 10) return { ok: false, messages: ["At most 10 photos in one post."] };
 
   const [rows] = await db.query<RowDataPacket[]>(
-    `SELECT m.id, m.product_id, m.media_type, m.mime_type, p.show_in_shop
+    `SELECT m.id, m.product_id, m.media_type, m.mime_type, m.storage_key, p.status AS product_status, p.show_in_shop
        FROM acct_product_media m
        JOIN acct_products p ON p.id = m.product_id AND p.legal_business_id = m.legal_business_id
       WHERE m.legal_business_id = ? AND m.id IN (?) AND m.status = 'ACTIVE'`,
@@ -62,6 +63,13 @@ export async function postToSocialAction(input: { mediaIds: number[]; caption: s
       const len = Number(res.headers.get("content-length") ?? 0);
       const label = ids.length > 1 ? `Photo ${i + 1}` : "The photo";
       if (res.status >= 300 && res.status < 400) problems.push(`${label} is behind a redirect (${res.status}). Instagram cannot follow it. Check SHOP_PUBLIC_URL is the exact public address.`);
+      else if (res.status === 404) {
+        const row = byId.get(id);
+        const onDisk = row ? await mediaSize(String(row.storage_key)) : null;
+        if (row && row.product_status !== "ACTIVE") problems.push(`${label}: the product is not active, so its photos are not public.`);
+        else if (onDisk === null) problems.push(`${label}: the photo file is missing on the server (it may have been deleted by a redeploy). Upload it again, and set MEDIA_DIR to a folder outside the app.`);
+        else problems.push(`${label} is on the server but the address ${site} does not serve it (404). Open ${url(id)} in a browser: SHOP_PUBLIC_URL must be exactly your shop address, e.g. https://textiles.abhiraminc.com, with nothing after .com.`);
+      }
       else if (res.status !== 200) problems.push(`${label} cannot be opened from the internet (answer ${res.status}).`);
       else if (!/^(image|video)\//.test(type)) problems.push(`${label} is not served as a photo (it came back as "${type.slice(0, 40) || "unknown"}"). Check SHOP_PUBLIC_URL.`);
       else if (!hasVideo && len > 8 * 1024 * 1024) problems.push(`${label} is larger than 8 MB. Instagram refuses it. Upload a smaller copy.`);
