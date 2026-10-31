@@ -94,14 +94,19 @@ export async function publishCarouselToInstagram(
   if (input.urls.length < 2 || input.urls.length > 10) throw new InstagramError("A multi-photo post needs 2 to 10 photos.");
   const pollMs = input.pollMs ?? 4000;
   const children: string[] = [];
-  for (const url of input.urls) {
-    const child = await call(fetchFn, `/${input.userId}/media`, {
-      method: "POST",
-      params: { image_url: url, is_carousel_item: "true", access_token: input.token },
-    });
-    const id = String(child.id ?? "");
-    if (!id) throw new InstagramError("Instagram did not accept one of the photos.");
-    children.push(id);
+  for (const [i, url] of input.urls.entries()) {
+    try {
+      const child = await call(fetchFn, `/${input.userId}/media`, {
+        method: "POST",
+        params: { image_url: url, is_carousel_item: "true", access_token: input.token },
+      });
+      const id = String(child.id ?? "");
+      if (!id) throw new InstagramError("Instagram did not accept it.");
+      children.push(id);
+    } catch (error) {
+      const why = error instanceof Error ? error.message : "Instagram did not accept it.";
+      throw new InstagramError(`Photo ${i + 1} of ${input.urls.length}: ${why}`.slice(0, 250));
+    }
   }
   for (const id of children) await waitUntilReady(fetchFn, id, input.token, "IMAGE", pollMs, input.maxPolls);
 
