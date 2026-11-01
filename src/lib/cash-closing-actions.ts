@@ -1,5 +1,6 @@
 "use server";
 
+import { cashAccountInScope } from "@/lib/scope";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
@@ -29,6 +30,7 @@ export async function closeCashDayAction(formData: FormData) {
   const note = text("note").slice(0, 300);
 
   if (!Number.isInteger(accountId) || accountId <= 0) redirect(PAGE);
+  if (!(await cashAccountInScope(user, businessId, accountId))) redirect(PAGE);
   if (!validDate(date) || date > todayIso()) go(accountId, todayIso(), "error", "Choose a valid day, not in the future.");
 
   let counted: bigint, takenOut: bigint, openingTyped: bigint | null = null;

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { divisionSql } from "@/lib/scope";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 
@@ -29,15 +30,19 @@ const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8,
 async function ReturnsContent({ searchParams }: Props) {
   const user = await requireAccess("returns");
   const businessId = user.legal_business_id;
+  const scopeNone = divisionSql(user, "division_id");
+  const scopeR = divisionSql(user, "r.division_id");
+  const scopeV = divisionSql(user, "v.division_id");
+  const scopeD = divisionSql(user, "d.division_id");
   const query = await searchParams;
   const saleId = Number(query.sale);
 
   const [invoices] = await db.execute<Row[]>(
     `SELECT id, invoice_no, DATE_FORMAT(invoice_date, '%Y-%m-%d') AS d, customer_name, grand_total
      FROM acct_sales_headers
-     WHERE legal_business_id = ? AND status = 'POSTED'
+     WHERE legal_business_id = ? AND status = 'POSTED'${scopeNone.sql}
      ORDER BY invoice_date DESC, id DESC LIMIT 60`,
-    [businessId]
+    [businessId, ...scopeNone.params]
   );
 
   const [cashAccounts] = await db.execute<Row[]>(
@@ -55,8 +60,8 @@ async function ReturnsContent({ searchParams }: Props) {
   if (Number.isInteger(saleId) && saleId > 0) {
     const [saleRows] = await db.execute<Row[]>(
       `SELECT id, invoice_no, DATE_FORMAT(invoice_date, '%Y-%m-%d') AS d, customer_name, grand_total
-       FROM acct_sales_headers WHERE id = ? AND legal_business_id = ? AND status = 'POSTED'`,
-      [saleId, businessId]
+       FROM acct_sales_headers WHERE id = ? AND legal_business_id = ? AND status = 'POSTED'${scopeNone.sql}`,
+      [saleId, businessId, ...scopeNone.params]
     );
     sale = saleRows[0];
     if (sale) {
@@ -84,21 +89,21 @@ async function ReturnsContent({ searchParams }: Props) {
                       WHERE px.exchange_return_id = r.id AND px.status = 'RECORDED'), 0) AS exchanged
      FROM acct_sales_returns r
      JOIN acct_sales_headers s ON s.id = r.sale_id
-     WHERE r.legal_business_id = ? AND r.status = 'POSTED'
+     WHERE r.legal_business_id = ? AND r.status = 'POSTED'${scopeR.sql}
      ORDER BY r.return_date DESC, r.id DESC LIMIT 40`,
-    [businessId]
+    [businessId, ...scopeR.params]
   );
 
   const [locations] = await db.execute<Row[]>(
     `SELECT id, location_name FROM acct_inventory_locations
-     WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY location_name`,
-    [businessId]
+     WHERE legal_business_id = ? AND status = 'ACTIVE'${scopeNone.sql} ORDER BY location_name`,
+    [businessId, ...scopeNone.params]
   );
   const [variants] = await db.execute<Row[]>(
     `SELECT v.id, v.sku, p.product_name FROM acct_product_variants v
      JOIN acct_products p ON p.id = v.product_id
-     WHERE v.legal_business_id = ? AND v.status = 'ACTIVE' ORDER BY p.product_name, v.sku LIMIT 500`,
-    [businessId]
+     WHERE v.legal_business_id = ? AND v.status = 'ACTIVE'${scopeV.sql} ORDER BY p.product_name, v.sku LIMIT 500`,
+    [businessId, ...scopeV.params]
   );
   const [damages] = await db.execute<Row[]>(
     `SELECT d.id, DATE_FORMAT(d.damage_date, '%Y-%m-%d') AS d, d.quantity, d.total_cost, d.reason,
@@ -106,9 +111,9 @@ async function ReturnsContent({ searchParams }: Props) {
      FROM acct_stock_damages d
      JOIN acct_product_variants v ON v.id = d.variant_id
      JOIN acct_products p ON p.id = v.product_id
-     WHERE d.legal_business_id = ? AND d.status = 'POSTED'
+     WHERE d.legal_business_id = ? AND d.status = 'POSTED'${scopeD.sql}
      ORDER BY d.damage_date DESC, d.id DESC LIMIT 20`,
-    [businessId]
+    [businessId, ...scopeD.params]
   );
 
   const accountOptions = (

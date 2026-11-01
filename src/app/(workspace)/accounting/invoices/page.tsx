@@ -1,4 +1,5 @@
 
+import { divisionSql } from "@/lib/scope";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
@@ -56,6 +57,7 @@ const cell: React.CSSProperties = {
 
 async function InvoiceList() {
   const user = await requireAccess("sales");
+  const mine = divisionSql(user, "s.division_id");
   const businessId = user.legal_business_id;
 
   const [invoices] = await db.execute<InvoiceRow[]>(
@@ -130,11 +132,11 @@ async function InvoiceList() {
       AND pay.division_id = s.division_id
       AND pay.sale_id = s.id
 
-     WHERE s.legal_business_id = ?
+     WHERE s.legal_business_id = ?${mine.sql}
 
      ORDER BY s.invoice_date DESC, s.id DESC
      LIMIT 500`,
-    [businessId]
+    [businessId, ...mine.params]
   );
 
   const totals = invoices.reduce(

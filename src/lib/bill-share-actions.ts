@@ -1,5 +1,6 @@
 "use server";
 
+import { divisionSql } from "@/lib/scope";
 import { randomBytes } from "node:crypto";
 import type { RowDataPacket } from "mysql2";
 
@@ -17,14 +18,15 @@ const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigi
 export async function billWhatsAppLinkAction(saleId: number): Promise<{ url?: string; sent?: boolean; note?: string; error?: string }> {
   const user = await requireAccess("sales");
   const back = (m: string) => ({ error: m });
+  const mine = divisionSql(user, "s.division_id");
   if (!Number.isSafeInteger(saleId) || saleId <= 0) return back("That bill was not found.");
 
   const [rows] = await db.execute<Row[]>(
     `SELECT s.id, s.invoice_no, s.status, s.customer_name, s.customer_phone, s.grand_total,
             COALESCE((SELECT SUM(p.amount) FROM acct_sales_payments p
                        WHERE p.legal_business_id = s.legal_business_id AND p.sale_id = s.id AND p.status = 'RECORDED'), 0) AS paid
-       FROM acct_sales_headers s WHERE s.legal_business_id = ? AND s.id = ?`,
-    [user.legal_business_id, saleId]
+       FROM acct_sales_headers s WHERE s.legal_business_id = ? AND s.id = ?${mine.sql}`,
+    [user.legal_business_id, saleId, ...mine.params]
   );
   const s = rows[0];
   if (!s) return back("That bill was not found.");

@@ -1,4 +1,5 @@
 
+import { divisionSql } from "@/lib/scope";
 import { Suspense } from "react";
 import type { RowDataPacket } from "mysql2";
 
@@ -76,6 +77,10 @@ async function SalesContent({ searchParams }: Props) {
   const user = await requireAccess("sales");
   const { result, id, view, edit, from_report, from_approval, from_online, from_exchange, estimate } = await searchParams;
   const businessId = user.legal_business_id;
+  const scopeB = divisionSql(user, "b.division_id");
+  const scopeL = divisionSql(user, "l.division_id");
+  const scopeT = divisionSql(user, "t.division_id");
+  const scopeS = divisionSql(user, "s.division_id");
 
   const [branches] = await db.execute<RowDataPacket[]>(
     `SELECT
@@ -89,11 +94,11 @@ async function SalesContent({ searchParams }: Props) {
       AND l.location_type = 'RETAIL'
       AND l.status = 'ACTIVE'
      WHERE b.legal_business_id = ?
-       AND b.status = 'ACTIVE'
+       AND b.status = 'ACTIVE'${scopeB.sql}
      GROUP BY b.id, b.branch_name
      HAVING COUNT(l.id) = 1
      ORDER BY b.branch_name`,
-    [businessId]
+    [businessId, ...scopeB.params]
   );
 
   const [products] = await db.execute<RowDataPacket[]>(
@@ -124,13 +129,13 @@ async function SalesContent({ searchParams }: Props) {
       AND m.variant_id = v.id
      WHERE l.legal_business_id = ?
        AND l.location_type = 'RETAIL'
-       AND l.status = 'ACTIVE'
+       AND l.status = 'ACTIVE'${scopeL.sql}
      GROUP BY
        l.id, l.branch_id, v.id, p.id, p.fabric,
        p.product_name, v.sku, v.unit_of_measure,
        v.status, p.status
      ORDER BY p.product_name, v.sku`,
-    [businessId]
+    [businessId, ...scopeL.params]
   );
 
   const [priceRows] = await db.execute<RowDataPacket[]>(
@@ -149,9 +154,9 @@ async function SalesContent({ searchParams }: Props) {
       AND dst.division_id = t.division_id
       AND dst.id = t.to_location_id
      WHERE t.legal_business_id = ?
-       AND t.status = 'RECEIVED'
+       AND t.status = 'RECEIVED'${scopeT.sql}
      ORDER BY t.received_at DESC, t.id DESC`,
-    [businessId]
+    [businessId, ...scopeT.params]
   );
 
   const [bankRows] = await db.execute<PaymentBankRow[]>(
@@ -461,9 +466,9 @@ async function SalesContent({ searchParams }: Props) {
           AND b.division_id = s.division_id
           AND b.id = s.branch_id
          WHERE s.legal_business_id = ?
-           AND s.id = ?
+           AND s.id = ?${scopeS.sql}
          LIMIT 1`,
-        [businessId, selectedInvoiceId]
+        [businessId, selectedInvoiceId, ...scopeS.params]
       )
     : [[] as RowDataPacket[]];
   const selectedInvoice = selectedInvoices[0];
@@ -545,14 +550,14 @@ async function SalesContent({ searchParams }: Props) {
        ON pay.legal_business_id = s.legal_business_id
       AND pay.division_id = s.division_id
       AND pay.sale_id = s.id
-     WHERE s.legal_business_id = ?
+     WHERE s.legal_business_id = ?${scopeS.sql}
      GROUP BY
        s.id, s.invoice_no, s.invoice_date,
        s.customer_name, s.customer_phone,
        s.grand_total, s.status, s.is_estimate, b.branch_name
      ORDER BY s.id DESC
      LIMIT 30`,
-    [businessId]
+    [businessId, ...scopeS.params]
   );
 
   const today = new Intl.DateTimeFormat("en-CA", {

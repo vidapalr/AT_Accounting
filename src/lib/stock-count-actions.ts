@@ -1,5 +1,6 @@
 "use server";
 
+import { canUseDivision } from "@/lib/scope";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
@@ -58,7 +59,7 @@ export async function saveStockCountAction(formData: FormData) {
        WHERE id = ? AND legal_business_id = ? AND status = 'ACTIVE' FOR UPDATE`,
       [locationId, businessId]
     );
-    if (!locs[0]) throw new UserError("That place is not available.");
+    if (!locs[0] || !canUseDivision(user, Number(locs[0].division_id))) throw new UserError("That place is not available.");
     const divisionId = Number(locs[0].division_id);
 
     const ids = [...counted.keys()];

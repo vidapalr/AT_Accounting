@@ -1,5 +1,6 @@
 "use server";
 
+import { canUseDivision } from "@/lib/scope";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { PoolConnection } from "mysql2/promise";
@@ -127,7 +128,7 @@ export async function giveStockFreeAction(formData: FormData) {
         [locationId, businessId]
       );
       const loc = locs[0];
-      if (!loc) throw new UserError("That place is not available.");
+      if (!loc || !canUseDivision(user, Number(loc.division_id))) throw new UserError("That place is not available.");
 
       if (customerId !== null) {
         const [cust] = await conn.execute<Row[]>(

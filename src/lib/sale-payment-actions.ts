@@ -1,5 +1,6 @@
 "use server";
 
+import { canUseDivision } from "@/lib/scope";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { RowDataPacket } from "mysql2";
@@ -62,7 +63,7 @@ export async function receiveSalePaymentAction(form: FormData): Promise<void> {
         FOR UPDATE`,
       [businessId, saleId]
     );
-    const sale = sales[0];
+    const sale = canUseDivision(user, Number(sales[0]?.division_id)) ? sales[0] : undefined;
 
     if (!sale) {
       result = "invalid";
@@ -171,7 +172,7 @@ export async function giveBillDiscountAction(form: FormData): Promise<void> {
          FROM acct_sales_headers WHERE legal_business_id = ? AND id = ? FOR UPDATE`,
       [businessId, saleId]
     );
-    const sale = sales[0];
+    const sale = canUseDivision(user, Number(sales[0]?.division_id)) ? sales[0] : undefined;
     if (!sale) {
       result = "invalid";
     } else if (sale.status !== "POSTED") {
