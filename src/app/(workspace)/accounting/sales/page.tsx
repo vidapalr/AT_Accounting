@@ -45,6 +45,7 @@ const messages: Record<string, string> = {
   created: "Invoice saved successfully.",
   updated: "Invoice and stock quantities updated successfully.",
   invalid: "Check the invoice details.",
+  "reload-form": "This page was open too long to save safely. Refresh the page and enter the bill again.",
   "invalid-edit": "The invoice edit details are invalid.",
   "not-editable": "Only draft or posted invoices can be edited.",
   "in-ledger":
