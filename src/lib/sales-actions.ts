@@ -1,6 +1,7 @@
 
 "use server";
 
+import { lockReturnCredit } from "@/lib/return-credit";
 import { canUseDivision, divisionSql } from "@/lib/scope";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -584,17 +585,11 @@ export async function createSaleAction(
             : null;
 
           if (exchangeReturnId > 0) {
-            const [rets] = await conn.execute<RowDataPacket[]>(
-              `SELECT r.refund_value,
-                      COALESCE((SELECT SUM(f.amount) FROM acct_sales_refunds f WHERE f.return_id = r.id AND f.status = 'RECORDED'), 0) AS refunded,
-                      COALESCE((SELECT SUM(p.amount) FROM acct_sales_payments p WHERE p.exchange_return_id = r.id AND p.status = 'RECORDED'), 0) AS used
-                 FROM acct_sales_returns r
-                WHERE r.id = ? AND r.legal_business_id = ? AND r.status = 'POSTED' FOR UPDATE`,
-              [exchangeReturnId, businessId]
-            );
-            if (!rets[0]) throw new Error("EXCHANGE_GONE");
-            const available =
-              parseAmount(String(rets[0].refund_value)) - parseAmount(String(rets[0].refunded)) - parseAmount(String(rets[0].used));
+            // The credit is locked and re-read here, so two bills made at the same moment cannot both use it.
+            // It must also belong to this bill's own division.
+            const credit = await lockReturnCredit(conn, businessId, exchangeReturnId);
+            if (!credit || credit.divisionId !== DIVISION_ID) throw new Error("EXCHANGE_GONE");
+            const available = credit.availablePaise;
             const room = grandTotal - paymentTotal;
             exchangeApplied = available > 0n && room > 0n ? (available < room ? available : room) : 0n;
           }

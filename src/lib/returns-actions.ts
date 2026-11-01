@@ -1,5 +1,6 @@
 "use server";
 
+import { lockReturnCredit } from "@/lib/return-credit";
 import { canUseDivision, locationInScope } from "@/lib/scope";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -303,23 +304,18 @@ export async function recordRefundAction(formData: FormData) {
       const amount = parsePaise(text("amount"));
       if (amount <= 0n) throw new UserError("Enter the refund amount.");
 
+      // Locked and re-read, so a refund and an exchange bill at the same moment cannot both take the credit.
+      const credit = await lockReturnCredit(conn, businessId, returnId);
+      if (!credit || !canUseDivision(user, credit.divisionId)) throw new UserError("That return was not found.");
       const [rows] = await conn.execute<Row[]>(
-        `SELECT r.id, r.division_id, r.refund_value, r.return_no,
-                DATE_FORMAT(r.return_date, '%Y-%m-%d') AS return_date,
-                COALESCE((SELECT SUM(f.amount) FROM acct_sales_refunds f
-                          WHERE f.return_id = r.id AND f.status = 'RECORDED'), 0)
-                + COALESCE((SELECT SUM(px.amount) FROM acct_sales_payments px
-                          WHERE px.exchange_return_id = r.id AND px.status = 'RECORDED'), 0) AS refunded
-         FROM acct_sales_returns r
-         WHERE r.id = ? AND r.legal_business_id = ? AND r.status = 'POSTED' FOR UPDATE`,
+        `SELECT id, DATE_FORMAT(return_date, '%Y-%m-%d') AS return_date FROM acct_sales_returns WHERE id = ? AND legal_business_id = ?`,
         [returnId, businessId]
       );
-      const ret = rows[0];
-      if (!ret || !canUseDivision(user, Number(ret.division_id))) throw new UserError("That return was not found.");
+      const ret = { return_date: String(rows[0]?.return_date ?? ""), division_id: credit.divisionId };
       if (date < String(ret.return_date)) throw new UserError("A refund cannot be dated before the return.");
       if (date > new Date().toISOString().slice(0, 10)) throw new UserError("A refund cannot be dated in the future.");
 
-      const outstanding = parsePaise(String(ret.refund_value)) - parsePaise(String(ret.refunded));
+      const outstanding = credit.availablePaise;
       if (amount > outstanding) {
         throw new UserError(`Only ₹${money(outstanding)} is still owed to the customer for this return.`);
       }
