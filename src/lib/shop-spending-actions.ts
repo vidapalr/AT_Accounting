@@ -1,5 +1,6 @@
 "use server";
 
+import { canUseDivision } from "@/lib/scope";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
@@ -44,7 +45,7 @@ export async function recordShopSpendingAction(formData: FormData) {
        WHERE legal_business_id = ? AND id = ? AND status = 'ACTIVE' FOR UPDATE`,
       [businessId, drawerId]
     );
-    if (drawers.length !== 1) throw new QuickExpenseError("That cash drawer is not available.");
+    if (drawers.length !== 1 || !canUseDivision(user, Number(drawers[0].division_id))) throw new QuickExpenseError("That cash drawer is not available.");
 
     // The same person sending the same entry twice within a minute is a double tap, not two payments.
     const [dup] = await conn.execute<RowDataPacket[]>(

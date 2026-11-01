@@ -1,6 +1,7 @@
 
 "use server";
 
+import { canUseDivision, divisionSql } from "@/lib/scope";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
@@ -144,7 +145,7 @@ export async function createSaleAction(
   }
 
   const DIVISION_ID = await divisionOfBranch(businessId, branchId);
-  if (DIVISION_ID === null) errorRedirect("invalid-branch");
+  if (DIVISION_ID === null || !canUseDivision(user, DIVISION_ID)) errorRedirect("invalid-branch");
 
   let lines: SaleLineInput[];
   let payments: PaymentInput[];
@@ -954,7 +955,7 @@ export async function updateSaleAction(
   }
 
   const DIVISION_ID = await divisionOfBranch(businessId, branchId);
-  if (DIVISION_ID === null) redirect(`${PAGE}?result=invalid-branch`);
+  if (DIVISION_ID === null || !canUseDivision(user, DIVISION_ID)) redirect(`${PAGE}?result=invalid-branch`);
 
   let lines: SaleLineInput[];
   let preparedLines: Array<{
@@ -1560,10 +1561,11 @@ export async function voidEstimateAction(form: FormData): Promise<void> {
   const user = await requireAccess("sales");
   const saleId = Number(form.get("sale_id"));
   if (!Number.isSafeInteger(saleId) || saleId <= 0) redirect("/accounting/invoices");
+  const mine = divisionSql(user, "division_id");
   const [res] = await db.execute(
     `UPDATE acct_sales_headers SET status = 'VOID'
-      WHERE id = ? AND legal_business_id = ? AND is_estimate = 1 AND status = 'DRAFT'`,
-    [saleId, user.legal_business_id]
+      WHERE id = ? AND legal_business_id = ? AND is_estimate = 1 AND status = 'DRAFT'${mine.sql}`,
+    [saleId, user.legal_business_id, ...mine.params]
   );
   if ((res as { affectedRows: number }).affectedRows === 1) {
     await db.execute(
@@ -1582,10 +1584,11 @@ export async function setInvoiceAddressAction(form: FormData): Promise<void> {
   const saleId = Number(form.get("sale_id"));
   const address = String(form.get("address") ?? "").trim().slice(0, 500);
   if (!Number.isSafeInteger(saleId) || saleId <= 0) redirect("/accounting/invoices");
+  const mine = divisionSql(user, "division_id");
   await db.execute(
     `UPDATE acct_sales_headers SET customer_address = ?
-      WHERE id = ? AND legal_business_id = ? AND status IN ('DRAFT','POSTED')`,
-    [address || null, saleId, user.legal_business_id]
+      WHERE id = ? AND legal_business_id = ? AND status IN ('DRAFT','POSTED')${mine.sql}`,
+    [address || null, saleId, user.legal_business_id, ...mine.params]
   );
   revalidatePath(`/accounting/sales/${saleId}`);
   redirect(`/accounting/sales/${saleId}`);

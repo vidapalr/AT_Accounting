@@ -18,6 +18,7 @@ import { setInvoiceMobileAction } from "@/lib/customer-merge-actions";
 import ShareBillButton from "@/components/ShareBillButton";
 import { autoSendSettings } from "@/lib/wa-auto";
 import { normalizePhone } from "@/lib/whatsapp/core";
+import { divisionSql } from "@/lib/scope";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -66,6 +67,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
   }
 
   const businessId = user.legal_business_id;
+  const mine = divisionSql(user, "s.division_id");
   const query = await searchParams;
   const payResult = query?.pay;
   const mobileResult = query?.mobile;
@@ -97,8 +99,8 @@ async function InvoiceDetails({ params, searchParams }: Props) {
       AND b.division_id = s.division_id
       AND b.id = s.branch_id
      WHERE s.legal_business_id = ?
-       AND s.id = ?`,
-    [businessId, saleId]
+       AND s.id = ?${mine.sql}`,
+    [businessId, saleId, ...mine.params]
   );
 
   if (headers.length !== 1) notFound();

@@ -1,5 +1,6 @@
 "use server";
 
+import { locationInScope } from "@/lib/scope";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
@@ -27,7 +28,7 @@ export async function addReporterAction(formData: FormData) {
     `SELECT id FROM acct_inventory_locations WHERE id = ? AND legal_business_id = ? AND status = 'ACTIVE'`,
     [locationId, user.legal_business_id]
   );
-  if (loc.length !== 1) go("result=invalid");
+  if (loc.length !== 1 || !(await locationInScope(user, user.legal_business_id, locationId))) go("result=invalid");
   try {
     await db.execute(
       `INSERT INTO acct_stock_reporters (legal_business_id, full_name, phone, location_id, created_by)
@@ -107,7 +108,7 @@ export async function approveDraftAction(formData: FormData) {
         [id, businessId]
       );
       const d = rows[0];
-      if (!d) throw new UserError("This report was already handled.");
+      if (!d || !(await locationInScope(user, businessId, Number(d.location_id)))) throw new UserError("This report was already handled.");
       if (d.problem || !d.variant_id || !d.quantity) throw new UserError("This line has a problem. Reject it.");
 
       if (d.action === "DAMAGED" || d.action === "LOST") {

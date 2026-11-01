@@ -1,5 +1,6 @@
 "use server";
 
+import { canUseDivision, locationInScope } from "@/lib/scope";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { PoolConnection } from "mysql2/promise";
@@ -130,7 +131,7 @@ export async function createSalesReturnAction(formData: FormData) {
         [saleId, businessId]
       );
       const sale = sales[0];
-      if (!sale || sale.status !== "POSTED") throw new UserError("That invoice is not available for returns.");
+      if (!sale || sale.status !== "POSTED" || !canUseDivision(user, Number(sale.division_id))) throw new UserError("That invoice is not available for returns.");
       if (date < String(sale.invoice_date)) throw new UserError("A return cannot be dated before the invoice.");
       if (date > new Date().toISOString().slice(0, 10)) throw new UserError("A return cannot be dated in the future.");
 
@@ -314,7 +315,7 @@ export async function recordRefundAction(formData: FormData) {
         [returnId, businessId]
       );
       const ret = rows[0];
-      if (!ret) throw new UserError("That return was not found.");
+      if (!ret || !canUseDivision(user, Number(ret.division_id))) throw new UserError("That return was not found.");
       if (date < String(ret.return_date)) throw new UserError("A refund cannot be dated before the return.");
       if (date > new Date().toISOString().slice(0, 10)) throw new UserError("A refund cannot be dated in the future.");
 
@@ -377,6 +378,7 @@ export async function recordStockDamageAction(formData: FormData) {
     try {
       const qtyMilli = parseQtyMilli(text("quantity"));
       if (qtyMilli <= 0n) throw new UserError("Enter the quantity.");
+      if (!(await locationInScope(user, businessId, locationId))) throw new UserError("Choose a location.");
 
       const done = await applyStockDamage(conn, {
         businessId, userId: user.id, locationId, variantId, date,

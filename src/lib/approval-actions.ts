@@ -1,5 +1,6 @@
 "use server";
 
+import { canUseDivision } from "@/lib/scope";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { PoolConnection } from "mysql2/promise";
@@ -73,7 +74,7 @@ export async function handOutItemsAction(formData: FormData) {
         [locationId, businessId]
       );
       const loc = locs[0];
-      if (!loc) throw new UserError("That place is not available.");
+      if (!loc || !canUseDivision(user, Number(loc.division_id))) throw new UserError("That place is not available.");
       const divisionId = Number(loc.division_id);
 
       const [variants] = await conn.execute<Row[]>(
@@ -213,7 +214,7 @@ export async function receiveBackAction(formData: FormData) {
         [itemId, businessId]
       );
       const item = rows[0];
-      if (!item) throw new UserError("That item is no longer with the customer.");
+      if (!item || !canUseDivision(user, Number(item.division_id))) throw new UserError("That item is no longer with the customer.");
 
       const total = parseQtyMilli(String(item.quantity));
       const qty = rawQty === "" ? total : parseQtyMilli(rawQty);
