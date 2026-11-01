@@ -128,6 +128,8 @@ export async function createSaleAction(
   // One-time token from the form: the same submission can only ever make one bill.
   const tokenRaw = String(form.get("submit_token") ?? "").trim();
   const submitToken = /^[0-9a-fA-F-]{36}$/.test(tokenRaw) ? tokenRaw : null;
+  // A new bill must carry its token; without it a double press could make two bills.
+  if (!submitToken && confirmDraftId === 0) errorRedirect("reload-form");
   if (submitToken && confirmDraftId === 0) {
     const [dup] = await db.execute<RowDataPacket[]>(
       "SELECT id FROM acct_sales_headers WHERE legal_business_id = ? AND submit_token = ? LIMIT 1",

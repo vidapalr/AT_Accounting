@@ -12,6 +12,11 @@ Read `docs/ROADMAP.md` for goals, phases and the page audit. Read `AGENTS.md` be
 - Ask him only what truly needs his decision; otherwise decide, go ahead, and say what was decided.
 - Hosting auto-deploys from git. Merging to `main` is going live, and migrations are NOT applied automatically: run them in phpMyAdmin first (see ROADMAP section 7). Keep work on `feat/ledger-dry-run` until he says to go live.
 
+## Master tracker (owner's instruction, 1 Nov 2026)
+
+- The one list of everything pending, in priority order, is the Claude Docs document "Abhiram - Master Tracker (priority order)": https://claude.ai/artifact/UNZ3PjgrMKnoTE3NmXqpQ9 (doc id dda91bee-63df-4bf0-86bd-65105ba2befa).
+- Keep it current after every delivery: change the status of the item, and when the owner adds or changes anything, place it in the right priority and add a line to its change log. Docs ROADMAP.md stays as the technical record.
+
 ## Design rules for everything built (owner's instructions, 23 Oct 2026)
 
 1. **Clean look.** Plenty of white space, one calm colour scheme, no clutter, consistent headings and buttons, nothing decorative that does not help.
