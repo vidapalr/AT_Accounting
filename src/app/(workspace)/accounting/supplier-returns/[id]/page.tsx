@@ -9,7 +9,7 @@ import PrintButton from "@/components/PrintButton";
 import PrintHeader from "@/components/PrintHeader";
 import { loadSupplierBalances } from "@/lib/supplier-ledger";
 import { parsePaise } from "@/lib/returns-math";
-import { linkReplacementAction, recordSupplierRefundAction } from "@/lib/supplier-return-actions";
+import { correctSupplierCreditAction, linkReplacementAction, recordSupplierRefundAction } from "@/lib/supplier-return-actions";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -168,6 +168,22 @@ async function DebitNote({ params, searchParams }: Props) {
           </table>
         </div>
       </section>
+
+      {user.role === "GROUP_OWNER" && (
+        <section style={box} className="no-print">
+          <h2>Is the credit wrong?</h2>
+          <p style={{ color: "#64748b" }}>
+            Goods sent back for full credit are neither profit nor loss. If the credit above is lower than the cost by mistake, correct it here.
+          </p>
+          <form action={correctSupplierCreditAction} style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "end" }}>
+            <input type="hidden" name="return_id" value={String(returnId)} />
+            <label>Correct credit, in total (₹)<br />
+              <input name="agreed_value" inputMode="decimal" defaultValue={String(cost / 100n)} placeholder="Leave empty for full cost" style={{ ...field, width: 200 }} />
+            </label>
+            <button type="submit" className="btn-link" style={{ cursor: "pointer", fontSize: 16, padding: "12px 20px" }}>Correct the credit</button>
+          </form>
+        </section>
+      )}
 
       <section style={box} className="no-print">
         <h2>What did the supplier do?</h2>

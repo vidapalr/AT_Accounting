@@ -75,3 +75,14 @@ test("returns and damaged stock are reported separately but still reduce profit"
   assert.equal(f.gross, 100000n - 25000n - 43000n);
   assert.equal(f.operating, f.gross - 2000n);
 });
+
+test("loss on goods returned to a supplier for less than cost is its own line, not part of cost of the goods sold", () => {
+  const rows = profitByScope(
+    [L("4000", 0, 1000), L("5000", 400, 0), L("5160", 186, 0)],
+    new Map([[1, 1]])
+  );
+  const f = rows[0].figures;
+  assert.equal(f.supplierReturnLoss, 18600n);
+  assert.equal(f.costOfGoods, 58600n);
+  assert.equal(f.costOfGoods - f.damagedStock - f.supplierReturnLoss, 40000n);
+});

@@ -33,6 +33,8 @@ export type ProfitFigures = {
   costOfGoods: bigint;
   /** Part of `costOfGoods` that is damaged and lost stock (account 5150). */
   damagedStock: bigint;
+  /** Part of `costOfGoods` that is the loss on goods returned to suppliers for less than their cost (account 5160). */
+  supplierReturnLoss: bigint;
   gross: bigint;
   runningExpenses: bigint;
   operating: bigint;
@@ -53,11 +55,12 @@ type Raw = {
   returns: bigint;
   costOfGoods: bigint;
   damaged: bigint;
+  returnLoss: bigint;
   running: bigint;
   setup: bigint;
 };
 
-const empty = (): Raw => ({ sales: 0n, discounts: 0n, returns: 0n, costOfGoods: 0n, damaged: 0n, running: 0n, setup: 0n });
+const empty = (): Raw => ({ sales: 0n, discounts: 0n, returns: 0n, costOfGoods: 0n, damaged: 0n, returnLoss: 0n, running: 0n, setup: 0n });
 
 function add(target: Raw, line: LedgerTotal) {
   const code = line.accountCode;
@@ -71,6 +74,7 @@ function add(target: Raw, line: LedgerTotal) {
   } else if (code.startsWith("5")) {
     target.costOfGoods += debit;
     if (code === "5150") target.damaged += debit;
+    if (code === "5160") target.returnLoss += debit;
   }
   else if (code === SETUP_ACCOUNT) target.setup += debit;
   else if (code.startsWith("6")) target.running += debit;
@@ -85,6 +89,7 @@ function figures(raw: Raw): ProfitFigures {
     returns: raw.returns,
     costOfGoods: raw.costOfGoods,
     damagedStock: raw.damaged,
+    supplierReturnLoss: raw.returnLoss,
     gross,
     runningExpenses: raw.running,
     operating,

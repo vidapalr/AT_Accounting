@@ -11,7 +11,7 @@ import { reversePostedJournalAction } from
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ reversal?: string }>;
+  searchParams: Promise<{ reversal?: string; note?: string }>;
 };
 
 interface JournalHeader extends RowDataPacket {
@@ -425,6 +425,11 @@ async function JournalDetailContent({
       >
         <h2>Journal Reversal</h2>
 
+        {query.note && (
+          <p style={{ border: "1px solid #f59e0b", background: "#fffbeb", padding: 12, borderRadius: 8 }}>
+            {query.note.slice(0, 250)}
+          </p>
+        )}
         {query.reversal && (
           <p role="status">
             {({

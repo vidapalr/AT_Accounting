@@ -9,7 +9,8 @@ import OtherSideNote from "@/components/accounting/OtherSideNote";
 import { updateCustomerAction } from "@/lib/customer-actions";
 import ConfirmButton from "@/components/ConfirmButton";
 import { mergeCustomersAction } from "@/lib/customer-merge-actions";
-import { canMergeCustomers } from "@/lib/access";
+import { canMergeCustomers, canAccess } from "@/lib/access";
+import { loadOtherSide } from "@/lib/party-link";
 import { prettyPhone } from "@/lib/customer-phone";
 import { whatsappLink } from "@/lib/whatsapp/core";
 import PrintHeader from "@/components/PrintHeader";
@@ -100,14 +101,18 @@ async function CustomerPage({ params, searchParams }: Props) {
   const billed = list.reduce((s, b) => s + b.total, 0);
   const paid = list.reduce((s, b) => s + b.paid, 0);
   const dues = billed - paid;
+  // Also a supplier? Then the figure that matters is what is left after setting off what we owe them.
+  const other = canAccess(user.role, "both_sides") ? await loadOtherSide(db, businessId, { customerId }) : null;
+  const weOweThem = other ? Number(other.weOweThem) : 0;
+  const net = dues - weOweThem;
   const average = list.length ? Math.round(billed / list.length) : 0;
   const isOwner = user.role === "GROUP_OWNER";
 
   const reminder =
-    c.phone && dues > 0
+    c.phone && net > 0
       ? whatsappLink(
           `91${c.phone}`,
-          `Hello ${c.full_name}, this is a gentle reminder from Abhiram Textiles. ₹${inr(dues)} is pending on your bills. Thank you!`
+          `Hello ${c.full_name}, this is a gentle reminder from Abhiram Textiles. ₹${inr(net)} is pending on your bills. Thank you!`
         )
       : null;
 
@@ -163,9 +168,16 @@ async function CustomerPage({ params, searchParams }: Props) {
         <div style={card}><small>Visits (bills)</small><br /><strong style={{ fontSize: 22 }}>{list.length}</strong></div>
         <div style={card}><small>Total bought</small><br /><strong style={{ fontSize: 22 }}>₹{inr(billed)}</strong></div>
         <div style={card}><small>Average bill</small><br /><strong style={{ fontSize: 22 }}>₹{inr(average)}</strong></div>
-        <div style={{ ...card, borderColor: dues > 0 ? "#fcd34d" : "#bbf7d0" }}>
-          <small>Owes you</small><br />
-          <strong style={{ fontSize: 22, color: dues > 0 ? "#b45309" : "#166534" }}>{dues > 0 ? `₹${inr(dues)}` : "Nothing"}</strong>
+        <div style={{ ...card, borderColor: net > 0 ? "#fcd34d" : net < 0 ? "#93c5fd" : "#bbf7d0" }}>
+          <small>{net < 0 ? "We owe them" : weOweThem > 0 ? "Owes you (after what we owe them)" : "Owes you"}</small><br />
+          <strong style={{ fontSize: 22, color: net > 0 ? "#b45309" : net < 0 ? "#1d4ed8" : "#166534" }}>
+            {net > 0 ? `₹${inr(net)}` : net < 0 ? `₹${inr(-net)}` : "Nothing"}
+          </strong>
+          {weOweThem > 0 && (
+            <small style={{ display: "block", color: "#64748b" }}>
+              They owe ₹{inr(Math.max(dues, 0))}, we owe them ₹{inr(weOweThem)}
+            </small>
+          )}
         </div>
         {Number(c.limit_paise) > 0 && (
           <div style={card}><small>Credit limit</small><br /><strong style={{ fontSize: 22 }}>₹{inr(Number(c.limit_paise))}</strong></div>
