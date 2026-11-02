@@ -533,6 +533,91 @@ export async function recordRefundAction(formData: FormData) {
   redirect(`${PAGE}?saved=${encodeURIComponent(message)}`);
 }
 
+/**
+ * Edit a refund that is already paid: amount, date, method and the account it was paid from.
+ * The old journal entry is reversed automatically and the refund posts again with the new values.
+ * The amount can never be more than what is still owed to the customer for that return.
+ */
+export async function editRefundAction(formData: FormData) {
+  const user = await requireAccess("returns");
+  const businessId = user.legal_business_id;
+  const text = (name: string) => String(formData.get(name) ?? "").trim();
+
+  const refundId = Number(text("refund_id"));
+  const date = text("refund_date");
+  const here = `${PAGE}?editRefund=${Number.isInteger(refundId) ? refundId : ""}`;
+  const stop = (message: string): never => redirect(`${here}&error=${encodeURIComponent(message.slice(0, 200))}`);
+  if (!Number.isInteger(refundId) || refundId <= 0) fail("That refund was not found.");
+  if (!validDate(date)) stop("Enter a valid refund date.");
+
+  let ok = false;
+  let message = "";
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    try {
+      await conn.execute(`SELECT id FROM acct_legal_businesses WHERE id = ? FOR UPDATE`, [businessId]);
+      const amount = parsePaise(text("amount"));
+      if (amount <= 0n) throw new UserError("Enter the refund amount.");
+
+      const [rows] = await conn.execute<Row[]>(
+        `SELECT f.id, f.return_id, ROUND(f.amount * 100) AS paise, r.return_no,
+                DATE_FORMAT(r.return_date, '%Y-%m-%d') AS return_date
+           FROM acct_sales_refunds f JOIN acct_sales_returns r ON r.id = f.return_id AND r.legal_business_id = f.legal_business_id
+          WHERE f.id = ? AND f.legal_business_id = ? AND f.status = 'RECORDED' FOR UPDATE`,
+        [refundId, businessId]
+      );
+      const refund = rows[0];
+      if (!refund) throw new UserError("That refund was not found.");
+      const credit = await lockReturnCredit(conn, businessId, Number(refund.return_id));
+      if (!credit || !canUseDivision(user, credit.divisionId)) throw new UserError("That refund was not found.");
+      if (date < String(refund.return_date)) throw new UserError("A refund cannot be dated before the return.");
+      if (date > new Date().toISOString().slice(0, 10)) throw new UserError("A refund cannot be dated in the future.");
+
+      const old = BigInt(String(refund.paise));
+      const room = credit.availablePaise + old;
+      if (amount > room) throw new UserError(`At most ₹${money(room)} can be refunded for this return.`);
+
+      const { bankId, cashId } = await refundAccount(conn, businessId, text("account"));
+      const method = ["CASH", "UPI", "BANK_TRANSFER", "CARD", "OTHER"].includes(text("method"))
+        ? text("method") : cashId ? "CASH" : "BANK_TRANSFER";
+
+      const undone = await autoReverseForEdit(conn, {
+        businessId, userId: user.id, sourceType: "SALES_REFUND", sourceId: refundId,
+        reason: `Edited: refund ${refundId} for return ${refund.return_no}`,
+      });
+      if (!undone.ok) {
+        throw new UserError(undone.reason === "period-closed" ? "That month is already closed, so this refund cannot be edited." : "Could not save the change. Nothing was changed.");
+      }
+
+      await conn.execute(
+        `UPDATE acct_sales_refunds SET refund_date = ?, amount = ?, payment_method = ?, bank_account_id = ?, cash_account_id = ?
+          WHERE id = ? AND legal_business_id = ?`,
+        [date, money(amount), method, bankId, cashId, refundId, businessId]
+      );
+      await conn.execute(
+        `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
+         VALUES (?, ?, 'SALES_REFUND_EDITED', 'SALES_RETURN', ?, ?)`,
+        [businessId, user.id, Number(refund.return_id), JSON.stringify({ refundId, from: money(old), to: money(amount) })]
+      );
+      await conn.commit();
+      ok = true;
+      message = `Refund changed to ₹${money(amount)}.`;
+    } catch (error) {
+      await conn.rollback();
+      message = error instanceof UserError || (error instanceof Error && /Invalid/.test(error.message))
+        ? (error as Error).message
+        : "Could not save the change. Nothing was changed.";
+    }
+  } finally {
+    conn.release();
+  }
+
+  revalidatePath(PAGE);
+  if (!ok) stop(message);
+  redirect(`${PAGE}?saved=${encodeURIComponent(message)}`);
+}
+
 // ---------------------------------------------------------------- damage
 
 export async function recordStockDamageAction(formData: FormData) {
