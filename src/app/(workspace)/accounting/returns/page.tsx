@@ -8,6 +8,7 @@ import { requireAccess } from "@/lib/auth";
 import {
   createSalesReturnAction,
   editSalesReturnAction,
+  editRefundAction,
   recordRefundAction,
   recordStockDamageAction,
 } from "@/lib/returns-actions";
@@ -15,7 +16,7 @@ import { cancelWriteOffAction } from "@/lib/write-off-cancel-actions";
 import ConfirmButton from "@/components/ConfirmButton";
 
 type Props = {
-  searchParams: Promise<{ sale?: string; saved?: string; error?: string; edit?: string }>;
+  searchParams: Promise<{ sale?: string; saved?: string; error?: string; edit?: string; editRefund?: string }>;
 };
 
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -125,6 +126,18 @@ async function ReturnsContent({ searchParams }: Props) {
     }
   }
 
+  // Refunds already paid (for the Edit list).
+  const [refundRows] = await db.execute<Row[]>(
+    `SELECT f.id, f.return_id, DATE_FORMAT(f.refund_date, '%Y-%m-%d') AS d, f.amount, f.payment_method,
+            f.bank_account_id, f.cash_account_id, r.return_no
+       FROM acct_sales_refunds f JOIN acct_sales_returns r ON r.id = f.return_id
+      WHERE f.legal_business_id = ? AND f.status = 'RECORDED' AND r.status = 'POSTED'${scopeR.sql}
+      ORDER BY f.refund_date DESC, f.id DESC LIMIT 30`,
+    [businessId, ...scopeR.params]
+  );
+  const editRefundId = Number(query.editRefund);
+  const editingRefund = Number.isInteger(editRefundId) && editRefundId > 0 ? refundRows.find((f) => Number(f.id) === editRefundId) : undefined;
+
   const [locations] = await db.execute<Row[]>(
     `SELECT id, location_name FROM acct_inventory_locations
      WHERE legal_business_id = ? AND status = 'ACTIVE'${scopeNone.sql} ORDER BY location_name`,
@@ -173,6 +186,26 @@ async function ReturnsContent({ searchParams }: Props) {
       <h1>Returns, Refunds and Damaged Stock</h1>
       {query.saved && <p style={{ color: "#166534" }}>{query.saved.slice(0, 300)}</p>}
       {query.error && <p style={{ color: "#b91c1c" }}>{query.error.slice(0, 300)}</p>}
+
+      {editingRefund && (
+        <section style={{ ...box, borderColor: "#93c5fd" }}>
+          <h2>Edit refund for return {String(editingRefund.return_no)}</h2>
+          <p style={{ color: "#64748b" }}>
+            The old entry in the books is reversed automatically and the new one is posted. The amount cannot be more than what is still owed to the customer for this return.
+          </p>
+          <form action={editRefundAction} style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "end" }}>
+            <input type="hidden" name="refund_id" value={String(editingRefund.id)} />
+            <label>Amount<br /><input name="amount" inputMode="decimal" size={10} required defaultValue={Number(editingRefund.amount).toFixed(2)} /></label>
+            <label>Date<br /><input type="date" name="refund_date" required defaultValue={String(editingRefund.d)} /></label>
+            <label>Paid from<br />
+              <select name="account" required defaultValue={editingRefund.bank_account_id ? `bank:${editingRefund.bank_account_id}` : `cash:${editingRefund.cash_account_id}`}>{accountOptions}</select>
+            </label>
+            <label>Method<br /><select name="method" defaultValue={String(editingRefund.payment_method)}>{methodOptions}</select></label>
+            <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer", fontSize: 16, padding: "10px 18px" }}>Save changes to this refund</button>
+            <a className="btn-link" href="/accounting/returns">Cancel</a>
+          </form>
+        </section>
+      )}
 
       {editing && (
         <section style={{ ...box, borderColor: "#93c5fd" }}>
@@ -349,6 +382,25 @@ async function ReturnsContent({ searchParams }: Props) {
               );
             })}
             {returns.length === 0 && <tr><td style={cell} colSpan={9}>No returns yet.</td></tr>}
+          </tbody>
+        </table>
+      </section>
+
+      <section style={box}>
+        <h2>Refunds paid</h2>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead><tr>{["Return", "Date", "Amount", "Method", ""].map((h) => <th key={h} style={cell}>{h}</th>)}</tr></thead>
+          <tbody>
+            {refundRows.map((f) => (
+              <tr key={f.id}>
+                <td style={cell}>{f.return_no}</td>
+                <td style={cell}>{f.d}</td>
+                <td style={cell}>{inr(f.amount)}</td>
+                <td style={cell}>{String(f.payment_method).replaceAll("_", " ").toLowerCase()}</td>
+                <td style={cell}><a className="btn-link btn-link-small" href={`/accounting/returns?editRefund=${f.id}`}>Edit</a></td>
+              </tr>
+            ))}
+            {refundRows.length === 0 && <tr><td style={cell} colSpan={5}>No refunds paid yet.</td></tr>}
           </tbody>
         </table>
       </section>
