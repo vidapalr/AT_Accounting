@@ -8,6 +8,7 @@ import { isAutoPostOn } from "@/lib/ledger/auto-post";
 import { getSyncStatus } from "@/lib/ledger/sync-status";
 import { retryPostingAction } from "@/lib/posting-retry-actions";
 import { getStockTieOut } from "@/lib/ledger/stock-tieout";
+import { missingMigrations } from "@/lib/migration-check";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "14px 0" };
@@ -52,6 +53,7 @@ async function Content({ searchParams }: { searchParams: Promise<{ retry?: strin
     : "";
 
   const tie = await getStockTieOut(db, businessId).catch(() => null);
+  const missingFiles = await missingMigrations(db).catch(() => null);
   const [divRows] = await db.execute<Row[]>(`SELECT id, name FROM acct_divisions WHERE legal_business_id = ?`, [businessId]);
   const divName = new Map(divRows.map((d) => [Number(d.id), String(d.name)]));
   const rupees = (p: bigint) => `${p < 0n ? "-" : ""}₹${(Number((p < 0n ? -p : p) / 100n)).toLocaleString("en-IN")}.${String((p < 0n ? -p : p) % 100n).padStart(2, "0")}`;
@@ -120,6 +122,19 @@ async function Content({ searchParams }: { searchParams: Promise<{ retry?: strin
             )}
           </>
         )}
+      </section>
+
+      <section style={box}>
+        <h2 style={{ marginTop: 0 }}>Database files</h2>
+        {missingFiles === null ? <p>Could not check the database files just now.</p>
+          : missingFiles.length === 0 ? <p style={good}>Every database file has been run on this database.</p>
+          : (
+            <>
+              <p style={{ color: "#b45309" }}><strong>{missingFiles.length} database file(s) have not been run on this database yet:</strong></p>
+              <ul>{missingFiles.map((f) => <li key={f}><code>{f}.sql</code></li>)}</ul>
+              <p style={{ color: "#64748b" }}>Open each file from the migrations folder, paste it in the phpMyAdmin SQL tab and run it. It is safe to run twice.</p>
+            </>
+          )}
       </section>
 
       <section style={box}>
