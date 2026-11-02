@@ -20,7 +20,25 @@ export const AUTO_POST_KEY = "auto_post_ledger";
 const THROTTLE_MS = 45_000;
 const lastRun = new Map<number, number>();
 
-export type AutoPostSummary = { enabled: boolean; posted: number; skipped: number; ran: boolean };
+export type AutoPostSummary = { enabled: boolean; posted: number; skipped: number; ran: boolean; failed?: number; busy?: boolean };
+
+/** Remember why a record could not be posted (ignored before migration 051). */
+async function noteFailure(pool: Pool, businessId: number, d: JournalDraft, reason: string) {
+  await pool.execute(
+    `INSERT INTO acct_posting_failures (legal_business_id, source_type, source_id, reason)
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE reason = VALUES(reason), attempts = attempts + 1, last_failed_at = CURRENT_TIMESTAMP, resolved_at = NULL`,
+    [businessId, d.sourceType, d.sourceId, reason.slice(0, 400)]
+  ).catch(() => undefined);
+}
+
+async function noteSuccess(pool: Pool, businessId: number, d: JournalDraft) {
+  await pool.execute(
+    `UPDATE acct_posting_failures SET resolved_at = CURRENT_TIMESTAMP
+      WHERE legal_business_id = ? AND source_type = ? AND source_id = ? AND resolved_at IS NULL`,
+    [businessId, d.sourceType, d.sourceId]
+  ).catch(() => undefined);
+}
 
 export async function isAutoPostOn(pool: Pool, businessId: number): Promise<boolean> {
   const [rows] = await pool.execute<Row[]>(
@@ -40,10 +58,15 @@ export function pickAutoPostable(drafts: JournalDraft[], problems: string[], eve
   });
 }
 
-export async function autoPostPending(pool: Pool, businessId: number, opts: { force?: boolean } = {}): Promise<AutoPostSummary> {
-  if (!(await isAutoPostOn(pool, businessId))) return { enabled: false, posted: 0, skipped: 0, ran: false };
+/**
+ * `manual` = the owner pressed a button: run even when the automatic switch is off.
+ * Only one run at a time across the whole server (a database lock), so a page visit, the timed call
+ * and a button press can never post the same records together.
+ */
+export async function autoPostPending(pool: Pool, businessId: number, opts: { force?: boolean; manual?: boolean } = {}): Promise<AutoPostSummary> {
+  if (!opts.manual && !(await isAutoPostOn(pool, businessId))) return { enabled: false, posted: 0, skipped: 0, ran: false };
   const now = Date.now();
-  if (!opts.force && now - (lastRun.get(businessId) ?? 0) < THROTTLE_MS) {
+  if (!opts.force && !opts.manual && now - (lastRun.get(businessId) ?? 0) < THROTTLE_MS) {
     return { enabled: true, posted: 0, skipped: 0, ran: false };
   }
   lastRun.set(businessId, now);
@@ -59,7 +82,13 @@ export async function autoPostPending(pool: Pool, businessId: number, opts: { fo
   const conn = await pool.getConnection();
   let posted = 0;
   let skipped = 0;
+  let failed = 0;
+  const lockName = `abhiram_autopost_${businessId}`;
+  let locked = false;
   try {
+    const [got] = await conn.query<Row[]>("SELECT GET_LOCK(?, 0) AS ok", [lockName]);
+    locked = Number(got[0]?.ok) === 1;
+    if (!locked) return { enabled: true, posted: 0, skipped: 0, ran: false, busy: true };
     const built = await buildLedgerDrafts(conn, businessId);
     const [done] = await conn.execute<Row[]>(
       `SELECT DISTINCT source_type, source_id FROM acct_journal_entries
@@ -78,13 +107,17 @@ export async function autoPostPending(pool: Pool, businessId: number, opts: { fo
         });
         await conn.commit();
         posted += r.posted.length;
-      } catch {
+        await noteSuccess(pool, businessId, draft);
+      } catch (error) {
         await conn.rollback();
         skipped += 1; // closed period, missing account, etc. stays pending for a person to look at
+        failed += 1;
+        await noteFailure(pool, businessId, draft, error instanceof Error ? error.message : "Could not be posted.");
       }
     }
   } finally {
+    if (locked) await conn.query("SELECT RELEASE_LOCK(?)", [lockName]).catch(() => undefined);
     conn.release();
   }
-  return { enabled: true, posted, skipped, ran: true };
+  return { enabled: true, posted, skipped, ran: true, failed };
 }

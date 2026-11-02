@@ -76,16 +76,25 @@ export async function postDrafts(
       [businessId, year.id]
     );
 
-    const [existing] = await conn.execute<Row[]>(
+    // A locking read (FOR UPDATE) sees the newest saved entries. A plain read inside this transaction
+    // can show older data, so two people posting the same record at the same moment would both succeed.
+    const [candidates] = await conn.execute<Row[]>(
       `SELECT id FROM acct_journal_entries
        WHERE legal_business_id = ? AND source_type = ? AND source_id = ?
-         AND status = 'POSTED'
-         AND NOT EXISTS (SELECT 1 FROM acct_journal_reversals r
-                          WHERE r.legal_business_id = acct_journal_entries.legal_business_id
-                            AND r.original_journal_id = acct_journal_entries.id)
-       LIMIT 1`,
+         AND status = 'POSTED' FOR UPDATE`,
       [businessId, draft.sourceType, draft.sourceId]
     );
+    let existing: Row[] = [];
+    if (candidates.length > 0) {
+      const ids = candidates.map((c) => Number(c.id));
+      const [reversed] = await conn.query<Row[]>(
+        `SELECT original_journal_id FROM acct_journal_reversals
+          WHERE legal_business_id = ? AND original_journal_id IN (?) FOR UPDATE`,
+        [businessId, ids]
+      );
+      const reversedIds = new Set(reversed.map((r) => Number(r.original_journal_id)));
+      existing = candidates.filter((c) => !reversedIds.has(Number(c.id)));
+    }
     if (existing.length > 0) {
       result.skipped.push(draft);
       continue;
