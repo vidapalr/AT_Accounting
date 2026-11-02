@@ -10,6 +10,7 @@ import { findOrCreateCustomer, customerDuesPaise } from "@/lib/customers";
 import { normalizePhone } from "@/lib/customer-phone";
 import { db } from "@/lib/db";
 import { divisionOfBranch } from "@/lib/division-context";
+import { autoReverseForEdit } from "@/lib/ledger/reverse-in-tx";
 import { requireAccess } from "@/lib/auth";
 import { nextCode } from "@/lib/codes";
 import { releaseItemsForSale } from "@/lib/approval-stock";
@@ -1079,11 +1080,21 @@ export async function updateSaleAction(
         )
       : [[] as RowDataPacket[]];
 
+    // Already in the books? Reverse the old entry first (kept in the books as reversed, nothing deleted);
+    // the invoice then posts again with the new values. If the month is closed, nothing is changed.
+    let blocked = "";
+    if (header && ["DRAFT", "POSTED"].includes(header.status) && inLedger.length > 0) {
+      const undone = await autoReverseForEdit(conn, {
+        businessId, userId: user.id, sourceType: "SALES_INVOICE", sourceId: saleId,
+        reason: `Edited: invoice ${header.invoice_no}`,
+      });
+      if (!undone.ok) blocked = undone.reason === "period-closed" ? "period-closed" : "failed";
+    }
+
     if (!header || !["DRAFT", "POSTED"].includes(header.status)) {
       result = "not-editable";
-    } else if (inLedger.length > 0) {
-      // Posted journals are permanent. Corrections go through a return.
-      result = "in-ledger";
+    } else if (blocked) {
+      result = blocked;
     } else if (
       Number(header.branch_id) !== branchId ||
       (header.status === "POSTED" &&

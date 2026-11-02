@@ -3,7 +3,8 @@
  *
  * Safety rules:
  *  - only records that have NEVER had a journal are posted; anything that was posted and then
- *    reversed or changed is left for a person to decide;
+ *    reversed or changed is left for a person to decide. The one exception: a journal the app
+ *    reversed itself because the record was edited (reason starts "Edited:") is posted again with the new values;
  *  - each record is posted on its own, so one problem record never blocks the others;
  *  - a record with any problem (closed period, missing account, no bank/cash recorded) is skipped;
  *  - the journals are marked LEDGER_AUTO_POSTED in the audit trail.
@@ -91,8 +92,11 @@ export async function autoPostPending(pool: Pool, businessId: number, opts: { fo
     if (!locked) return { enabled: true, posted: 0, skipped: 0, ran: false, busy: true };
     const built = await buildLedgerDrafts(conn, businessId);
     const [done] = await conn.execute<Row[]>(
-      `SELECT DISTINCT source_type, source_id FROM acct_journal_entries
-        WHERE legal_business_id = ? AND source_type IS NOT NULL AND status = 'POSTED'`,
+      `SELECT DISTINCT j.source_type, j.source_id FROM acct_journal_entries j
+        WHERE j.legal_business_id = ? AND j.source_type IS NOT NULL AND j.status = 'POSTED'
+          AND NOT EXISTS (SELECT 1 FROM acct_journal_reversals r
+                           WHERE r.legal_business_id = j.legal_business_id AND r.original_journal_id = j.id
+                             AND r.reversal_reason LIKE 'Edited:%')`,
       [businessId]
     );
     const everJournalled = new Set(done.map((r) => `${r.source_type}#${r.source_id}`));
