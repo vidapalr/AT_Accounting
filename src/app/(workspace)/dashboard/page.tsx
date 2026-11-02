@@ -156,7 +156,10 @@ async function DashboardContent({ searchParams }: Props) {
         <article className={`${styles.card} ${styles.kpiGood}`}>
           <p className={styles.kpiLabel}>Operating profit today</p>
           <p className={styles.kpiValue}>{inrShort(day.operating)}</p>
-          <p className={styles.kpiNote}>Gross profit {inrShort(day.gross)} less running expenses</p>
+          <p className={styles.kpiNote}>
+            Gross profit {inrShort(day.gross)} less running expenses {inrShort(day.runningExpenses)}
+            {day.damagedStock > 0n ? ` (gross is after ${inrShort(day.damagedStock)} damaged stock)` : ""}
+          </p>
         </article>
         <article className={`${styles.card} ${styles.kpiMoney}`}>
           <p className={styles.kpiLabel}>Cash and bank (business)</p>
