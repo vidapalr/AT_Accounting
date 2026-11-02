@@ -58,3 +58,31 @@ test("odd paise never drift across uneven splits", () => {
   assert.equal(cost, 100003n);
   assert.equal(proportion(10n, 1n, 3n), 3n);
 });
+
+import { allocateExact } from "../src/lib/returns-math.ts";
+
+test("allocateExact: shares always add up to the total to the paisa", () => {
+  const shares = allocateExact([10000n, 10000n, 10000n], 10000n); // 100.00 over three equal lines
+  assert.equal(shares.reduce((a, b) => a + b, 0n), 10000n);
+  assert.deepEqual(shares, [3334n, 3333n, 3333n]);
+  const odd = allocateExact([333n, 777n, 1234n, 56n], 98765n);
+  assert.equal(odd.reduce((a, b) => a + b, 0n), 98765n);
+  assert.deepEqual(allocateExact([5n, 5n], 0n), [0n, 0n]);
+  assert.deepEqual(allocateExact([0n, 0n], 100n), [0n, 0n]);
+});
+
+test("whole-bill return refunds exactly what the customer paid, whatever the rounding", () => {
+  // three lines of 33.33 sold at a 10.00 bill discount: customer paid 89.99
+  const lines = [3333n, 3333n, 3333n];
+  const grand = 8999n;
+  const shares = allocateExact(lines, grand);
+  let refunded = 0n;
+  lines.forEach((lt, i) => {
+    const v = returnLineValues(
+      { soldMilli: 1000n, unitPricePaise: lt, lineTotalPaise: lt, sumLineTotalsPaise: 9999n, grandTotalPaise: grand, totalCostPaise: 1000n, paidAllPaise: shares[i] },
+      0n, 1000n
+    );
+    refunded += v.refund;
+  });
+  assert.equal(refunded, grand);
+});

@@ -26,6 +26,27 @@ export function proportion(total: bigint, part: bigint, whole: bigint): bigint {
   return (total * part * 2n + whole) / (whole * 2n);
 }
 
+/**
+ * Spread `total` over the lines in proportion to `weights` so the shares add up to `total` to the paisa
+ * (largest remainder: lines with the biggest leftover fraction get the spare paise). Ties go to the earlier line.
+ */
+export function allocateExact(weights: bigint[], total: bigint): bigint[] {
+  const sum = weights.reduce((a, b) => a + b, 0n);
+  if (sum <= 0n || total === 0n) return weights.map(() => 0n);
+  const sign = total < 0n ? -1n : 1n;
+  const abs = total * sign;
+  const base = weights.map((w) => (abs * w) / sum);
+  const rest = weights.map((w, i) => ({ i, r: (abs * w) % sum }));
+  let left = abs - base.reduce((a, b) => a + b, 0n);
+  rest.sort((a, b) => (a.r === b.r ? a.i - b.i : a.r > b.r ? -1 : 1));
+  for (const { i } of rest) {
+    if (left <= 0n) break;
+    base[i] += 1n;
+    left -= 1n;
+  }
+  return base.map((v) => v * sign);
+}
+
 export type LineSale = {
   soldMilli: bigint;
   unitPricePaise: bigint;
@@ -36,6 +57,11 @@ export type LineSale = {
   /** invoice grand total (after every discount) */
   grandTotalPaise: bigint;
   totalCostPaise: bigint;
+  /**
+   * What the customer paid for this whole line (its share of the grand total), worked out once over all
+   * the lines with allocateExact so the shares add up to the bill exactly. When absent it is computed here.
+   */
+  paidAllPaise?: bigint;
 };
 
 export type ReturnValues = {
@@ -58,7 +84,9 @@ export function returnLineValues(
 
   const grossAll = (sale.soldMilli * sale.unitPricePaise + 500n) / 1000n;
   const paidAll =
-    sale.sumLineTotalsPaise > 0n
+    sale.paidAllPaise !== undefined
+      ? sale.paidAllPaise
+      : sale.sumLineTotalsPaise > 0n
       ? (sale.lineTotalPaise * sale.grandTotalPaise * 2n + sale.sumLineTotalsPaise) /
         (sale.sumLineTotalsPaise * 2n)
       : 0n;
