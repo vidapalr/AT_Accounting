@@ -9,6 +9,7 @@ import { getSyncStatus } from "@/lib/ledger/sync-status";
 import { retryPostingAction } from "@/lib/posting-retry-actions";
 import { getStockTieOut } from "@/lib/ledger/stock-tieout";
 import { missingMigrations } from "@/lib/migration-check";
+import { getCashTieOut } from "@/lib/reports/cash-tieout";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "14px 0" };
@@ -54,6 +55,7 @@ async function Content({ searchParams }: { searchParams: Promise<{ retry?: strin
 
   const tie = await getStockTieOut(db, businessId).catch(() => null);
   const missingFiles = await missingMigrations(db).catch(() => null);
+  const cashTie = await getCashTieOut(db, businessId).catch(() => null);
   const [divRows] = await db.execute<Row[]>(`SELECT id, name FROM acct_divisions WHERE legal_business_id = ?`, [businessId]);
   const divName = new Map(divRows.map((d) => [Number(d.id), String(d.name)]));
   const rupees = (p: bigint) => `${p < 0n ? "-" : ""}₹${(Number((p < 0n ? -p : p) / 100n)).toLocaleString("en-IN")}.${String((p < 0n ? -p : p) % 100n).padStart(2, "0")}`;
@@ -122,6 +124,35 @@ async function Content({ searchParams }: { searchParams: Promise<{ retry?: strin
             )}
           </>
         )}
+      </section>
+
+      <section style={box}>
+        <h2 style={{ marginTop: 0 }}>Cash and bank: records against the books</h2>
+        {cashTie === null ? <p>Could not check this just now.</p> : (() => {
+          const off = cashTie.filter((r) => r.difference !== 0n);
+          return (
+            <>
+              {off.length === 0
+                ? <p style={good}>Every bank and cash account shows the same money movement in the records and in the books.</p>
+                : <p style={{ color: "#b45309" }}><strong>{off.length} account(s) differ.</strong> A difference is normal while records are still waiting to be posted (see above); otherwise it needs a look.</p>}
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead><tr>{["Account", "Records (Account Balances page)", "Books (ledger)", "Difference"].map((h) => <th key={h} style={{ textAlign: "left", padding: 8, borderBottom: "1px solid #e2e8f0" }}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {cashTie.map((r) => (
+                      <tr key={r.key}>
+                        <td style={{ padding: 8 }}>{r.name}{r.why.length > 0 && <div style={{ color: "#64748b", fontSize: 12 }}>The books also have: {r.why.map((w) => `${w.label} ${rupees(w.amount)}`).join(", ")}</div>}</td>
+                        <td style={{ padding: 8 }}>{rupees(r.recordsNet)}</td>
+                        <td style={{ padding: 8 }}>{rupees(r.booksNet)}</td>
+                        <td style={{ padding: 8, color: r.difference === 0n ? "#166534" : "#b45309", fontWeight: 600 }}>{r.difference === 0n ? "Agree" : rupees(r.difference)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          );
+        })()}
       </section>
 
       <section style={box}>
