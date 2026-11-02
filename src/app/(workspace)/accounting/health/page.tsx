@@ -7,6 +7,7 @@ import { requireAccess } from "@/lib/auth";
 import { isAutoPostOn } from "@/lib/ledger/auto-post";
 import { getSyncStatus } from "@/lib/ledger/sync-status";
 import { retryPostingAction } from "@/lib/posting-retry-actions";
+import { getStockTieOut } from "@/lib/ledger/stock-tieout";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "14px 0" };
@@ -50,6 +51,14 @@ async function Content({ searchParams }: { searchParams: Promise<{ retry?: strin
     : /^posted-(\d+)-failed-(\d+)$/.test(retry ?? "") ? (() => { const m = /^posted-(\d+)-failed-(\d+)$/.exec(retry ?? "")!; return `Done: ${m[1]} posted, ${m[2]} could not be posted.`; })()
     : "";
 
+  const tie = await getStockTieOut(db, businessId).catch(() => null);
+  const [divRows] = await db.execute<Row[]>(`SELECT id, name FROM acct_divisions WHERE legal_business_id = ?`, [businessId]);
+  const divName = new Map(divRows.map((d) => [Number(d.id), String(d.name)]));
+  const rupees = (p: bigint) => `${p < 0n ? "-" : ""}₹${(Number((p < 0n ? -p : p) / 100n)).toLocaleString("en-IN")}.${String((p < 0n ? -p : p) % 100n).padStart(2, "0")}`;
+  const reasonText = { NOT_POSTED: "stock moved, not in the books yet", AMOUNT_DIFFERS: "books and stock show different amounts", BOOKS_ONLY: "in the books with no stock record (for example opening stock)" } as const;
+  const linkFor = (kind: string, id: number) =>
+    kind === "SALES_INVOICE" ? `/accounting/sales/${id}` : kind === "PURCHASE_RECEIPT" ? `/accounting/purchases/${id}` : null;
+
   const byType = new Map<string, string[]>();
   for (const d of sync.pending) byType.set(d.sourceType, [...(byType.get(d.sourceType) ?? []), d.description]);
   const review = sync.changedAfterPosting.length + sync.noLongerValid.length + sync.problems.length;
@@ -82,6 +91,35 @@ async function Content({ searchParams }: { searchParams: Promise<{ retry?: strin
             <ul>{items.slice(0, 15).map((t, i) => <li key={i}>{t}</li>)}{items.length > 15 && <li>…and {items.length - 15} more</li>}</ul>
           </details>
         ))}
+      </section>
+
+      <section style={box}>
+        <h2 style={{ marginTop: 0 }}>Stock against the books</h2>
+        {!tie ? <p style={bad}>Could not compare stock with the books just now.</p> : (
+          <>
+            <p style={{ margin: "0 0 8px" }}>
+              {tie.differencePaise === 0n && tie.differences.length === 0
+                ? <span style={good}>Stock records and the Inventory account agree: {rupees(tie.stockPaise)}.</span>
+                : <span style={bad}>Stock records {rupees(tie.stockPaise)} · Books (Inventory) {rupees(tie.booksPaise)} · Difference {rupees(tie.differencePaise)}</span>}
+            </p>
+            {tie.byDivision.length > 1 && (
+              <ul>{tie.byDivision.map((d) => (
+                <li key={d.divisionId}>{divName.get(d.divisionId) ?? `Division ${d.divisionId}`}: stock {rupees(d.stockPaise)}, books {rupees(d.booksPaise)}{d.stockPaise === d.booksPaise ? "" : <strong style={bad}> (differs by {rupees(d.booksPaise - d.stockPaise)})</strong>}</li>
+              ))}</ul>
+            )}
+            {tie.differences.length > 0 && (
+              <details open>
+                <summary><strong>{tie.differences.length} record{tie.differences.length === 1 ? "" : "s"} explain the difference</strong></summary>
+                <ul>{tie.differences.slice(0, 30).map((d) => {
+                  const href = linkFor(d.kind, d.id);
+                  const name = `${nice(d.kind)} #${d.id}`;
+                  return <li key={`${d.kind}-${d.id}`}>{href ? <Link href={href}>{name}</Link> : name}: stock {rupees(d.stockPaise)}, books {rupees(d.booksPaise)}, {reasonText[d.reason]}.</li>;
+                })}{tie.differences.length > 30 && <li>…and {tie.differences.length - 30} more</li>}</ul>
+                <p style={{ color: "#64748b" }}>Records marked "not in the books yet" fix themselves once they are posted (see Waiting to be posted).</p>
+              </details>
+            )}
+          </>
+        )}
       </section>
 
       <section style={box}>
