@@ -366,7 +366,7 @@ export async function buildLedgerDrafts(
   const returns = await select(
     conn,
     `SELECT r.id, r.return_no, DATE_FORMAT(r.return_date, '%Y-%m-%d') AS d,
-            r.division_id, r.branch_id, r.gross_value, r.refund_value,
+            r.division_id, r.branch_id, r.gross_value, r.refund_value, r.delivery_value,
             s.invoice_no,
             COALESCE(SUM(CASE WHEN l.item_condition = 'RESELLABLE' THEN l.total_cost END), 0) AS restock_cost,
             COALESCE(SUM(CASE WHEN l.item_condition = 'DAMAGED' THEN l.total_cost END), 0) AS damaged_cost
@@ -377,7 +377,7 @@ export async function buildLedgerDrafts(
        ON l.legal_business_id = r.legal_business_id AND l.return_id = r.id
      WHERE r.legal_business_id = ? AND r.status = 'POSTED'
      GROUP BY r.id, r.return_no, r.return_date, r.division_id, r.branch_id,
-              r.gross_value, r.refund_value, s.invoice_no
+              r.gross_value, r.refund_value, r.delivery_value, s.invoice_no
      ORDER BY r.return_date, r.id`,
     [businessId]
   );
@@ -394,6 +394,7 @@ export async function buildLedgerDrafts(
         dims: dims(r.division_id, r.branch_id),
         grossValue: str(r.gross_value),
         refundValue: str(r.refund_value),
+        deliveryValue: str(r.delivery_value),
         restockCost: str(r.restock_cost),
         damagedCost: str(r.damaged_cost),
       })

@@ -128,7 +128,7 @@ export async function createSalesReturnAction(formData: FormData) {
       const [sales] = await conn.execute<Row[]>(
         `SELECT id, division_id, branch_id, location_id, invoice_no, status,
                 DATE_FORMAT(invoice_date, '%Y-%m-%d') AS invoice_date,
-                grand_total
+                grand_total, shipping_charge
          FROM acct_sales_headers
          WHERE id = ? AND legal_business_id = ? FOR UPDATE`,
         [saleId, businessId]
@@ -153,14 +153,19 @@ export async function createSalesReturnAction(formData: FormData) {
         [saleId, businessId]
       );
       const sumLineTotals = lines.reduce((s, l) => s + parsePaise(String(l.line_total)), 0n);
-      const grandTotal = parsePaise(String(sale.grand_total));
-      // Each line's share of what the customer paid, exact to the paisa across the whole bill.
+      const shipping = parsePaise(String(sale.shipping_charge ?? "0"));
+      // The cashier decides: tick = the delivery charge goes back in proportion; no tick = goods only.
+      const giveBackDelivery = shipping > 0n && text("refund_delivery") === "1";
+      const grandTotal = parsePaise(String(sale.grand_total)) - shipping; // goods only; the delivery charge is handled separately
+      // Each line's share of what the customer paid for the goods, exact to the paisa across the whole bill.
       const paidShares = allocateExact(lines.map((l) => parsePaise(String(l.line_total))), grandTotal);
       const paidByLine = new Map(lines.map((l, i) => [Number(l.id), paidShares[i]]));
+      const deliveryShares = allocateExact(lines.map((l) => parsePaise(String(l.line_total))), giveBackDelivery ? shipping : 0n);
+      const deliveryByLine = new Map(lines.map((l, i) => [Number(l.id), deliveryShares[i]]));
 
       type Prepared = {
         lineId: number; variantId: number; qtyMilli: bigint;
-        gross: bigint; refund: bigint; cost: bigint; condition: string; unitCost: string;
+        gross: bigint; refund: bigint; cost: bigint; delivery: bigint; condition: string; unitCost: string;
       };
       const prepared: Prepared[] = [];
 
@@ -182,6 +187,7 @@ export async function createSalesReturnAction(formData: FormData) {
             lineTotalPaise: parsePaise(String(line.line_total)),
             sumLineTotalsPaise: sumLineTotals,
             paidAllPaise: paidByLine.get(Number(line.id)),
+            deliveryAllPaise: deliveryByLine.get(Number(line.id)),
             grandTotalPaise: grandTotal,
             totalCostPaise: parsePaise(String(line.total_cost)),
           },
@@ -196,7 +202,8 @@ export async function createSalesReturnAction(formData: FormData) {
       if (prepared.length === 0) throw new UserError("Enter a quantity for at least one line.");
 
       const grossTotal = prepared.reduce((s, p) => s + p.gross, 0n);
-      const refundTotal = prepared.reduce((s, p) => s + p.refund, 0n);
+      const deliveryTotal = prepared.reduce((s, p) => s + p.delivery, 0n);
+      const refundTotal = prepared.reduce((s, p) => s + p.refund, 0n) + deliveryTotal;
 
       // Number the return from the invoice number: AB_AT_AT_SA_05 -> AB_AT_AT_RT_nn
       const prefix = String(sale.invoice_no).replace(/_SA_\d+$/, "_RT");
@@ -218,11 +225,11 @@ export async function createSalesReturnAction(formData: FormData) {
       const [header] = await conn.execute<ResultSetHeader>(
         `INSERT INTO acct_sales_returns
            (legal_business_id, division_id, branch_id, location_id, sale_id, return_no,
-            return_date, reason, remarks, gross_value, refund_value, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            return_date, reason, remarks, gross_value, refund_value, created_by, delivery_value)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           businessId, sale.division_id, sale.branch_id, sale.location_id, saleId, returnNo,
-          date, reason, remarks || null, money(grossTotal), money(refundTotal), user.id,
+          date, reason, remarks || null, money(grossTotal), money(refundTotal), user.id, money(deliveryTotal),
         ]
       );
       const returnId = header.insertId;
@@ -322,7 +329,7 @@ export async function editSalesReturnAction(formData: FormData) {
       if (!credit) throw new UserError("That return was not found.");
 
       const [rets] = await conn.execute<Row[]>(
-        `SELECT r.id, r.return_no, r.sale_id, r.division_id, r.location_id, s.invoice_no, s.grand_total,
+        `SELECT r.id, r.return_no, r.sale_id, r.division_id, r.location_id, s.invoice_no, s.grand_total, s.shipping_charge,
                 DATE_FORMAT(s.invoice_date, '%Y-%m-%d') AS invoice_date
            FROM acct_sales_returns r JOIN acct_sales_headers s ON s.id = r.sale_id AND s.legal_business_id = r.legal_business_id
           WHERE r.id = ? AND r.legal_business_id = ? AND r.status = 'POSTED' FOR UPDATE`,
@@ -350,11 +357,15 @@ export async function editSalesReturnAction(formData: FormData) {
         [returnId, ret.sale_id, businessId]
       );
       const sumLineTotals = lines.reduce((sum, l) => sum + parsePaise(String(l.line_total)), 0n);
-      const grandTotal = parsePaise(String(ret.grand_total));
+      const shipping = parsePaise(String(ret.shipping_charge ?? "0"));
+      const giveBackDelivery = shipping > 0n && text("refund_delivery") === "1";
+      const grandTotal = parsePaise(String(ret.grand_total)) - shipping;
       const paidShares = allocateExact(lines.map((l) => parsePaise(String(l.line_total))), grandTotal);
       const paidByLine = new Map(lines.map((l, i) => [Number(l.id), paidShares[i]]));
+      const deliveryShares = allocateExact(lines.map((l) => parsePaise(String(l.line_total))), giveBackDelivery ? shipping : 0n);
+      const deliveryByLine = new Map(lines.map((l, i) => [Number(l.id), deliveryShares[i]]));
 
-      type Prepared = { lineId: number; variantId: number; qtyMilli: bigint; gross: bigint; refund: bigint; cost: bigint; condition: string; unitCost: string };
+      type Prepared = { lineId: number; variantId: number; qtyMilli: bigint; gross: bigint; refund: bigint; cost: bigint; delivery: bigint; condition: string; unitCost: string };
       const prepared: Prepared[] = [];
       for (const line of lines) {
         const raw = text(`qty_${line.id}`);
@@ -370,6 +381,7 @@ export async function editSalesReturnAction(formData: FormData) {
             lineTotalPaise: parsePaise(String(line.line_total)),
             sumLineTotalsPaise: sumLineTotals,
             paidAllPaise: paidByLine.get(Number(line.id)),
+            deliveryAllPaise: deliveryByLine.get(Number(line.id)),
             grandTotalPaise: grandTotal,
             totalCostPaise: parsePaise(String(line.total_cost)),
           },
@@ -381,7 +393,8 @@ export async function editSalesReturnAction(formData: FormData) {
       if (prepared.length === 0) throw new UserError("Enter a quantity for at least one line. To cancel the whole return, set it to a small correction instead; returns are never deleted.");
 
       const grossTotal = prepared.reduce((sum, p) => sum + p.gross, 0n);
-      const refundTotal = prepared.reduce((sum, p) => sum + p.refund, 0n);
+      const deliveryTotal = prepared.reduce((sum, p) => sum + p.delivery, 0n);
+      const refundTotal = prepared.reduce((sum, p) => sum + p.refund, 0n) + deliveryTotal;
       const alreadyGiven = credit.refundedPaise + credit.exchangedPaise;
       if (refundTotal < alreadyGiven) {
         throw new UserError(`The customer already got ₹${money(alreadyGiven)} back or used it on a new bill, so the credit cannot go below that.`);
@@ -427,9 +440,9 @@ export async function editSalesReturnAction(formData: FormData) {
         );
       }
       await conn.execute(
-        `UPDATE acct_sales_returns SET return_date = ?, reason = ?, remarks = ?, gross_value = ?, refund_value = ?
+        `UPDATE acct_sales_returns SET return_date = ?, reason = ?, remarks = ?, gross_value = ?, refund_value = ?, delivery_value = ?
           WHERE id = ? AND legal_business_id = ?`,
-        [date, reason, remarks || null, money(grossTotal), money(refundTotal), returnId, businessId]
+        [date, reason, remarks || null, money(grossTotal), money(refundTotal), money(deliveryTotal), returnId, businessId]
       );
       await conn.execute(`DELETE FROM acct_sales_return_lines WHERE return_id = ? AND legal_business_id = ?`, [returnId, businessId]);
       for (const p of prepared) {

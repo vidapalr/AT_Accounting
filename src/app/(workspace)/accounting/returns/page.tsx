@@ -61,7 +61,7 @@ async function ReturnsContent({ searchParams }: Props) {
   let lines: Row[] = [];
   if (Number.isInteger(saleId) && saleId > 0) {
     const [saleRows] = await db.execute<Row[]>(
-      `SELECT id, invoice_no, DATE_FORMAT(invoice_date, '%Y-%m-%d') AS d, customer_name, grand_total
+      `SELECT id, invoice_no, DATE_FORMAT(invoice_date, '%Y-%m-%d') AS d, customer_name, grand_total, shipping_charge
        FROM acct_sales_headers WHERE id = ? AND legal_business_id = ? AND status = 'POSTED'${scopeNone.sql}`,
       [saleId, businessId, ...scopeNone.params]
     );
@@ -102,7 +102,7 @@ async function ReturnsContent({ searchParams }: Props) {
   const editId = Number(query.edit);
   if (Number.isInteger(editId) && editId > 0) {
     const [er] = await db.execute<Row[]>(
-      `SELECT r.id, r.return_no, r.sale_id, DATE_FORMAT(r.return_date, '%Y-%m-%d') AS d, r.reason, r.remarks, s.invoice_no
+      `SELECT r.id, r.return_no, r.sale_id, DATE_FORMAT(r.return_date, '%Y-%m-%d') AS d, r.reason, r.remarks, s.invoice_no, s.shipping_charge, r.delivery_value
          FROM acct_sales_returns r JOIN acct_sales_headers s ON s.id = r.sale_id
         WHERE r.id = ? AND r.legal_business_id = ? AND r.status = 'POSTED'${scopeR.sql}`,
       [editId, businessId, ...scopeR.params]
@@ -250,6 +250,12 @@ async function ReturnsContent({ searchParams }: Props) {
               </label>
               <label>Notes<br /><input name="remarks" maxLength={500} size={30} defaultValue={editing.remarks ? String(editing.remarks) : ""} /></label>
             </p>
+            {Number(editing.shipping_charge) > 0 && (
+              <p><label>
+                <input type="checkbox" name="refund_delivery" value="1" defaultChecked={Number(editing.delivery_value) > 0} />{" "}
+                Also give back the delivery charge (₹{inr(editing.shipping_charge)} on this bill, in proportion to the pieces returned)
+              </label></p>
+            )}
             <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer", fontSize: 16, padding: "10px 18px" }}>Save changes to this return</button>{" "}
             <a className="btn-link" href="/accounting/returns">Cancel</a>
           </form>
@@ -319,6 +325,9 @@ async function ReturnsContent({ searchParams }: Props) {
               </label>
               <label>Notes<br /><input name="remarks" maxLength={500} size={30} /></label>
             </p>
+            {Number(sale.shipping_charge) > 0 && (
+              <p><label><input type="checkbox" name="refund_delivery" value="1" /> Also give back the delivery charge (₹{inr(sale.shipping_charge)} on this bill, in proportion to the pieces returned)</label></p>
+            )}
             <p style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "end" }}>
               <label>Refund<br />
                 <select name="refund_now" defaultValue="NONE">
