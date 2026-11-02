@@ -7,6 +7,7 @@ import DivisionSwitcher from "@/components/DivisionSwitcher";
 import { getActiveDivisionId, listDivisions } from "@/lib/division-context";
 import MobileMenu from "@/components/MobileMenu";
 import BrandLogo from "@/components/BrandLogo";
+import { financialYearLabel } from "@/lib/financial-year";
 import styles from "./workspace.module.css";
 
 export default function WorkspaceLayout({
@@ -58,7 +59,7 @@ async function WorkspaceContent({
         <header className={styles.topbar}>
           <div>
             <strong>Abhiram Group Accounting</strong>
-            <small>Financial Year 2026–27</small>
+            <small>Financial Year {financialYearLabel(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }))}</small>
           </div>
 
           <div className={styles.userArea}>

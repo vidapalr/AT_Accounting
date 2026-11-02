@@ -31,6 +31,7 @@ export const ACCOUNT = {
   ACCRUED_EXPENSES: "2200",
   PROPRIETOR_CAPITAL: "3000",
   INVESTOR_CAPITAL: "3200",
+  LOANS_PAYABLE: "2120",
   INVESTOR_PROFIT_SHARE: "3250",
   INVESTOR_RETURN_COST: "6120",
   SALES: "4000",
@@ -347,13 +348,16 @@ export function cashTakenEntry(a: {
  */
 export function fundingReceiptEntry(a: {
   id: number; txNo: string; kind: "RECEIVED" | "REPAID" | "RETURN_SHARE" | "RETURN_COST"; date: string; amount: string; agreementNo: string; dims: Dimensions; settlement: Settlement;
+  /** Money on a Loan agreement is owed back (Loans Payable), not investor capital. */
+  loan?: boolean;
 }): JournalDraft {
   const amount = parseMoney(a.amount);
+  const principal = a.loan ? ACCOUNT.LOANS_PAYABLE : ACCOUNT.INVESTOR_CAPITAL;
   const words = { RECEIVED: "Investor money received", REPAID: "Investor principal paid back", RETURN_SHARE: "Investor profit share paid", RETURN_COST: "Investor return paid (cost)" };
   const memo = `${words[a.kind]} ${a.txNo} (${a.agreementNo})`;
   const account = settlementAccount(a.settlement);
-  if (a.kind === "RECEIVED") return makeDraft("FUNDING_RECEIPT", a.id, a.date, memo, [debit(account, amount, a.dims, memo), credit(ACCOUNT.INVESTOR_CAPITAL, amount, a.dims, memo)]);
-  const from = a.kind === "REPAID" ? ACCOUNT.INVESTOR_CAPITAL : a.kind === "RETURN_SHARE" ? ACCOUNT.INVESTOR_PROFIT_SHARE : ACCOUNT.INVESTOR_RETURN_COST;
+  if (a.kind === "RECEIVED") return makeDraft("FUNDING_RECEIPT", a.id, a.date, memo, [debit(account, amount, a.dims, memo), credit(principal, amount, a.dims, memo)]);
+  const from = a.kind === "REPAID" ? principal : a.kind === "RETURN_SHARE" ? ACCOUNT.INVESTOR_PROFIT_SHARE : ACCOUNT.INVESTOR_RETURN_COST;
   return makeDraft("FUNDING_RECEIPT", a.id, a.date, memo, [debit(from, amount, a.dims, memo), credit(account, amount, a.dims, memo)]);
 }
 
