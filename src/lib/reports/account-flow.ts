@@ -1,0 +1,361 @@
+import "server-only";
+import type { Pool, RowDataPacket } from "mysql2/promise";
+
+import { expenseAccountKey, expensePaymentPaise } from "@/lib/expense-money-flow";
+
+type BankRow = RowDataPacket & {
+  id: number;
+  bank_name: string;
+  account_label: string;
+  account_number_last4: string;
+  ownership_type: "BUSINESS" | "INVESTOR";
+  status: string;
+};
+
+type CashRow = RowDataPacket & {
+  id: number;
+  cash_name: string;
+  cash_code: string;
+};
+
+type SalePaymentRow = RowDataPacket & {
+  id: number;
+  invoice_no: string;
+  payment_date: string;
+  payment_method: string;
+  amount: string;
+  bank_account_id: number | null;
+  cash_account_id: number | null;
+};
+
+type PurchasePaymentRow = RowDataPacket & {
+  id: number;
+  purchase_id: number;
+  supplier_invoice_no: string | null;
+  payment_date: string;
+  payment_method: string;
+  payment_source: string;
+  amount: string;
+  source_bank_account_id: number | null;
+  source_cash_account_id: number | null;
+};
+
+type ExpensePaymentRow = RowDataPacket & {
+  id: number;
+  expense_no: string;
+  payment_date: string;
+  payment_method: string;
+  payment_source: string;
+  amount: string;
+  bank_account_id: number | null;
+  cash_account_id: number | null;
+};
+
+export type Account = {
+  key: string;
+  name: string;
+  category: "GROUP_BANK" | "INVESTOR_BANK" | "CASH" | "UNALLOCATED" | "EXTERNAL";
+};
+
+export type Movement = {
+  key: string;
+  accountKey: string;
+  date: string;
+  reference: string;
+  purpose: string;
+  method: string;
+  credit: bigint;
+  debit: bigint;
+};
+
+function toPaise(value: string | number): bigint {
+  const text = String(value);
+  if (!/^\d+(\.\d{1,2})?$/.test(text)) {
+    throw new Error(`Invalid amount: ${text}`);
+  }
+
+  const [whole, fraction = ""] = text.split(".");
+  return BigInt(whole) * 100n +
+    BigInt(fraction.padEnd(2, "0"));
+}
+
+export type AccountSummary = Account & { credited: bigint; debited: bigint; net: bigint; count: number };
+
+/**
+ * Money in and out of every bank and cash account, worked out from the records themselves
+ * (sales collections, supplier and expense payments, advances, assets). Used by the Account Balances page and
+ * by the check that compares these records with the books.
+ */
+export async function loadAccountFlow(db: Pool, businessId: number) {
+  // Include inactive accounts so historical transactions
+  // remain visible.
+  const [banks] = await db.execute<BankRow[]>(
+    `SELECT
+       id,
+       bank_name,
+       account_label,
+       account_number_last4,
+       ownership_type,
+       status
+     FROM acct_bank_accounts
+     WHERE legal_business_id = ?
+     ORDER BY ownership_type, bank_name, id`,
+    [businessId]
+  );
+
+  const [cashAccounts] = await db.execute<CashRow[]>(
+    `SELECT id, cash_name, cash_code
+     FROM acct_cash_accounts
+     WHERE legal_business_id = ?
+     ORDER BY cash_name, id`,
+    [businessId]
+  );
+
+  const [salePayments] =
+    await db.execute<SalePaymentRow[]>(
+      `SELECT
+         sp.id,
+         sh.invoice_no,
+         DATE_FORMAT(
+           sp.payment_date, '%Y-%m-%d'
+         ) AS payment_date,
+         sp.payment_method,
+         sp.amount,
+         sp.bank_account_id,
+         sp.cash_account_id
+       FROM acct_sales_payments sp
+       JOIN acct_sales_headers sh
+         ON sh.legal_business_id = sp.legal_business_id
+        AND sh.division_id = sp.division_id
+        AND sh.id = sp.sale_id
+       WHERE sp.legal_business_id = ?
+         AND sp.status = 'RECORDED'
+         AND sp.payment_method NOT IN ('SET_OFF', 'EXCHANGE')
+         AND sh.status = 'POSTED'
+       ORDER BY sp.payment_date, sp.id`,
+      [businessId]
+    );
+
+  const [purchasePayments] =
+    await db.execute<PurchasePaymentRow[]>(
+      `SELECT
+         pp.id,
+         pp.purchase_id,
+         ph.supplier_invoice_no,
+         DATE_FORMAT(
+           pp.payment_date, '%Y-%m-%d'
+         ) AS payment_date,
+         pp.payment_method,
+         pp.payment_source,
+         pp.amount,
+         pp.source_bank_account_id,
+         pp.source_cash_account_id
+       FROM acct_purchase_payments pp
+       JOIN acct_purchase_headers ph
+         ON ph.legal_business_id = pp.legal_business_id
+        AND ph.id = pp.purchase_id
+       WHERE pp.legal_business_id = ?
+         AND pp.status = 'VERIFIED'
+         AND pp.payment_method <> 'SET_OFF'
+       ORDER BY pp.payment_date, pp.id`,
+      [businessId]
+    );
+
+  const [expensePayments] = await db.execute<ExpensePaymentRow[]>(
+    `SELECT ep.id, e.expense_no,
+       DATE_FORMAT(ep.payment_date, '%Y-%m-%d') AS payment_date,
+       ep.payment_method, ep.payment_source, ep.amount,
+       ep.bank_account_id, ep.cash_account_id
+     FROM acct_expense_payments ep
+     JOIN acct_expenses e
+       ON e.legal_business_id = ep.legal_business_id
+      AND e.id = ep.expense_id
+      AND e.division_id <=> ep.division_id
+     WHERE ep.legal_business_id = ?
+       AND ep.status = 'RECORDED'
+       AND ep.payment_method <> 'ADVANCE'
+       AND e.status = 'CONFIRMED'
+     ORDER BY ep.payment_date, ep.id`,
+    [businessId]
+  );
+
+  // Staff advances and fixed assets are paid from business bank or cash accounts too.
+  type OtherMove = RowDataPacket & { id: number; ref: string; d: string; method: string; amount: string; bank_id: number | null; cash_id: number | null; purpose: string; incoming: number };
+  const [otherMoves] = await db.execute<OtherMove[]>(
+    `SELECT id, advance_no AS ref, DATE_FORMAT(given_on, '%Y-%m-%d') AS d, payment_method AS method, amount,
+            bank_account_id AS bank_id, cash_account_id AS cash_id, 'Staff advance' AS purpose, 0 AS incoming, 'ADV' AS k
+       FROM acct_staff_advances WHERE legal_business_id = ?
+     UNION ALL
+     SELECT id, asset_no, DATE_FORMAT(purchase_date, '%Y-%m-%d'), IF(paid_from = 'CASH', 'CASH', 'BANK_TRANSFER'), cost,
+            bank_account_id, cash_account_id, 'Fixed asset bought', 0, 'FA'
+       FROM acct_fixed_assets WHERE legal_business_id = ? AND paid_from <> 'EARLIER'
+     UNION ALL
+     SELECT id, asset_no, DATE_FORMAT(disposed_on, '%Y-%m-%d'), IF(proceeds_cash_account_id IS NOT NULL, 'CASH', 'BANK_TRANSFER'), proceeds,
+            proceeds_bank_account_id, proceeds_cash_account_id, 'Fixed asset sold', 1, 'FAS'
+       FROM acct_fixed_assets WHERE legal_business_id = ? AND status = 'DISPOSED' AND proceeds > 0`,
+    [businessId, businessId, businessId]
+  );
+
+  const accounts: Account[] = [
+    ...banks.map(bank => ({
+      key: `BANK:${bank.id}`,
+      name: `${bank.bank_name} — ${bank.account_label} ••••${bank.account_number_last4}`,
+      category: bank.ownership_type === "INVESTOR"
+        ? "INVESTOR_BANK" as const
+        : "GROUP_BANK" as const,
+    })),
+    ...cashAccounts.map(cash => ({
+      key: `CASH:${cash.id}`,
+      name: `${cash.cash_name} (${cash.cash_code})`,
+      category: "CASH" as const,
+    })),
+    {
+      key: "EXTERNAL",
+      name: "Expenses paid personally by owner / investor cash",
+      category: "EXTERNAL",
+    },
+    {
+      key: "UNALLOCATED",
+      name: "Unallocated Transactions",
+      category: "UNALLOCATED",
+    },
+  ];
+
+  const validAccounts = new Set(accounts.map(a => a.key));
+  const movements: Movement[] = [];
+
+  function addMovement(
+    movement: Movement
+  ) {
+    // Unknown or missing account IDs must never be
+    // assigned to another account by assumption.
+    movements.push({
+      ...movement,
+      accountKey: validAccounts.has(movement.accountKey)
+        ? movement.accountKey
+        : "UNALLOCATED",
+    });
+  }
+
+  for (const p of salePayments) {
+    const bankId = p.bank_account_id === null
+      ? null : Number(p.bank_account_id);
+    const cashId = p.cash_account_id === null
+      ? null : Number(p.cash_account_id);
+
+    const accountKey =
+      bankId !== null && cashId === null
+        ? `BANK:${bankId}`
+        : cashId !== null && bankId === null
+          ? `CASH:${cashId}`
+          : "UNALLOCATED";
+
+    addMovement({
+      key: `SALE:${p.id}`,
+      accountKey,
+      date: p.payment_date,
+      reference: p.invoice_no,
+      purpose: "Sales collection",
+      method: p.payment_method,
+      credit: toPaise(p.amount),
+      debit: 0n,
+    });
+  }
+
+  for (const p of purchasePayments) {
+    let accountKey = "UNALLOCATED";
+
+    if (
+      ["BUSINESS_BANK", "INVESTOR_BANK"].includes(
+        p.payment_source
+      ) &&
+      p.source_bank_account_id !== null &&
+      p.source_cash_account_id === null
+    ) {
+      accountKey = `BANK:${p.source_bank_account_id}`;
+    } else if (
+      ["BUSINESS_CASH", "INVESTOR_CASH"].includes(
+        p.payment_source
+      ) &&
+      p.source_cash_account_id !== null &&
+      p.source_bank_account_id === null
+    ) {
+      accountKey = `CASH:${p.source_cash_account_id}`;
+    }
+
+    addMovement({
+      key: `PURCHASE:${p.id}`,
+      accountKey,
+      date: p.payment_date,
+      reference:
+        p.supplier_invoice_no ||
+        `Purchase #${p.purchase_id}`,
+      purpose: "Supplier payment",
+      method: p.payment_method,
+      credit: 0n,
+      debit: toPaise(p.amount),
+    });
+  }
+
+  const bankOwnership = new Map(banks.map(bank => [Number(bank.id), bank.ownership_type]));
+  const cashAccountIds = new Set(cashAccounts.map(cash => Number(cash.id)));
+  for (const payment of expensePayments) {
+    addMovement({
+      key: `EXPENSE:${payment.id}`,
+      accountKey: expenseAccountKey(payment, bankOwnership, cashAccountIds),
+      date: payment.payment_date,
+      reference: payment.expense_no,
+      purpose: "Expense payment",
+      method: payment.payment_method,
+      credit: 0n,
+      debit: expensePaymentPaise(payment.amount),
+    });
+  }
+
+  for (const m of otherMoves) {
+    const accountKey = m.bank_id !== null ? `BANK:${m.bank_id}` : m.cash_id !== null ? `CASH:${m.cash_id}` : "UNALLOCATED";
+    const cents = expensePaymentPaise(m.amount);
+    addMovement({
+      key: `${(m as unknown as { k: string }).k}:${m.id}`,
+      accountKey,
+      date: m.d,
+      reference: m.ref,
+      purpose: m.purpose,
+      method: m.method,
+      credit: m.incoming ? cents : 0n,
+      debit: m.incoming ? 0n : cents,
+    });
+  }
+
+  movements.sort(
+    (a, b) =>
+      a.date.localeCompare(b.date) ||
+      a.key.localeCompare(b.key)
+  );
+
+  const accountSummaries: AccountSummary[] = accounts.map(account => {
+    const entries = movements.filter(
+      m => m.accountKey === account.key
+    );
+
+    const credited = entries.reduce(
+      (sum, m) => sum + m.credit,
+      0n
+    );
+
+    const debited = entries.reduce(
+      (sum, m) => sum + m.debit,
+      0n
+    );
+
+    return {
+      ...account,
+      credited,
+      debited,
+      net: credited - debited,
+      count: entries.length,
+    };
+  });
+
+  return { banks, cashAccounts, accounts, movements, accountSummaries };
+}
