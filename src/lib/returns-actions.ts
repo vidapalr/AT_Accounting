@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { applyStockDamage, UserError } from "@/lib/stock-damage";
 import {
+  allocateExact,
   parsePaise,
   parseQtyMilli,
   returnLineValues,
@@ -153,6 +154,9 @@ export async function createSalesReturnAction(formData: FormData) {
       );
       const sumLineTotals = lines.reduce((s, l) => s + parsePaise(String(l.line_total)), 0n);
       const grandTotal = parsePaise(String(sale.grand_total));
+      // Each line's share of what the customer paid, exact to the paisa across the whole bill.
+      const paidShares = allocateExact(lines.map((l) => parsePaise(String(l.line_total))), grandTotal);
+      const paidByLine = new Map(lines.map((l, i) => [Number(l.id), paidShares[i]]));
 
       type Prepared = {
         lineId: number; variantId: number; qtyMilli: bigint;
@@ -177,6 +181,7 @@ export async function createSalesReturnAction(formData: FormData) {
             unitPricePaise: parsePaise(String(line.unit_price)),
             lineTotalPaise: parsePaise(String(line.line_total)),
             sumLineTotalsPaise: sumLineTotals,
+            paidAllPaise: paidByLine.get(Number(line.id)),
             grandTotalPaise: grandTotal,
             totalCostPaise: parsePaise(String(line.total_cost)),
           },
@@ -346,6 +351,8 @@ export async function editSalesReturnAction(formData: FormData) {
       );
       const sumLineTotals = lines.reduce((sum, l) => sum + parsePaise(String(l.line_total)), 0n);
       const grandTotal = parsePaise(String(ret.grand_total));
+      const paidShares = allocateExact(lines.map((l) => parsePaise(String(l.line_total))), grandTotal);
+      const paidByLine = new Map(lines.map((l, i) => [Number(l.id), paidShares[i]]));
 
       type Prepared = { lineId: number; variantId: number; qtyMilli: bigint; gross: bigint; refund: bigint; cost: bigint; condition: string; unitCost: string };
       const prepared: Prepared[] = [];
@@ -362,6 +369,7 @@ export async function editSalesReturnAction(formData: FormData) {
             unitPricePaise: parsePaise(String(line.unit_price)),
             lineTotalPaise: parsePaise(String(line.line_total)),
             sumLineTotalsPaise: sumLineTotals,
+            paidAllPaise: paidByLine.get(Number(line.id)),
             grandTotalPaise: grandTotal,
             totalCostPaise: parsePaise(String(line.total_cost)),
           },
