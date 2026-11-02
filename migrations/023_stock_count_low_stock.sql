@@ -4,9 +4,9 @@
 --   acct_stock_count_lines   each item counted: what the books said, what was counted
 --   acct_product_variants.low_stock_level   the minimum you want to keep of an item
 --
--- Run once. If phpMyAdmin says the column low_stock_level already exists, that part is done.
+-- Safe to run twice.
 
-ALTER TABLE acct_product_variants ADD COLUMN low_stock_level DECIMAL(14,3) NULL;
+ALTER TABLE acct_product_variants ADD COLUMN IF NOT EXISTS low_stock_level DECIMAL(14,3) NULL;
 
 CREATE TABLE IF NOT EXISTS acct_stock_counts (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
