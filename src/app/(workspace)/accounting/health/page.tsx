@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { isAutoPostOn } from "@/lib/ledger/auto-post";
 import { getSyncStatus } from "@/lib/ledger/sync-status";
+import { retryPostingAction } from "@/lib/posting-retry-actions";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "14px 0" };
@@ -16,7 +17,8 @@ const WORDS: Record<string, string> = {
 };
 const nice = (t: string) => WORDS[t] ?? t.toLowerCase().replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
-async function Content() {
+async function Content({ searchParams }: { searchParams: Promise<{ retry?: string }> }) {
+  const { retry } = await searchParams;
   const user = await requireAccess("reports");
   const businessId = user.legal_business_id;
 
@@ -35,6 +37,18 @@ async function Content() {
   const [trig] = await db.query<Row[]>(
     `SELECT COUNT(*) AS n FROM information_schema.triggers WHERE trigger_schema = DATABASE() AND event_object_table LIKE 'acct\\_%'`
   ).catch(() => [[] as Row[]]);
+
+  const [failures] = await db.execute<Row[]>(
+    `SELECT source_type, source_id, reason, attempts,
+            DATE_FORMAT(CONVERT_TZ(last_failed_at, '+00:00', '+05:30'), '%d %b %Y, %H:%i') AS at
+       FROM acct_posting_failures
+      WHERE legal_business_id = ? AND resolved_at IS NULL
+      ORDER BY last_failed_at DESC LIMIT 50`, [businessId]
+  ).catch(() => [[] as Row[]]);
+  const retryText = retry === "busy" ? "Posting is already running. Wait a minute and look again."
+    : retry === "error" ? "Could not run. Nothing was changed."
+    : /^posted-(\d+)-failed-(\d+)$/.test(retry ?? "") ? (() => { const m = /^posted-(\d+)-failed-(\d+)$/.exec(retry ?? "")!; return `Done: ${m[1]} posted, ${m[2]} could not be posted.`; })()
+    : "";
 
   const byType = new Map<string, string[]>();
   for (const d of sync.pending) byType.set(d.sourceType, [...(byType.get(d.sourceType) ?? []), d.description]);
@@ -71,6 +85,26 @@ async function Content() {
       </section>
 
       <section style={box}>
+        <h2 style={{ marginTop: 0 }}>Could not be posted</h2>
+        {retryText && <p><strong>{retryText}</strong></p>}
+        {failures.length === 0 ? <p style={good}>Nothing has failed to post.</p> : (
+          <ul style={bad}>
+            {failures.map((f) => (
+              <li key={`${f.source_type}-${f.source_id}`}>
+                {nice(String(f.source_type))} #{String(f.source_id)}: {String(f.reason)} (tried {String(f.attempts)} time{Number(f.attempts) === 1 ? "" : "s"}, last {String(f.at)})
+              </li>
+            ))}
+          </ul>
+        )}
+        {user.role === "GROUP_OWNER" && (
+          <form action={retryPostingAction}>
+            <button type="submit" style={{ padding: "10px 16px", fontSize: 15 }}>Try posting again now</button>
+            <span style={{ color: "#64748b", marginLeft: 10 }}>Fix the reason first (for example open the month), then press this.</span>
+          </form>
+        )}
+      </section>
+
+      <section style={box}>
         <h2 style={{ marginTop: 0 }}>Skipped or needing review, and why</h2>
         {review === 0 ? <p style={good}>Nothing needs review.</p> : (
           <ul style={bad}>
@@ -103,6 +137,6 @@ async function Content() {
   );
 }
 
-export default function HealthPage() {
-  return <Suspense fallback={<p>Loading…</p>}><Content /></Suspense>;
+export default function HealthPage({ searchParams }: { searchParams: Promise<{ retry?: string }> }) {
+  return <Suspense fallback={<p>Loading…</p>}><Content searchParams={searchParams} /></Suspense>;
 }
