@@ -7,6 +7,7 @@ import QuickSupplierSelect from "@/components/accounting/quick-supplier-select";
 import {
   createPurchaseDraftAction,
   updatePurchaseDraftAction,
+  editReceivedPurchaseAction,
 } from "@/lib/purchase-actions";
 
 import styles from "./purchases.module.css";
@@ -40,6 +41,8 @@ export type PurchaseDraft = {
   invoice_date: string;
   location_id: number;
   remarks: string | null;
+  /** Goods already received: saving reverses the old entry and posts again. */
+  received?: boolean;
   lines: Array<{
     variant_id: number;
     quantity: string;
@@ -78,7 +81,7 @@ export default function PurchaseDraftForm({
     <form
       action={
         draft
-          ? updatePurchaseDraftAction
+          ? (draft.received ? editReceivedPurchaseAction : updatePurchaseDraftAction)
           : createPurchaseDraftAction
       }
       className={styles.purchaseForm}
@@ -302,7 +305,7 @@ export default function PurchaseDraftForm({
           }
           className={styles.primaryButton}
         >
-          {draft ? "Update Purchase Draft" : "Save Purchase Draft"}
+          {draft ? (draft.received ? "Save changes to this purchase" : "Update Purchase Draft") : "Save Purchase Draft"}
         </button>
 
         {draft && (

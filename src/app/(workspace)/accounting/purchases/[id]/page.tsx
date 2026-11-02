@@ -57,6 +57,7 @@ const cell: React.CSSProperties = {
 
 const messages: Record<string, string> = {
   posted: "Goods receipt posted successfully. Warehouse stock updated.",
+  edited: "Purchase changed. The old entry was reversed and the new one will be posted.",
   invalid: "Select a valid received date and confirm receipt.",
   "not-found": "Purchase was not found.",
   "not-draft": "Only draft purchases can be posted.",
@@ -176,6 +177,14 @@ async function PurchaseDetailContent({
 
       <p>
         Status: <strong>{purchase.status}</strong>
+        {purchase.status === "POSTED" && (
+          <>
+            {" "}
+            <Link className="btn-link" href={`/accounting/purchases?edit=${purchase.id}#purchase-entry`}>
+              Edit this purchase
+            </Link>
+          </>
+        )}
       </p>
 
       {query.result && (

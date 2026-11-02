@@ -60,6 +60,7 @@ interface EditHeader extends RowDataPacket {
   invoice_date: string;
   location_id: number;
   remarks: string | null;
+  status: string;
 }
 
 interface EditLine extends RowDataPacket {
@@ -79,8 +80,14 @@ const messages: Record<string, string> = {
     "One or more SKUs are inactive or have invalid quantities.",
   "duplicate-invoice":
     "This supplier invoice number is already recorded.",
-  "not-editable":
-    "Only draft purchases can be edited. Posted purchases are read-only.",
+  "not-editable": "This purchase cannot be edited.",
+  "supplier-locked": "The supplier and the receiving place cannot be changed on a purchase whose goods are already received.",
+  "date-after-receipt": "The bill date cannot be after the date the goods were received.",
+  "has-return": "Goods from this purchase were already returned to the supplier, so it cannot be edited. Cancel that return first.",
+  "payments-exceed": "The new total is less than what has already been paid to the supplier for this purchase.",
+  "stock-sold": "Some of these goods are already sold or moved, so the quantity cannot go down that far.",
+  "period-closed": "That month is already closed, so this purchase cannot be edited.",
+  edited: "Purchase changed. The old entry was reversed and the new one will be posted.",
   failed: "Unable to save purchase. Check the server logs.",
 };
 
@@ -223,12 +230,13 @@ async function PurchaseContent({ searchParams }: Props) {
            DATE_FORMAT(invoice_date, '%Y-%m-%d')
              AS invoice_date,
            receiving_location_id AS location_id,
-           remarks
+           remarks,
+           status
          FROM acct_purchase_headers
          WHERE id = ?
            AND legal_business_id = ?
            AND division_id = ?
-           AND status = 'DRAFT'
+           AND status IN ('DRAFT', 'POSTED')
          LIMIT 1`,
         [editId, businessId, DIVISION_ID]
       );
@@ -262,6 +270,7 @@ async function PurchaseContent({ searchParams }: Props) {
           invoice_date: editHeader.invoice_date,
           location_id: Number(editHeader.location_id),
           remarks: editHeader.remarks,
+          received: editHeader.status === "POSTED",
           lines: editLines.map((line) => ({
             variant_id: Number(line.variant_id),
             quantity: line.quantity,
@@ -321,8 +330,7 @@ async function PurchaseContent({ searchParams }: Props) {
 
       {editUnavailable && (
         <p role="alert" className={styles.status}>
-          This purchase cannot be edited. Only draft
-          purchases can be changed.
+          This purchase cannot be edited.
         </p>
       )}
 
@@ -349,7 +357,7 @@ async function PurchaseContent({ searchParams }: Props) {
       <section id="purchase-entry" className={styles.card}>
         <h2>
           {editDraft
-            ? `Edit Purchase Draft — ${editDraft.purchase_no}`
+            ? `${editDraft.received ? "Edit Purchase" : "Edit Purchase Draft"} — ${editDraft.purchase_no}`
             : "Create Purchase Draft"}
         </h2>
         <PurchaseDraftForm
@@ -436,6 +444,17 @@ async function PurchaseContent({ searchParams }: Props) {
                     </span>
                   </td>
                   <td>
+                    {purchase.status === "POSTED" && (
+                      <>
+                        <Link
+                          href={`/accounting/purchases?edit=${purchase.id}#purchase-entry`}
+                          className={styles.actionLink}
+                        >
+                          Edit
+                        </Link>
+                        {" "}
+                      </>
+                    )}
                     {purchase.status === "DRAFT" ? (
                       <Link
                         href={`/accounting/purchases?edit=${purchase.id}#purchase-entry`}
