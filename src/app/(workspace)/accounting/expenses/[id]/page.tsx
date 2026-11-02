@@ -9,6 +9,8 @@ import { requireAccess } from "@/lib/auth";
 import {
   recordExpensePaymentAction,
 } from "@/lib/expense-payment-actions";
+import { openVoucherAction } from "@/lib/voucher-actions";
+import { voucherTypeFor } from "@/lib/voucher-math";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -142,6 +144,11 @@ async function Content({ params, searchParams }: Props) {
       </p>
       <p>{e.description}</p>
       <p>Record status: <strong>{e.status}</strong></p>
+      {e.status !== "DRAFT" && (
+        <p>
+          <Link className="btn-link" href={`/accounting/expenses/${expenseId}/print`}>Print expense record</Link>
+        </p>
+      )}
 
       <h2>
         Expense ₹{money(e.amount)} · Paid ₹{money(paid)}
@@ -272,6 +279,7 @@ async function Content({ params, searchParams }: Props) {
               <th>Account</th>
               <th>Amount</th>
               <th>Status</th>
+              <th>Paper</th>
             </tr>
           </thead>
           <tbody>
@@ -283,6 +291,15 @@ async function Content({ params, searchParams }: Props) {
                 <td>{p.account_name}</td>
                 <td>₹{money(p.amount)}</td>
                 <td>{p.status}</td>
+                <td>
+                  {p.status === "RECORDED" && voucherTypeFor(String(p.payment_source), String(p.payment_method)) ? (
+                    <form action={openVoucherAction}>
+                      <input type="hidden" name="expense_id" value={expenseId} />
+                      <input type="hidden" name="payment_id" value={p.id} />
+                      <button type="submit">Voucher</button>
+                    </form>
+                  ) : p.payment_method === "ADVANCE" ? "Taken off advance" : ""}
+                </td>
               </tr>
             ))}
           </tbody>
