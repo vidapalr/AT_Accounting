@@ -35,6 +35,7 @@ export function booksKind(sourceType: string): string {
     case "PURCHASE":
     case "PURCHASE_EDIT": return "PURCHASE_RECEIPT";
     case "SALES_INVOICE_EDIT": return "SALES_INVOICE";
+    case "SALES_RETURN_EDIT": return "SALES_RETURN";
     case "STOCK_DAMAGE_CANCEL": return "STOCK_DAMAGE";
     default: return sourceType;
   }

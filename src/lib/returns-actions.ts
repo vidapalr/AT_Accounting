@@ -1,6 +1,7 @@
 "use server";
 
 import { lockReturnCredit } from "@/lib/return-credit";
+import { autoReverseForEdit } from "@/lib/ledger/reverse-in-tx";
 import { canUseDivision, locationInScope } from "@/lib/scope";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -280,6 +281,190 @@ export async function createSalesReturnAction(formData: FormData) {
   revalidatePath(PAGE);
   if (successId === 0) fail(message);
   if (isExchange) redirect(`/accounting/sales?from_exchange=${successId}`);
+  redirect(`${PAGE}?saved=${encodeURIComponent(message)}`);
+}
+
+/**
+ * Edit a return that is already recorded (like QuickBooks): quantities, condition, date, reason and notes.
+ * The old journal entry is reversed automatically, stock is corrected with new stock records (history stays),
+ * and the return posts again with the new values. Refused when the new credit would be less than what the
+ * customer already got back or used on a new bill, or when the pieces can no longer come off the shelf.
+ */
+export async function editSalesReturnAction(formData: FormData) {
+  const user = await requireAccess("returns");
+  const businessId = user.legal_business_id;
+  const text = (name: string) => String(formData.get(name) ?? "").trim();
+
+  const returnId = Number(text("return_id"));
+  const date = text("return_date");
+  const reason = text("reason");
+  const remarks = text("remarks").slice(0, 500);
+  const here = `${PAGE}?edit=${Number.isInteger(returnId) ? returnId : ""}`;
+  const stop = (message: string): never => redirect(`${here}&error=${encodeURIComponent(message.slice(0, 200))}`);
+
+  if (!Number.isInteger(returnId) || returnId <= 0) fail("That return was not found.");
+  if (!validDate(date)) stop("Enter a valid return date.");
+  if (!["DEFECTIVE", "WRONG_SIZE", "CUSTOMER_CHANGED_MIND", "OTHER"].includes(reason)) stop("Choose a reason.");
+
+  let message = "";
+  let ok = false;
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    try {
+      await conn.execute(`SELECT id FROM acct_legal_businesses WHERE id = ? FOR UPDATE`, [businessId]);
+      const credit = await lockReturnCredit(conn, businessId, returnId);
+      if (!credit) throw new UserError("That return was not found.");
+
+      const [rets] = await conn.execute<Row[]>(
+        `SELECT r.id, r.return_no, r.sale_id, r.division_id, r.location_id, s.invoice_no, s.grand_total,
+                DATE_FORMAT(s.invoice_date, '%Y-%m-%d') AS invoice_date
+           FROM acct_sales_returns r JOIN acct_sales_headers s ON s.id = r.sale_id AND s.legal_business_id = r.legal_business_id
+          WHERE r.id = ? AND r.legal_business_id = ? AND r.status = 'POSTED' FOR UPDATE`,
+        [returnId, businessId]
+      );
+      const ret = rets[0];
+      if (!ret || !canUseDivision(user, Number(ret.division_id))) throw new UserError("That return was not found.");
+      if (date < String(ret.invoice_date)) throw new UserError("A return cannot be dated before the invoice.");
+      if (date > new Date().toISOString().slice(0, 10)) throw new UserError("A return cannot be dated in the future.");
+
+      const [oldLines] = await conn.execute<Row[]>(
+        `SELECT id, sale_line_id, variant_id, quantity, unit_cost, total_cost, item_condition
+           FROM acct_sales_return_lines WHERE return_id = ? AND legal_business_id = ? ORDER BY id FOR UPDATE`,
+        [returnId, businessId]
+      );
+      const [lines] = await conn.execute<Row[]>(
+        `SELECT l.id, l.variant_id, l.quantity, l.unit_price, l.line_total, l.unit_cost, l.total_cost,
+                COALESCE((
+                  SELECT SUM(rl.quantity) FROM acct_sales_return_lines rl
+                  JOIN acct_sales_returns r2 ON r2.id = rl.return_id
+                  WHERE rl.sale_line_id = l.id AND r2.status = 'POSTED' AND r2.id <> ?
+                    AND rl.legal_business_id = l.legal_business_id
+                ), 0) AS returned
+           FROM acct_sales_lines l WHERE l.sale_id = ? AND l.legal_business_id = ? ORDER BY l.id`,
+        [returnId, ret.sale_id, businessId]
+      );
+      const sumLineTotals = lines.reduce((sum, l) => sum + parsePaise(String(l.line_total)), 0n);
+      const grandTotal = parsePaise(String(ret.grand_total));
+
+      type Prepared = { lineId: number; variantId: number; qtyMilli: bigint; gross: bigint; refund: bigint; cost: bigint; condition: string; unitCost: string };
+      const prepared: Prepared[] = [];
+      for (const line of lines) {
+        const raw = text(`qty_${line.id}`);
+        if (raw === "" || Number(raw) === 0) continue;
+        const qtyMilli = parseQtyMilli(raw);
+        const condition = text(`condition_${line.id}`);
+        if (condition !== "RESELLABLE" && condition !== "DAMAGED") throw new UserError("Say whether each returned piece is resellable or damaged.");
+        if (line.unit_cost === null || line.total_cost === null) throw new UserError("A line on this invoice has no recorded cost, so it cannot be returned here.");
+        const values = returnLineValues(
+          {
+            soldMilli: parseQtyMilli(String(line.quantity)),
+            unitPricePaise: parsePaise(String(line.unit_price)),
+            lineTotalPaise: parsePaise(String(line.line_total)),
+            sumLineTotalsPaise: sumLineTotals,
+            grandTotalPaise: grandTotal,
+            totalCostPaise: parsePaise(String(line.total_cost)),
+          },
+          parseQtyMilli(String(line.returned)),
+          qtyMilli
+        );
+        prepared.push({ lineId: Number(line.id), variantId: Number(line.variant_id), qtyMilli, ...values, condition, unitCost: String(line.unit_cost) });
+      }
+      if (prepared.length === 0) throw new UserError("Enter a quantity for at least one line. To cancel the whole return, set it to a small correction instead; returns are never deleted.");
+
+      const grossTotal = prepared.reduce((sum, p) => sum + p.gross, 0n);
+      const refundTotal = prepared.reduce((sum, p) => sum + p.refund, 0n);
+      const alreadyGiven = credit.refundedPaise + credit.exchangedPaise;
+      if (refundTotal < alreadyGiven) {
+        throw new UserError(`The customer already got ₹${money(alreadyGiven)} back or used it on a new bill, so the credit cannot go below that.`);
+      }
+
+      // Pieces that came back to the shelf must still be there to take off again.
+      const oldBack = new Map<number, bigint>();
+      for (const l of oldLines) {
+        if (l.item_condition === "RESELLABLE") oldBack.set(Number(l.variant_id), (oldBack.get(Number(l.variant_id)) ?? 0n) + parseQtyMilli(String(l.quantity)));
+      }
+      const newBack = new Map<number, bigint>();
+      for (const p of prepared) if (p.condition === "RESELLABLE") newBack.set(p.variantId, (newBack.get(p.variantId) ?? 0n) + p.qtyMilli);
+      for (const variantId of new Set([...oldBack.keys(), ...newBack.keys()])) {
+        const [onHand] = await conn.execute<Row[]>(
+          `SELECT CAST(COALESCE(SUM(quantity_change), 0) AS CHAR) AS qty FROM acct_stock_movements
+            WHERE legal_business_id = ? AND division_id = ? AND location_id = ? AND variant_id = ? FOR UPDATE`,
+          [businessId, ret.division_id, ret.location_id, variantId]
+        );
+        const t = String(onHand[0].qty);
+        const now = t.startsWith("-") ? -parseQtyMilli(t.slice(1)) : parseQtyMilli(t);
+        if (now - (oldBack.get(variantId) ?? 0n) + (newBack.get(variantId) ?? 0n) < 0n) {
+          throw new UserError("Some of the returned pieces are already sold again, so the quantity cannot go down that far.");
+        }
+      }
+
+      const undone = await autoReverseForEdit(conn, {
+        businessId, userId: user.id, sourceType: "SALES_RETURN", sourceId: returnId,
+        reason: `Edited: return ${ret.return_no}`,
+      });
+      if (!undone.ok) {
+        throw new UserError(undone.reason === "period-closed" ? "That month is already closed, so this return cannot be edited." : "Could not save the change. Nothing was changed.");
+      }
+
+      for (const l of oldLines) {
+        if (l.item_condition !== "RESELLABLE") continue;
+        await conn.execute(
+          `INSERT INTO acct_stock_movements
+             (legal_business_id, division_id, location_id, variant_id, movement_date, movement_type,
+              source_type, source_id, source_line_id, quantity_change, unit_cost, total_cost, remarks, created_by)
+           VALUES (?, ?, ?, ?, ?, 'ADJUSTMENT_OUT', 'SALES_RETURN_EDIT', ?, ?, ?, ?, ?, ?, ?)`,
+          [businessId, ret.division_id, ret.location_id, l.variant_id, date, returnId, l.id,
+           "-" + String(l.quantity), l.unit_cost, l.total_cost, `Return ${ret.return_no} edited: old quantity taken out`, user.id]
+        );
+      }
+      await conn.execute(
+        `UPDATE acct_sales_returns SET return_date = ?, reason = ?, remarks = ?, gross_value = ?, refund_value = ?
+          WHERE id = ? AND legal_business_id = ?`,
+        [date, reason, remarks || null, money(grossTotal), money(refundTotal), returnId, businessId]
+      );
+      await conn.execute(`DELETE FROM acct_sales_return_lines WHERE return_id = ? AND legal_business_id = ?`, [returnId, businessId]);
+      for (const p of prepared) {
+        const [ins] = await conn.execute<ResultSetHeader>(
+          `INSERT INTO acct_sales_return_lines
+             (legal_business_id, return_id, sale_line_id, variant_id, quantity, gross_value, refund_value, unit_cost, total_cost, item_condition)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [businessId, returnId, p.lineId, p.variantId, qtyText(p.qtyMilli), money(p.gross), money(p.refund), p.unitCost, money(p.cost), p.condition]
+        );
+        if (p.condition === "RESELLABLE") {
+          await conn.execute(
+            `INSERT INTO acct_stock_movements
+               (legal_business_id, division_id, location_id, variant_id, movement_date, movement_type,
+                source_type, source_id, source_line_id, quantity_change, unit_cost, total_cost, remarks, created_by)
+             VALUES (?, ?, ?, ?, ?, 'SALES_RETURN', 'SALES_RETURN_EDIT', ?, ?, ?, ?, ?, ?, ?)`,
+            [businessId, ret.division_id, ret.location_id, p.variantId, date, returnId, ins.insertId,
+             qtyText(p.qtyMilli), p.unitCost, money(p.cost), `Return ${ret.return_no} edited: new quantity`, user.id]
+          );
+        }
+      }
+      await conn.execute(
+        `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
+         VALUES (?, ?, 'SALES_RETURN_EDITED', 'SALES_RETURN', ?, ?)`,
+        [businessId, user.id, returnId, JSON.stringify({
+          returnNo: ret.return_no, invoiceNo: ret.invoice_no, credit_before: money(credit.refundValuePaise), credit_after: money(refundTotal),
+        })]
+      );
+      await conn.commit();
+      ok = true;
+      message = `Return ${ret.return_no} changed. Customer credit is now ₹${money(refundTotal)}.`;
+    } catch (error) {
+      await conn.rollback();
+      message = error instanceof UserError || (error instanceof Error && /Cannot return|Invalid|must be above/.test(error.message))
+        ? (error as Error).message
+        : "Could not save the change. Nothing was changed.";
+    }
+  } finally {
+    conn.release();
+  }
+
+  revalidatePath(PAGE);
+  revalidatePath("/accounting/stock");
+  if (!ok) stop(message);
   redirect(`${PAGE}?saved=${encodeURIComponent(message)}`);
 }
 

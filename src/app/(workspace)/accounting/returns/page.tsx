@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import {
   createSalesReturnAction,
+  editSalesReturnAction,
   recordRefundAction,
   recordStockDamageAction,
 } from "@/lib/returns-actions";
@@ -14,7 +15,7 @@ import { cancelWriteOffAction } from "@/lib/write-off-cancel-actions";
 import ConfirmButton from "@/components/ConfirmButton";
 
 type Props = {
-  searchParams: Promise<{ sale?: string; saved?: string; error?: string }>;
+  searchParams: Promise<{ sale?: string; saved?: string; error?: string; edit?: string }>;
 };
 
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -94,6 +95,36 @@ async function ReturnsContent({ searchParams }: Props) {
     [businessId, ...scopeR.params]
   );
 
+  // Editing a return that is already recorded.
+  let editing: Row | undefined;
+  let editLines: Row[] = [];
+  const editId = Number(query.edit);
+  if (Number.isInteger(editId) && editId > 0) {
+    const [er] = await db.execute<Row[]>(
+      `SELECT r.id, r.return_no, r.sale_id, DATE_FORMAT(r.return_date, '%Y-%m-%d') AS d, r.reason, r.remarks, s.invoice_no
+         FROM acct_sales_returns r JOIN acct_sales_headers s ON s.id = r.sale_id
+        WHERE r.id = ? AND r.legal_business_id = ? AND r.status = 'POSTED'${scopeR.sql}`,
+      [editId, businessId, ...scopeR.params]
+    );
+    editing = er[0];
+    if (editing) {
+      const [el] = await db.execute<Row[]>(
+        `SELECT l.id, l.quantity, l.unit_price, v.sku, p.product_name,
+                COALESCE((SELECT SUM(rl.quantity) FROM acct_sales_return_lines rl
+                          JOIN acct_sales_returns r2 ON r2.id = rl.return_id
+                          WHERE rl.sale_line_id = l.id AND r2.status = 'POSTED' AND r2.id <> ?), 0) AS returned_others,
+                (SELECT rl2.quantity FROM acct_sales_return_lines rl2 WHERE rl2.return_id = ? AND rl2.sale_line_id = l.id) AS mine,
+                (SELECT rl3.item_condition FROM acct_sales_return_lines rl3 WHERE rl3.return_id = ? AND rl3.sale_line_id = l.id) AS cond
+           FROM acct_sales_lines l
+           JOIN acct_product_variants v ON v.id = l.variant_id
+           JOIN acct_products p ON p.id = v.product_id
+          WHERE l.sale_id = ? AND l.legal_business_id = ? ORDER BY l.id`,
+        [editId, editId, editId, editing.sale_id, businessId]
+      );
+      editLines = el;
+    }
+  }
+
   const [locations] = await db.execute<Row[]>(
     `SELECT id, location_name FROM acct_inventory_locations
      WHERE legal_business_id = ? AND status = 'ACTIVE'${scopeNone.sql} ORDER BY location_name`,
@@ -142,6 +173,55 @@ async function ReturnsContent({ searchParams }: Props) {
       <h1>Returns, Refunds and Damaged Stock</h1>
       {query.saved && <p style={{ color: "#166534" }}>{query.saved.slice(0, 300)}</p>}
       {query.error && <p style={{ color: "#b91c1c" }}>{query.error.slice(0, 300)}</p>}
+
+      {editing && (
+        <section style={{ ...box, borderColor: "#93c5fd" }}>
+          <h2>Edit return {String(editing.return_no)} (invoice {String(editing.invoice_no)})</h2>
+          <p style={{ color: "#64748b" }}>
+            Change the quantities, condition, date or reason. The old entry in the books is reversed automatically and the new one is posted.
+            The credit cannot go below what the customer already got back or used on a new bill.
+          </p>
+          <form action={editSalesReturnAction}>
+            <input type="hidden" name="return_id" value={String(editing.id)} />
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>{["Product", "Sold", "Returned in other returns", "Price", "Return qty", "Condition"].map((h) => <th key={h} style={cell}>{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {editLines.map((l) => (
+                  <tr key={l.id}>
+                    <td style={cell}>{l.product_name} <small>({l.sku})</small></td>
+                    <td style={cell}>{String(l.quantity)}</td>
+                    <td style={cell}>{String(l.returned_others)}</td>
+                    <td style={cell}>{inr(l.unit_price)}</td>
+                    <td style={cell}><input name={`qty_${l.id}`} inputMode="decimal" size={6} placeholder="0" defaultValue={l.mine !== null ? String(Number(l.mine)) : ""} /></td>
+                    <td style={cell}>
+                      <select name={`condition_${l.id}`} defaultValue={l.cond ? String(l.cond) : "RESELLABLE"}>
+                        <option value="RESELLABLE">Resellable</option>
+                        <option value="DAMAGED">Damaged</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "end" }}>
+              <label>Date<br /><input type="date" name="return_date" defaultValue={String(editing.d)} required /></label>
+              <label>Reason<br />
+                <select name="reason" required defaultValue={String(editing.reason)}>
+                  <option value="DEFECTIVE">Defective</option>
+                  <option value="WRONG_SIZE">Wrong size</option>
+                  <option value="CUSTOMER_CHANGED_MIND">Customer changed mind</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </label>
+              <label>Notes<br /><input name="remarks" maxLength={500} size={30} defaultValue={editing.remarks ? String(editing.remarks) : ""} /></label>
+            </p>
+            <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer", fontSize: 16, padding: "10px 18px" }}>Save changes to this return</button>{" "}
+            <a className="btn-link" href="/accounting/returns">Cancel</a>
+          </form>
+        </section>
+      )}
 
       <section style={box}>
         <h2>1. Customer return</h2>
@@ -231,7 +311,7 @@ async function ReturnsContent({ searchParams }: Props) {
         <h2>Returns and refunds owed</h2>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr>{["Return", "Date", "Invoice", "Reason", "Credit", "Refunded", "Still owed", "Pay refund"].map((h) => (
+            <tr>{["Return", "Date", "Invoice", "Reason", "Credit", "Refunded", "Still owed", "Pay refund", ""].map((h) => (
               <th key={h} style={cell}>{h}</th>
             ))}</tr>
           </thead>
@@ -264,10 +344,11 @@ async function ReturnsContent({ searchParams }: Props) {
                       </form>
                     </>) : "Settled"}
                   </td>
+                  <td style={cell}><a className="btn-link btn-link-small" href={`/accounting/returns?edit=${r.id}`}>Edit</a></td>
                 </tr>
               );
             })}
-            {returns.length === 0 && <tr><td style={cell} colSpan={8}>No returns yet.</td></tr>}
+            {returns.length === 0 && <tr><td style={cell} colSpan={9}>No returns yet.</td></tr>}
           </tbody>
         </table>
       </section>
