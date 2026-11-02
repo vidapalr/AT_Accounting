@@ -50,6 +50,7 @@ export const MIGRATION_MARKERS: Marker[] = [
   { file: "049_social_posts", table: "acct_instagram_posts", column: "channel" },
   { file: "050_exchange_index", table: "acct_sales_payments", index: "idx_sales_payments_exchange_return" },
   { file: "051_posting_failures", table: "acct_posting_failures" },
+  { file: "052_stock_movement_key", table: "acct_stock_movements", index: "uq_stock_source_line_v2" },
 ];
 
 /** The files from the list above that are not in the live database yet. */
