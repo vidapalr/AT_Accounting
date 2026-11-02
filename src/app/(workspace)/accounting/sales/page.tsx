@@ -49,8 +49,8 @@ const messages: Record<string, string> = {
   "reload-form": "This page was open too long to save safely. Refresh the page and enter the bill again.",
   "invalid-edit": "The invoice edit details are invalid.",
   "not-editable": "Only draft or posted invoices can be edited.",
-  "in-ledger":
-    "This invoice is already in the ledger and can no longer be edited. Use Returns, Refunds and Damaged Stock to correct it.",
+  "period-closed":
+    "That month is already closed, so this invoice cannot be edited. Use Returns, Refunds and Damaged Stock to correct it.",
   "insufficient-stock":
     "The corrected quantities exceed available branch stock.",
   "valuation-invalid":
