@@ -189,8 +189,11 @@ async function SupplierReturnsContent({ searchParams }: Props) {
                   {Object.entries(REASONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
               </label>
-              <label>Value the supplier agrees (₹)<br />
+              <label>Credit the supplier gives, in total (₹)<br />
                 <input name="agreed_value" inputMode="decimal" placeholder="Leave empty for full cost" style={{ ...field, width: 220 }} />
+              </label>
+              <label style={{ maxWidth: 260 }}>
+                <input type="checkbox" name="accept_loss" value="1" /> The supplier is crediting less than the cost (the difference is my loss)
               </label>
               <label>Supplier&rsquo;s credit note number (if he gave one)<br />
                 <input name="supplier_note_no" maxLength={100} style={{ ...field, width: 220 }} />

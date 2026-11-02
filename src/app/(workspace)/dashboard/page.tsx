@@ -101,7 +101,7 @@ async function DashboardContent({ searchParams }: Props) {
   const setup = expenses.filter((e) => e.setup);
   const f = period_;
   const discountsOnly = f.discounts - f.returns;
-  const costOnly = f.costOfGoods - f.damagedStock;
+  const costOnly = f.costOfGoods - f.damagedStock - f.supplierReturnLoss;
 
   const [orderRows] = await db
     .execute<RowDataPacket[]>(`SELECT COUNT(*) AS n FROM acct_online_orders WHERE legal_business_id = ? AND status = 'REQUESTED'`, [businessId])
@@ -188,6 +188,9 @@ async function DashboardContent({ searchParams }: Props) {
             <li className={`${styles.result}`}><span>Net sales</span>{money(netSales(f))}</li>
             <li className={styles.minus}><span>Cost of the goods sold</span>{money(costOnly)}</li>
             <li className={styles.minus}><span>Damaged and lost stock</span>{money(f.damagedStock)}</li>
+            {f.supplierReturnLoss > 0n && (
+              <li className={styles.minus}><span>Loss on goods returned to suppliers</span>{money(f.supplierReturnLoss)}</li>
+            )}
             <li className={styles.result}>
               <span>Gross profit ({percent(f.gross, netSales(f))})</span>{money(f.gross)}
             </li>

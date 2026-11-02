@@ -6,7 +6,7 @@ import type { PoolConnection } from "mysql2/promise";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { requireAccess } from "@/lib/auth";
+import { requireAccess, requireGroupOwner } from "@/lib/auth";
 import { nextCode } from "@/lib/codes";
 import { UserError } from "@/lib/stock-damage";
 import { parsePaise, parseQtyMilli } from "@/lib/returns-math";
@@ -149,6 +149,13 @@ export async function createSupplierReturnAction(formData: FormData) {
       const agreed = agreedText === "" ? costValue : parsePaise(agreedText);
       if (agreed > costValue) {
         throw new UserError(`The supplier cannot credit more than the goods cost (₹${money(costValue)}).`);
+      }
+      // Goods that go back for full credit are neither profit nor loss. A lower credit is a loss, so it must be a deliberate choice.
+      if (agreed < costValue && text("accept_loss") !== "1") {
+        throw new UserError(
+          `The credit you typed (₹${money(agreed)}) is less than the goods cost (₹${money(costValue)}), so ₹${money(costValue - agreed)} would be written off as a loss. ` +
+          `If the supplier is crediting the full cost, leave that box empty. If he really credits less, tick "The supplier is crediting less" and save again.`
+        );
       }
 
       const returnNo = await nextCode(conn, {
@@ -377,4 +384,81 @@ export async function linkReplacementAction(formData: FormData) {
   }
   revalidatePath(back);
   go(back, ok ? "saved" : "error", message);
+}
+
+/**
+ * Owner only. Corrects the credit amount of a debit note (for example a typing mistake).
+ * Posted journals are never edited: if this return is already in the books, the owner is taken to its
+ * journal to reverse it, and it is then posted again with the corrected amount.
+ */
+export async function correctSupplierCreditAction(formData: FormData) {
+  const user = await requireGroupOwner();
+  const businessId = user.legal_business_id;
+  const returnId = Number(String(formData.get("return_id") ?? ""));
+  const raw = String(formData.get("agreed_value") ?? "").trim();
+  const here = `${PAGE}/${Number.isInteger(returnId) ? returnId : ""}`;
+  if (!Number.isInteger(returnId) || returnId <= 0) go(PAGE, "error", "That debit note was not found.");
+
+  let journalId = 0;
+  let message = "";
+  let ok = false;
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    try {
+      const [rows] = await conn.execute<Row[]>(
+        `SELECT id, return_no, ROUND(cost_value * 100) AS cost_paise, ROUND(agreed_value * 100) AS agreed_paise
+           FROM acct_supplier_returns WHERE id = ? AND legal_business_id = ? AND status = 'POSTED' FOR UPDATE`,
+        [returnId, businessId]
+      );
+      const ret = rows[0];
+      if (!ret) throw new UserError("That debit note was not found.");
+      const cost = BigInt(String(ret.cost_paise));
+      const before = BigInt(String(ret.agreed_paise));
+      const agreed = raw === "" ? cost : parsePaise(raw);
+      if (agreed > cost) throw new UserError(`The credit cannot be more than the goods cost (₹${money(cost)}).`);
+      if (agreed === before) throw new UserError("That is already the credit on this debit note.");
+
+      const [refunded] = await conn.execute<Row[]>(
+        `SELECT COALESCE(SUM(ROUND(amount * 100)), 0) AS paise FROM acct_supplier_refunds
+          WHERE return_id = ? AND status = 'RECORDED' FOR UPDATE`,
+        [returnId]
+      );
+      if (agreed < BigInt(String(refunded[0].paise))) {
+        throw new UserError("The supplier has already paid back more than that. Cancel that refund first.");
+      }
+
+      await conn.execute(`UPDATE acct_supplier_returns SET agreed_value = ? WHERE id = ? AND legal_business_id = ?`, [money(agreed), returnId, businessId]);
+      await conn.execute(
+        `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
+         VALUES (?, ?, 'SUPPLIER_CREDIT_CORRECTED', 'SUPPLIER_RETURN', ?, ?)`,
+        [businessId, user.id, returnId, JSON.stringify({ returnNo: ret.return_no, from: money(before), to: money(agreed) })]
+      );
+
+      // Is it in the books now? Then the old entry has to be reversed first.
+      const [posted] = await conn.execute<Row[]>(
+        `SELECT j.id FROM acct_journal_entries j
+          WHERE j.legal_business_id = ? AND j.source_type = 'SUPPLIER_RETURN' AND j.source_id = ? AND j.status = 'POSTED'
+            AND NOT EXISTS (SELECT 1 FROM acct_journal_reversals r WHERE r.legal_business_id = j.legal_business_id AND r.original_journal_id = j.id)
+          ORDER BY j.id DESC LIMIT 1`,
+        [businessId, returnId]
+      );
+      journalId = posted[0] ? Number(posted[0].id) : 0;
+      await conn.commit();
+      ok = true;
+      message = journalId
+        ? `Credit corrected to ₹${money(agreed)}. It is already in the books at the old amount: reverse this entry below, and it will be posted again correctly.`
+        : `Credit corrected to ₹${money(agreed)}.`;
+    } catch (error) {
+      await conn.rollback();
+      message = friendly(error, "Could not save. Nothing was changed.");
+    }
+  } finally {
+    conn.release();
+  }
+  revalidatePath(PAGE);
+  revalidatePath(here);
+  if (!ok) go(here, "error", message);
+  if (journalId) redirect(`/accounting/journals/${journalId}?note=${encodeURIComponent(message.slice(0, 220))}`);
+  go(here, "saved", message);
 }
