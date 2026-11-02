@@ -595,12 +595,16 @@ export function salesReturnEntry(ret: {
   date: string;
   dims: Dimensions;
   grossValue: string;
+  /** Everything owed to the customer for this return, including any delivery charge handed back. */
   refundValue: string;
+  /** The part of refundValue that is the delivery charge (0 when it is not given back). */
+  deliveryValue?: string;
   restockCost: string;
   damagedCost: string;
 }): JournalDraft {
   const gross = parseMoney(ret.grossValue);
-  const refund = parseMoney(ret.refundValue);
+  const delivery = parseMoney(ret.deliveryValue ?? "0");
+  const refund = parseMoney(ret.refundValue) - delivery;
   const restock = parseMoney(ret.restockCost);
   const damaged = parseMoney(ret.damagedCost);
   const memo = `Return ${ret.returnNo} against invoice ${ret.invoiceNo}`;
@@ -611,8 +615,9 @@ export function salesReturnEntry(ret: {
 
   return makeDraft("SALES_RETURN", ret.id, ret.date, memo, [
     debit(ACCOUNT.SALES_RETURNS, gross, ret.dims, memo),
+    debit(ACCOUNT.DELIVERY_INCOME, delivery, ret.dims, `${memo} delivery`),
     credit(ACCOUNT.SALES_DISCOUNTS, gross - refund, ret.dims, memo),
-    credit(ACCOUNT.RECEIVABLES, refund, ret.dims, memo),
+    credit(ACCOUNT.RECEIVABLES, refund + delivery, ret.dims, memo),
     debit(ACCOUNT.INVENTORY, restock, ret.dims, memo),
     debit(ACCOUNT.DAMAGED_STOCK, damaged, ret.dims, memo),
     credit(ACCOUNT.COGS, restock + damaged, ret.dims, memo),

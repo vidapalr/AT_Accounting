@@ -86,3 +86,15 @@ test("whole-bill return refunds exactly what the customer paid, whatever the rou
   });
   assert.equal(refunded, grand);
 });
+
+test("delivery charge: handed back in proportion only when chosen, never inside the goods refund", () => {
+  const base = { soldMilli: 2000n, unitPricePaise: 50000n, lineTotalPaise: 100000n, sumLineTotalsPaise: 100000n, grandTotalPaise: 100000n, totalCostPaise: 60000n, paidAllPaise: 100000n };
+  const off = returnLineValues(base, 0n, 1000n);
+  assert.equal(off.delivery, 0n);
+  assert.equal(off.refund, 50000n);
+  const on = returnLineValues({ ...base, deliveryAllPaise: 45000n }, 0n, 1000n);
+  assert.equal(on.delivery, 22500n);   // half the delivery for one of two pieces
+  assert.equal(on.refund, 50000n);     // goods refund unchanged
+  const rest = returnLineValues({ ...base, deliveryAllPaise: 45000n }, 1000n, 1000n);
+  assert.equal(on.delivery + rest.delivery, 45000n);
+});

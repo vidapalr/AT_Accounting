@@ -62,6 +62,8 @@ export type LineSale = {
    * the lines with allocateExact so the shares add up to the bill exactly. When absent it is computed here.
    */
   paidAllPaise?: bigint;
+  /** This line's share of the delivery charge, when the cashier chose to give the delivery charge back. */
+  deliveryAllPaise?: bigint;
 };
 
 export type ReturnValues = {
@@ -71,6 +73,8 @@ export type ReturnValues = {
   refund: bigint;
   /** cost of these pieces when they were sold */
   cost: bigint;
+  /** the delivery charge handed back for these pieces (0 unless chosen); NOT inside `refund` */
+  delivery: bigint;
 };
 
 export function returnLineValues(
@@ -98,5 +102,10 @@ export function returnLineValues(
   const refund = upTo(paidAll, after) - upTo(paidAll, alreadyReturnedMilli);
   const cost = upTo(sale.totalCostPaise, after) - upTo(sale.totalCostPaise, alreadyReturnedMilli);
 
-  return { gross, refund: refund > gross ? gross : refund, cost };
+  const delivery =
+    sale.deliveryAllPaise && sale.deliveryAllPaise > 0n
+      ? upTo(sale.deliveryAllPaise, after) - upTo(sale.deliveryAllPaise, alreadyReturnedMilli)
+      : 0n;
+
+  return { gross, refund: refund > gross ? gross : refund, cost, delivery };
 }
