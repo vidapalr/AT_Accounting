@@ -53,6 +53,8 @@ async function LoginContent({
           <div className={styles.error} role="alert">
             {params.error === "1"
               ? "Invalid email or password."
+              : params.error === "3"
+              ? "Too many wrong passwords. Please wait 15 minutes and try again."
               : "Unable to sign in. Please try again."}
           </div>
         )}
