@@ -3,6 +3,7 @@ import {
   verifyCredentials,
   createSession,
 } from "@/lib/auth";
+import { tooManyAttempts, recordWrongPassword, tidyAfterLogin } from "@/lib/login-guard";
 
 export async function POST(request: NextRequest) {
   const publicOrigin =
@@ -33,15 +34,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(loginUrl, 303);
   }
 
+  const cleanEmail = email.trim().toLowerCase();
+  const ip = (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim().slice(0, 64);
+
   try {
+    if (await tooManyAttempts(cleanEmail, ip)) {
+      loginUrl.searchParams.set("error", "3");
+      return NextResponse.redirect(loginUrl, 303);
+    }
+
     const user = await verifyCredentials(email, password);
 
     if (!user) {
+      await recordWrongPassword(cleanEmail, ip);
       loginUrl.searchParams.set("error", "1");
       return NextResponse.redirect(loginUrl, 303);
     }
 
     await createSession(user.id);
+    await tidyAfterLogin(cleanEmail);
 
     return NextResponse.redirect(
       new URL("/dashboard", publicOrigin),
