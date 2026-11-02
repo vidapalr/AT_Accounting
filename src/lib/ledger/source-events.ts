@@ -624,7 +624,7 @@ export async function buildLedgerDrafts(
   // ------------------------------------ investor money received / paid back
   const fundingSql = (treatment: string) =>
     `SELECT t.id, t.transaction_no, t.transaction_type, t.bank_account_id, t.cash_account_id, t.amount, ${treatment} AS return_treatment,
-            DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS d, a.agreement_no, a.division_id, a.branch_id
+            DATE_FORMAT(t.transaction_date, '%Y-%m-%d') AS d, a.agreement_no, a.funding_type, a.division_id, a.branch_id
      FROM acct_funding_transactions t
      JOIN acct_funding_agreements a ON a.legal_business_id = t.legal_business_id AND a.id = t.agreement_id
      WHERE t.legal_business_id = ? AND t.status = 'VERIFIED' ORDER BY t.transaction_date, t.id`;
@@ -640,7 +640,7 @@ export async function buildLedgerDrafts(
       if (!settlement) return null;
       return fundingReceiptEntry({
         id: Number(f.id), txNo: str(f.transaction_no), kind: type === "PRINCIPAL_REPAID" ? "REPAID" : type === "RETURN_PAID" ? (treatment === "COST" ? "RETURN_COST" : "RETURN_SHARE") : "RECEIVED", date: str(f.d),
-        amount: str(f.amount), agreementNo: str(f.agreement_no), dims: dims(f.division_id, f.branch_id), settlement,
+        amount: str(f.amount), agreementNo: str(f.agreement_no), dims: dims(f.division_id, f.branch_id), settlement, loan: str(f.funding_type) === "LOAN",
       });
     });
   }

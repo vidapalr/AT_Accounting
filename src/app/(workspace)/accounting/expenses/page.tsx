@@ -316,7 +316,7 @@ async function ExpensesContent({ searchParams }: Props) {
             <input type="checkbox" name="is_setup_cost" value="1" style={{ width: 22, height: 22 }} />
             <span>
               This is a set-up cost (one-time cost of starting up, like fittings or the first stock of shelves).
-              It is kept apart from running costs and does not reduce operating profit.
+              Tick it only when this is an asset you are buying to start up; it is kept as an asset, apart from running costs, and does not reduce operating profit.
             </span>
           </label>
 
