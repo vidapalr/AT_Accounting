@@ -236,7 +236,12 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         <Link href="/accounting/invoices">
           ← All Invoices
         </Link>
-        <PrintButton label={`Print ${docWord.toLowerCase()}`} />
+        <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {invoice.status === "POSTED" && !isEstimate && (
+            <Link className="btn-link" href={`/accounting/sales?edit=${invoice.id}`}>Edit this bill</Link>
+          )}
+          <PrintButton label={`Print ${docWord.toLowerCase()}`} />
+        </span>
       </nav>
 
       <h1>{docWord}: {docNo}</h1>

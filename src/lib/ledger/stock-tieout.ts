@@ -32,7 +32,8 @@ export type StockTieOut = {
 /** Stock records name some sources differently from the books. This maps them to the books' name. */
 export function booksKind(sourceType: string): string {
   switch (sourceType) {
-    case "PURCHASE": return "PURCHASE_RECEIPT";
+    case "PURCHASE":
+    case "PURCHASE_EDIT": return "PURCHASE_RECEIPT";
     case "SALES_INVOICE_EDIT": return "SALES_INVOICE";
     case "STOCK_DAMAGE_CANCEL": return "STOCK_DAMAGE";
     default: return sourceType;

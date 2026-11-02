@@ -9,6 +9,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { getActiveDivisionId } from "@/lib/division-context";
+import { autoReverseForEdit } from "@/lib/ledger/reverse-in-tx";
 
 const PAGE = "/accounting/purchases";
 const MAX_LINE_COUNT = 100;
@@ -518,4 +519,215 @@ async function savePurchaseDraft(
   }
 
   go(outcome, savedPurchaseId);
+}
+
+
+/**
+ * Edit a purchase whose goods have already been received (like QuickBooks): the quantities and costs,
+ * the supplier's bill number, the bill date and the remarks can change. Supplier and receiving place stay.
+ * The old journal entry is reversed automatically, stock is corrected with new stock records (the old ones stay
+ * in the history), and the purchase is posted again with the new values.
+ */
+export async function editReceivedPurchaseAction(form: FormData): Promise<void> {
+  const user = await requireAccess("purchases");
+  const DIVISION_ID = await getActiveDivisionId(user);
+  const businessId = user.legal_business_id;
+
+  const purchaseId = positiveId(field(form, "purchase_id"));
+  const supplierId = positiveId(field(form, "supplier_id"));
+  const locationId = positiveId(field(form, "location_id"));
+  const invoiceNo = field(form, "supplier_invoice_no");
+  const invoiceDate = field(form, "invoice_date");
+  const remarks = field(form, "remarks");
+  const lines = parseLines(form);
+
+  if (
+    purchaseId === null || supplierId === null || locationId === null || !validDate(invoiceDate) ||
+    invoiceNo.length > 100 || remarks.length > 500 || lines === null
+  ) {
+    go("invalid", purchaseId ?? undefined);
+  }
+
+  const conn = await db.getConnection();
+  let outcome = "failed";
+
+  try {
+    await conn.beginTransaction();
+    await conn.execute<RowDataPacket[]>(`SELECT id FROM acct_legal_businesses WHERE id = ? FOR UPDATE`, [businessId]);
+
+    const [heads] = await conn.execute<RowDataPacket[]>(
+      `SELECT id, purchase_no, supplier_id, receiving_location_id,
+              DATE_FORMAT(received_date, '%Y-%m-%d') AS received_date
+         FROM acct_purchase_headers
+        WHERE id = ? AND legal_business_id = ? AND division_id = ? AND status = 'POSTED' FOR UPDATE`,
+      [purchaseId, businessId, DIVISION_ID]
+    );
+    const head = heads[0];
+
+    if (!head) {
+      outcome = "not-editable";
+    } else if (Number(head.supplier_id) !== supplierId || Number(head.receiving_location_id) !== locationId) {
+      outcome = "supplier-locked";
+    } else if (String(head.received_date) < invoiceDate) {
+      outcome = "date-after-receipt";
+    } else {
+      const [returned] = await conn.execute<RowDataPacket[]>(
+        `SELECT id FROM acct_supplier_returns
+          WHERE legal_business_id = ? AND purchase_id = ? AND status = 'POSTED' LIMIT 1 FOR UPDATE`,
+        [businessId, purchaseId]
+      );
+      const [oldLines] = await conn.execute<RowDataPacket[]>(
+        `SELECT id, variant_id, CAST(quantity AS CHAR) AS quantity, CAST(unit_cost AS CHAR) AS unit_cost,
+                CAST(line_amount AS CHAR) AS line_amount
+           FROM acct_purchase_lines WHERE purchase_id = ? AND legal_business_id = ? AND division_id = ?
+          ORDER BY line_no FOR UPDATE`,
+        [purchaseId, businessId, DIVISION_ID]
+      );
+      const newTotal = lines.reduce((sum, l) => sum + decimalScaled(l.lineAmount, 2, 16)!, 0n);
+      const [paid] = await conn.execute<RowDataPacket[]>(
+        `SELECT COALESCE(SUM(ROUND(amount * 100)), 0) AS paise FROM acct_purchase_payments
+          WHERE legal_business_id = ? AND purchase_id = ? AND status = 'VERIFIED' FOR UPDATE`,
+        [businessId, purchaseId]
+      );
+
+      if (returned.length > 0) {
+        outcome = "has-return";
+      } else if (BigInt(String(paid[0].paise)) > newTotal) {
+        outcome = "payments-exceed";
+      } else {
+        // Enough stock left? What is on the shelf now, less what this purchase brought in, plus the new quantity.
+        const oldByVariant = new Map<number, bigint>();
+        for (const l of oldLines) {
+          oldByVariant.set(Number(l.variant_id), (oldByVariant.get(Number(l.variant_id)) ?? 0n) + decimalScaled(String(l.quantity), 3, 11)!);
+        }
+        const newByVariant = new Map<number, bigint>();
+        for (const l of lines) newByVariant.set(l.variantId, decimalScaled(l.quantity, 3, 11)!);
+
+        const [variants] = await conn.execute<RowDataPacket[]>(
+          `SELECT v.id, v.unit_of_measure FROM acct_product_variants v
+             JOIN acct_products p ON p.id = v.product_id AND p.legal_business_id = v.legal_business_id AND p.division_id = v.division_id
+            WHERE v.legal_business_id = ? AND v.division_id = ? AND v.id IN (${lines.map(() => "?").join(", ")})
+              AND v.status = 'ACTIVE' AND p.status = 'ACTIVE'`,
+          [businessId, DIVISION_ID, ...lines.map((l) => l.variantId)]
+        );
+        const unitOf = new Map(variants.map((v) => [Number(v.id), String(v.unit_of_measure)]));
+        const variantsOk = lines.every((l) => {
+          const u = unitOf.get(l.variantId);
+          return u !== undefined && (!["PCS", "SET"].includes(u) || l.quantity.endsWith(".000"));
+        });
+
+        let short = false;
+        const affected = new Set([...oldByVariant.keys(), ...newByVariant.keys()]);
+        for (const variantId of affected) {
+          const [onHand] = await conn.execute<RowDataPacket[]>(
+            `SELECT CAST(COALESCE(SUM(quantity_change), 0) AS CHAR) AS qty FROM acct_stock_movements
+              WHERE legal_business_id = ? AND division_id = ? AND location_id = ? AND variant_id = ? FOR UPDATE`,
+            [businessId, DIVISION_ID, locationId, variantId]
+          );
+          const text = String(onHand[0].qty);
+          const now = text.startsWith("-") ? -(decimalScaled(text.slice(1), 3, 11) ?? 0n) : decimalScaled(text, 3, 11) ?? 0n;
+          if (now - (oldByVariant.get(variantId) ?? 0n) + (newByVariant.get(variantId) ?? 0n) < 0n) { short = true; break; }
+        }
+
+        if (!variantsOk) {
+          outcome = "variant-invalid";
+        } else if (short) {
+          outcome = "stock-sold";
+        } else {
+          let duplicate = false;
+          if (invoiceNo) {
+            const [clash] = await conn.execute<RowDataPacket[]>(
+              `SELECT id FROM acct_purchase_headers
+                WHERE legal_business_id = ? AND supplier_id = ? AND supplier_invoice_no = ? AND id <> ? LIMIT 1`,
+              [businessId, supplierId, invoiceNo, purchaseId]
+            );
+            duplicate = clash.length > 0;
+          }
+
+          if (duplicate) {
+            outcome = "duplicate-invoice";
+          } else {
+            const undone = await autoReverseForEdit(conn, {
+              businessId, userId: user.id, sourceType: "PURCHASE_RECEIPT", sourceId: purchaseId,
+              reason: `Edited: purchase ${head.purchase_no}`,
+            });
+
+            if (!undone.ok) {
+              outcome = undone.reason === "period-closed" ? "period-closed" : "failed";
+            } else {
+              const received = String(head.received_date);
+              // Take the old quantities out of stock, at the cost they came in at.
+              for (const l of oldLines) {
+                await conn.execute(
+                  `INSERT INTO acct_stock_movements
+                     (legal_business_id, division_id, location_id, variant_id, movement_date, movement_type,
+                      source_type, source_id, source_line_id, quantity_change, unit_cost, total_cost, remarks, created_by)
+                   VALUES (?, ?, ?, ?, ?, 'PURCHASE_RETURN', 'PURCHASE_EDIT', ?, ?, ?, ?, ?, 'Purchase edited: old quantity taken out', ?)`,
+                  [businessId, DIVISION_ID, locationId, l.variant_id, received, purchaseId, l.id,
+                   "-" + String(l.quantity), l.unit_cost, l.line_amount, user.id]
+                );
+              }
+
+              await conn.execute(
+                `UPDATE acct_purchase_headers SET supplier_invoice_no = ?, invoice_date = ?, remarks = ?
+                  WHERE id = ? AND legal_business_id = ? AND division_id = ? AND status = 'POSTED'`,
+                [invoiceNo || null, invoiceDate, remarks || null, purchaseId, businessId, DIVISION_ID]
+              );
+              await conn.execute(
+                `DELETE FROM acct_purchase_lines WHERE purchase_id = ? AND legal_business_id = ? AND division_id = ?`,
+                [purchaseId, businessId, DIVISION_ID]
+              );
+
+              for (const [index, l] of lines.entries()) {
+                const [inserted] = await conn.execute<ResultSetHeader>(
+                  `INSERT INTO acct_purchase_lines
+                     (legal_business_id, division_id, purchase_id, line_no, variant_id, quantity, unit_cost, line_amount)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                  [businessId, DIVISION_ID, purchaseId, index + 1, l.variantId, l.quantity, l.unitCost, l.lineAmount]
+                );
+                await conn.execute(
+                  `INSERT INTO acct_stock_movements
+                     (legal_business_id, division_id, location_id, variant_id, movement_date, movement_type,
+                      source_type, source_id, source_line_id, quantity_change, unit_cost, total_cost, remarks, created_by)
+                   VALUES (?, ?, ?, ?, ?, 'PURCHASE_RECEIPT', 'PURCHASE_EDIT', ?, ?, ?, ?, ?, 'Purchase edited: new quantity', ?)`,
+                  [businessId, DIVISION_ID, locationId, l.variantId, received, purchaseId, inserted.insertId,
+                   l.quantity, l.unitCost, l.lineAmount, user.id]
+                );
+              }
+
+              await conn.execute(
+                `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
+                 VALUES (?, ?, 'PURCHASE_EDITED', 'PURCHASE', ?, ?)`,
+                [businessId, user.id, purchaseId, JSON.stringify({
+                  purchase_no: head.purchase_no,
+                  previous_lines: oldLines.map((l) => ({ variant_id: Number(l.variant_id), quantity: String(l.quantity), unit_cost: String(l.unit_cost) })),
+                  updated_lines: lines.map((l) => ({ variant_id: l.variantId, quantity: l.quantity, unit_cost: l.unitCost })),
+                  new_total: scaledString(newTotal, 2),
+                })]
+              );
+
+              await conn.commit();
+              outcome = "edited";
+            }
+          }
+        }
+      }
+    }
+
+    if (outcome !== "edited") await conn.rollback();
+  } catch (error) {
+    await conn.rollback().catch(() => {});
+    console.error("Received purchase edit failed", error);
+    outcome = "failed";
+  } finally {
+    conn.release();
+  }
+
+  if (outcome === "edited") {
+    revalidatePath(PAGE);
+    revalidatePath(`${PAGE}/${purchaseId}`);
+    revalidatePath("/accounting/stock");
+    redirect(`${PAGE}/${purchaseId}?result=edited`);
+  }
+  redirect(`${PAGE}?result=${outcome}&edit=${purchaseId}`);
 }

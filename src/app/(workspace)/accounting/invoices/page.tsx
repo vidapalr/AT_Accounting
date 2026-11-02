@@ -314,6 +314,14 @@ async function InvoiceList() {
                       View
                     </Link>
                     {" "}
+                    {(invoice.status === "POSTED" || (invoice.status === "DRAFT" && Number(invoice.is_estimate) !== 1)) && (
+                      <>
+                        <Link className="btn-link btn-link-small" href={`/accounting/sales?edit=${invoice.id}`}>
+                          Edit
+                        </Link>
+                        {" "}
+                      </>
+                    )}
                     {invoice.status === "POSTED" ? (
                       <Link className="btn-link" href={`/accounting/returns?sale=${invoice.id}`}>
                         Return or exchange
