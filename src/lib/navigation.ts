@@ -146,6 +146,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Change history", href: "/accounting/audit/changes", hint: "Who did what, and when" },
       { label: "Chart of accounts", href: "/accounting/chart-of-accounts", hint: "The list of accounts" },
       { label: "Months and years", href: "/accounting/periods", hint: "Open and close accounting months" },
+      { label: "Month close", href: "/accounting/month-close", hint: "Checklist before closing a month" },
       { label: "Year end", href: "/accounting/year-end", hint: "Start the new year and close the old one" },
       { label: "Opening balances", href: "/accounting/opening-balances", hint: "What the business started with" },
     ],
