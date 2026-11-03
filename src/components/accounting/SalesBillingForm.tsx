@@ -39,6 +39,8 @@ type ProductOption = {
   minPrice: number | null;
   suggestedPrice: number | null;
   offer?: { name: string; offPerUnit: number } | null;
+  /** Lot names recently received for this item, to pick from when billing. */
+  lots?: string[];
   tiers?: TierPrices;
 };
 
@@ -49,6 +51,7 @@ type SaleRow = {
   price: string;
   discount: string;
   reason: string;
+  lot: string;
 };
 
 type PaymentRow = {
@@ -84,6 +87,7 @@ type InitialInvoice = {
     price: string;
     discount: string;
     reason: string;
+    lot?: string;
   }>;
 };
 
@@ -151,6 +155,7 @@ const newSaleRow = (): SaleRow => ({
   price: "",
   discount: "0",
   reason: "",
+  lot: "",
 });
 
 const newPaymentRow = (): PaymentRow => ({
@@ -193,6 +198,7 @@ export default function SalesBillingForm({
           price: line.price,
           discount: line.discount,
           reason: line.reason,
+          lot: line.lot ?? "",
         }))
       : prefill && prefill.lines.length > 0
         ? prefill.lines.map(line => ({
@@ -415,6 +421,7 @@ export default function SalesBillingForm({
             price: r.price,
             discount: r.discount,
             overrideReason: r.reason,
+            lot: r.lot,
           }))
         )}
       />
@@ -699,6 +706,22 @@ export default function SalesBillingForm({
                     <strong>₹{amount(lineTotals[index])}</strong>
                   </div>
                 </div>
+
+                {row.variantId > 0 && (
+                  <label className={styles.field}>
+                    Lot / dye batch (optional)
+                    <input
+                      value={row.lot}
+                      maxLength={60}
+                      list={`lots-${row.key}`}
+                      placeholder="Pick or type the lot, so a complaint can be traced"
+                      onChange={e => updateRow(row.key, { lot: e.target.value })}
+                    />
+                    <datalist id={`lots-${row.key}`}>
+                      {(product?.lots ?? []).map(l => <option key={l} value={l} />)}
+                    </datalist>
+                  </label>
+                )}
 
                 {belowMinimum && (
                   <>

@@ -260,6 +260,16 @@ async function PurchaseContent({ searchParams }: Props) {
           [editId, businessId, DIVISION_ID]
         );
 
+        // Lot names (migration 070 may not be run yet).
+        const lotByLine = new Map<number, string>();
+        try {
+          const [lotRows] = await db.execute<RowDataPacket[]>(
+            `SELECT line_no, lot_no FROM acct_purchase_lines WHERE purchase_id = ? AND legal_business_id = ? AND division_id = ?`,
+            [editId, businessId, DIVISION_ID]
+          );
+          for (const r of lotRows) if (r.lot_no) lotByLine.set(Number(r.line_no), String(r.lot_no));
+        } catch { /* no lot column yet */ }
+
         editDraft = {
           id: editId,
           purchase_no:
@@ -272,10 +282,11 @@ async function PurchaseContent({ searchParams }: Props) {
           location_id: Number(editHeader.location_id),
           remarks: editHeader.remarks,
           received: editHeader.status === "POSTED",
-          lines: editLines.map((line) => ({
+          lines: editLines.map((line, i) => ({
             variant_id: Number(line.variant_id),
             quantity: line.quantity,
             unit_cost: line.unit_cost,
+            lot_no: lotByLine.get(i + 1) ?? "",
           })),
         };
       }

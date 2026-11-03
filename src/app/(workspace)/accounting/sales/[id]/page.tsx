@@ -151,6 +151,13 @@ async function InvoiceDetails({ params, searchParams }: Props) {
     [businessId, saleId]
   );
 
+  const lotOf = new Map<number, string>();
+  try {
+    const [lr] = await db.execute<RowDataPacket[]>(
+      `SELECT id, lot_no FROM acct_sales_lines WHERE legal_business_id = ? AND sale_id = ? AND lot_no IS NOT NULL AND lot_no <> ''`, [businessId, saleId]);
+    for (const r of lr) lotOf.set(Number(r.id), String(r.lot_no));
+  } catch { /* no lot column yet */ }
+
   const [payments] = await db.execute<RowDataPacket[]>(
     `SELECT
        pay.id,
@@ -397,7 +404,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
           <tbody>
             {items.map(item => (
               <tr key={item.id}>
-                <td style={cell}>{item.product_name}</td>
+                <td style={cell}>{item.product_name}{lotOf.get(Number(item.id)) && <><br /><small style={{ color: "#64748b" }}>Lot: {lotOf.get(Number(item.id))}</small></>}</td>
                 <td style={cell}>{item.sku}</td>
                 <td style={cell}>
                   {item.size_label || "—"}

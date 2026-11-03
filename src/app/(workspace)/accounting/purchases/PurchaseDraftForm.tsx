@@ -47,6 +47,7 @@ export type PurchaseDraft = {
     variant_id: number;
     quantity: string;
     unit_cost: string;
+    lot_no?: string;
   }>;
 };
 
@@ -196,6 +197,7 @@ export default function PurchaseDraftForm({
               <th>Product / SKU</th>
               <th>Quantity</th>
               <th>Unit Cost (₹)</th>
+              <th>Lot / dye batch (optional)</th>
               <th aria-label="Remove item" />
             </tr>
           </thead>
@@ -256,6 +258,17 @@ export default function PurchaseDraftForm({
                       inputMode="decimal"
                       placeholder="650.00"
                       defaultValue={saved?.unit_cost ?? ""}
+                      className={styles.control}
+                    />
+                  </td>
+
+                  <td>
+                    <input
+                      name={`line_${index}_lot`}
+                      type="text"
+                      maxLength={60}
+                      placeholder="Lot 12"
+                      defaultValue={saved?.lot_no ?? ""}
                       className={styles.control}
                     />
                   </td>

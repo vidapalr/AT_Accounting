@@ -8,6 +8,7 @@ import { canUseDivision, divisionSql } from "@/lib/scope";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
+import type { PoolConnection } from "mysql2/promise";
 import { findOrCreateCustomer, customerDuesPaise } from "@/lib/customers";
 import { normalizePhone } from "@/lib/customer-phone";
 import { db } from "@/lib/db";
@@ -21,12 +22,19 @@ import { currentTerms } from "@/lib/bill-terms";
 
 const PAGE = "/accounting/sales";
 
+/** Keep the lot name on a sale line. Before migration 070 the column is missing; the sale still saves. */
+async function saveSaleLot(conn: PoolConnection, lineId: number, lot: string | null) {
+  if (!lot) return;
+  try { await conn.execute(`UPDATE acct_sales_lines SET lot_no = ? WHERE id = ?`, [lot, lineId]); } catch { /* no lot column yet */ }
+}
+
 type SaleLineInput = {
   variantId: number;
   quantity: string;
   price: string;
   discount: string;
   overrideReason?: string;
+  lot?: string;
 };
 
 type PaymentInput = {
@@ -191,6 +199,7 @@ export async function createSaleAction(
     discountPaise: bigint;
     totalPaise: bigint;
     reason: string | null;
+    lot: string | null;
   };
 
   let preparedLines: PreparedLine[] = [];
@@ -237,6 +246,7 @@ export async function createSaleAction(
         discountPaise,
         totalPaise,
         reason: reason || null,
+        lot: String(line.lot ?? "").trim().slice(0, 60) || null,
       };
     });
 
@@ -801,6 +811,7 @@ export async function createSaleAction(
                   line.reason, unitCost, totalCost,
                 ]
               );
+            await saveSaleLot(conn, detail.insertId, line.lot);
 
             if (mode === "POSTED") {
               await conn.execute(
@@ -1001,6 +1012,7 @@ export async function updateSaleAction(
     discountPaise: bigint;
     totalPaise: bigint;
     reason: string | null;
+    lot: string | null;
   }>;
   const requestedBySku = new Map<number, bigint>();
   let invoiceDiscount = 0n;
@@ -1050,6 +1062,7 @@ export async function updateSaleAction(
         discountPaise,
         totalPaise,
         reason: reason || null,
+        lot: String(line.lot ?? "").trim().slice(0, 60) || null,
       };
     });
 
@@ -1495,6 +1508,7 @@ export async function updateSaleAction(
                     cost?.totalCost ?? null,
                   ]
                 );
+              await saveSaleLot(conn, inserted.insertId, line.lot);
 
               if (header.status === "POSTED" && cost) {
                 await conn.execute(
