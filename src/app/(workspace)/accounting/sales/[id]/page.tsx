@@ -12,6 +12,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { invoiceProfit } from "@/lib/invoice-profit";
 import { receiveSalePaymentAction, giveBillDiscountAction } from "@/lib/sale-payment-actions";
 import { canGiveBillDiscount } from "@/lib/access";
 import ConfirmButton from "@/components/ConfirmButton";
@@ -128,7 +129,8 @@ async function InvoiceDetails({ params, searchParams }: Props) {
        sl.discount_amount,
        sl.line_total,
        sl.minimum_selling_price,
-       sl.price_override_reason
+       sl.price_override_reason,
+       sl.total_cost
      FROM acct_sales_lines sl
      JOIN acct_product_variants v
        ON v.legal_business_id = sl.legal_business_id
@@ -187,6 +189,17 @@ async function InvoiceDetails({ params, searchParams }: Props) {
     .reduce((sum, p) => sum + Number(p.amount), 0);
 
   const total = Number(invoice.grand_total);
+  const showProfit = canGiveBillDiscount(user.role) && !isEstimate && invoice.status === "POSTED";
+  const profit = showProfit
+    ? invoiceProfit({
+        grandTotal: invoice.grand_total,
+        shippingCharge: invoice.shipping_charge,
+        lateDiscount: payments
+          .filter(p => p.status === "RECORDED" && p.payment_method === "DISCOUNT")
+          .reduce((sum, p) => sum + Number(p.amount), 0),
+        lineCosts: items.map(i => i.total_cost),
+      })
+    : null;
   const outstanding =
     invoice.status === "POSTED"
       ? Math.max(0, total - collected)
@@ -387,6 +400,18 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         {Number(invoice.shipping_charge) > 0 && <p>Delivery: ₹{money(invoice.shipping_charge)}</p>}
         <h2>{isEstimate ? "Estimate Total" : "Invoice Total"}: ₹{money(total)}</h2>
       </section>
+
+      {profit && (
+        <section className="no-print" style={{ marginTop: 16, maxWidth: 450, marginLeft: "auto", padding: 12, border: "1px solid #e2e8f0", borderRadius: 8, background: "#f8fafc" }}>
+          <strong>Profit on this bill (owner and accountant only)</strong>
+          <p style={{ margin: "6px 0" }}>Sale value (without delivery): ₹{money(profit.saleValue)}</p>
+          <p style={{ margin: "6px 0" }}>Cost of the items: ₹{money(profit.cost)}</p>
+          <p style={{ margin: "6px 0", fontWeight: 700, color: profit.profit < 0 ? "#b91c1c" : "#166534" }}>
+            Profit: ₹{money(profit.profit)}{profit.percent !== null && ` (${profit.percent}%)`}
+          </p>
+          {profit.costMissing && <p style={{ margin: "6px 0", color: "#92400e" }}>Some items have no cost recorded, so this profit is too high.</p>}
+        </section>
+      )}
 
       {!isEstimate && (
       <>
