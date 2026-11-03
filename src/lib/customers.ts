@@ -17,7 +17,7 @@ export type CustomerRef = {
  */
 export async function findOrCreateCustomer(
   conn: Conn,
-  input: { businessId: number; userId: number; name: string; phone10: string }
+  input: { businessId: number; userId: number; name: string; phone10: string; customerType?: "RETAIL" | "WHOLESALE"; canChangeType?: boolean }
 ): Promise<CustomerRef> {
   const read = async () => {
     const [rows] = await conn.execute<RowDataPacket[]>(
@@ -42,13 +42,14 @@ export async function findOrCreateCustomer(
     try {
       await conn.execute<ResultSetHeader>(
         `INSERT INTO acct_customers
-           (legal_business_id, customer_code, full_name, phone, created_by)
-         VALUES (?, ?, ?, ?, ?)`,
+           (legal_business_id, customer_code, full_name, phone, customer_type, created_by)
+         VALUES (?, ?, ?, ?, ?, ?)`,
         [
           input.businessId,
           code,
           input.name.trim() || `Customer ${input.phone10}`,
           input.phone10,
+          input.customerType === "WHOLESALE" ? "WHOLESALE" : "RETAIL",
           input.userId,
         ]
       );
@@ -56,6 +57,14 @@ export async function findOrCreateCustomer(
       // Someone else added the same phone a moment ago: use theirs.
     }
     row = await read();
+  }
+
+  // The bill can say retail or wholesale; for a customer already on file only the owner or accountant may change it.
+  if (input.customerType && input.canChangeType) {
+    await conn.execute(
+      `UPDATE acct_customers SET customer_type = ? WHERE legal_business_id = ? AND id = ? AND customer_type <> ?`,
+      [input.customerType, input.businessId, row.id, input.customerType]
+    );
   }
 
   return {

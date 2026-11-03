@@ -1,3 +1,5 @@
+import { pointsBalance } from "@/lib/rewards-data";
+import { REWARDS_START_DATE } from "@/lib/rewards-math";
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -66,6 +68,9 @@ async function CustomerPage({ params, searchParams }: Props) {
   const c = found[0];
   if (!c) notFound();
 
+  let points: Awaited<ReturnType<typeof pointsBalance>> | null = null;
+  try { points = await pointsBalance(db, businessId, customerId); } catch { /* points tables not there yet */ }
+
   // When the number typed belongs to someone else, offer to join the two records.
   let holder: RowDataPacket | undefined;
   if (result === "phone-used" && /^[1-9]\d*$/.test(otherParam ?? "")) {
@@ -133,6 +138,20 @@ async function CustomerPage({ params, searchParams }: Props) {
         {c.customer_type === "WHOLESALE" ? " · Wholesale" : ""}
         {c.city ? ` · ${c.city}` : ""}
       </p>
+
+      {points && (
+        <section style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 12, margin: "10px 0", maxWidth: 520 }}>
+          <strong>Points</strong>
+          {points.retail ? (
+            <p style={{ margin: "6px 0 0" }}>
+              Balance <strong>{points.balance} points</strong>{points.balance >= 200 ? ` (worth ₹${Math.floor(points.balance / 200) * 50} off the next bill)` : ""}.
+              Earned so far {points.earned}, used {points.used}. 1 point for every ₹200 on bills from {REWARDS_START_DATE.split("-").reverse().join("-")}.
+            </p>
+          ) : (
+            <p style={{ margin: "6px 0 0" }}>Wholesale customer: no points. Change the customer type below to Retail to start earning.</p>
+          )}
+        </section>
+      )}
 
       {msg && (
         <p role="status" className="no-print" style={{ color: msg.ok ? "#166534" : "#b91c1c" }}>{msg.text}</p>

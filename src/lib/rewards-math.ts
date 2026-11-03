@@ -49,4 +49,4 @@ export function couponWithinDates(today: string, startsOn: string | null, endsOn
 }
 
 /** Bills dated before this day earn no points (the points scheme starts the day after it was built). */
-export const REWARDS_START_DATE = "2026-11-04";
+export const REWARDS_START_DATE = "2026-11-03";

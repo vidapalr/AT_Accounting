@@ -1,4 +1,5 @@
 
+import { canGiveBillDiscount } from "@/lib/access";
 import { loadPriceOverrides } from "@/lib/selling-price-data";
 import { loadQtyRule, loadOwnTierPrices, tiersFor } from "@/lib/qty-price-data";
 import { divisionSql } from "@/lib/scope";
@@ -189,7 +190,7 @@ async function SalesContent({ searchParams }: Props) {
   );
 
   const [customerRows] = await db.execute<RowDataPacket[]>(
-    `SELECT c.full_name, c.phone, c.address, c.city, ROUND(c.credit_limit * 100) AS limit_paise,
+    `SELECT c.full_name, c.phone, c.customer_type, c.address, c.city, ROUND(c.credit_limit * 100) AS limit_paise,
             COALESCE((SELECT SUM(ROUND(h.grand_total * 100)) FROM acct_sales_headers h
                        WHERE h.legal_business_id = c.legal_business_id
                          AND h.customer_id = c.id AND h.status = 'POSTED'), 0)
@@ -208,6 +209,7 @@ async function SalesContent({ searchParams }: Props) {
   const customerOptions = customerRows.map(c => ({
     name: String(c.full_name),
     phone: String(c.phone),
+    type: c.customer_type === "WHOLESALE" ? ("WHOLESALE" as const) : ("RETAIL" as const),
     address: [c.address, c.city].filter(Boolean).join(", "),
     dues: Number(c.dues_paise) / 100,
     creditLimit: Number(c.limit_paise) / 100,
@@ -653,6 +655,7 @@ async function SalesContent({ searchParams }: Props) {
           </p>
           <SalesBillingForm
             customers={customerOptions}
+            canChangeCustomerType={canGiveBillDiscount(user.role)}
             branches={branches.map(branch => ({
               id: Number(branch.id),
               name: String(branch.name),
@@ -716,6 +719,7 @@ async function SalesContent({ searchParams }: Props) {
           )}
           <SalesBillingForm
             customers={customerOptions}
+            canChangeCustomerType={canGiveBillDiscount(user.role)}
             branches={branches.map(b => ({
               id: Number(b.id),
               name: String(b.name),

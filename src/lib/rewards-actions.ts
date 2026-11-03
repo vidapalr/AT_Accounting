@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { normalizePhone } from "@/lib/customer-phone";
-import { checkRewards } from "@/lib/rewards-data";
+import { checkRewards, pointsBalance } from "@/lib/rewards-data";
 import { parseWhere } from "@/lib/offer-where";
 import { maxPointsUsable } from "@/lib/rewards-math";
 import type { RowDataPacket } from "mysql2";
@@ -23,6 +23,11 @@ export type RewardPreview = {
   pointsUsed: number;
   pointsDiscount: number;
   couponDiscount: number;
+  /** True for a retail customer on file (wholesale customers do not earn points). */
+  retail: boolean;
+  /** Points earned so far, and used so far. */
+  earnedTotal: number;
+  usedTotal: number;
 };
 
 /** For the billing screen: what the customer has, and what the chosen points and coupon are worth on this bill. */
@@ -45,16 +50,23 @@ export async function previewRewardsAction(input: { phone: string; pointsUsed: n
     const [b] = await db.execute<RowDataPacket[]>(`SELECT division_id FROM acct_branches WHERE legal_business_id = ? AND id = ?`, [businessId, branchId]);
     divisionId = b[0] ? Number(b[0].division_id) : null;
   }
+  let info = { retail: false, earnedTotal: 0, usedTotal: 0 };
+  if (customerId) {
+    try {
+      const pb = await pointsBalance(db, businessId, customerId);
+      info = { retail: pb.retail, earnedTotal: pb.earned, usedTotal: pb.used };
+    } catch { /* points tables not there yet */ }
+  }
   let r: Awaited<ReturnType<typeof checkRewards>>;
   try {
     r = await checkRewards(db, { businessId, customerId, pointsUsed: points, couponCode: String(input.couponCode ?? "").slice(0, 30), billPaise, today: todayIso(), branchId, divisionId });
   } catch {
-    return { ok: false, message: "Points and coupons are not set up yet (database file 063_rewards).", customerName, balance: 0, maxPoints: 0, pointsUsed: 0, pointsDiscount: 0, couponDiscount: 0 };
+    return { ok: false, message: "Points and coupons are not set up yet (database file 063_rewards).", customerName, balance: 0, maxPoints: 0, pointsUsed: 0, pointsDiscount: 0, couponDiscount: 0, ...info };
   }
-  if (!r.ok) return { ok: false, message: r.error, customerName, balance: r.balance, maxPoints: maxPointsUsable(r.balance, billPaise), pointsUsed: 0, pointsDiscount: 0, couponDiscount: 0 };
+  if (!r.ok) return { ok: false, message: r.error, customerName, balance: r.balance, maxPoints: maxPointsUsable(r.balance, billPaise), pointsUsed: 0, pointsDiscount: 0, couponDiscount: 0, ...info };
   return {
     ok: true, message: r.message, customerName, balance: r.balance, maxPoints: maxPointsUsable(r.balance, billPaise - r.couponDiscountPaise),
-    pointsUsed: r.pointsUsed, pointsDiscount: Number(r.pointsDiscountPaise) / 100, couponDiscount: Number(r.couponDiscountPaise) / 100,
+    pointsUsed: r.pointsUsed, pointsDiscount: Number(r.pointsDiscountPaise) / 100, couponDiscount: Number(r.couponDiscountPaise) / 100, ...info,
   };
 }
 
