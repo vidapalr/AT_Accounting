@@ -46,6 +46,7 @@ async function Content({ params, searchParams }: Props) {
     <main style={{ padding: 24, maxWidth: 820 }}>
       <Link className="btn-link" href="/accounting/salaries">← Salaries</Link>
       <h1>{String(e.full_name)}{e.status === "LEFT" ? " (left)" : ""}</h1>
+      <p><Link className="btn-link btn-link-primary" href={`/accounting/salaries/${e.id}/letters`}>Letters and pay slip</Link></p>
       <p style={{ color: "#64748b" }}>{[e.job_title, e.phone].filter(Boolean).join(" · ")} · Salary now {inr(e.monthly_salary)}</p>
       {q.saved && <p role="status" style={{ color: "#166534" }}>{q.saved.slice(0, 220)}</p>}
       {q.error && <p role="alert" style={{ color: "#b91c1c" }}>{q.error.slice(0, 220)}</p>}
