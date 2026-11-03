@@ -1,6 +1,7 @@
 
 "use server";
 
+import { checkRewards, recordRewards } from "@/lib/rewards-data";
 import { loadPriceOverrides } from "@/lib/selling-price-data";
 import { lockReturnCredit } from "@/lib/return-credit";
 import { canUseDivision, divisionSql } from "@/lib/scope";
@@ -101,6 +102,9 @@ export async function createSaleAction(
   // An estimate is a draft with its own EST- number: it moves no stock and takes no payment.
   const rawMode = String(form.get("mode") ?? "DRAFT");
   const isEstimate = confirmDraftId === 0 && rawMode === "ESTIMATE";
+  // Points and coupon chosen on the billing screen. Checked again below, inside the transaction.
+  const pointsUsedInput = Math.max(0, Math.floor(Number(String(form.get("points_used") ?? "0")) || 0));
+  const couponInput = String(form.get("coupon_code") ?? "").trim().slice(0, 30);
   const mode = confirmDraftId > 0 ? "POSTED" : isEstimate ? "DRAFT" : rawMode;
   // An exchange: the value of items just returned is used as part payment on this bill.
   const exchangeField = Number(form.get("exchange_return_id") ?? 0);
@@ -681,6 +685,16 @@ export async function createSaleAction(
             );
           }
 
+          if (mode === "POSTED" && (pointsUsedInput > 0 || couponInput !== "")) {
+            const rc = await checkRewards(conn, {
+              businessId, customerId: customer?.id ?? null, pointsUsed: pointsUsedInput,
+              couponCode: couponInput, billPaise: totalLineValue, today: saleDate,
+            });
+            // The discount must really be on the bill, so points and coupons can never be claimed for nothing.
+            if (!rc.ok || invoiceDiscount < rc.pointsDiscountPaise + rc.couponDiscountPaise) throw new Error("REWARDS_INVALID");
+            await recordRewards(conn, { businessId, saleId: createdId, customerId: customer?.id ?? null, check: rc });
+          }
+
           const priceOverrides = await loadPriceOverrides(businessId);
           for (const line of preparedLines) {
             const [minRows] = await conn.execute<RowDataPacket[]>(
@@ -870,6 +884,8 @@ export async function createSaleAction(
       result = "exchange-gone";
     } else if (error instanceof Error && error.message === "CREDIT_LIMIT") {
       result = "credit-limit";
+    } else if (error instanceof Error && error.message === "REWARDS_INVALID") {
+      result = "rewards-invalid";
     } else if ((error as { code?: string }).code === "ER_DUP_ENTRY" && submitToken) {
       // The same form was sent twice at the same moment; the other copy won. Show that bill.
       const [won] = await db.execute<RowDataPacket[]>(
