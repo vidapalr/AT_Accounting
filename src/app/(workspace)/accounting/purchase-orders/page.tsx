@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
@@ -34,6 +35,7 @@ async function Content({ searchParams }: Props) {
   return (
     <main style={{ padding: 16, maxWidth: 900 }}>
       <h1>Purchase orders</h1>
+      <TableSearch />
       <p style={{ color: "#64748b" }}>What you have ordered from suppliers. When the goods arrive, open the order and tap &ldquo;Goods arrived&rdquo;.</p>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "12px 0" }}>
         <Link className="btn-link btn-link-primary" href="/accounting/purchase-orders/new">+ New order</Link>

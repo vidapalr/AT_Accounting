@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 
 import { Suspense } from "react";
 import Link from "next/link";
@@ -268,6 +269,7 @@ async function CategoryContent({ searchParams }: Props) {
 
       <section style={sectionStyle}>
         <h2>All Product Categories</h2>
+        <TableSearch />
 
         <div style={{ overflowX: "auto" }}>
           <table style={{

@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
@@ -54,6 +55,7 @@ async function Content({ searchParams }: Props) {
     <div style={{ maxWidth: 1100, padding: 24 }}>
       <nav style={{ marginBottom: 12 }}><Link href="/accounting/products">← Products</Link></nav>
       <h1>Selling prices</h1>
+      <TableSearch includeInputs />
       <p style={{ color: "#475569" }}>
         When stock is moved to a shop, the minimum price is worked out as cost + 30% and the maximum as cost + 100%.
         Here you can set your own prices for any product size/colour at any time. The usual price is what the bill starts with,

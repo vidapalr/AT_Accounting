@@ -29,6 +29,9 @@ type InvoiceRow = RowDataPacket & {
   late_discount: string;
 };
 
+type Tab = "invoices" | "estimates";
+type Props = { searchParams: Promise<{ tab?: string; q?: string }> };
+
 type TotalsRow = RowDataPacket & {
   total_sales: string;
   total_paid: string;
@@ -61,7 +64,11 @@ const cell: React.CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-async function InvoiceList() {
+async function InvoiceList({ searchParams }: Props) {
+  const query = await searchParams;
+  const tab: Tab = query.tab === "estimates" ? "estimates" : "invoices";
+  const q = String(query.q ?? "").trim().slice(0, 60);
+  const like = `%${q.replace(/[\\%_]/g, m => `\\${m}`)}%`;
   const user = await requireAccess("sales");
   const mine = divisionSql(user, "s.division_id");
   const businessId = user.legal_business_id;
@@ -149,11 +156,28 @@ async function InvoiceList() {
       AND pay.sale_id = s.id
 
      WHERE s.legal_business_id = ?${mine.sql}
+       AND ${tab === "estimates" ? "(s.is_estimate = 1 AND s.status <> 'POSTED')" : "NOT (s.is_estimate = 1 AND s.status <> 'POSTED')"}
+       ${q ? "AND (s.invoice_no LIKE ? OR s.estimate_no LIKE ? OR s.customer_name LIKE ? OR s.customer_phone LIKE ?)" : ""}
 
      ORDER BY s.invoice_date DESC, s.id DESC
      LIMIT 500`,
+    [businessId, ...mine.params, ...(q ? [like, like, like, like] : [])]
+  );
+
+  // How many are in each tab, for the tab labels.
+  const [countRows] = await db.execute<RowDataPacket[]>(
+    `SELECT SUM(NOT (s.is_estimate = 1 AND s.status <> 'POSTED')) AS inv,
+            SUM(s.is_estimate = 1 AND s.status <> 'POSTED') AS est
+       FROM acct_sales_headers s WHERE s.legal_business_id = ?${mine.sql}`,
     [businessId, ...mine.params]
   );
+  const invCount = Number(countRows[0]?.inv ?? 0), estCount = Number(countRows[0]?.est ?? 0);
+  const tabLink = (t: Tab) => `/accounting/invoices?tab=${t}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
+  const tabStyle = (on: boolean): React.CSSProperties => ({
+    padding: "12px 20px", fontSize: 16, fontWeight: 600, textDecoration: "none", borderRadius: "10px 10px 0 0",
+    border: "1px solid #cbd5e1", borderBottom: on ? "3px solid #4f46e5" : "1px solid #cbd5e1",
+    background: on ? "#eef2ff" : "#fff", color: on ? "#3730a3" : "#334155",
+  });
 
   const totals = invoices.reduce(
     (acc, invoice) => {
@@ -203,7 +227,28 @@ async function InvoiceList() {
         </Link>
       </nav>
 
-      <div style={{
+      <div role="tablist" style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+        <Link role="tab" aria-selected={tab === "invoices"} href={tabLink("invoices")} style={tabStyle(tab === "invoices")}>
+          Invoices ({invCount})
+        </Link>
+        <Link role="tab" aria-selected={tab === "estimates"} href={tabLink("estimates")} style={tabStyle(tab === "estimates")}>
+          Estimates ({estCount})
+        </Link>
+      </div>
+
+      <form method="GET" action="/accounting/invoices" style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 18px", maxWidth: 560 }}>
+        <input type="hidden" name="tab" value={tab} />
+        <input
+          type="search" name="q" defaultValue={q} maxLength={60}
+          placeholder={tab === "estimates" ? "Search estimates: number, name, mobile" : "Search invoices: number, name, mobile"}
+          aria-label="Search"
+          style={{ flex: "1 1 260px", padding: "11px 12px", fontSize: 16, borderRadius: 8, border: "1px solid #cbd5e1" }}
+        />
+        <button type="submit" style={{ padding: "11px 18px", fontSize: 16 }}>Search</button>
+        {q && <Link className="btn-link" href={`/accounting/invoices?tab=${tab}`}>Clear</Link>}
+      </form>
+
+      {tab === "invoices" && <div style={{
         display: "grid",
         gridTemplateColumns:
           "repeat(auto-fit, minmax(190px, 1fr))",
@@ -226,7 +271,7 @@ async function InvoiceList() {
             </strong>
           </div>
         ))}
-      </div>
+      </div>}
 
       <div style={{ overflowX: "auto" }}>
         <table style={{
@@ -377,7 +422,7 @@ async function InvoiceList() {
       </div>
 
       {invoices.length === 0 && (
-        <p>No sales invoices have been recorded.</p>
+        <p>{q ? "Nothing matches your search." : tab === "estimates" ? "There are no open estimates." : "No sales invoices have been recorded."}</p>
       )}
 
       <p style={{
@@ -385,18 +430,18 @@ async function InvoiceList() {
         fontSize: 12,
         marginTop: 20,
       }}>
-        Showing up to 500 latest invoices.
-        Summary totals cover displayed posted invoices only.
+        Showing up to 500 latest {tab === "estimates" ? "estimates" : "invoices"}.
+        {tab === "invoices" ? " Summary totals cover displayed posted invoices only." : " An estimate moves to the Invoices tab once you convert it."}
         Returns, refunds and exchanges are done from the Return or exchange link on each posted invoice.
       </p>
     </main>
   );
 }
 
-export default function InvoicesPage() {
+export default function InvoicesPage(props: Props) {
   return (
     <Suspense fallback={<p>Loading invoices...</p>}>
-      <InvoiceList />
+      <InvoiceList {...props} />
     </Suspense>
   );
 }

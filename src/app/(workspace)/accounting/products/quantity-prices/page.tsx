@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
@@ -46,6 +47,7 @@ async function Content({ searchParams }: Props) {
     <div style={{ maxWidth: 1000, padding: 24 }}>
       <nav style={{ marginBottom: 12 }}><Link href="/accounting/products">← Products</Link></nav>
       <h1>Quantity prices</h1>
+      <TableSearch includeInputs />
       <p style={{ color: "#475569" }}>
         The more a customer buys of one item, the lower the price for each piece: 1 to 3 pieces use the usual price,
         4 to 9 pieces the second price, and 10 or more pieces the third price. On the bill the price changes by itself

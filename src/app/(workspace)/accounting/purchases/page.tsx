@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 
 import { Suspense } from "react";
 import Link from "next/link";
@@ -387,6 +388,7 @@ async function PurchaseContent({ searchParams }: Props) {
 
       <section className={styles.card}>
         <h2>Recent Purchases</h2>
+        <TableSearch />
 
         <div className={styles.tableWrap}>
           <table className={styles.recentTable}>

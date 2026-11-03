@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 import { Suspense } from "react";
 import PrintHeader from "@/components/PrintHeader";
 import Link from "next/link";
@@ -451,6 +452,7 @@ async function TransferContent({ searchParams }: Props) {
 
       <section className={`${styles.card} ${styles.hideWhenPrinting}`}>
         <h2>Stock Transfer History</h2>
+        <TableSearch />
         <p className={styles.muted}>Search and filter the latest 500 transfers. Open a transfer to print its challan.</p>
         <TransferHistoryTable
           transfers={transfers.map(t => ({

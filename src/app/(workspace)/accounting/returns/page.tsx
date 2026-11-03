@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 import { Suspense } from "react";
 import { divisionSql } from "@/lib/scope";
 import Link from "next/link";
@@ -184,6 +185,7 @@ async function ReturnsContent({ searchParams }: Props) {
   return (
     <main style={{ padding: 24, maxWidth: 1100 }}>
       <h1>Returns, Refunds and Damaged Stock</h1>
+      <TableSearch />
       {query.saved && <p style={{ color: "#166534" }}>{query.saved.slice(0, 300)}</p>}
       {query.error && <p style={{ color: "#b91c1c" }}>{query.error.slice(0, 300)}</p>}
 

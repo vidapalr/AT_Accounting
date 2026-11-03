@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
@@ -211,6 +212,7 @@ async function SupplierReturnsContent({ searchParams }: Props) {
 
       <section style={box}>
         <h2>Earlier returns</h2>
+        <TableSearch />
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
             <thead>

@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 
 import { Suspense } from "react";
 import Link from "next/link";
@@ -382,6 +383,7 @@ async function ProductMasterContent({
 
       <section style={sectionStyle}>
         <h2>Product Catalogue ({products.length})</h2>
+        <TableSearch />
 
         <div style={{ overflowX: "auto" }}>
           <table style={{

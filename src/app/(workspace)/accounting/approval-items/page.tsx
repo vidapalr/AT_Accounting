@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
@@ -119,6 +120,7 @@ async function ApprovalContent({ searchParams }: Props) {
   return (
     <main style={{ padding: 24, maxWidth: 1100 }}>
       <h1>Items on approval</h1>
+      <TableSearch />
       <p style={{ color: "#64748b" }}>
         For customers who take items home to try. No payment now. The items leave the shop shelf but are still ours.
         When the customer decides, tap what happened to each item.

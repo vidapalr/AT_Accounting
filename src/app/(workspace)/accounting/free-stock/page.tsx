@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
@@ -217,6 +218,7 @@ async function FreeStockContent({ searchParams }: Props) {
 
       <section style={box}>
         <h2>Earlier entries</h2>
+        <TableSearch />
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
             <thead><tr>{["No.", "Date", "Place", "Given to", "Why", "Cost", "Status"].map((h) => <th key={h} style={cell}>{h}</th>)}</tr></thead>

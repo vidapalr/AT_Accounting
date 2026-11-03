@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 
 import { Suspense } from "react";
 import Link from "next/link";
@@ -282,6 +283,7 @@ async function SupplierContent({ searchParams }: Props) {
 
       <section style={sectionStyle}>
         <h2>Registered Suppliers ({suppliers.length})</h2>
+        <TableSearch />
 
         <div style={{ overflowX: "auto" }}>
           <table style={{
