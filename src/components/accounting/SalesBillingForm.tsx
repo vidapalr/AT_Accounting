@@ -1,6 +1,7 @@
 
 "use client";
 
+import RewardsGuide from "@/components/RewardsGuide";
 import { priceForQuantity, type TierPrices } from "@/lib/qty-price";
 import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
@@ -302,7 +303,13 @@ export default function SalesBillingForm({
     (sum, line) => sum + line, 0
   );
 
-  const rewardsDiscount = rewards?.ok ? rewards.pointsDiscount + rewards.couponDiscount : 0;
+  // One at a time: a store offer on any item, a coupon, or points. Never together.
+  const offerOnBill = rows.some(r => {
+    const prod = r.variantId > 0 ? products.find(x => x.id === r.variantId && x.branchId === branchId) : undefined;
+    return !!prod?.offer && Number(r.discount) > 0;
+  });
+  const rewardsActive = rewards?.ok === true && !offerOnBill;
+  const rewardsDiscount = rewardsActive && rewards ? rewards.pointsDiscount + rewards.couponDiscount : 0;
   const totalBillDiscount = Number(invoiceDiscount || 0) + rewardsDiscount;
   const grandTotal = Math.max(
     0, subtotal - totalBillDiscount + Number(shipping || 0)
@@ -764,6 +771,12 @@ export default function SalesBillingForm({
           {rewardsOn && (
             <div className={styles.field} style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 12 }}>
               <strong>Points and coupon</strong>
+              {offerOnBill && (
+                <p role="alert" style={{ margin: "6px 0", color: "#b91c1c" }}>
+                  A store offer is already on this bill, so a coupon or points cannot be used with it. Only one at a time.
+                  To use a coupon or points instead, clear the offer discount on the items.
+                </p>
+              )}
               {digits.length === 10 && custType === "WHOLESALE" && (
                 <p style={{ margin: "6px 0" }}>Wholesale customer: no points on this bill.</p>
               )}
@@ -786,6 +799,7 @@ export default function SalesBillingForm({
                   <select
                     value={pointsUsed}
                     onChange={e => setPointsUsed(Number(e.target.value))}
+                    disabled={offerOnBill || couponCode.trim() !== ""}
                     style={{ display: "block", padding: 10, fontSize: 16, width: "100%", marginTop: 4 }}
                   >
                     <option value={0}>Do not use points</option>
@@ -800,13 +814,17 @@ export default function SalesBillingForm({
                 <input
                   value={couponCode}
                   onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                  disabled={offerOnBill || pointsUsed > 0}
                   maxLength={30}
                   autoCapitalize="characters"
                   style={{ display: "block", padding: 10, fontSize: 16, width: "100%", marginTop: 4 }}
                 />
               </label>
-              <input type="hidden" name="points_used" value={rewards?.ok ? pointsUsed : 0} />
-              <input type="hidden" name="coupon_code" value={rewards?.ok ? couponCode : ""} />
+              <input type="hidden" name="points_used" value={rewardsActive ? pointsUsed : 0} />
+              <input type="hidden" name="coupon_code" value={rewardsActive ? couponCode : ""} />
+              {!offerOnBill && pointsUsed > 0 && <p style={{ margin: "4px 0", color: "#64748b", fontSize: 13 }}>Points are being used, so the coupon box is off. One at a time.</p>}
+              {!offerOnBill && couponCode.trim() !== "" && pointsUsed === 0 && <p style={{ margin: "4px 0", color: "#64748b", fontSize: 13 }}>A coupon is being used, so points are off. One at a time.</p>}
+              <RewardsGuide />
               {rewards && rewards.message && (
                 <p role="status" style={{ margin: "6px 0", color: rewards.ok ? "#166534" : "#b91c1c" }}>{rewards.message}</p>
               )}

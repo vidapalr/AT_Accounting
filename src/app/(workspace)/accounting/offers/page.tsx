@@ -1,3 +1,4 @@
+import RewardsGuide from "@/components/RewardsGuide";
 import { loadWhereChoices, whereKey } from "@/lib/offer-where";
 import { Suspense } from "react";
 import type { RowDataPacket } from "mysql2";
@@ -49,6 +50,7 @@ async function Content({ searchParams }: Props) {
   return (
     <main style={{ padding: 24, maxWidth: 900 }}>
       <h1>Offers</h1>
+      <RewardsGuide />
       <p style={{ color: "#64748b" }}>
         Run an offer in the store, on the website, or both. On the website the old price shows crossed out. In the store the discount
         fills in by itself on the bill (staff can still change it). If more than one offer fits an item, the customer gets the best one, never both.

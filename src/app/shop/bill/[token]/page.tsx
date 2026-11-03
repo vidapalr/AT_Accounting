@@ -9,6 +9,8 @@ import styles from "../../shop.module.css";
 import { getShopSettings } from "@/lib/shop";
 import { TAGLINE } from "@/lib/brand";
 import BillWatermark from "@/components/BillWatermark";
+import BillTerms from "@/components/BillTerms";
+import { termsForSale } from "@/lib/bill-terms";
 import { normalizePhone } from "@/lib/whatsapp/core";
 
 
@@ -88,6 +90,7 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
       <p style={{ textAlign: "right", margin: "14px 0 0" }}>Total <strong style={{ fontSize: 20 }}>{inr(total)}</strong></p>
       {!isEstimate && <p style={{ textAlign: "right", margin: 0 }}>Paid {inr(paidAmt)}</p>}
       {!isEstimate && <p style={{ textAlign: "right", margin: 0 }}>{due > 0 ? <>Balance due <strong>{inr(due)}</strong></> : <strong>Paid in full. Thank you!</strong>}</p>}
+      <BillTerms text={await termsForSale(db, Number(h.legal_business_id), Number(h.id))} />
       <p style={{ marginTop: 28, fontSize: 18, textAlign: "center", color: "var(--indigo)" }}><strong>{isEstimate ? "Thank you for visiting Abhiram Textiles!" : "Thanks for shopping with Abhiram Textiles!"}</strong></p>
       <p className={styles.muted} style={{ textAlign: "center" }}>
         If anything looks wrong, message us{phone ? <> on <a href={`https://wa.me/${phone.replace(/\D/g, "")}`}>WhatsApp {whatsapp}</a></> : " on WhatsApp"}.

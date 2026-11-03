@@ -1,6 +1,8 @@
 
 import { Suspense } from "react";
 import DocumentHeader from "@/components/DocumentHeader";
+import BillTerms from "@/components/BillTerms";
+import { termsForSale } from "@/lib/bill-terms";
 import { getShopSettings } from "@/lib/shop";
 import { SHOP_PHONE, OWNER_PERSONAL_PHONE } from "@/lib/brand";
 import { setInvoiceAddressAction, voidEstimateAction } from "@/lib/sales-actions";
@@ -509,6 +511,8 @@ async function InvoiceDetails({ params, searchParams }: Props) {
       {invoice.remarks && (
         <p>Remarks: {invoice.remarks}</p>
       )}
+
+      <BillTerms text={await termsForSale(db, businessId, Number(invoice.id))} />
 
       {payResult && PAY_MESSAGES[payResult] && (
         <p
