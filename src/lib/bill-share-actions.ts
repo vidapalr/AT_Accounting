@@ -22,7 +22,7 @@ export async function billWhatsAppLinkAction(saleId: number): Promise<{ url?: st
   if (!Number.isSafeInteger(saleId) || saleId <= 0) return back("That bill was not found.");
 
   const [rows] = await db.execute<Row[]>(
-    `SELECT s.id, s.invoice_no, s.status, s.customer_name, s.customer_phone, s.grand_total,
+    `SELECT s.id, s.invoice_no, s.status, s.is_estimate, s.estimate_no, s.customer_name, s.customer_phone, s.grand_total,
             COALESCE((SELECT SUM(p.amount) FROM acct_sales_payments p
                        WHERE p.legal_business_id = s.legal_business_id AND p.sale_id = s.id AND p.status = 'RECORDED'), 0) AS paid
        FROM acct_sales_headers s WHERE s.legal_business_id = ? AND s.id = ?${mine.sql}`,
@@ -30,7 +30,8 @@ export async function billWhatsAppLinkAction(saleId: number): Promise<{ url?: st
   );
   const s = rows[0];
   if (!s) return back("That bill was not found.");
-  if (s.status !== "POSTED") return back("Confirm the sale before sending the bill.");
+  const isEstimate = Number(s.is_estimate) === 1 && s.status === "DRAFT";
+  if (s.status !== "POSTED" && !isEstimate) return back("Confirm the sale before sending the bill.");
   const phone = normalizePhone(String(s.customer_phone ?? ""));
   if (!phone) return back("Add the customer's mobile number first.");
 
@@ -58,16 +59,19 @@ export async function billWhatsAppLinkAction(saleId: number): Promise<{ url?: st
   const auto = await autoSendSettings(user.legal_business_id);
   const due = Math.max(0, total - Number(s.paid));
   const name = String(s.customer_name ?? "").trim();
-  const text =
-    `Hello${name ? ` ${name}` : ""}, thanks for shopping with Abhiram Textiles.\n` +
-    `Your bill ${s.invoice_no}: ${inr(total)}${due > 0 ? ` (balance due ${inr(due)})` : " (paid in full)"}.\n` +
-    `See your bill: ${shopBaseUrl()}/shop/bill/${token}`;
+  const text = isEstimate
+    ? `Hello${name ? ` ${name}` : ""}, thanks for visiting Abhiram Textiles.\n` +
+      `Your estimate ${s.estimate_no ?? s.invoice_no}: ${inr(total)}. This is an estimate, not a bill.\n` +
+      `See your estimate: ${shopBaseUrl()}/shop/bill/${token}`
+    : `Hello${name ? ` ${name}` : ""}, thanks for shopping with Abhiram Textiles.\n` +
+      `Your bill ${s.invoice_no}: ${inr(total)}${due > 0 ? ` (balance due ${inr(due)})` : " (paid in full)"}.\n` +
+      `See your bill: ${shopBaseUrl()}/shop/bill/${token}`;
   if (auto.on) {
     // Try the WhatsApp service first: an approved template if one is set, otherwise plain text (works only inside 24 hours of their last message).
     const to = `91${phone.replace(/\D/g, "").slice(-10)}`;
     const link = `${shopBaseUrl()}/shop/bill/${token}`;
     const result = auto.template
-      ? await sendWhatsAppTemplate(to, auto.template, auto.language, [name || "Customer", String(s.invoice_no), inr(total), link])
+      ? await sendWhatsAppTemplate(to, auto.template, auto.language, [name || "Customer", String(isEstimate ? s.estimate_no ?? s.invoice_no : s.invoice_no), inr(total), link])
       : await sendWhatsAppTextDetailed(to, text);
     await db.execute(
       `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
