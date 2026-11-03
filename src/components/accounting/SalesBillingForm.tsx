@@ -1,6 +1,7 @@
 
 "use client";
 
+import { priceForQuantity, type TierPrices } from "@/lib/qty-price";
 import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useSearchParams } from "next/navigation";
@@ -36,6 +37,7 @@ type ProductOption = {
   minPrice: number | null;
   suggestedPrice: number | null;
   offer?: { name: string; offPerUnit: number } | null;
+  tiers?: TierPrices;
 };
 
 type SaleRow = {
@@ -565,6 +567,14 @@ export default function SalesBillingForm({
                   </select>
                 </label>
 
+                {product?.tiers && (product.tiers.p4 != null || product.tiers.p10 != null) && (
+                  <p className={styles.stock}>
+                    Quantity price:
+                    {product.tiers.p4 != null ? ` 4 or more ₹${amount(product.tiers.p4)} each` : ""}
+                    {product.tiers.p10 != null ? `${product.tiers.p4 != null ? "," : ""} 10 or more ₹${amount(product.tiers.p10)} each` : ""}.
+                  </p>
+                )}
+
                 {product?.offer && (
                   <p className={styles.stock}>
                     Offer: {product.offer.name} (₹{product.offer.offPerUnit.toFixed(2)} off each) is in the discount below.
@@ -594,8 +604,15 @@ export default function SalesBillingForm({
                           ? (product.offer.offPerUnit * Number(row.quantity || 0)).toFixed(2)
                           : null;
                         // Keep the offer discount in step with the quantity, unless staff typed their own.
+                        // The price follows the quantity (4 or more, 10 or more), unless staff typed their own.
+                        const usualPrice = product?.suggestedPrice ?? null;
+                        const priceBefore = priceForQuantity(usualPrice, product?.tiers, Number(row.quantity || 0));
+                        const priceAfter = priceForQuantity(usualPrice, product?.tiers, Number(nextQty || 0));
+                        const followPrice = usualPrice != null && priceBefore != null && priceAfter != null
+                          && Number(row.price) === priceBefore && priceAfter !== priceBefore;
                         updateRow(row.key, {
                           quantity: nextQty,
+                          ...(followPrice ? { price: String(priceAfter) } : {}),
                           ...(product?.offer && autoBefore !== null && Number(row.discount).toFixed(2) === autoBefore
                             ? { discount: (product.offer.offPerUnit * Number(nextQty || 0)).toFixed(2) }
                             : {}),

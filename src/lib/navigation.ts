@@ -97,6 +97,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Catalogue", href: "/accounting/catalogue", hint: "Photos and videos of every product" },
       { label: "New stock arrivals", href: "/accounting/catalogue/new-stock", hint: "Newly received stock, ready to announce" },
       { label: "Products", href: "/accounting/products", hint: "Product list, sizes and colours" },
+      { label: "Quantity prices", href: "/accounting/products/quantity-prices", hint: "Lower price per piece when a customer buys 4 or more, or 10 or more" },
       { label: "Product groups", href: "/accounting/product-categories", hint: "Categories for products" },
       { label: "Suppliers", href: "/accounting/suppliers", hint: "People you buy from" },
     ],
