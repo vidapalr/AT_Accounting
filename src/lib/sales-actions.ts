@@ -35,6 +35,7 @@ type SaleLineInput = {
   discount: string;
   overrideReason?: string;
   lot?: string;
+  serial?: string;
 };
 
 type PaymentInput = {
@@ -200,6 +201,7 @@ export async function createSaleAction(
     totalPaise: bigint;
     reason: string | null;
     lot: string | null;
+    serial: string | null;
   };
 
   let preparedLines: PreparedLine[] = [];
@@ -247,6 +249,7 @@ export async function createSaleAction(
         totalPaise,
         reason: reason || null,
         lot: String(line.lot ?? "").trim().slice(0, 60) || null,
+        serial: String(line.serial ?? "").trim().toUpperCase().slice(0, 30) || null,
       };
     });
 
@@ -812,6 +815,16 @@ export async function createSaleAction(
                 ]
               );
             await saveSaleLot(conn, detail.insertId, line.lot);
+            if (mode === "POSTED" && line.serial) {
+              // A piece-by-piece item: the code must be a piece of this item still in stock, and one piece is one unit.
+              if (line.qtyMilli !== 1000n) throw new Error("SERIAL_INVALID");
+              const [taken] = await conn.execute<ResultSetHeader>(
+                `UPDATE acct_serials SET status = 'SOLD', sale_id = ?, sold_on = ?
+                  WHERE legal_business_id = ? AND variant_id = ? AND serial_no = ? AND status = 'IN_STOCK'`,
+                [createdId, saleDate, businessId, line.variantId, line.serial]
+              );
+              if (taken.affectedRows !== 1) throw new Error("SERIAL_INVALID");
+            }
 
             if (mode === "POSTED") {
               await conn.execute(
@@ -910,6 +923,8 @@ export async function createSaleAction(
       result = "credit-limit";
     } else if (error instanceof Error && error.message === "REWARDS_INVALID") {
       result = "rewards-invalid";
+    } else if (error instanceof Error && error.message === "SERIAL_INVALID") {
+      result = "serial-invalid";
     } else if ((error as { code?: string }).code === "ER_DUP_ENTRY" && submitToken) {
       // The same form was sent twice at the same moment; the other copy won. Show that bill.
       const [won] = await db.execute<RowDataPacket[]>(
@@ -1013,6 +1028,7 @@ export async function updateSaleAction(
     totalPaise: bigint;
     reason: string | null;
     lot: string | null;
+    serial: string | null;
   }>;
   const requestedBySku = new Map<number, bigint>();
   let invoiceDiscount = 0n;
@@ -1063,6 +1079,7 @@ export async function updateSaleAction(
         totalPaise,
         reason: reason || null,
         lot: String(line.lot ?? "").trim().slice(0, 60) || null,
+        serial: String(line.serial ?? "").trim().toUpperCase().slice(0, 30) || null,
       };
     });
 

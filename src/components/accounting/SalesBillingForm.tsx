@@ -41,6 +41,8 @@ type ProductOption = {
   offer?: { name: string; offPerUnit: number } | null;
   /** Lot names recently received for this item, to pick from when billing. */
   lots?: string[];
+  /** Set only for items tracked piece by piece: the codes of pieces in stock. */
+  serials?: string[] | null;
   tiers?: TierPrices;
 };
 
@@ -52,6 +54,7 @@ type SaleRow = {
   discount: string;
   reason: string;
   lot: string;
+  serial: string;
 };
 
 type PaymentRow = {
@@ -156,6 +159,7 @@ const newSaleRow = (): SaleRow => ({
   discount: "0",
   reason: "",
   lot: "",
+  serial: "",
 });
 
 const newPaymentRow = (): PaymentRow => ({
@@ -199,6 +203,7 @@ export default function SalesBillingForm({
           discount: line.discount,
           reason: line.reason,
           lot: line.lot ?? "",
+          serial: "",
         }))
       : prefill && prefill.lines.length > 0
         ? prefill.lines.map(line => ({
@@ -422,6 +427,7 @@ export default function SalesBillingForm({
             discount: r.discount,
             overrideReason: r.reason,
             lot: r.lot,
+            serial: r.serial,
           }))
         )}
       />
@@ -706,6 +712,22 @@ export default function SalesBillingForm({
                     <strong>₹{amount(lineTotals[index])}</strong>
                   </div>
                 </div>
+
+                {product?.serials && (
+                  <label className={styles.field}>
+                    Piece code (this item is tracked piece by piece)
+                    <input
+                      value={row.serial}
+                      maxLength={30}
+                      list={`serials-${row.key}`}
+                      placeholder="Pick or type the code on the piece, e.g. PC-00012"
+                      onChange={e => updateRow(row.key, { serial: e.target.value.toUpperCase(), quantity: e.target.value ? "1" : row.quantity })}
+                    />
+                    <datalist id={`serials-${row.key}`}>
+                      {product.serials.map(sn => <option key={sn} value={sn} />)}
+                    </datalist>
+                  </label>
+                )}
 
                 {row.variantId > 0 && (
                   <label className={styles.field}>
