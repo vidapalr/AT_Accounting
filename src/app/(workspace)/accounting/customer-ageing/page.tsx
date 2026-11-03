@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
@@ -80,6 +81,7 @@ async function AgeingContent({ searchParams }: Props) {
   return (
     <main style={{ padding: 24, maxWidth: 1100 }}>
       <h1>Who owes us, and for how long</h1>
+      <TableSearch />
       <p style={{ color: "#64748b" }}>
         As on {prettyDate(today)}. Payments are counted against the oldest bill first.
         Tap &ldquo;Remind&rdquo; to send a friendly WhatsApp message.

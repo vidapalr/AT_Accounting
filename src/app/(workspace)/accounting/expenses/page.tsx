@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 
 import { Suspense } from "react";
 import Link from "next/link";
@@ -386,6 +387,7 @@ async function ExpensesContent({ searchParams }: Props) {
       </section>
 
       <h2>Expense Register</h2>
+        <TableSearch />
 
       <div style={{ overflowX: "auto" }}>
         <table style={{

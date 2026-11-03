@@ -39,7 +39,7 @@ export default function HeaderSearch({ pages }: { pages: SearchPage[] }) {
       <input
         type="search"
         value={q}
-        placeholder="Search customer, bill, product, page…"
+        placeholder="Search anything…"
         aria-label="Search"
         onChange={(e) => { setQ(e.target.value); setPick(0); setOpen(true); }}
         onFocus={() => setOpen(true)}

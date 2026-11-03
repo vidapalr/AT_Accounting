@@ -1,3 +1,4 @@
+import TableSearch from "@/components/TableSearch";
 
 import { Suspense } from "react";
 import Link from "next/link";
@@ -358,6 +359,7 @@ async function PurchaseManagementContent({
         <div className={styles.registerHeader}>
           <div>
             <h2>Purchase Register</h2>
+        <TableSearch includeInputs />
             <p>View invoices, goods receipt status and payment activity.</p>
           </div>
         </div>
