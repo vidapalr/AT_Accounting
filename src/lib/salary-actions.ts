@@ -150,6 +150,7 @@ export async function paySalaryAction(formData: FormData) {
       date: todayIso(),
       category: "SALARY",
       description: `Salary ${label}: ${emp.full_name}`,
+      payee: String(emp.full_name),
       amount,
       payAmount: rupeesOf(cashPart),
       remarks: note || undefined,

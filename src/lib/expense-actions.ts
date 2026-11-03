@@ -59,6 +59,7 @@ export async function createExpenseAction(
   const expenseDate = String(form.get("expense_date") ?? "");
   const category = String(form.get("category") ?? "");
   const description = String(form.get("description") ?? "").trim();
+  const payeeName = String(form.get("payee_name") ?? "").trim();
   const amount = String(form.get("amount") ?? "").trim();
   const remarks = String(form.get("remarks") ?? "").trim();
   const isSetupCost = form.get("is_setup_cost") === "1" ? 1 : 0;
@@ -121,6 +122,7 @@ export async function createExpenseAction(
     !validDate(expenseDate) ||
     !CATEGORIES.has(category) ||
     !description || description.length > 500 ||
+    (mode === "CONFIRMED" && !payeeName) || payeeName.length > 150 ||
     remarks.length > 500 ||
     !validMoney(amount) ||
     (level !== "GROUP" && !validId(divisionId)) ||
@@ -255,16 +257,16 @@ export async function createExpenseAction(
         `INSERT INTO acct_expenses (
            legal_business_id, division_id, branch_id,
            allocation_level, expense_no, expense_date,
-           category, description, amount, status,
+           category, description, payee_name, amount, status,
            remarks, created_by, confirmed_by, is_setup_cost, confirmed_at
          ) VALUES (
-           ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+           ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
            ${mode === "CONFIRMED" ? "CURRENT_TIMESTAMP" : "NULL"}
          )`,
         [
           businessId, divisionId, branchId,
           level, expenseNo, expenseDate,
-          category, description, amount, mode,
+          category, description, payeeName || null, amount, mode,
           remarks || null, user.id,
           mode === "CONFIRMED" ? user.id : null,
           isSetupCost,

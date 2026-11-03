@@ -143,6 +143,7 @@ async function Content({ params, searchParams }: Props) {
         {" · "}{e.category} · {e.date_text}
       </p>
       <p>{e.description}</p>
+      {e.payee_name ? <p>Paid to: <strong>{String(e.payee_name)}</strong></p> : null}
       <p>Record status: <strong>{e.status}</strong></p>
       {e.status !== "DRAFT" && (
         <p>
