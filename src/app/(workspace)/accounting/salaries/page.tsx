@@ -46,6 +46,18 @@ async function SalariesContent({ searchParams }: Props) {
       ORDER BY e.status, e.full_name`,
     [month, businessId]
   );
+  // The salary in force for the month shown (pay changes can start on a later date).
+  try {
+    const [hist] = await db.execute<Row[]>(
+      `SELECT employee_id, monthly_salary FROM acct_employee_pay_history
+        WHERE legal_business_id = ? AND effective_from <= LAST_DAY(?) ORDER BY effective_from, id`,
+      [businessId, `${month}-01`]
+    );
+    const inForce = new Map<number, unknown>();
+    for (const h of hist) inForce.set(Number(h.employee_id), h.monthly_salary);
+    for (const person of people) if (inForce.has(Number(person.id))) person.monthly_salary = inForce.get(Number(person.id));
+  } catch { /* migration 062 not run yet: the saved salary is used */ }
+
   const [cash] = await db.execute<Row[]>(
     `SELECT id, cash_name FROM acct_cash_accounts WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY cash_name`,
     [businessId]
@@ -134,6 +146,7 @@ async function SalariesContent({ searchParams }: Props) {
                   <SubmitButton label="Pay" question={`Pay ${p.full_name} for ${monthLabel(month)}? This is saved as an expense.`} />
                 </form>
               )}
+              <a href={`/accounting/salaries/${p.id}`} className="btn-link">Staff record</a>
               {slip && <a href={slip} target="_blank" rel="noreferrer" className="btn-link">Send pay slip on WhatsApp</a>}
 
               {!left && (
