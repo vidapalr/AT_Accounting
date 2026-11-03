@@ -1,4 +1,5 @@
 
+import { loadQtyRule, loadOwnTierPrices, tiersFor } from "@/lib/qty-price-data";
 import { divisionSql } from "@/lib/scope";
 import { Suspense } from "react";
 import type { RowDataPacket } from "mysql2";
@@ -245,6 +246,8 @@ async function SalesContent({ searchParams }: Props) {
   }
 
   const storeOffers = await loadOffers(businessId).catch(() => []);
+  const qtyRule = await loadQtyRule(businessId);
+  const ownTiers = await loadOwnTierPrices(businessId);
   const todayIst = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
 
   const billingProducts = products.map(p => {
@@ -267,6 +270,7 @@ async function SalesContent({ searchParams }: Props) {
       minPrice: pricing?.minPrice ?? null,
       suggestedPrice: pricing?.suggestedPrice ?? null,
       offer: hit ? { name: hit.offer.name, offPerUnit: Number(hit.offPaise) / 100 } : null,
+      tiers: tiersFor(pricing?.suggestedPrice ?? null, qtyRule, ownTiers.get(Number(p.id))),
     };
   });
 
