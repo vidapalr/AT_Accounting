@@ -51,6 +51,7 @@ export const MIGRATION_MARKERS: Marker[] = [
   { file: "050_exchange_index", table: "acct_sales_payments", index: "idx_sales_payments_exchange_return" },
   { file: "051_posting_failures", table: "acct_posting_failures" },
   { file: "053_return_delivery_refund", table: "acct_sales_returns", column: "delivery_value" },
+  { file: "058_document_register", table: "acct_document_log" },
   { file: "057_expense_payee", table: "acct_expenses", column: "payee_name" },
   { file: "056_vouchers", table: "acct_vouchers" },
   { file: "054_login_attempts", table: "acct_login_attempts" },

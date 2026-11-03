@@ -4,7 +4,8 @@ import DocumentHeader from "@/components/DocumentHeader";
 import { getShopSettings } from "@/lib/shop";
 import { setInvoiceAddressAction, voidEstimateAction } from "@/lib/sales-actions";
 import BillWatermark from "@/components/BillWatermark";
-import PrintButton from "@/components/PrintButton";
+import LoggedPrintButton from "@/components/LoggedPrintButton";
+import { printCount } from "@/lib/document-register";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
@@ -110,6 +111,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
   const docWord = isEstimate ? "Estimate" : "Invoice";
   const docNo = isEstimate ? String(invoice.estimate_no ?? invoice.invoice_no) : String(invoice.invoice_no);
   const shop = await getShopSettings(businessId);
+  const printedBefore = await printCount(businessId, isEstimate ? "ESTIMATE" : "INVOICE", Number(invoice.id));
   const autoSend = (await autoSendSettings(businessId)).on;
   const shopAddress = [invoice.address_line1, invoice.address_line2, invoice.city, invoice.state, invoice.postal_code].filter(Boolean).join(", ") || "Kapra, Hyderabad";
 
@@ -216,7 +218,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
           : "PARTIAL";
 
   return (
-    <main style={{
+    <main data-print-sheet style={{
       padding: 24,
       margin: "0 auto",
       maxWidth: 1100,
@@ -240,7 +242,13 @@ async function InvoiceDetails({ params, searchParams }: Props) {
           {invoice.status === "POSTED" && !isEstimate && (
             <Link className="btn-link" href={`/accounting/sales?edit=${invoice.id}`}>Edit this bill</Link>
           )}
-          <PrintButton label={`Print ${docWord.toLowerCase()}`} />
+          <LoggedPrintButton
+            docType={isEstimate ? "ESTIMATE" : "INVOICE"}
+            sourceId={Number(invoice.id)}
+            docRef={docNo}
+            printedBefore={printedBefore}
+            label={`Print ${docWord.toLowerCase()}`}
+          />
         </span>
       </nav>
 

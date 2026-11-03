@@ -110,6 +110,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Insights", href: "/accounting/insights", hint: "Best sellers, who owes, slow stock, what is about to run out" },
       { label: "Accounting health", href: "/accounting/health", hint: "Is everything in the books? What is waiting and why" },
       { label: "Where the money went", href: "/accounting/cash-flow", hint: "Money in and out of cash and bank, and what is left" },
+      { label: "Printed papers", href: "/accounting/documents", hint: "Who printed which bill or voucher, reprints with reasons, saved copies" },
       { label: "Money in bank and cash", href: "/accounting/account-balances", hint: "Where the money is and how it moved" },
       { label: "Sales and purchase report", href: "/accounting/sales-purchase-report", hint: "Day-by-day sales, purchases and profit" },
       { label: "Product profit", href: "/accounting/product-profitability", hint: "Which products earn the most" },
