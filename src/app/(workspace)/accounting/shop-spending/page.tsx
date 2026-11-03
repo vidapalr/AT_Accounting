@@ -74,6 +74,9 @@ async function SpendingContent({ searchParams }: Props) {
         <label>A few words
           <input name="note" required minLength={3} maxLength={200} placeholder="e.g. Auto for parcel to Uppal" style={field} />
         </label>
+        <label>Paid to (name, if known)
+          <input name="payee" maxLength={150} placeholder="e.g. auto driver, shop name" style={field} />
+        </label>
         <label>Money taken from
           <select name="drawer" required defaultValue={drawers.length === 1 ? String(drawers[0].id) : ""} style={field}>
             {drawers.length !== 1 && <option value="" disabled>Choose the drawer…</option>}

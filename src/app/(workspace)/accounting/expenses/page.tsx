@@ -35,7 +35,7 @@ const categories = [
 
 const messages: Record<string, string> = {
   created: "Expense saved successfully.",
-  invalid: "Please check the expense details.",
+  invalid: "Please check the expense details. The name of the person or shop paid is needed.",
   "invalid-amount": "Enter a valid amount greater than zero.",
   "invalid-payment": "Check the payment details and source account.",
   "payment-exceeds-expense":
@@ -308,6 +308,16 @@ async function ExpensesContent({ searchParams }: Props) {
               required
               maxLength={500}
               placeholder="Example: Monthly Kapra shop rent"
+              style={fieldStyle}
+            />
+          </label>
+
+          <label>
+            Paid to (name of the person or shop)
+            <input
+              name="payee_name"
+              maxLength={150}
+              placeholder="Example: Ramesh, landlord"
               style={fieldStyle}
             />
           </label>

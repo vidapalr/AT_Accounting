@@ -36,7 +36,7 @@ async function Content({ params, searchParams }: Props) {
   if (!Number.isSafeInteger(expenseId) || expenseId <= 0) notFound();
 
   const [rows] = await db.execute<RowDataPacket[]>(
-    `SELECT e.expense_no, e.category, e.description, e.amount, e.status, e.remarks,
+    `SELECT e.expense_no, e.category, e.description, e.payee_name, e.amount, e.status, e.remarks,
             DATE_FORMAT(e.expense_date, '%d-%m-%Y') AS date_text,
             b.address_line1, b.address_line2, b.city, b.state, b.postal_code
        FROM acct_expenses e
@@ -89,7 +89,8 @@ async function Content({ params, searchParams }: Props) {
       <section style={{ border: "2px solid #142c50", padding: 20, background: "#fff", color: "#0f172a" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, borderBottom: "2px solid #142c50", paddingBottom: 12 }}>
           <div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: "#142c50" }}>{BRAND_NAME.toUpperCase()}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: "#142c50" }}>ABHIRAM GROUP</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#142c50" }}>{BRAND_NAME}</div>
             <div style={{ fontSize: 12, color: "#475569" }}>{address}</div>
           </div>
           <div style={{ textAlign: "right", fontWeight: 800, color: "#142c50", fontSize: 16 }}>{title}</div>
@@ -103,17 +104,15 @@ async function Content({ params, searchParams }: Props) {
               <td style={{ ...cell, fontWeight: 700, width: "18%" }}>Date</td>
               <td style={cell}>{isVoucher ? String(voucher!.pay_date) : String(e.date_text)}</td>
             </tr>
-            {isVoucher && (
-              <tr>
-                <td style={{ ...cell, fontWeight: 700 }}>Expense no.</td>
-                <td style={cell}>{String(e.expense_no)}</td>
-                <td style={{ ...cell, fontWeight: 700 }}>Type</td>
-                <td style={cell}>{String(e.category).replaceAll("_", " ")}</td>
-              </tr>
-            )}
             <tr>
-              <td style={{ ...cell, fontWeight: 700 }}>{isVoucher ? "Paid to" : "Type"}</td>
-              <td style={{ ...cell, height: 36 }} colSpan={3}>{isVoucher ? "" : String(e.category).replaceAll("_", " ")}</td>
+              <td style={{ ...cell, fontWeight: 700 }}>{isVoucher ? "Expense no." : "Type"}</td>
+              <td style={cell}>{isVoucher ? String(e.expense_no) : String(e.category).replaceAll("_", " ")}</td>
+              <td style={{ ...cell, fontWeight: 700 }}>{isVoucher ? "Type" : "Status"}</td>
+              <td style={cell}>{isVoucher ? String(e.category).replaceAll("_", " ") : String(e.status)}</td>
+            </tr>
+            <tr>
+              <td style={{ ...cell, fontWeight: 700 }}>Paid to</td>
+              <td style={{ ...cell, height: 36 }} colSpan={3}>{String(e.payee_name ?? "")}</td>
             </tr>
           </tbody>
         </table>

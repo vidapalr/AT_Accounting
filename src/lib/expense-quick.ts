@@ -14,6 +14,8 @@ export type QuickExpense = {
   /** Paid in cash or bank now, when that is less than the whole amount (the rest is settled another way). Zero means no cash or bank payment. */
   payAmount?: string;
   remarks?: string;
+  /** Who the money was paid to (printed on the voucher). */
+  payee?: string;
   divisionId: number | null;
   branchId: number | null;
   pay: {
@@ -102,11 +104,11 @@ export async function recordQuickExpense(conn: PoolConnection, e: QuickExpense):
   const [saved] = await conn.execute<ResultSetHeader>(
     `INSERT INTO acct_expenses
        (legal_business_id, division_id, branch_id, allocation_level, expense_no, expense_date,
-        category, description, amount, status, remarks, created_by, confirmed_by, confirmed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, CURRENT_TIMESTAMP)`,
+        category, description, payee_name, amount, status, remarks, created_by, confirmed_by, confirmed_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED', ?, ?, ?, CURRENT_TIMESTAMP)`,
     [
       e.businessId, e.divisionId, e.branchId, level, expenseNo, e.date,
-      e.category, e.description.slice(0, 500), e.amount, e.remarks || null, e.userId, e.userId,
+      e.category, e.description.slice(0, 500), e.payee ? e.payee.slice(0, 150) : null, e.amount, e.remarks || null, e.userId, e.userId,
     ]
   );
   const paid = e.payAmount ?? e.amount;

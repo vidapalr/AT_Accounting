@@ -27,6 +27,7 @@ export async function recordShopSpendingAction(formData: FormData) {
 
   const kind = SPENDING_KINDS[text("kind")];
   const note = text("note").slice(0, 200);
+  const payee = text("payee").slice(0, 150);
   const amount = text("amount").replaceAll(",", "");
   const drawerId = Number(text("drawer"));
   if (!kind) go("error", "Choose what the money was spent on.");
@@ -65,6 +66,7 @@ export async function recordShopSpendingAction(formData: FormData) {
       date: todayIso(),
       category: kind.category,
       description: `${kind.label}: ${note}`,
+      payee: payee || undefined,
       amount,
       divisionId: drawers[0].division_id === null ? null : Number(drawers[0].division_id),
       branchId: drawers[0].branch_id === null ? null : Number(drawers[0].branch_id),
