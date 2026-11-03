@@ -6,6 +6,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { matchOrder, MATCH_WORDS, TOLERANCE_PERCENT, type MatchLine, type MatchRow } from "@/lib/order-match";
 import {
   postGoodsReceiptAction,
 } from "@/lib/goods-receipt-actions";
@@ -157,6 +158,40 @@ async function PurchaseDetailContent({
     [purchaseId, businessId]
   );
 
+  // Compare with the order this purchase came from (if any). Never breaks the page.
+  let orderCheck: { orderNo: string; rows: MatchRow[] } | null = null;
+  try {
+    const [ords] = await db.execute<RowDataPacket[]>(
+      `SELECT id, order_no FROM acct_purchase_orders
+        WHERE legal_business_id = ? AND purchase_id = ? LIMIT 1`,
+      [businessId, purchaseId]
+    );
+    if (ords[0]) {
+      const [ol] = await db.execute<RowDataPacket[]>(
+        `SELECT l.variant_id, CAST(l.quantity AS CHAR) AS qty, CAST(l.unit_cost AS CHAR) AS unit_cost,
+                CONCAT(p.product_name, COALESCE(CONCAT(' / ', v.size_label), ''), COALESCE(CONCAT(' / ', v.color_name), '')) AS label
+           FROM acct_purchase_order_lines l
+           JOIN acct_product_variants v ON v.id = l.variant_id AND v.legal_business_id = ?
+           JOIN acct_products p ON p.id = v.product_id AND p.legal_business_id = v.legal_business_id AND p.division_id = v.division_id
+          WHERE l.order_id = ?`,
+        [businessId, ords[0].id]
+      );
+      const [bl] = await db.execute<RowDataPacket[]>(
+        `SELECT l.variant_id, CAST(l.quantity AS CHAR) AS qty, CAST(l.unit_cost AS CHAR) AS unit_cost,
+                CONCAT(p.product_name, COALESCE(CONCAT(' / ', v.size_label), ''), COALESCE(CONCAT(' / ', v.color_name), '')) AS label
+           FROM acct_purchase_lines l
+           JOIN acct_product_variants v ON v.id = l.variant_id AND v.legal_business_id = l.legal_business_id AND v.division_id = l.division_id
+           JOIN acct_products p ON p.id = v.product_id AND p.legal_business_id = v.legal_business_id AND p.division_id = v.division_id
+          WHERE l.purchase_id = ? AND l.legal_business_id = ?`,
+        [purchaseId, businessId]
+      );
+      const toLine = (r: RowDataPacket): MatchLine => ({ variantId: Number(r.variant_id), label: String(r.label), qty: r.qty, unitCost: r.unit_cost });
+      orderCheck = { orderNo: String(ords[0].order_no), rows: matchOrder(ol.map(toLine), bl.map(toLine)) };
+    }
+  } catch {
+    orderCheck = null;
+  }
+
   const total = lines.reduce(
     (sum, line) =>
       sum + amountToPaise(line.line_amount),
@@ -296,6 +331,34 @@ async function PurchaseDetailContent({
           </strong>
         </p>
       </section>
+
+      {orderCheck && (
+        <section style={card}>
+          <h2>Does this match order {orderCheck.orderNo}?</h2>
+          {orderCheck.rows.every(r => r.status === "OK") ? (
+            <p style={{ color: "#166534" }}>Yes. Every item matches the order (small differences up to {TOLERANCE_PERCENT}% are allowed).</p>
+          ) : (
+            <p style={{ color: "#92400e" }}>Some items differ from the order by more than {TOLERANCE_PERCENT}%. Check them with the supplier before you pay.</p>
+          )}
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>{["Item", "Ordered", "On this bill", "Result"].map(h => <th key={h} style={cell}>{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {orderCheck.rows.map((r, i) => (
+                  <tr key={i}>
+                    <td style={cell}>{r.label}</td>
+                    <td style={cell}>{r.orderedQty} × ₹{r.orderedCost}</td>
+                    <td style={cell}>{r.boughtQty} × ₹{r.boughtCost}</td>
+                    <td style={{ ...cell, color: r.status === "OK" ? "#166534" : "#b91c1c", fontWeight: 600 }}>{MATCH_WORDS[r.status]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <section style={card}>
         <h2>Goods Receipt</h2>
