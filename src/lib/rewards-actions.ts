@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { normalizePhone } from "@/lib/customer-phone";
 import { checkRewards } from "@/lib/rewards-data";
+import { parseWhere } from "@/lib/offer-where";
 import { maxPointsUsable } from "@/lib/rewards-math";
 import type { RowDataPacket } from "mysql2";
 
@@ -25,7 +26,7 @@ export type RewardPreview = {
 };
 
 /** For the billing screen: what the customer has, and what the chosen points and coupon are worth on this bill. */
-export async function previewRewardsAction(input: { phone: string; pointsUsed: number; couponCode: string; billAmount: number }): Promise<RewardPreview> {
+export async function previewRewardsAction(input: { phone: string; pointsUsed: number; couponCode: string; billAmount: number; branchId?: number }): Promise<RewardPreview> {
   const user = await requireAccess("sales");
   const businessId = user.legal_business_id;
   const phone = normalizePhone(String(input.phone ?? ""));
@@ -38,9 +39,15 @@ export async function previewRewardsAction(input: { phone: string; pointsUsed: n
     if (c[0]) { customerId = Number(c[0].id); customerName = String(c[0].full_name); }
   }
   const points = Math.max(0, Math.floor(Number(input.pointsUsed) || 0));
+  const branchId = Number.isSafeInteger(input.branchId) && Number(input.branchId) > 0 ? Number(input.branchId) : null;
+  let divisionId: number | null = null;
+  if (branchId) {
+    const [b] = await db.execute<RowDataPacket[]>(`SELECT division_id FROM acct_branches WHERE legal_business_id = ? AND id = ?`, [businessId, branchId]);
+    divisionId = b[0] ? Number(b[0].division_id) : null;
+  }
   let r: Awaited<ReturnType<typeof checkRewards>>;
   try {
-    r = await checkRewards(db, { businessId, customerId, pointsUsed: points, couponCode: String(input.couponCode ?? "").slice(0, 30), billPaise, today: todayIso() });
+    r = await checkRewards(db, { businessId, customerId, pointsUsed: points, couponCode: String(input.couponCode ?? "").slice(0, 30), billPaise, today: todayIso(), branchId, divisionId });
   } catch {
     return { ok: false, message: "Points and coupons are not set up yet (database file 063_rewards).", customerName, balance: 0, maxPoints: 0, pointsUsed: 0, pointsDiscount: 0, couponDiscount: 0 };
   }
@@ -68,11 +75,22 @@ export async function createCouponAction(formData: FormData) {
   if (!Number.isFinite(value) || value <= 0 || (kind === "PERCENT" && value > 90)) return back("error", kind === "PERCENT" ? "Percent must be between 1 and 90." : "Write the rupees off.");
   if (!Number.isFinite(minBill) || minBill < 0 || (maxDisc !== null && (!Number.isFinite(maxDisc) || maxDisc <= 0))) return back("error", "Check the minimum bill and the most discount.");
   if (starts && ends && ends < starts) return back("error", "The end date is before the start date.");
+  const where = await parseWhere(user.legal_business_id, get("works_at"));
+  if (!where) return back("error", "Choose where the coupon works (a branch or all branches).");
+  const base = [user.legal_business_id, code, kind, value, minBill, maxDisc, starts, ends, get("once") === "1" ? 1 : 0, user.id];
   try {
-    await db.execute(
-      `INSERT INTO acct_coupons (legal_business_id, code, kind, value, min_bill, max_discount, starts_on, ends_on, once_per_customer, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [user.legal_business_id, code, kind, value, minBill, maxDisc, starts, ends, get("once") === "1" ? 1 : 0, user.id]);
+    try {
+      await db.execute(
+        `INSERT INTO acct_coupons (legal_business_id, code, kind, value, min_bill, max_discount, starts_on, ends_on, once_per_customer, created_by, division_id, branch_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [...base, where.divisionId, where.branchId]);
+    } catch (inner) {
+      // Migration 064 not run yet: only an "everywhere" coupon can be saved.
+      if ((inner as { code?: string }).code === "ER_DUP_ENTRY" || where.divisionId || where.branchId) throw inner;
+      await db.execute(
+        `INSERT INTO acct_coupons (legal_business_id, code, kind, value, min_bill, max_discount, starts_on, ends_on, once_per_customer, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, base);
+    }
   } catch (e) {
     if ((e as { code?: string }).code === "ER_DUP_ENTRY") return back("error", "That code already exists. Choose another.");
     throw e;

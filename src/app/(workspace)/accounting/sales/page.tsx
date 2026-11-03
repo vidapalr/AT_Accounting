@@ -252,6 +252,10 @@ async function SalesContent({ searchParams }: Props) {
   const priceOverrides = await loadPriceOverrides(businessId);
   const ownTiers = await loadOwnTierPrices(businessId);
   const todayIst = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+  // An offer can be limited to one branch or one division, so each item is checked at the branch it is sold from.
+  const [branchRows] = await db.execute<RowDataPacket[]>(
+    `SELECT id, division_id FROM acct_branches WHERE legal_business_id = ?`, [businessId]);
+  const branchDivision = new Map<number, number>(branchRows.map(b => [Number(b.id), Number(b.division_id)]));
 
   const billingProducts = products.map(p => {
     const stockPricing = latestPrices.get(`${p.branchId}-${p.id}`);
@@ -262,7 +266,8 @@ async function SalesContent({ searchParams }: Props) {
       : stockPricing;
     const hit = pricing?.suggestedPrice != null
       ? bestOffer(storeOffers, "STORE", { productId: Number(p.product_id), fabric: p.fabric ? String(p.fabric) : null },
-          BigInt(Math.round(pricing.suggestedPrice * 100)), todayIst)
+          BigInt(Math.round(pricing.suggestedPrice * 100)), todayIst,
+          { branchId: Number(p.branchId), divisionId: branchDivision.get(Number(p.branchId)) ?? null })
       : null;
 
     return {

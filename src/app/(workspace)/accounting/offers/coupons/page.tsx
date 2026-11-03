@@ -1,3 +1,4 @@
+import { loadWhereChoices, whereKey } from "@/lib/offer-where";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
@@ -18,15 +19,21 @@ async function Content({ searchParams }: Props) {
   const q = await searchParams;
   let ready = true;
   let rows: RowDataPacket[] = [];
-  try {
-    [rows] = await db.execute<RowDataPacket[]>(
-      `SELECT c.id, c.code, c.kind, c.value, c.min_bill, c.max_discount, c.once_per_customer, c.status,
+  const { choices, names } = await loadWhereChoices(user.legal_business_id);
+  const sql = (withWhere: boolean) =>
+      `SELECT c.id, c.code,${withWhere ? " c.division_id, c.branch_id," : ""} c.kind, c.value, c.min_bill, c.max_discount, c.once_per_customer, c.status,
               DATE_FORMAT(c.starts_on, '%d-%m-%Y') AS s, DATE_FORMAT(c.ends_on, '%d-%m-%Y') AS e,
               (SELECT COUNT(*) FROM acct_sale_rewards w JOIN acct_sales_headers h ON h.id = w.sale_id
                 WHERE w.coupon_id = c.id AND h.status = 'POSTED') AS used,
               (SELECT COALESCE(SUM(w.coupon_discount), 0) FROM acct_sale_rewards w JOIN acct_sales_headers h ON h.id = w.sale_id
                 WHERE w.coupon_id = c.id AND h.status = 'POSTED') AS given
-         FROM acct_coupons c WHERE c.legal_business_id = ? ORDER BY c.status, c.id DESC`, [user.legal_business_id]);
+         FROM acct_coupons c WHERE c.legal_business_id = ? ORDER BY c.status, c.id DESC`;
+  try {
+    try {
+      [rows] = await db.execute<RowDataPacket[]>(sql(true), [user.legal_business_id]);
+    } catch {
+      [rows] = await db.execute<RowDataPacket[]>(sql(false), [user.legal_business_id]); // migration 064 not run yet
+    }
   } catch {
     ready = false;
   }
@@ -48,6 +55,11 @@ async function Content({ searchParams }: Props) {
           <section style={box}>
             <h2>New coupon</h2>
             <form action={createCouponAction} style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))" }}>
+              <label>Works at
+                <select name="works_at" defaultValue={choices[0]?.value ?? ""} style={field}>
+                  {choices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </label>
               <label>Code (letters and numbers, e.g. DIWALI10)<input name="code" required maxLength={20} style={{ ...field, textTransform: "uppercase" }} /></label>
               <label>Takes off
                 <select name="kind" defaultValue="PERCENT" style={field}><option value="PERCENT">Percent of the bill (%)</option><option value="RUPEES">Rupees (₹)</option></select>
@@ -73,7 +85,7 @@ async function Content({ searchParams }: Props) {
                   <tbody>
                     {rows.map((c) => (
                       <tr key={String(c.id)}>
-                        <td style={cell}><strong>{String(c.code)}</strong>{c.status === "PAUSED" ? " (paused)" : ""}</td>
+                        <td style={cell}><strong>{String(c.code)}</strong>{c.status === "PAUSED" ? " (paused)" : ""}<div style={{ color: "#64748b", fontSize: 13 }}>{names.get(whereKey(c.division_id, c.branch_id)) ?? "All branches"}</div></td>
                         <td style={cell}>{c.kind === "PERCENT" ? `${Number(c.value)}% off` : `${inr(c.value)} off`}{c.max_discount !== null ? `, at most ${inr(c.max_discount)}` : ""}</td>
                         <td style={cell}>
                           {Number(c.min_bill) > 0 ? `Bill ${inr(c.min_bill)} or more. ` : ""}

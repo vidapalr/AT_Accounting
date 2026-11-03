@@ -1,5 +1,6 @@
 "use server";
 
+import { parseWhere } from "@/lib/offer-where";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -38,14 +39,30 @@ export async function saveOfferAction(formData: FormData) {
   if (ends && !isDate(ends)) return back("error", "The end date is not valid.");
   if (starts && ends && ends < starts) return back("error", "The end date is before the start date.");
 
+  const where = await parseWhere(businessId, t("works_at"));
+  if (!where) return back("error", "Choose where the offer works (a branch or all branches).");
+  if (where.branchId && channel !== "STORE") return back("error", "An offer for one branch must be Store only. The website is not a branch.");
+
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
-    const [res] = await conn.execute(
-      `INSERT INTO acct_offers (legal_business_id, offer_name, channel, kind, offer_value, scope, fabric, starts_on, ends_on, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [businessId, name, channel, kind, value.toFixed(2), scope, scope === "FABRIC" ? fabric : null, starts || null, ends || null, user.id]
-    );
+    const baseValues = [businessId, name, channel, kind, value.toFixed(2), scope, scope === "FABRIC" ? fabric : null, starts || null, ends || null, user.id];
+    let res;
+    try {
+      [res] = await conn.execute(
+        `INSERT INTO acct_offers (legal_business_id, offer_name, channel, kind, offer_value, scope, fabric, starts_on, ends_on, created_by, division_id, branch_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [...baseValues, where.divisionId, where.branchId]
+      );
+    } catch (e) {
+      // Migration 064 not run yet: only an "everywhere" offer can be saved.
+      if (where.divisionId || where.branchId) throw e;
+      [res] = await conn.execute(
+        `INSERT INTO acct_offers (legal_business_id, offer_name, channel, kind, offer_value, scope, fabric, starts_on, ends_on, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        baseValues
+      );
+    }
     const offerId = (res as { insertId: number }).insertId;
     if (scope === "PRODUCTS") {
       for (const pid of productIds) {
