@@ -14,6 +14,7 @@ import { db } from "@/lib/db";
 import { divisionOfBranch } from "@/lib/division-context";
 import { autoReverseForEdit } from "@/lib/ledger/reverse-in-tx";
 import { requireAccess } from "@/lib/auth";
+import { canGiveBillDiscount } from "@/lib/access";
 import { nextCode } from "@/lib/codes";
 import { releaseItemsForSale } from "@/lib/approval-stock";
 
@@ -93,6 +94,8 @@ export async function createSaleAction(
   const saleDate = String(form.get("invoice_date") ?? "");
   const customerName = String(form.get("customer_name") ?? "").trim();
   const customerPhone = String(form.get("customer_phone") ?? "").trim();
+  const customerTypeIn: "RETAIL" | "WHOLESALE" | undefined =
+    form.get("customer_type") === "WHOLESALE" ? "WHOLESALE" : form.get("customer_type") === "RETAIL" ? "RETAIL" : undefined;
   const customerAddress = String(form.get("customer_address") ?? "").trim();
   const remarks = String(form.get("remarks") ?? "").trim();
   // Set when a saved draft is being confirmed: the same invoice is posted, not a new one.
@@ -587,6 +590,7 @@ export async function createSaleAction(
           const customer = phone10
             ? await findOrCreateCustomer(conn, {
                 businessId, userId: user.id, name: customerName, phone10,
+                customerType: customerTypeIn, canChangeType: canGiveBillDiscount(user.role),
               })
             : null;
 
@@ -950,6 +954,8 @@ export async function updateSaleAction(
   const saleDate = String(form.get("invoice_date") ?? "");
   const customerName = String(form.get("customer_name") ?? "").trim();
   const customerPhone = String(form.get("customer_phone") ?? "").trim();
+  const customerTypeIn: "RETAIL" | "WHOLESALE" | undefined =
+    form.get("customer_type") === "WHOLESALE" ? "WHOLESALE" : form.get("customer_type") === "RETAIL" ? "RETAIL" : undefined;
   const customerAddress = String(form.get("customer_address") ?? "").trim();
   const remarks = String(form.get("remarks") ?? "").trim();
 
@@ -1390,6 +1396,7 @@ export async function updateSaleAction(
             const customer = phone10
               ? await findOrCreateCustomer(conn, {
                   businessId, userId: user.id, name: customerName, phone10,
+                  customerType: customerTypeIn, canChangeType: canGiveBillDiscount(user.role),
                 })
               : null;
 

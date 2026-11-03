@@ -92,6 +92,7 @@ type CustomerOption = {
   address?: string;
   dues: number;
   creditLimit: number;
+  type?: "RETAIL" | "WHOLESALE";
 };
 
 type Prefill = {
@@ -115,6 +116,8 @@ type Prefill = {
 type Props = {
   prefill?: Prefill;
   customers?: CustomerOption[];
+  /** Owner and accountant can change a customer already on file between retail and wholesale. */
+  canChangeCustomerType?: boolean;
   branches: Branch[];
   products: ProductOption[];
   paymentAccounts: PaymentAccountOption[];
@@ -159,6 +162,7 @@ const newPaymentRow = (): PaymentRow => ({
 
 export default function SalesBillingForm({
   customers = [],
+  canChangeCustomerType = false,
   branches,
   products,
   paymentAccounts,
@@ -172,6 +176,9 @@ export default function SalesBillingForm({
   const [custAddress, setCustAddress] = useState(initialInvoice?.customerAddress ?? prefill?.customerAddress ?? "");
   const digits = custPhone.replace(/\D/g, "").slice(-10);
   const known = digits.length === 10 ? customers.find(c => c.phone === digits) : undefined;
+  const [custType, setCustType] = useState<"RETAIL" | "WHOLESALE">("RETAIL");
+  const knownType = known?.type;
+  useEffect(() => { if (knownType) setCustType(knownType); }, [knownType, digits]);
 
   const [branchId, setBranchId] = useState(
     initialInvoice?.branchId ?? prefill?.branchId ?? branches[0]?.id ?? 0
@@ -476,6 +483,20 @@ export default function SalesBillingForm({
           />
         </label>
 
+        <label className={styles.field}>
+          Customer type
+          <select
+            name="customer_type"
+            value={custType}
+            onChange={e => setCustType(e.target.value === "WHOLESALE" ? "WHOLESALE" : "RETAIL")}
+            disabled={!!known && !canChangeCustomerType}
+            style={{ padding: 10, fontSize: 16 }}
+          >
+            <option value="RETAIL">Retail customer (earns points)</option>
+            <option value="WHOLESALE">Wholesale customer (no points)</option>
+          </select>
+        </label>
+
         {digits.length === 10 && (
           <p
             role="status"
@@ -743,11 +764,22 @@ export default function SalesBillingForm({
           {rewardsOn && (
             <div className={styles.field} style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 12 }}>
               <strong>Points and coupon</strong>
-              {rewards && rewards.balance > 0 && (
-                <p style={{ margin: "6px 0" }}>
-                  {rewards.customerName ?? "This customer"} has <strong>{rewards.balance} points</strong> (worth ₹{Math.floor(rewards.balance / 200) * 50}).
-                </p>
+              {digits.length === 10 && custType === "WHOLESALE" && (
+                <p style={{ margin: "6px 0" }}>Wholesale customer: no points on this bill.</p>
               )}
+              {digits.length === 10 && custType === "RETAIL" && (
+                <>
+                  <p style={{ margin: "6px 0" }}>
+                    {rewards?.customerName ?? "This customer"} has <strong>{rewards?.retail ? rewards.balance : 0} points</strong>
+                    {rewards?.retail && rewards.balance >= 200 ? ` (worth ₹${Math.floor(rewards.balance / 200) * 50})` : ""}
+                    {!known ? " (new customer)" : ""}.
+                  </p>
+                  <p style={{ margin: "6px 0" }}>
+                    This bill will earn <strong>{Math.floor(Math.max(0, subtotal - totalBillDiscount) / 200)} points</strong> (1 point for every ₹200, after discounts and without delivery).
+                  </p>
+                </>
+              )}
+              {digits.length !== 10 && <p style={{ margin: "6px 0", color: "#64748b" }}>Type the customer&rsquo;s mobile number to see their points.</p>}
               {rewards && rewards.maxPoints > 0 && (
                 <label>
                   Use points
