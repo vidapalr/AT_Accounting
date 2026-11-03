@@ -5,6 +5,7 @@ import { NAVIGATION } from "@/lib/navigation";
 import SidebarNav from "@/components/SidebarNav";
 import DivisionSwitcher from "@/components/DivisionSwitcher";
 import { getActiveDivisionId, listDivisions } from "@/lib/division-context";
+import HeaderSearch from "@/components/HeaderSearch";
 import MobileMenu from "@/components/MobileMenu";
 import BrandLogo from "@/components/BrandLogo";
 import { financialYearLabel } from "@/lib/financial-year";
@@ -39,6 +40,9 @@ async function WorkspaceContent({
     }))
     .filter((section) => section.items.length > 0);
 
+  const searchable = sections.flatMap((section) =>
+    section.items.map((item) => ({ label: item.label, href: item.href, hint: item.hint, group: section.label })));
+
   return (
     <div className={styles.workspace}>
       <aside className={styles.sidebar}>
@@ -61,6 +65,8 @@ async function WorkspaceContent({
             <strong>Abhiram Group Accounting</strong>
             <small>Financial Year {financialYearLabel(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }))}</small>
           </div>
+
+          <HeaderSearch pages={searchable} />
 
           <div className={styles.userArea}>
             {divisions.length > 1 && user.role !== "INVESTOR" && (
