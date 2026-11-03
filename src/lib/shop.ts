@@ -53,12 +53,17 @@ const todayIst = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().sl
 /** Active offers as the maths module wants them. */
 export async function loadOffers(businessId = SHOP_BUSINESS_ID): Promise<Offer[]> {
   await connection(); // read at request time, never while the site is being built
-  const [rows] = await db.execute<RowDataPacket[]>(
-    `SELECT id, offer_name, channel, kind, offer_value, scope, fabric,
-            DATE_FORMAT(starts_on, '%Y-%m-%d') AS starts_on, DATE_FORMAT(ends_on, '%Y-%m-%d') AS ends_on, status
-       FROM acct_offers WHERE legal_business_id = ? AND status = 'ACTIVE'`,
-    [businessId]
-  );
+  const cols = `id, offer_name, channel, kind, offer_value, scope, fabric,
+            DATE_FORMAT(starts_on, '%Y-%m-%d') AS starts_on, DATE_FORMAT(ends_on, '%Y-%m-%d') AS ends_on, status`;
+  let rows: RowDataPacket[];
+  try {
+    [rows] = await db.execute<RowDataPacket[]>(
+      `SELECT ${cols}, division_id, branch_id FROM acct_offers WHERE legal_business_id = ? AND status = 'ACTIVE'`, [businessId]);
+  } catch {
+    // Migration 064 (offers per branch) is not run yet: every offer works everywhere, as before.
+    [rows] = await db.execute<RowDataPacket[]>(
+      `SELECT ${cols} FROM acct_offers WHERE legal_business_id = ? AND status = 'ACTIVE'`, [businessId]);
+  }
   if (rows.length === 0) return [];
   const [links] = await db.query<RowDataPacket[]>(
     `SELECT offer_id, product_id FROM acct_offer_products WHERE offer_id IN (?)`,
@@ -69,6 +74,7 @@ export async function loadOffers(businessId = SHOP_BUSINESS_ID): Promise<Offer[]
     scope: r.scope, fabric: r.fabric ? String(r.fabric) : null,
     productIds: links.filter(l => Number(l.offer_id) === Number(r.id)).map(l => Number(l.product_id)),
     startsOn: r.starts_on ? String(r.starts_on) : null, endsOn: r.ends_on ? String(r.ends_on) : null, active: r.status === "ACTIVE",
+    divisionId: r.division_id ? Number(r.division_id) : null, branchId: r.branch_id ? Number(r.branch_id) : null,
   })) as Offer[];
 }
 

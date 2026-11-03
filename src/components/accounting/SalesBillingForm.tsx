@@ -307,7 +307,7 @@ export default function SalesBillingForm({
     const d = custPhone.replace(/\D/g, "").slice(-10);
     if (d.length !== 10 && !couponCode.trim()) { setRewards(null); return; }
     const t = setTimeout(() => {
-      previewRewardsAction({ phone: d, pointsUsed, couponCode, billAmount: subtotal })
+      previewRewardsAction({ phone: d, pointsUsed, couponCode, billAmount: subtotal, branchId: Number(branchId) || undefined })
         .then(r => {
           setRewards(r);
           if (!r.ok && pointsUsed > r.maxPoints) setPointsUsed(0);
@@ -315,7 +315,7 @@ export default function SalesBillingForm({
         .catch(() => setRewards(null));
     }, 450);
     return () => clearTimeout(t);
-  }, [rewardsOn, custPhone, pointsUsed, couponCode, subtotal]);
+  }, [rewardsOn, custPhone, pointsUsed, couponCode, subtotal, branchId]);
 
   const collected = payments.reduce(
     (sum, payment) =>

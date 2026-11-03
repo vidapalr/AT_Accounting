@@ -11,12 +11,24 @@ export type Offer = {
   startsOn: string | null; // YYYY-MM-DD
   endsOn: string | null;
   active: boolean;
+  /** Where it works: one branch, every branch of a division, or (both empty) everywhere. */
+  divisionId?: number | null;
+  branchId?: number | null;
 };
+
+/** The branch a store sale is made at. */
+export type OfferWhere = { branchId: number | null; divisionId: number | null };
 
 export type OfferTarget = { productId: number; fabric: string | null };
 
-export function offerApplies(o: Offer, channel: "STORE" | "ONLINE", t: OfferTarget, today: string): boolean {
+export function offerApplies(o: Offer, channel: "STORE" | "ONLINE", t: OfferTarget, today: string, where?: OfferWhere): boolean {
   if (!o.active) return false;
+  if (channel === "STORE") {
+    if (o.branchId && (!where || where.branchId !== o.branchId)) return false;
+    if (!o.branchId && o.divisionId && (!where || where.divisionId !== o.divisionId)) return false;
+  } else if (o.branchId) {
+    return false; // the website is not a branch
+  }
   if (o.channel !== "BOTH" && o.channel !== channel) return false;
   if (o.startsOn && today < o.startsOn) return false;
   if (o.endsOn && today > o.endsOn) return false;
@@ -37,11 +49,11 @@ export function priceAfter(pricePaise: bigint, o: Pick<Offer, "kind" | "value">)
 
 /** The single best (lowest price) offer for an item; offers never stack. */
 export function bestOffer(
-  offers: Offer[], channel: "STORE" | "ONLINE", t: OfferTarget, pricePaise: bigint, today: string
+  offers: Offer[], channel: "STORE" | "ONLINE", t: OfferTarget, pricePaise: bigint, today: string, where?: OfferWhere
 ): { offer: Offer; newPaise: bigint; offPaise: bigint } | null {
   let best: { offer: Offer; newPaise: bigint; offPaise: bigint } | null = null;
   for (const o of offers) {
-    if (!offerApplies(o, channel, t, today)) continue;
+    if (!offerApplies(o, channel, t, today, where)) continue;
     const newPaise = priceAfter(pricePaise, o);
     if (newPaise >= pricePaise) continue;
     if (!best || newPaise < best.newPaise) best = { offer: o, newPaise, offPaise: pricePaise - newPaise };

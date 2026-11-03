@@ -1,3 +1,4 @@
+import { loadWhereChoices, whereKey } from "@/lib/offer-where";
 import { Suspense } from "react";
 import type { RowDataPacket } from "mysql2";
 
@@ -20,14 +21,19 @@ async function Content({ searchParams }: Props) {
   const businessId = user.legal_business_id;
   const q = await searchParams;
 
-  const [offers] = await db.execute<Row[]>(
-    `SELECT id, offer_name, channel, kind, offer_value, scope, fabric, status,
+  const offerSql = (withWhere: boolean) =>
+    `SELECT id, offer_name, channel, kind, offer_value, scope, fabric, status,${withWhere ? " division_id, branch_id," : ""}
             DATE_FORMAT(starts_on, '%d %b %Y') AS s, DATE_FORMAT(ends_on, '%d %b %Y') AS e,
             DATE_FORMAT(starts_on, '%Y-%m-%d') AS s_iso, DATE_FORMAT(ends_on, '%Y-%m-%d') AS e_iso,
             (SELECT COUNT(*) FROM acct_offer_products op WHERE op.offer_id = acct_offers.id) AS n_products
-       FROM acct_offers WHERE legal_business_id = ? ORDER BY status, created_at DESC LIMIT 100`,
-    [businessId]
-  );
+       FROM acct_offers WHERE legal_business_id = ? ORDER BY status, created_at DESC LIMIT 100`;
+  let offers: Row[];
+  try {
+    [offers] = await db.execute<Row[]>(offerSql(true), [businessId]);
+  } catch {
+    [offers] = await db.execute<Row[]>(offerSql(false), [businessId]); // migration 064 not run yet
+  }
+  const { choices, names } = await loadWhereChoices(businessId);
   const [products] = await db.execute<Row[]>(
     `SELECT id, product_name FROM acct_products WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY product_name LIMIT 500`,
     [businessId]
@@ -54,6 +60,12 @@ async function Content({ searchParams }: Props) {
         <h2 style={{ marginTop: 0 }}>New offer</h2>
         <form action={saveOfferAction} style={{ display: "grid", gap: 14 }}>
           <label>Name<br /><input name="name" required maxLength={80} placeholder="Diwali 10% off" style={{ ...field, width: "100%", maxWidth: 420 }} /></label>
+          <label>Works at<br />
+            <select name="works_at" defaultValue={choices[0]?.value ?? ""} style={{ ...field, width: "100%", maxWidth: 420 }}>
+              {choices.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+            <span style={{ color: "#64748b", fontSize: 13 }}> A branch offer works at that branch only. &quot;All branches&quot; works at every branch of the division.</span>
+          </label>
           <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
             <label>Where<br />
               <select name="channel" defaultValue="ONLINE" style={field}>
@@ -104,7 +116,7 @@ async function Content({ searchParams }: Props) {
             <div>
               <strong>{String(o.offer_name)}</strong> · {describeOffer({ kind: o.kind as "PERCENT", value: Number(o.offer_value) })}
               <div style={{ color: "#64748b" }}>
-                {WHERE[String(o.channel)]} · {o.scope === "ALL" ? "everything" : o.scope === "FABRIC" ? `${o.fabric} only` : `${o.n_products} product(s)`}
+                {WHERE[String(o.channel)]} · {names.get(whereKey(o.division_id, o.branch_id)) ?? "All branches"} · {o.scope === "ALL" ? "everything" : o.scope === "FABRIC" ? `${o.fabric} only` : `${o.n_products} product(s)`}
                 {o.s || o.e ? ` · ${o.s ?? "now"} to ${o.e ?? "no end"}` : ""} · <strong>{state(o)}</strong>
               </div>
             </div>

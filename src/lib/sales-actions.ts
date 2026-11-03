@@ -689,6 +689,7 @@ export async function createSaleAction(
             const rc = await checkRewards(conn, {
               businessId, customerId: customer?.id ?? null, pointsUsed: pointsUsedInput,
               couponCode: couponInput, billPaise: totalLineValue, today: saleDate,
+              branchId, divisionId: DIVISION_ID,
             });
             // The discount must really be on the bill, so points and coupons can never be claimed for nothing.
             if (!rc.ok || invoiceDiscount < rc.pointsDiscountPaise + rc.couponDiscountPaise) throw new Error("REWARDS_INVALID");

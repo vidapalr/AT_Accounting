@@ -1,6 +1,7 @@
 import "server-only";
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 
+import { worksAt } from "@/lib/offer-where";
 import {
   REWARDS_START_DATE, couponDiscountPaise, couponWithinDates, maxPointsUsable, pointsValuePaise, type CouponRule,
 } from "@/lib/rewards-math";
@@ -30,17 +31,24 @@ export async function pointsBalance(q: Q, businessId: number, customerId: number
   return { retail: true, balance: Math.max(0, earned - used), earned, used };
 }
 
-export type CouponRow = { id: number; code: string; rule: CouponRule; startsOn: string | null; endsOn: string | null; oncePerCustomer: boolean; active: boolean };
+export type CouponRow = { divisionId: number | null; branchId: number | null; id: number; code: string; rule: CouponRule; startsOn: string | null; endsOn: string | null; oncePerCustomer: boolean; active: boolean };
 
 export async function findCoupon(q: Q, businessId: number, rawCode: string): Promise<CouponRow | null> {
   const code = rawCode.trim().toUpperCase();
   if (!code) return null;
-  const [r] = await q.execute<RowDataPacket[]>(
-    `SELECT id, code, kind, value, min_bill, max_discount, DATE_FORMAT(starts_on, '%Y-%m-%d') AS s, DATE_FORMAT(ends_on, '%Y-%m-%d') AS e,
-            once_per_customer, status FROM acct_coupons WHERE legal_business_id = ? AND code = ?`, [businessId, code]);
+  const cols = `id, code, kind, value, min_bill, max_discount, DATE_FORMAT(starts_on, '%Y-%m-%d') AS s, DATE_FORMAT(ends_on, '%Y-%m-%d') AS e,
+            once_per_customer, status`;
+  let r: RowDataPacket[];
+  try {
+    [r] = await q.execute<RowDataPacket[]>(`SELECT ${cols}, division_id, branch_id FROM acct_coupons WHERE legal_business_id = ? AND code = ?`, [businessId, code]);
+  } catch {
+    // Migration 064 not run yet: the coupon works everywhere.
+    [r] = await q.execute<RowDataPacket[]>(`SELECT ${cols} FROM acct_coupons WHERE legal_business_id = ? AND code = ?`, [businessId, code]);
+  }
   const x = r[0];
   if (!x) return null;
   return {
+    divisionId: x.division_id ? Number(x.division_id) : null, branchId: x.branch_id ? Number(x.branch_id) : null,
     id: Number(x.id), code: String(x.code), startsOn: x.s ? String(x.s) : null, endsOn: x.e ? String(x.e) : null,
     oncePerCustomer: Number(x.once_per_customer) === 1, active: x.status === "ACTIVE",
     rule: {
@@ -60,7 +68,9 @@ export type RewardCheck =
  * Same checks run when previewing on screen and again when the bill is saved.
  */
 export async function checkRewards(q: Q, input: {
-  businessId: number; customerId: number | null; pointsUsed: number; couponCode: string; billPaise: bigint; today: string; saleIdToIgnore?: number;
+  businessId: number; customerId: number | null; pointsUsed: number; couponCode: string; billPaise: bigint; today: string;
+  /** The branch (and its division) the bill is made at: a coupon can be limited to one branch or one division. */
+  branchId: number | null; divisionId: number | null;
 }): Promise<RewardCheck> {
   let balance = 0;
   let retail = false;
@@ -73,6 +83,7 @@ export async function checkRewards(q: Q, input: {
   if (code) {
     const c = await findCoupon(q, input.businessId, code);
     if (!c || !c.active) return { ok: false, error: "That coupon code is not valid.", balance };
+    if (!worksAt(c, { branchId: input.branchId, divisionId: input.divisionId })) return { ok: false, error: "That coupon does not work at this branch.", balance };
     if (!couponWithinDates(input.today, c.startsOn, c.endsOn)) return { ok: false, error: "That coupon is not running today.", balance };
     if (c.oncePerCustomer) {
       if (!input.customerId) return { ok: false, error: "Add the customer's mobile number first. This coupon can be used once per customer.", balance };

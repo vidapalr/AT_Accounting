@@ -36,3 +36,19 @@ test("the best single offer wins and offers never stack", () => {
   assert.equal(r.offPaise, 20000n);
   assert.equal(bestOffer([], "ONLINE", t, 100000n, "2026-10-27"), null);
 });
+
+test("an offer can be limited to one branch or one division (store); branch offers never show online", () => {
+  const t = { productId: 7, fabric: null };
+  const store = { ...base, channel: "STORE" };
+  const kapra = { branchId: 1, divisionId: 1 };
+  const other = { branchId: 2, divisionId: 1 };
+  const elsewhere = { branchId: 9, divisionId: 2 };
+  assert.equal(offerApplies({ ...store, branchId: 1, divisionId: 1 }, "STORE", t, "2026-10-27", kapra), true);
+  assert.equal(offerApplies({ ...store, branchId: 1, divisionId: 1 }, "STORE", t, "2026-10-27", other), false);
+  assert.equal(offerApplies({ ...store, divisionId: 1 }, "STORE", t, "2026-10-27", other), true); // whole division
+  assert.equal(offerApplies({ ...store, divisionId: 1 }, "STORE", t, "2026-10-27", elsewhere), false);
+  assert.equal(offerApplies(store, "STORE", t, "2026-10-27", elsewhere), true); // everywhere (old offers)
+  assert.equal(offerApplies({ ...base, channel: "BOTH", branchId: 1, divisionId: 1 }, "ONLINE", t, "2026-10-27"), false);
+  assert.equal(offerApplies({ ...base, channel: "BOTH", divisionId: 1 }, "ONLINE", t, "2026-10-27"), true);
+  assert.equal(offerApplies({ ...store, branchId: 1, divisionId: 1 }, "STORE", t, "2026-10-27"), false); // branch unknown
+});
