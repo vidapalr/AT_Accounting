@@ -259,6 +259,21 @@ async function SalesContent({ searchParams }: Props) {
     `SELECT id, division_id FROM acct_branches WHERE legal_business_id = ?`, [businessId]);
   const branchDivision = new Map<number, number>(branchRows.map(b => [Number(b.id), Number(b.division_id)]));
 
+  // Lot names received for each item (migration 070 may not be run yet).
+  const lotsByVariant = new Map<number, string[]>();
+  try {
+    const [lotRows] = await db.execute<RowDataPacket[]>(
+      `SELECT pl.variant_id, pl.lot_no, MAX(pl.id) AS last_id
+         FROM acct_purchase_lines pl JOIN acct_purchase_headers ph ON ph.id = pl.purchase_id AND ph.legal_business_id = pl.legal_business_id
+        WHERE pl.legal_business_id = ? AND pl.lot_no IS NOT NULL AND pl.lot_no <> '' AND ph.status = 'POSTED'
+        GROUP BY pl.variant_id, pl.lot_no ORDER BY last_id DESC LIMIT 2000`, [businessId]);
+    for (const r of lotRows) {
+      const k = Number(r.variant_id);
+      const arr = lotsByVariant.get(k) ?? [];
+      if (arr.length < 8) { arr.push(String(r.lot_no)); lotsByVariant.set(k, arr); }
+    }
+  } catch { /* no lot column yet */ }
+
   const billingProducts = products.map(p => {
     const stockPricing = latestPrices.get(`${p.branchId}-${p.id}`);
     const own = priceOverrides.get(Number(p.id));
@@ -286,6 +301,7 @@ async function SalesContent({ searchParams }: Props) {
       suggestedPrice: pricing?.suggestedPrice ?? null,
       offer: hit ? { name: hit.offer.name, offPerUnit: Number(hit.offPaise) / 100 } : null,
       tiers: tiersFor(pricing?.suggestedPrice ?? null, qtyRule, ownTiers.get(Number(p.id))),
+      lots: lotsByVariant.get(Number(p.id)) ?? [],
     };
   });
 
@@ -491,6 +507,14 @@ async function SalesContent({ searchParams }: Props) {
       )
     : [[] as RowDataPacket[]];
   const selectedInvoice = selectedInvoices[0];
+  const savedLots = new Map<number, string>();
+  if (selectedInvoice) {
+    try {
+      const [lr] = await db.execute<RowDataPacket[]>(
+        `SELECT variant_id, lot_no FROM acct_sales_lines WHERE legal_business_id = ? AND sale_id = ? AND lot_no IS NOT NULL`, [businessId, selectedInvoiceId]);
+      for (const r of lr) savedLots.set(Number(r.variant_id), String(r.lot_no));
+    } catch { /* no lot column yet */ }
+  }
   const [selectedLines] = selectedInvoice
     ? await db.execute<RowDataPacket[]>(
         `SELECT
@@ -689,6 +713,7 @@ async function SalesContent({ searchParams }: Props) {
               remarks: String(selectedInvoice.remarks ?? ""),
               collected: Number(selectedCollection[0]?.collected ?? 0),
               lines: selectedLines.map(line => ({
+                lot: savedLots.get(Number(line.variant_id)) ?? "",
                 variantId: Number(line.variant_id),
                 quantity: String(line.quantity),
                 price: String(line.unit_price),

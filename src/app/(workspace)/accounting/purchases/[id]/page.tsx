@@ -131,6 +131,13 @@ async function PurchaseDetailContent({
   const purchase = headers[0];
   if (!purchase) notFound();
 
+  const lotOf = new Map<number, string>();
+  try {
+    const [lr] = await db.execute<RowDataPacket[]>(
+      `SELECT id, lot_no FROM acct_purchase_lines WHERE purchase_id = ? AND lot_no IS NOT NULL AND lot_no <> ''`, [purchaseId]);
+    for (const r of lr) lotOf.set(Number(r.id), String(r.lot_no));
+  } catch { /* no lot column yet */ }
+
   const [lines] = await db.execute<Line[]>(
     `SELECT
        l.id,
@@ -308,6 +315,7 @@ async function PurchaseDetailContent({
                     {line.color_name
                       ? ` / ${line.color_name}`
                       : ""}
+                    {lotOf.get(Number(line.id)) && <><br /><small style={{ color: "#64748b" }}>Lot: {lotOf.get(Number(line.id))}</small></>}
                   </td>
                   <td style={cell}>
                     {line.quantity}{" "}

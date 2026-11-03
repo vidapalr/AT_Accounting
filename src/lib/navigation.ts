@@ -95,6 +95,7 @@ export const NAVIGATION: NavSection[] = [
     icon: "stock",
     items: [
       { label: "Stock on hand", href: "/accounting/stock", hint: "What is in every warehouse and shop right now" },
+      { label: "Find by lot", href: "/accounting/lots", hint: "Trace a dye batch to its supplier and customers" },
       { label: "Running low", href: "/accounting/low-stock", hint: "Items below the minimum you set, ready to reorder" },
       { label: "Staff stock reports", href: "/accounting/stock-reports", hint: "Approve what staff report on WhatsApp" },
       { label: "Catalogue", href: "/accounting/catalogue", hint: "Photos and videos of every product" },

@@ -5,6 +5,7 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
+import type { PoolConnection } from "mysql2/promise";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
@@ -74,7 +75,14 @@ type PurchaseLine = {
   quantity: string;
   unitCost: string;
   lineAmount: string;
+  lot: string;
 };
+
+/** Keep the lot name on a purchase line. Before migration 070 the column is missing; the purchase still saves. */
+async function saveLot(conn: PoolConnection, lineId: number, lot: string) {
+  if (!lot) return;
+  try { await conn.execute(`UPDATE acct_purchase_lines SET lot_no = ? WHERE id = ?`, [lot, lineId]); } catch { /* no lot column yet */ }
+}
 
 function parseLines(form: FormData): PurchaseLine[] | null {
   const lines: PurchaseLine[] = [];
@@ -84,6 +92,7 @@ function parseLines(form: FormData): PurchaseLine[] | null {
     const variantText = field(form, `line_${i}_variant`);
     const qtyText = field(form, `line_${i}_quantity`);
     const costText = field(form, `line_${i}_cost`);
+    const lot = field(form, `line_${i}_lot`).slice(0, 60);
 
     if (!variantText && !qtyText && !costText) {
       continue;
@@ -120,6 +129,7 @@ function parseLines(form: FormData): PurchaseLine[] | null {
       quantity: scaledString(quantity, 3),
       unitCost: scaledString(cost, 4),
       lineAmount: scaledString(linePaise, 2),
+      lot,
     });
   }
 
@@ -417,7 +427,7 @@ async function savePurchaseDraft(
               }
 
               for (const [index, line] of lines.entries()) {
-                await conn.execute(
+                const [lineInsert] = await conn.execute<ResultSetHeader>(
                   `INSERT INTO acct_purchase_lines
                    (
                      legal_business_id,
@@ -441,6 +451,7 @@ async function savePurchaseDraft(
                     line.lineAmount,
                   ]
                 );
+                await saveLot(conn, lineInsert.insertId, line.lot);
               }
 
               await conn.execute(
@@ -685,6 +696,7 @@ export async function editReceivedPurchaseAction(form: FormData): Promise<void> 
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                   [businessId, DIVISION_ID, purchaseId, index + 1, l.variantId, l.quantity, l.unitCost, l.lineAmount]
                 );
+                await saveLot(conn, inserted.insertId, l.lot);
                 await conn.execute(
                   `INSERT INTO acct_stock_movements
                      (legal_business_id, division_id, location_id, variant_id, movement_date, movement_type,

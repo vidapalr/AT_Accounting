@@ -57,6 +57,7 @@ export const MIGRATION_MARKERS: Marker[] = [
   { file: "063_rewards", table: "acct_sale_rewards" },
   { file: "064_offer_branches", table: "acct_offers", column: "branch_id" },
   { file: "065_two_step_login", table: "acct_user_totp" },
+  { file: "070_lots", table: "acct_purchase_lines", column: "lot_no" },
   { file: "069_deals", table: "acct_deals" },
   { file: "068_leads", table: "acct_leads" },
   { file: "067_customer_notes", table: "acct_customer_notes" },
