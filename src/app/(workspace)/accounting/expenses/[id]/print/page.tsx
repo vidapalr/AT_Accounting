@@ -5,7 +5,8 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
-import PrintButton from "@/components/PrintButton";
+import LoggedPrintButton from "@/components/LoggedPrintButton";
+import { printCount } from "@/lib/document-register";
 import { BRAND_NAME, SHOP_PHONE, SHOP_EMAIL, SHOP_WEBSITES } from "@/lib/brand";
 import { rupeesInWords } from "@/lib/voucher-math";
 
@@ -72,6 +73,8 @@ async function Content({ params, searchParams }: Props) {
   }
 
   const isVoucher = voucher !== null;
+  const paymentId = isVoucher ? Number(paymentText) : 0;
+  const printedBefore = await printCount(businessId, isVoucher ? "VOUCHER" : "EXPENSE_RECORD", isVoucher ? paymentId : expenseId);
   const amount = isVoucher ? voucher!.amount : e.amount;
   const title = isVoucher
     ? voucher!.voucher_type === "BPV" ? "BANK PAYMENT VOUCHER" : voucher!.voucher_type === "CPV" ? "CASH PAYMENT VOUCHER"
@@ -83,10 +86,16 @@ async function Content({ params, searchParams }: Props) {
       <style>{`@media print { @page { size: A4 portrait; margin: 12mm; } }`}</style>
       <div className="no-print" style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
         <Link className="btn-link" href={`/accounting/expenses/${expenseId}`}>← Back to {String(e.expense_no)}</Link>
-        <PrintButton label={isVoucher ? "Print voucher" : "Print expense record"} />
+        <LoggedPrintButton
+          docType={isVoucher ? "VOUCHER" : "EXPENSE_RECORD"}
+          sourceId={isVoucher ? paymentId : expenseId}
+          docRef={isVoucher ? String(voucher!.voucher_no) : String(e.expense_no)}
+          printedBefore={printedBefore}
+          label={isVoucher ? "Print voucher" : "Print expense record"}
+        />
       </div>
 
-      <section style={{ border: "2px solid #142c50", padding: 20, background: "#fff", color: "#0f172a" }}>
+      <section data-print-sheet style={{ border: "2px solid #142c50", padding: 20, background: "#fff", color: "#0f172a" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, borderBottom: "2px solid #142c50", paddingBottom: 12 }}>
           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
