@@ -14,6 +14,8 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { invoiceProfit } from "@/lib/invoice-profit";
+import { pointsBalance } from "@/lib/rewards-data";
+import { pointsEarned, REWARDS_START_DATE } from "@/lib/rewards-math";
 import { receiveSalePaymentAction, giveBillDiscountAction } from "@/lib/sale-payment-actions";
 import { canGiveBillDiscount } from "@/lib/access";
 import ConfirmButton from "@/components/ConfirmButton";
@@ -188,6 +190,30 @@ async function InvoiceDetails({ params, searchParams }: Props) {
   const collected = payments
     .filter(p => p.status === "RECORDED")
     .reduce((sum, p) => sum + Number(p.amount), 0);
+
+  // Points and coupon used on this bill, and the customer's points. Never stops the page if the tables are missing.
+  let rewardLine = "";
+  let pointsLine = "";
+  if (!isEstimate && invoice.status === "POSTED") {
+    try {
+      const [rw] = await db.execute<RowDataPacket[]>(
+        `SELECT w.points_used, w.points_discount, w.coupon_discount, c.code FROM acct_sale_rewards w
+           LEFT JOIN acct_coupons c ON c.id = w.coupon_id WHERE w.legal_business_id = ? AND w.sale_id = ?`, [businessId, saleId]);
+      if (rw[0]) {
+        const parts: string[] = [];
+        if (Number(rw[0].points_used) > 0) parts.push(`${rw[0].points_used} points (₹${money(rw[0].points_discount)})`);
+        if (Number(rw[0].coupon_discount) > 0) parts.push(`coupon ${rw[0].code} (₹${money(rw[0].coupon_discount)})`);
+        rewardLine = parts.join(" and ");
+      }
+      if (invoice.customer_id) {
+        const pts = await pointsBalance(db, businessId, Number(invoice.customer_id));
+        if (pts.retail) {
+          const earnedHere = pointsEarned(BigInt(Math.round((Number(invoice.grand_total) - Number(invoice.shipping_charge)) * 100)));
+          if (invoice.invoice_date >= REWARDS_START_DATE) pointsLine = `Points earned on this bill: ${earnedHere}. Points balance: ${pts.balance}.`;
+        }
+      }
+    } catch { /* migration 063 not run yet */ }
+  }
 
   const total = Number(invoice.grand_total);
   const showProfit = canGiveBillDiscount(user.role) && !isEstimate && invoice.status === "POSTED";
@@ -398,9 +424,12 @@ async function InvoiceDetails({ params, searchParams }: Props) {
       }}>
         <p>Subtotal: ₹{money(invoice.subtotal)}</p>
         <p>Discount: ₹{money(invoice.discount_amount)}</p>
+        {rewardLine && <p style={{ color: "#475569", fontSize: 13 }}>Includes {rewardLine}.</p>}
         {Number(invoice.shipping_charge) > 0 && <p>Delivery: ₹{money(invoice.shipping_charge)}</p>}
         <h2>{isEstimate ? "Estimate Total" : "Invoice Total"}: ₹{money(total)}</h2>
       </section>
+
+      {pointsLine && <p style={{ textAlign: "right", color: "#475569" }}>{pointsLine}</p>}
 
       {profit && (
         <section className="no-print" style={{ marginTop: 16, maxWidth: 450, marginLeft: "auto", padding: 12, border: "1px solid #e2e8f0", borderRadius: 8, background: "#f8fafc" }}>

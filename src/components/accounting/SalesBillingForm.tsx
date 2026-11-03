@@ -4,6 +4,7 @@
 import { priceForQuantity, type TierPrices } from "@/lib/qty-price";
 import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { previewRewardsAction, type RewardPreview } from "@/lib/rewards-actions";
 import { useSearchParams } from "next/navigation";
 import styles from "./SalesBillingForm.module.css";
 import {
@@ -210,6 +211,11 @@ export default function SalesBillingForm({
     initialInvoice?.invoiceDiscount ?? "0"
   );
   const editing = initialInvoice != null;
+  // Points and coupon (retail customers; not on estimates or when editing a saved bill).
+  const rewardsOn = !editing && !estimateMode;
+  const [pointsUsed, setPointsUsed] = useState(0);
+  const [couponCode, setCouponCode] = useState("");
+  const [rewards, setRewards] = useState<RewardPreview | null>(null);
   // A saved draft can still be confirmed; only a confirmed bill keeps its payments fixed here.
   const editingDraft = initialInvoice?.status === "DRAFT";
   const action = editing ? updateSaleAction : createSaleAction;
@@ -289,9 +295,27 @@ export default function SalesBillingForm({
     (sum, line) => sum + line, 0
   );
 
+  const rewardsDiscount = rewards?.ok ? rewards.pointsDiscount + rewards.couponDiscount : 0;
+  const totalBillDiscount = Number(invoiceDiscount || 0) + rewardsDiscount;
   const grandTotal = Math.max(
-    0, subtotal - Number(invoiceDiscount || 0) + Number(shipping || 0)
+    0, subtotal - totalBillDiscount + Number(shipping || 0)
   );
+
+  // Ask the server what the customer has and what the chosen points / coupon are worth on this bill.
+  useEffect(() => {
+    if (!rewardsOn) return;
+    const d = custPhone.replace(/\D/g, "").slice(-10);
+    if (d.length !== 10 && !couponCode.trim()) { setRewards(null); return; }
+    const t = setTimeout(() => {
+      previewRewardsAction({ phone: d, pointsUsed, couponCode, billAmount: subtotal })
+        .then(r => {
+          setRewards(r);
+          if (!r.ok && pointsUsed > r.maxPoints) setPointsUsed(0);
+        })
+        .catch(() => setRewards(null));
+    }, 450);
+    return () => clearTimeout(t);
+  }, [rewardsOn, custPhone, pointsUsed, couponCode, subtotal]);
 
   const collected = payments.reduce(
     (sum, payment) =>
@@ -711,11 +735,52 @@ export default function SalesBillingForm({
               inputMode="decimal"
               min="0"
               step="0.01"
-              name="invoice_discount"
               value={invoiceDiscount}
               onChange={e => setInvoiceDiscount(e.target.value)}
             />
+            <input type="hidden" name="invoice_discount" value={String(Math.round(totalBillDiscount * 100) / 100)} />
           </label>
+          {rewardsOn && (
+            <div className={styles.field} style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 12 }}>
+              <strong>Points and coupon</strong>
+              {rewards && rewards.balance > 0 && (
+                <p style={{ margin: "6px 0" }}>
+                  {rewards.customerName ?? "This customer"} has <strong>{rewards.balance} points</strong> (worth ₹{Math.floor(rewards.balance / 200) * 50}).
+                </p>
+              )}
+              {rewards && rewards.maxPoints > 0 && (
+                <label>
+                  Use points
+                  <select
+                    value={pointsUsed}
+                    onChange={e => setPointsUsed(Number(e.target.value))}
+                    style={{ display: "block", padding: 10, fontSize: 16, width: "100%", marginTop: 4 }}
+                  >
+                    <option value={0}>Do not use points</option>
+                    {Array.from({ length: Math.max(rewards.maxPoints, pointsUsed) / 200 }, (_, i) => (i + 1) * 200).map(pts => (
+                      <option key={pts} value={pts}>{pts} points = ₹{(pts / 200) * 50} off</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label>
+                Coupon code (if the customer has one)
+                <input
+                  value={couponCode}
+                  onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                  maxLength={30}
+                  autoCapitalize="characters"
+                  style={{ display: "block", padding: 10, fontSize: 16, width: "100%", marginTop: 4 }}
+                />
+              </label>
+              <input type="hidden" name="points_used" value={rewards?.ok ? pointsUsed : 0} />
+              <input type="hidden" name="coupon_code" value={rewards?.ok ? couponCode : ""} />
+              {rewards && rewards.message && (
+                <p role="status" style={{ margin: "6px 0", color: rewards.ok ? "#166534" : "#b91c1c" }}>{rewards.message}</p>
+              )}
+              {rewardsDiscount > 0 && <p style={{ margin: "6px 0" }}>Taken off this bill: <strong>₹{amount(rewardsDiscount)}</strong></p>}
+            </div>
+          )}
           <label className={`${styles.field}`}>
             Delivery charge ₹ (leave 0 if none)
             <input

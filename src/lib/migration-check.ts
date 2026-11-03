@@ -54,6 +54,7 @@ export const MIGRATION_MARKERS: Marker[] = [
   { file: "060_selling_prices", table: "acct_selling_prices" },
   { file: "061_bank_statements", table: "acct_bank_statement_lines" },
   { file: "062_staff_record", table: "acct_employee_pay_history" },
+  { file: "063_rewards", table: "acct_sale_rewards" },
   { file: "059_quantity_prices", table: "acct_product_variants", column: "qty_price_10" },
   { file: "058_document_register", table: "acct_document_log" },
   { file: "057_expense_payee", table: "acct_expenses", column: "payee_name" },

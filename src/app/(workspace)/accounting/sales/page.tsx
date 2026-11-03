@@ -71,6 +71,7 @@ const messages: Record<string, string> = {
   "approval-mismatch":
     "The bill must include every item the customer is keeping. Nothing was saved.",
   "exchange-gone": "The exchange credit could not be found. Nothing was saved.",
+  "rewards-invalid": "The points or coupon could not be used any more (already used, not enough points, or the discount was removed). Check them and save again.",
   "credit-limit": "This sale would take the customer over their credit limit. Collect some payment, or raise the limit on the customer's page.",
   failed: "Unable to save invoice. Check server logs.",
 };

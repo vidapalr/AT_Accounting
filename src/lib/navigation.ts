@@ -37,6 +37,7 @@ export const NAVIGATION: NavSection[] = [
     items: [
       { label: "New sale / bill", href: "/accounting/sales", hint: "Make a bill and take payment" },
       { label: "Offers", href: "/accounting/offers", hint: "Discounts for the store, the website, or both" },
+      { label: "Coupons", href: "/accounting/offers/coupons", hint: "Codes that take rupees or a percentage off a whole bill" },
       { label: "Online orders", href: "/accounting/online-orders", hint: "Orders customers placed on the website" },
       { label: "WhatsApp chatbot", href: "/accounting/chatbot", hint: "Quick answers, chats that need a person" },
       { label: "Website customers", href: "/accounting/shop-customers", hint: "People with an account on the website" },
