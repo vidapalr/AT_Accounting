@@ -147,6 +147,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Chart of accounts", href: "/accounting/chart-of-accounts", hint: "The list of accounts" },
       { label: "Months and years", href: "/accounting/periods", hint: "Open and close accounting months" },
       { label: "Month close", href: "/accounting/month-close", hint: "Checklist before closing a month" },
+      { label: "Bank statement check", href: "/accounting/bank-statement", hint: "Upload your bank file and match it with the books" },
       { label: "Year end", href: "/accounting/year-end", hint: "Start the new year and close the old one" },
       { label: "Opening balances", href: "/accounting/opening-balances", hint: "What the business started with" },
     ],
