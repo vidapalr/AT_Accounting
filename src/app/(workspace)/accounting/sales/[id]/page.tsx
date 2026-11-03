@@ -2,6 +2,7 @@
 import { Suspense } from "react";
 import DocumentHeader from "@/components/DocumentHeader";
 import { getShopSettings } from "@/lib/shop";
+import { SHOP_PHONE, OWNER_PERSONAL_PHONE } from "@/lib/brand";
 import { setInvoiceAddressAction, voidEstimateAction } from "@/lib/sales-actions";
 import BillWatermark from "@/components/BillWatermark";
 import LoggedPrintButton from "@/components/LoggedPrintButton";
@@ -241,7 +242,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         title={`${docWord} ${docNo}`}
         date={String(invoice.invoice_date)}
         shopAddress={shopAddress}
-        shopPhone={shop.whatsapp || undefined}
+        shopPhone={`${SHOP_PHONE} / ${OWNER_PERSONAL_PHONE}`}
         customerName={String(invoice.customer_name || "Walk-in customer")}
         customerPhone={invoice.customer_phone ? String(invoice.customer_phone) : undefined}
         customerAddress={invoice.customer_address ? String(invoice.customer_address) : undefined}
