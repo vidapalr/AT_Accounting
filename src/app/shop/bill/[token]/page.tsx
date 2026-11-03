@@ -23,7 +23,7 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   if (!/^[a-f0-9]{32}$/.test(token)) notFound();
   const [heads] = await db.execute<Row[]>(
-    `SELECT s.id, s.legal_business_id, s.invoice_no, DATE_FORMAT(s.invoice_date, '%d %b %Y') AS d, s.customer_name,
+    `SELECT s.id, s.legal_business_id, s.invoice_no, s.is_estimate, s.estimate_no, s.customer_address, DATE_FORMAT(s.invoice_date, '%d %b %Y') AS d, s.customer_name,
             s.subtotal, s.discount_amount, s.grand_total, s.shipping_charge, s.status,
             b.address_line1, b.address_line2, b.city, b.state, b.postal_code
        FROM acct_invoice_shares sh JOIN acct_sales_headers s ON s.id = sh.sale_id AND s.legal_business_id = sh.legal_business_id
@@ -31,7 +31,8 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
       WHERE sh.token = ?`, [token]
   );
   const h = heads[0];
-  if (!h || h.status !== "POSTED") notFound();
+  const isEstimate = !!h && Number(h.is_estimate) === 1 && h.status === "DRAFT";
+  if (!h || (h.status !== "POSTED" && !isEstimate)) notFound();
   const [lines] = await db.execute<Row[]>(
     `SELECT p.product_name, v.size_label, v.color_name, sl.quantity, v.unit_of_measure, sl.unit_price, sl.discount_amount, sl.line_total
        FROM acct_sales_lines sl
@@ -62,7 +63,14 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
         </div>
       </div>
       <p className={styles.muted} style={{ margin: "0 0 4px" }}>{address}{phone ? <> · <a href={`tel:${phone}`}>{whatsapp}</a></> : null}</p>
-      <p style={{ margin: "0 0 12px" }}><strong>Bill {String(h.invoice_no)}</strong> · {String(h.d)}{h.customer_name ? ` · ${h.customer_name}` : ""}</p>
+      <p style={{ margin: "0 0 4px" }}><strong>{isEstimate ? "Estimate" : "Bill"} {String(isEstimate ? h.estimate_no ?? h.invoice_no : h.invoice_no)}</strong> · {String(h.d)}</p>
+      {(h.customer_name || h.customer_address) && (
+        <p style={{ margin: "0 0 12px" }}>
+          {h.customer_name ? <strong>{String(h.customer_name)}</strong> : null}
+          {h.customer_address ? <><br /><span style={{ whiteSpace: "pre-line" }}>{String(h.customer_address)}</span></> : null}
+        </p>
+      )}
+      {isEstimate && <p style={{ margin: "0 0 12px", fontWeight: 700, color: "#b45309" }}>Estimate only. This is not a bill.</p>}
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead><tr><th style={cell}>Item</th><th style={right}>Qty</th><th style={right}>Amount</th></tr></thead>
         <tbody>
@@ -78,9 +86,9 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
       </table>
       {Number(h.shipping_charge) > 0 && <p style={{ textAlign: "right", margin: "14px 0 0" }}>Delivery {inr(Number(h.shipping_charge))}</p>}
       <p style={{ textAlign: "right", margin: "14px 0 0" }}>Total <strong style={{ fontSize: 20 }}>{inr(total)}</strong></p>
-      <p style={{ textAlign: "right", margin: 0 }}>Paid {inr(paidAmt)}</p>
-      <p style={{ textAlign: "right", margin: 0 }}>{due > 0 ? <>Balance due <strong>{inr(due)}</strong></> : <strong>Paid in full. Thank you!</strong>}</p>
-      <p style={{ marginTop: 28, fontSize: 18, textAlign: "center", color: "var(--indigo)" }}><strong>Thanks for shopping with Abhiram Textiles!</strong></p>
+      {!isEstimate && <p style={{ textAlign: "right", margin: 0 }}>Paid {inr(paidAmt)}</p>}
+      {!isEstimate && <p style={{ textAlign: "right", margin: 0 }}>{due > 0 ? <>Balance due <strong>{inr(due)}</strong></> : <strong>Paid in full. Thank you!</strong>}</p>}
+      <p style={{ marginTop: 28, fontSize: 18, textAlign: "center", color: "var(--indigo)" }}><strong>{isEstimate ? "Thank you for visiting Abhiram Textiles!" : "Thanks for shopping with Abhiram Textiles!"}</strong></p>
       <p className={styles.muted} style={{ textAlign: "center" }}>
         If anything looks wrong, message us{phone ? <> on <a href={`https://wa.me/${phone.replace(/\D/g, "")}`}>WhatsApp {whatsapp}</a></> : " on WhatsApp"}.
       </p>

@@ -311,11 +311,11 @@ async function InvoiceDetails({ params, searchParams }: Props) {
               </button>
             </form>
           )}
-          {invoice.status === "POSTED" && (
+          {(invoice.status === "POSTED" || (Number(invoice.is_estimate) === 1 && invoice.status === "DRAFT")) && (
             <div className="no-print" style={{ marginTop: 8 }}>
               <ShareBillButton
                 saleId={Number(invoice.id)}
-                label="Send bill on WhatsApp"
+                label={Number(invoice.is_estimate) === 1 && invoice.status === "DRAFT" ? "Send estimate on WhatsApp" : "Send bill on WhatsApp"}
                 auto={autoSend}
                 style={{ fontSize: 16, padding: "10px 18px" }}
                 disabled={!normalizePhone(String(invoice.customer_phone ?? ""))}
