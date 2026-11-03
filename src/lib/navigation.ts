@@ -167,6 +167,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "GST settings", href: "/accounting/gst-settings", hint: "Not registered yet; keeps the app ready" },
       { label: "Backup", href: "/accounting/backup", hint: "Download a full copy of your accounting data" },
       { label: "Users and access", href: "/users", hint: "Who can sign in and what they can open" },
+      { label: "Bill terms", href: "/accounting/bill-terms", hint: "Terms and conditions printed on every bill" },
       { label: "Two-step login", href: "/accounting/security", hint: "Authenticator code after your password" },
     ],
   },

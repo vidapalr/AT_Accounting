@@ -1,3 +1,4 @@
+import RewardsGuide from "@/components/RewardsGuide";
 import { loadWhereChoices, whereKey } from "@/lib/offer-where";
 import { Suspense } from "react";
 import Link from "next/link";
@@ -42,6 +43,7 @@ async function Content({ searchParams }: Props) {
     <main style={{ padding: 24, maxWidth: 900 }}>
       <Link className="btn-link" href="/accounting/offers">← Offers</Link>
       <h1>Coupons</h1>
+      <RewardsGuide />
       <p style={{ color: "#64748b" }}>
         A coupon is a code the customer tells the cashier. It takes rupees or a percentage off the whole bill.
         The cashier types it on the billing screen under &quot;Points and coupon&quot;. It becomes an ordinary discount on the bill, so your books need no change.

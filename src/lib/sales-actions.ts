@@ -17,6 +17,7 @@ import { requireAccess } from "@/lib/auth";
 import { canGiveBillDiscount } from "@/lib/access";
 import { nextCode } from "@/lib/codes";
 import { releaseItemsForSale } from "@/lib/approval-stock";
+import { currentTerms } from "@/lib/bill-terms";
 
 const PAGE = "/accounting/sales";
 
@@ -689,6 +690,13 @@ export async function createSaleAction(
             );
           }
 
+          // The terms and conditions as they are today stay with this bill.
+          try {
+            await conn.execute(`UPDATE acct_sales_headers SET terms_text = ? WHERE legal_business_id = ? AND id = ?`,
+              [await currentTerms(conn, businessId), businessId, createdId]);
+          } catch { /* migration 066 not run yet */ }
+
+          if (mode === "POSTED" && pointsUsedInput > 0 && couponInput !== "") throw new Error("REWARDS_INVALID");
           if (mode === "POSTED" && (pointsUsedInput > 0 || couponInput !== "")) {
             const rc = await checkRewards(conn, {
               businessId, customerId: customer?.id ?? null, pointsUsed: pointsUsedInput,
