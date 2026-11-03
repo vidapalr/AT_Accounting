@@ -51,6 +51,13 @@ export async function addEmployeeAction(formData: FormData) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [user.legal_business_id, divisionId, branchId, name, phone, title || null, salary, joined, user.id]
   );
+  try {
+    await db.execute(
+      `INSERT INTO acct_employee_pay_history (legal_business_id, employee_id, effective_from, monthly_salary, note, changed_by)
+       VALUES (?, ?, ?, ?, 'Starting salary', ?)`,
+      [user.legal_business_id, saved.insertId, joined ?? todayIso(), salary, user.id]
+    );
+  } catch { /* migration 062 not run yet */ }
   await db.execute(
     `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
      VALUES (?, ?, 'EMPLOYEE_ADDED', 'EMPLOYEE', ?, ?)`,
@@ -70,6 +77,9 @@ export async function updateEmployeeAction(formData: FormData) {
   if (!Number.isInteger(id) || id <= 0) go(month, "error", "Choose a person.");
   if (what === "LEFT") {
     await db.execute(`UPDATE acct_employees SET status = 'LEFT' WHERE id = ? AND legal_business_id = ?`, [id, user.legal_business_id]);
+    try {
+      await db.execute(`UPDATE acct_employees SET left_on = COALESCE(left_on, ?) WHERE id = ? AND legal_business_id = ?`, [todayIso(), id, user.legal_business_id]);
+    } catch { /* migration 062 not run yet */ }
     await db.execute(
       `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
        VALUES (?, ?, 'EMPLOYEE_LEFT', 'EMPLOYEE', ?, '{}')`,
@@ -81,6 +91,13 @@ export async function updateEmployeeAction(formData: FormData) {
   const salary = text("monthly_salary").replaceAll(",", "");
   if (!money.test(salary) || Number(salary) <= 0) go(month, "error", "Type the new monthly salary in rupees.");
   await db.execute(`UPDATE acct_employees SET monthly_salary = ? WHERE id = ? AND legal_business_id = ?`, [salary, id, user.legal_business_id]);
+  try {
+    await db.execute(
+      `INSERT INTO acct_employee_pay_history (legal_business_id, employee_id, effective_from, monthly_salary, note, changed_by)
+       VALUES (?, ?, ?, ?, 'Changed on the Salaries page', ?)`,
+      [user.legal_business_id, id, todayIso(), salary, user.id]
+    );
+  } catch { /* migration 062 not run yet */ }
   await db.execute(
     `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
      VALUES (?, ?, 'EMPLOYEE_SALARY_CHANGED', 'EMPLOYEE', ?, ?)`,
