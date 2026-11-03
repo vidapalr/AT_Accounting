@@ -185,7 +185,7 @@ export default function StockTransferDraftForm({
           <p className={styles.muted}>
             Add up to {MAX_ITEM_COUNT} products. Enter a quantity and
             selling prices are calculated from source stock cost + 1% allowance:
-            minimum +30%, maximum +100%. Purchase costs are not shown.
+            minimum +30%, maximum +100%. You can change the minimum and maximum before saving. Purchase costs are not shown.
           </p>
         </div>
         <button
@@ -240,6 +240,9 @@ export default function StockTransferDraftForm({
                 const currentPricing = selectedVariant ? priceFor(selectedVariant.id) : null;
               const minAuto = currentPricing?.min_price ?? "";
               const maxAuto = currentPricing?.max_price ?? "";
+              // A price typed here is used instead of the automatic one; empty means automatic.
+              const minShown = line.min_selling_price !== "" && Number(line.min_selling_price) !== Number(minAuto || 0) ? line.min_selling_price : (minAuto ?? "");
+              const maxShown = line.max_selling_price !== "" && Number(line.max_selling_price) !== Number(maxAuto || 0) ? line.max_selling_price : (maxAuto ?? "");
               const qtyTooHigh = Boolean(line.quantity && selectedVariant &&
                   Number(line.quantity) > selectedAvailable);
               return (
@@ -326,10 +329,10 @@ export default function StockTransferDraftForm({
                       type="number"
                       min="0"
                       step="0.01"
-                      value={minAuto}
-                      readOnly
+                      value={minShown}
+                      onChange={(event) => updateLine(index, "min_selling_price", event.target.value)}
                       className={styles.control}
-                      title="Automatic: source stock average cost × 1.01 × 1.30"
+                      title="Starts as source stock average cost × 1.01 × 1.30. You can change it."
                     />
                   </td>
                   <td>
@@ -338,10 +341,10 @@ export default function StockTransferDraftForm({
                       type="number"
                       min="0"
                       step="0.01"
-                      value={maxAuto}
-                      readOnly
+                      value={maxShown}
+                      onChange={(event) => updateLine(index, "max_selling_price", event.target.value)}
                       className={styles.control}
-                      title="Automatic: source stock average cost × 1.01 × 2.00"
+                      title="Starts as source stock average cost × 1.01 × 2.00. You can change it."
                     />
                     {selectedVariant && (!minAuto || !maxAuto) && (
                       <small style={{ color: "#b91c1c", display: "block" }}>

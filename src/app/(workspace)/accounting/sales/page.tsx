@@ -1,4 +1,5 @@
 
+import { loadPriceOverrides } from "@/lib/selling-price-data";
 import { loadQtyRule, loadOwnTierPrices, tiersFor } from "@/lib/qty-price-data";
 import { divisionSql } from "@/lib/scope";
 import { Suspense } from "react";
@@ -247,11 +248,17 @@ async function SalesContent({ searchParams }: Props) {
 
   const storeOffers = await loadOffers(businessId).catch(() => []);
   const qtyRule = await loadQtyRule(businessId);
+  const priceOverrides = await loadPriceOverrides(businessId);
   const ownTiers = await loadOwnTierPrices(businessId);
   const todayIst = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
 
   const billingProducts = products.map(p => {
-    const pricing = latestPrices.get(`${p.branchId}-${p.id}`);
+    const stockPricing = latestPrices.get(`${p.branchId}-${p.id}`);
+    const own = priceOverrides.get(Number(p.id));
+    // Prices the owner typed himself win over the ones that came with the stock.
+    const pricing = own
+      ? { minPrice: own.min ?? stockPricing?.minPrice ?? null, suggestedPrice: own.suggested ?? stockPricing?.suggestedPrice ?? null }
+      : stockPricing;
     const hit = pricing?.suggestedPrice != null
       ? bestOffer(storeOffers, "STORE", { productId: Number(p.product_id), fabric: p.fabric ? String(p.fabric) : null },
           BigInt(Math.round(pricing.suggestedPrice * 100)), todayIst)

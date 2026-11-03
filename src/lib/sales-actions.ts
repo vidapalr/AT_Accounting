@@ -1,6 +1,7 @@
 
 "use server";
 
+import { loadPriceOverrides } from "@/lib/selling-price-data";
 import { lockReturnCredit } from "@/lib/return-credit";
 import { canUseDivision, divisionSql } from "@/lib/scope";
 import { revalidatePath } from "next/cache";
@@ -680,6 +681,7 @@ export async function createSaleAction(
             );
           }
 
+          const priceOverrides = await loadPriceOverrides(businessId);
           for (const line of preparedLines) {
             const [minRows] = await conn.execute<RowDataPacket[]>(
               `SELECT tl.min_selling_price
@@ -702,9 +704,12 @@ export async function createSaleAction(
             );
 
             // Price guidance is informational and never blocks billing.
-            const minPrice = minRows.length
-              ? String(minRows[0].min_selling_price)
-              : null;
+            const ownMin = priceOverrides.get(line.variantId)?.min;
+            const minPrice = ownMin != null
+              ? String(ownMin)
+              : minRows.length
+                ? String(minRows[0].min_selling_price)
+                : null;
 
             let unitCost: string | null = null;
             let totalCost: string | null = null;
@@ -1404,6 +1409,7 @@ export async function updateSaleAction(
             );
 
             const newSnapshot = [];
+            const priceOverrides = await loadPriceOverrides(businessId);
             for (const line of preparedLines) {
               const [minimumRows] =
                 await conn.execute<RowDataPacket[]>(
@@ -1445,9 +1451,11 @@ export async function updateSaleAction(
                     line.variantId,
                     line.qty,
                     line.price,
-                    minimumRows.length
-                      ? String(minimumRows[0].min_selling_price)
-                      : null,
+                    priceOverrides.get(line.variantId)?.min != null
+                      ? String(priceOverrides.get(line.variantId)!.min)
+                      : minimumRows.length
+                        ? String(minimumRows[0].min_selling_price)
+                        : null,
                     line.discount,
                     line.total,
                     line.reason,
