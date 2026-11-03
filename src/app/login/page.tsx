@@ -55,6 +55,10 @@ async function LoginContent({
               ? "Invalid email or password."
               : params.error === "3"
               ? "Too many wrong passwords. Please wait 15 minutes and try again."
+              : params.error === "4"
+              ? "That sign-in step timed out. Please start again."
+              : params.error === "5"
+              ? "Too many wrong codes. Please sign in again."
               : "Unable to sign in. Please try again."}
           </div>
         )}

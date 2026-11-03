@@ -8,6 +8,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 import { ASSIGNABLE_ROLES } from "@/lib/access";
+import { removeTwoStep } from "@/lib/two-step";
 
 const PAGE = "/users";
 
@@ -250,6 +251,28 @@ export async function resetPasswordAction(form: FormData) {
     back("error", "The password could not be changed.");
   }
 
+  revalidatePath(PAGE);
+  back("done", message);
+}
+
+/** Lost phone: the owner clears someone's two-step login so they can sign in with the password and set it up again. */
+export async function resetTwoStepAction(form: FormData) {
+  const owner = await requireGroupOwner();
+  let message = "";
+  try {
+    const userId = Number(form.get("user_id"));
+    const target = await staffTarget(userId, owner.id, owner.legal_business_id);
+    await removeTwoStep(userId);
+    await db.execute(`DELETE FROM acct_sessions WHERE user_id = ?`, [userId]);
+    const conn = await db.getConnection();
+    try { await audit(conn, owner.legal_business_id, owner.id, "USER_TWO_STEP_RESET", userId, { email: target.email }); }
+    finally { conn.release(); }
+    message = `Two-step login cleared for ${target.email}. They can sign in with the password and set it up again.`;
+  } catch (error) {
+    if (error instanceof UserError) back("error", error.message);
+    console.error("resetTwoStepAction failed", error);
+    back("error", "Two-step login could not be cleared.");
+  }
   revalidatePath(PAGE);
   back("done", message);
 }

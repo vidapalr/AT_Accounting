@@ -2,12 +2,14 @@ import { Suspense } from "react";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
+import { hasTwoStep } from "@/lib/two-step";
 import { requireGroupOwner } from "@/lib/auth";
 import { ASSIGNABLE_ROLES, ROLE_LABELS, ROLE_SUMMARY } from "@/lib/access";
 import {
   addUserAction,
   changeRoleAction,
   resetPasswordAction,
+  resetTwoStepAction,
   setUserStatusAction,
 } from "@/lib/user-actions";
 import styles from "../accounting/accounting.module.css";
@@ -36,6 +38,9 @@ async function UsersContent({ searchParams }: Props) {
      ORDER BY u.id`,
     [owner.legal_business_id]
   );
+
+  const twoStep = new Map<number, boolean>();
+  for (const u of users) twoStep.set(Number(u.id), await hasTwoStep(Number(u.id)));
 
   const [divisions] = await db.execute<RowDataPacket[]>(
     `SELECT id, name FROM acct_divisions WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY id`, [owner.legal_business_id]);
@@ -78,7 +83,7 @@ async function UsersContent({ searchParams }: Props) {
               <tr key={String(u.id)}>
                 <td>{String(u.full_name)}{isMe ? " (you)" : ""}</td>
                 <td>{String(u.email)}</td>
-                <td>{ROLE_LABELS[String(u.role)] ?? String(u.role)}</td>
+                <td>{ROLE_LABELS[String(u.role)] ?? String(u.role)}{twoStep.get(Number(u.id)) ? " · two-step on" : ""}</td>
                 <td>{String(u.status) === "ACTIVE" ? "Active" : "Disabled"}</td>
                 <td>
                   {isOwner ? (
@@ -100,6 +105,12 @@ async function UsersContent({ searchParams }: Props) {
                         <input type="password" name="password" placeholder="New password" minLength={10} autoComplete="new-password" required />{" "}
                         <button type="submit">Set new password</button>
                       </form>
+                      {twoStep.get(Number(u.id)) && (
+                        <form action={resetTwoStepAction}>
+                          <input type="hidden" name="user_id" value={String(u.id)} />
+                          <button type="submit">Clear two-step login (lost phone)</button>
+                        </form>
+                      )}
                       <form action={setUserStatusAction}>
                         <input type="hidden" name="user_id" value={String(u.id)} />
                         <input type="hidden" name="status" value={String(u.status) === "ACTIVE" ? "DISABLED" : "ACTIVE"} />

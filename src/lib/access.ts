@@ -152,6 +152,7 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/cash-closing", "cash_closing"],
   ["/accounting/shop-spending", "shop_spending"],
   ["/accounting/salaries", "salary"],
+  ["/accounting/security", "salary"],
   ["/accounting/staff-advances", "salary"],
   ["/accounting/both-sides", "both_sides"],
   ["/accounting/my-investment", "investor_view"],

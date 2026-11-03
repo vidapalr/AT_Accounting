@@ -3,6 +3,7 @@ import {
   verifyCredentials,
   createSession,
 } from "@/lib/auth";
+import { hasTwoStep, startChallenge } from "@/lib/two-step";
 import { tooManyAttempts, recordWrongPassword, tidyAfterLogin } from "@/lib/login-guard";
 
 export async function POST(request: NextRequest) {
@@ -49,6 +50,12 @@ export async function POST(request: NextRequest) {
       await recordWrongPassword(cleanEmail, ip);
       loginUrl.searchParams.set("error", "1");
       return NextResponse.redirect(loginUrl, 303);
+    }
+
+    if (await hasTwoStep(user.id)) {
+      await startChallenge(user.id);
+      await tidyAfterLogin(cleanEmail);
+      return NextResponse.redirect(new URL("/login/code", publicOrigin), 303);
     }
 
     await createSession(user.id);
