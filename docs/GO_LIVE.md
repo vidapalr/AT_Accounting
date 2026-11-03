@@ -2,6 +2,8 @@
 
 Do the steps in this order. Hosting rebuilds automatically after `git push origin main`.
 
+> Owner confirmed on 3 Nov 2026 (19:12) that everything up to and including migration 070_lots is live. Only files after 070 are pending.
+
 ## 1. Database (phpMyAdmin, on the LIVE database)
 Paste each file in the SQL tab, in this order. All are safe to run again if unsure.
 001 to 006 should already be applied. Pending list:
