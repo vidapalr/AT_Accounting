@@ -17,6 +17,9 @@ import { prettyPhone } from "@/lib/customer-phone";
 import { whatsappLink } from "@/lib/whatsapp/core";
 import PrintHeader from "@/components/PrintHeader";
 import PrintButton from "@/components/PrintButton";
+import { loadCustomerTimeline } from "@/lib/customer-timeline-data";
+import { KIND_LABEL } from "@/lib/customer-timeline";
+import { addCustomerNoteAction } from "@/lib/customer-note-actions";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -33,6 +36,7 @@ const MESSAGES: Record<string, { ok: boolean; text: string }> = {
   invalid: { ok: false, text: "Please check the name, mobile number, GSTIN and credit limit." },
   "phone-used": { ok: false, text: "Another customer already has this mobile number." },
   failed: { ok: false, text: "Could not save. Please try again." },
+  "note-not-ready": { ok: false, text: "Notes are not set up yet: run the database file 067_customer_notes." },
   merged: { ok: true, text: "Done. The two customer records are now one." },
   "merge-denied": { ok: false, text: "Ask the owner or accountant to join these two customers." },
 };
@@ -122,6 +126,7 @@ async function CustomerPage({ params, searchParams }: Props) {
       : null;
 
   const msg = result ? MESSAGES[result] : undefined;
+  const timeline = await loadCustomerTimeline(db, businessId, customerId, c.phone ? String(c.phone) : null);
 
   return (
     <div style={{ maxWidth: 1100 }}>
@@ -256,6 +261,35 @@ async function CustomerPage({ params, searchParams }: Props) {
           )}
         </table>
       </div>
+
+      <section id="history" className="no-print" style={{ marginTop: 28 }}>
+        <h2>History</h2>
+        <p style={{ color: "#64748b", marginTop: 0 }}>Bills, payments, returns, website orders, items on approval, messages, chats and notes, newest first.</p>
+        <form action={addCustomerNoteAction} style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12, maxWidth: 640 }}>
+          <input type="hidden" name="customer_id" value={String(customerId)} />
+          <input name="note" required minLength={2} maxLength={500} placeholder="Add a note (called her, will pay on Friday, likes silk…)"
+            style={{ flex: "1 1 280px", padding: "11px 12px", fontSize: 16, borderRadius: 8, border: "1px solid #cbd5e1" }} />
+          <button type="submit" style={{ padding: "11px 18px", fontSize: 16 }}>Add note</button>
+        </form>
+        <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
+            <thead><tr>{["When", "What", "Details"].map(h => <th key={h} style={cell}>{h}</th>)}</tr></thead>
+            <tbody>
+              {timeline.length === 0 && <tr><td style={cell} colSpan={3}>Nothing has happened with this customer yet.</td></tr>}
+              {timeline.map((e, i) => (
+                <tr key={i}>
+                  <td style={{ ...cell, whiteSpace: "nowrap" }}>{e.at.slice(0, 16).replace(" ", "  ")}</td>
+                  <td style={cell}><strong>{KIND_LABEL[e.kind]}</strong></td>
+                  <td style={cell}>
+                    {e.href ? <Link href={e.href}>{e.title}</Link> : e.title}
+                    {e.detail ? <span style={{ color: "#64748b" }}> · {e.detail}</span> : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section className="no-print" style={{ marginTop: 28, padding: 18, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }}>
         <h2 style={{ marginTop: 0 }}>Customer details</h2>
