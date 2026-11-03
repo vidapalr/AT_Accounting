@@ -6,7 +6,7 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import PrintButton from "@/components/PrintButton";
-import { BRAND_NAME } from "@/lib/brand";
+import { BRAND_NAME, SHOP_PHONE, SHOP_EMAIL, SHOP_WEBSITES } from "@/lib/brand";
 import { rupeesInWords } from "@/lib/voucher-math";
 
 type Props = {
@@ -88,10 +88,16 @@ async function Content({ params, searchParams }: Props) {
 
       <section style={{ border: "2px solid #142c50", padding: 20, background: "#fff", color: "#0f172a" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, borderBottom: "2px solid #142c50", paddingBottom: 12 }}>
-          <div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: "#142c50" }}>ABHIRAM GROUP</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#142c50" }}>{BRAND_NAME}</div>
-            <div style={{ fontSize: 12, color: "#475569" }}>{address}</div>
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/abhiram-logo-print.png" alt="Abhiram Group" width={72} height={72} />
+            <div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: "#142c50" }}>ABHIRAM GROUP</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#142c50" }}>{BRAND_NAME}</div>
+              <div style={{ fontSize: 12, color: "#475569" }}>{address}</div>
+              <div style={{ fontSize: 12, color: "#475569" }}>Phone {SHOP_PHONE} · {SHOP_EMAIL}</div>
+              <div style={{ fontSize: 12, color: "#475569" }}>{SHOP_WEBSITES}</div>
+            </div>
           </div>
           <div style={{ textAlign: "right", fontWeight: 800, color: "#142c50", fontSize: 16 }}>{title}</div>
         </div>
