@@ -2,6 +2,7 @@ import "server-only";
 import { connection } from "next/server";
 import type { RowDataPacket } from "mysql2";
 
+import { loadPriceOverrides } from "@/lib/selling-price-data";
 import { db } from "@/lib/db";
 import { bestOffer, type Offer } from "@/lib/offer-math";
 
@@ -36,6 +37,13 @@ export async function latestPrices(variantIds: number[]): Promise<Map<number, nu
   for (const r of rows) {
     const id = Number(r.variant_id);
     if (!prices.has(id)) prices.set(id, Number(r.price));
+  }
+  // A price the owner typed himself (Products > Selling prices) wins over the one that came with the stock.
+  const own = await loadPriceOverrides(SHOP_BUSINESS_ID);
+  for (const id of variantIds) {
+    const o = own.get(id);
+    const v = o ? o.max ?? o.suggested : null;
+    if (v != null) prices.set(id, v);
   }
   return prices;
 }

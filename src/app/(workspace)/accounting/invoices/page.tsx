@@ -6,6 +6,8 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { canGiveBillDiscount } from "@/lib/access";
+import { invoiceProfit } from "@/lib/invoice-profit";
 
 type InvoiceRow = RowDataPacket & {
   id: number;
@@ -21,6 +23,10 @@ type InvoiceRow = RowDataPacket & {
   payment_accounts: string | null;
   is_estimate: number;
   estimate_no: string | null;
+  shipping_charge: string;
+  cost_sum: string | null;
+  cost_missing: number;
+  late_discount: string;
 };
 
 type TotalsRow = RowDataPacket & {
@@ -59,6 +65,7 @@ async function InvoiceList() {
   const user = await requireAccess("sales");
   const mine = divisionSql(user, "s.division_id");
   const businessId = user.legal_business_id;
+  const showProfit = canGiveBillDiscount(user.role);
 
   const [invoices] = await db.execute<InvoiceRow[]>(
     `SELECT
@@ -77,7 +84,16 @@ async function InvoiceList() {
        COALESCE(pay.paid_amount, 0)
          AS paid_amount,
        pay.payment_types,
-       pay.payment_accounts
+       pay.payment_accounts,
+       s.shipping_charge,
+       (SELECT SUM(sl.total_cost) FROM acct_sales_lines sl
+         WHERE sl.legal_business_id = s.legal_business_id AND sl.sale_id = s.id) AS cost_sum,
+       (SELECT COUNT(*) FROM acct_sales_lines sl
+         WHERE sl.legal_business_id = s.legal_business_id AND sl.sale_id = s.id
+           AND sl.total_cost IS NULL) AS cost_missing,
+       (SELECT COALESCE(SUM(d.amount), 0) FROM acct_sales_payments d
+         WHERE d.legal_business_id = s.legal_business_id AND d.sale_id = s.id
+           AND d.status = 'RECORDED' AND d.payment_method = 'DISCOUNT') AS late_discount
 
      FROM acct_sales_headers s
 
@@ -231,6 +247,7 @@ async function InvoiceList() {
                 "Inv Paid Status",
                 "Payment Types",
                 "Payment Account",
+                ...(showProfit ? ["Profit"] : []),
                 "Action",
               ].map(title => (
                 <th key={title} style={cell}>
@@ -284,6 +301,25 @@ async function InvoiceList() {
                     {invoice.payment_accounts ?? "—"}
                   </td>
 
+                  {showProfit && (
+                    <td style={cell}>
+                      {invoice.status !== "POSTED" ? "—" : (() => {
+                        const p = invoiceProfit({
+                          grandTotal: invoice.grand_total,
+                          shippingCharge: invoice.shipping_charge,
+                          lateDiscount: invoice.late_discount,
+                          lineCosts: [invoice.cost_sum, ...(Number(invoice.cost_missing) > 0 ? [null] : [])],
+                        });
+                        return (
+                          <span style={{ color: p.profit < 0 ? "#b91c1c" : undefined }}>
+                            {p.percent !== null ? `${p.percent}%` : "—"}
+                            {p.costMissing && " *"}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                  )}
+
                   <td style={cell}>
                     {invoice.status === "DRAFT" && (
                       <>
@@ -333,6 +369,11 @@ async function InvoiceList() {
             })}
           </tbody>
         </table>
+        {showProfit && (
+          <p style={{ fontSize: 12, color: "#64748b" }}>
+            Profit % = (sale value without delivery − cost of items) ÷ sale value. A * means some items have no cost recorded.
+          </p>
+        )}
       </div>
 
       {invoices.length === 0 && (

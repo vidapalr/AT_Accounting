@@ -194,6 +194,8 @@ export async function saveStockTransferDraftAction(
 
       (item.maxPrice !== null && !money(item.maxPrice)) ||
 
+      (item.minPrice !== "" && item.maxPrice !== null && Number(item.minPrice) > Number(item.maxPrice)) ||
+
       (
 
         item.suggestedPrice !== null &&
@@ -665,8 +667,13 @@ export async function saveStockTransferDraftAction(
             [String(stock.available_value), String(stock.available_quantity),
              String(stock.available_value), String(stock.available_quantity)]
           );
-          const calculatedMin = String(autoPrices[0].minimum);
-          const calculatedMax = String(autoPrices[0].maximum);
+          // The owner may type his own minimum and maximum; otherwise they come from the stock cost.
+          const typedOk = (v: string | null) => v !== null && v !== "" && /^\d{1,9}(\.\d{1,2})?$/.test(v) && Number(v) > 0;
+          const calculatedMin = typedOk(item.minPrice) ? String(item.minPrice) : String(autoPrices[0].minimum);
+          const calculatedMax = typedOk(item.maxPrice) ? String(item.maxPrice) : String(autoPrices[0].maximum);
+          if (Number(calculatedMin) > Number(calculatedMax)) {
+            throw new Error("The minimum price cannot be more than the maximum price");
+          }
 
           await conn.execute(
 
