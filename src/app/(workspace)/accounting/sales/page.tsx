@@ -72,6 +72,7 @@ const messages: Record<string, string> = {
   "approval-mismatch":
     "The bill must include every item the customer is keeping. Nothing was saved.",
   "exchange-gone": "The exchange credit could not be found. Nothing was saved.",
+  "serial-invalid": "A piece code was wrong or that piece is already sold. Pick a code from the list of pieces in stock and save again.",
   "rewards-invalid": "The points or coupon could not be used any more (already used, not enough points, or the discount was removed). Check them and save again.",
   "credit-limit": "This sale would take the customer over their credit limit. Collect some payment, or raise the limit on the customer's page.",
   failed: "Unable to save invoice. Check server logs.",
@@ -274,6 +275,19 @@ async function SalesContent({ searchParams }: Props) {
     }
   } catch { /* no lot column yet */ }
 
+  // Items tracked piece by piece: the codes of pieces in stock (migration 071 may not be run yet).
+  const serialsByVariant = new Map<number, string[]>();
+  try {
+    const [tr] = await db.execute<RowDataPacket[]>(
+      `SELECT id FROM acct_product_variants WHERE legal_business_id = ? AND track_serial = 1`, [businessId]);
+    for (const r of tr) serialsByVariant.set(Number(r.id), []);
+    if (tr.length > 0) {
+      const [sr] = await db.execute<RowDataPacket[]>(
+        `SELECT variant_id, serial_no FROM acct_serials WHERE legal_business_id = ? AND status = 'IN_STOCK' ORDER BY id LIMIT 3000`, [businessId]);
+      for (const r of sr) serialsByVariant.get(Number(r.variant_id))?.push(String(r.serial_no));
+    }
+  } catch { /* piece tracking not set up yet */ }
+
   const billingProducts = products.map(p => {
     const stockPricing = latestPrices.get(`${p.branchId}-${p.id}`);
     const own = priceOverrides.get(Number(p.id));
@@ -302,6 +316,7 @@ async function SalesContent({ searchParams }: Props) {
       offer: hit ? { name: hit.offer.name, offPerUnit: Number(hit.offPaise) / 100 } : null,
       tiers: tiersFor(pricing?.suggestedPrice ?? null, qtyRule, ownTiers.get(Number(p.id))),
       lots: lotsByVariant.get(Number(p.id)) ?? [],
+      serials: serialsByVariant.get(Number(p.id)) ?? null,
     };
   });
 
