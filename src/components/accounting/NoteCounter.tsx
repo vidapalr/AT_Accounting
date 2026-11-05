@@ -7,7 +7,7 @@ const inr = (n: number) => n.toLocaleString("en-IN");
 const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0 };
 
 /** Count notes by kind; the total fills the "counted" amount. Typing the amount directly still works. */
-export default function NoteCounter() {
+export default function NoteCounter({ expected }: { expected?: Record<string, number> | null }) {
   const [counts, setCounts] = useState<Record<number, string>>({});
   const [coins, setCoins] = useState("");
   const [typed, setTyped] = useState("");
@@ -42,7 +42,7 @@ export default function NoteCounter() {
       {open && (
         <div style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, maxWidth: 460 }}>
           <table style={{ borderCollapse: "collapse", width: "100%" }}>
-            <thead><tr><th align="left">Note</th><th align="left">How many</th><th align="right">Amount</th></tr></thead>
+            <thead><tr><th align="left">Note</th><th align="left">How many</th>{expected && <th align="right">Should be</th>}<th align="right">Amount</th></tr></thead>
             <tbody>
               {NOTES.map((v) => (
                 <tr key={v}>
@@ -52,6 +52,11 @@ export default function NoteCounter() {
                       onChange={(e) => setCounts({ ...counts, [v]: e.target.value.replace(/\D/g, "") })}
                       style={{ ...field, width: 90 }} />
                   </td>
+                  {expected && (
+                    <td align="right" style={{ color: n(v) === (expected[String(v)] ?? 0) || !counts[v] ? "#64748b" : "#b91c1c" }}>
+                      {expected[String(v)] ?? 0}
+                    </td>
+                  )}
                   <td align="right">₹{inr(n(v) * v)}</td>
                 </tr>
               ))}
@@ -61,9 +66,9 @@ export default function NoteCounter() {
                   <input inputMode="numeric" value={coins} placeholder="0" aria-label="Total rupees in coins"
                     onChange={(e) => setCoins(e.target.value.replace(/\D/g, ""))} style={{ ...field, width: 90 }} />
                 </td>
-                <td align="right">₹{inr(coinsRs)}</td>
+                {expected && <td />}<td align="right">₹{inr(coinsRs)}</td>
               </tr>
-              <tr><td colSpan={2}><strong>Total</strong></td><td align="right"><strong>₹{inr(total)}</strong></td></tr>
+              <tr><td colSpan={expected ? 3 : 2}><strong>Total</strong></td><td align="right"><strong>₹{inr(total)}</strong></td></tr>
             </tbody>
           </table>
           <p style={{ color: "#64748b", marginBottom: 0 }}>The total is put in the box above. Clear all counts to type the amount yourself.</p>

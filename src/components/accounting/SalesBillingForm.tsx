@@ -1,5 +1,7 @@
 
 "use client";
+import CashNotesPanel from "@/components/accounting/CashNotesPanel";
+import type { NoteCounts } from "@/lib/cash-notes";
 
 import RewardsGuide from "@/components/RewardsGuide";
 import { priceForQuantity, type TierPrices } from "@/lib/qty-price";
@@ -63,6 +65,8 @@ type PaymentRow = {
   amount: string;
   reference: string;
   account: string;
+  notesIn?: NoteCounts;
+  notesOut?: NoteCounts;
 };
 
 type PaymentAccountOption = {
@@ -442,6 +446,7 @@ export default function SalesBillingForm({
               amount: p.amount,
               reference: p.reference,
               account: p.account,
+              ...(p.method === "CASH" && (p.notesIn || p.notesOut) ? { notes_in: p.notesIn ?? {}, notes_out: p.notesOut ?? {} } : {}),
             }))
         )}
       />
@@ -995,6 +1000,14 @@ export default function SalesBillingForm({
                     onChange={e => updatePayment(payment.key, { reference: e.target.value })}
                   />
                 </label>
+                {payment.method === "CASH" && (
+                  <CashNotesPanel
+                    amount={payment.amount}
+                    notesIn={payment.notesIn ?? {}}
+                    notesOut={payment.notesOut ?? {}}
+                    onChange={patch => updatePayment(payment.key, patch)}
+                  />
+                )}
                 <button
                   type="button"
                   className={`${styles.btn} ${styles.btnDanger}`}
