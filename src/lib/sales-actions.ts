@@ -1,5 +1,6 @@
 
 "use server";
+import { cleanNotes, notesValue } from "@/lib/cash-notes";
 
 import { checkRewards, recordRewards } from "@/lib/rewards-data";
 import { loadPriceOverrides } from "@/lib/selling-price-data";
@@ -43,6 +44,8 @@ type PaymentInput = {
   amount: string;
   reference?: string;
   account: string;
+  notes_in?: unknown;
+  notes_out?: unknown;
 };
 
 const PAYMENT_METHODS = new Set([
@@ -886,6 +889,23 @@ export async function createSaleAction(
                   user.id,
                 ]
               );
+            }
+          }
+
+          if (mode === "POSTED") {
+            // Which notes came in and went back as change, for the day-end note count. Never blocks the bill.
+            for (const payment of resolvedPayments) {
+              if (payment.method !== "CASH" || !payment.cashAccountId) continue;
+              const nin = cleanNotes(payment.notes_in);
+              const nout = cleanNotes(payment.notes_out);
+              if (notesValue(nin) === 0 && notesValue(nout) === 0) continue;
+              try {
+                await conn.execute(
+                  `INSERT INTO acct_cash_note_log (legal_business_id, cash_account_id, sale_id, moved_on, received_json, change_json, created_by)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                  [businessId, payment.cashAccountId, createdId, saleDate, JSON.stringify(nin), JSON.stringify(nout), user.id]
+                );
+              } catch { /* migration 072 not run yet */ }
             }
           }
 

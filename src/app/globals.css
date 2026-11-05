@@ -3,13 +3,6 @@
   --foreground: #171717;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 html {
   height: 100%;
 }
@@ -42,10 +35,28 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+/* The app is designed light only. A phone in dark mode must not turn typed text white. */
+html {
+  color-scheme: light;
+}
+
+input,
+select,
+textarea {
+  color: #171717;
+  background-color: #ffffff;
+}
+
+input:disabled,
+input[readonly],
+select:disabled,
+textarea:disabled {
+  color: #334155;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8;
 }
 
 /* Letterhead and print layout */

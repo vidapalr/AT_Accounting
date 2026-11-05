@@ -10,6 +10,7 @@ import { dayBefore, loadCashMovements, previousClosing } from "@/lib/cash-closin
 import { drawerVsBooks, expectedCash, paiseText } from "@/lib/cash-math";
 import { getAccountPositions } from "@/lib/reports/report-data";
 import NoteCounter from "@/components/accounting/NoteCounter";
+import { NOTE_KINDS, cleanNotes, expectedNotes, notesValue } from "@/lib/cash-notes";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 type Props = { searchParams: Promise<{ account?: string; date?: string; saved?: string; error?: string }> };
@@ -87,6 +88,35 @@ async function CashClosingContent({ searchParams }: Props) {
       }
     }
 
+    // Notes that should be in the drawer: last closing's notes plus notes received minus change given.
+    let noteExpect: Record<string, number> | null = null;
+    let untracked = 0;
+    try {
+      const afterDate = prev ? prev.date : dayBefore(date);
+      const [prevRow] = prev
+        ? await db.execute<Row[]>(
+            `SELECT denominations_json FROM acct_cash_closings WHERE legal_business_id = ? AND cash_account_id = ? AND closing_date = ?`,
+            [businessId, accountId, prev.date]
+          )
+        : [[] as Row[]];
+      const opening0 = cleanNotes(prevRow[0]?.denominations_json ? (JSON.parse(String(prevRow[0].denominations_json)) as { notes?: unknown }).notes : {});
+      const [moves] = await db.execute<Row[]>(
+        `SELECT received_json, change_json FROM acct_cash_note_log
+          WHERE legal_business_id = ? AND cash_account_id = ? AND moved_on > ? AND moved_on <= ?`,
+        [businessId, accountId, afterDate, date]
+      );
+      const [cashPays] = await db.execute<Row[]>(
+        `SELECT COUNT(*) AS n FROM acct_sales_payments
+          WHERE legal_business_id = ? AND cash_account_id = ? AND status = 'RECORDED' AND payment_date > ? AND payment_date <= ?`,
+        [businessId, accountId, afterDate, date]
+      );
+      noteExpect = expectedNotes(opening0, moves.map((m) => ({ received: cleanNotes(m.received_json), change: cleanNotes(m.change_json) })));
+      untracked = Math.max(0, Number(cashPays[0]?.n ?? 0) - moves.length);
+      if (!prev && moves.length === 0) noteExpect = null;
+    } catch {
+      noteExpect = null; // migration 072 not run yet
+    }
+
     body = (
       <>
         <section style={box}>
@@ -116,6 +146,32 @@ async function CashClosingContent({ searchParams }: Props) {
             </details>
           )}
         </section>
+
+        {noteExpect && (
+          <section style={box}>
+            <h2>Notes that should be in the drawer (amounts in ₹)</h2>
+            <p style={{ color: "#64748b" }}>
+              {prev ? `Notes counted on ${pretty(prev.date)}` : "Notes since the first sale"}, plus notes received, minus change given.
+            </p>
+            <table style={{ borderCollapse: "collapse", minWidth: 280 }}>
+              <tbody>
+                {NOTE_KINDS.map((v) => (
+                  <tr key={v}>
+                    <td style={cell}>₹{v} notes</td>
+                    <td style={right}>{noteExpect[String(v)]} {noteExpect[String(v)] < 0 ? "(check entries)" : ""}</td>
+                    <td style={right}>{(noteExpect[String(v)] * v).toLocaleString("en-IN")}</td>
+                  </tr>
+                ))}
+                <tr><td style={cell}><strong>Notes total (₹)</strong></td><td style={cell} /><td style={right}><strong>{notesValue(noteExpect).toLocaleString("en-IN")}</strong></td></tr>
+              </tbody>
+            </table>
+            {untracked > 0 && (
+              <p style={{ color: "#92400e" }}>
+                {untracked} cash payment{untracked === 1 ? " has" : "s have"} no note details, so these counts can be off by those amounts. Coins are not counted here.
+              </p>
+            )}
+          </section>
+        )}
 
         {closed && (
           <section style={{ ...box, borderColor: Number(closed.df) === 0 ? "#86efac" : "#fca5a5" }}>
@@ -164,7 +220,7 @@ async function CashClosingContent({ searchParams }: Props) {
                     <input name="opening" inputMode="decimal" defaultValue="0" style={{ ...field, width: 170 }} />
                   </label>
                 )}
-                <NoteCounter />
+                <NoteCounter expected={noteExpect} />
                 <label>Cash taken away (₹)<br />
                   <input name="taken_out" inputMode="decimal" defaultValue="0" style={{ ...field, width: 170 }} />
                 </label>
