@@ -121,6 +121,7 @@ async function ProductMedia({ params, searchParams }: Props) {
       </form>
       <p>
         <Link className="btn-link btn-link-primary" href={`/accounting/catalogue/instagram?product=${p.id}`}>Post to Instagram</Link>
+        <Link className="btn-link" href={`/accounting/catalogue/reels?product=${p.id}`}>Make a reel</Link>
       </p>
       <h2>Gallery ({media.length})</h2>
       {media.length === 0 && <p>No photos or videos yet.</p>}
