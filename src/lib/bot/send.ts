@@ -55,3 +55,8 @@ export function sendWhatsAppTemplate(toDigits: string, name: string, language: s
     },
   });
 }
+
+/** A picture with a short caption, fetched by WhatsApp from a public link. JPEG or PNG only. Free inside 24 hours of the customer's message. */
+export function sendWhatsAppImage(toDigits: string, url: string, caption: string): Promise<SendResult> {
+  return post({ to: toDigits, type: "image", image: { link: url, caption: caption.slice(0, 900) } });
+}

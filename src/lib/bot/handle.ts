@@ -4,7 +4,8 @@ import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import { db } from "@/lib/db";
 import { getShopProducts } from "@/lib/shop";
 import { shopBaseUrl } from "@/lib/shop-url";
-import { sendWhatsAppText } from "./send";
+import { sendWhatsAppText, sendWhatsAppImage } from "./send";
+import { pickWelcomeProducts, photoCaption, welcomePhotoCount } from "./welcome";
 import {
   TEXT, OWNER_HELP, classify, matchAnswer, matchProducts, productReply, orderReply, last10, ownerCommand,
   type SavedAnswer, type Intent,
@@ -139,6 +140,34 @@ async function decide(intent: Intent, text: string, number: string, awaiting: st
   return done("NONE", true);
 }
 
+/** After the first reply of the day: the shop details the owner typed, then the newest product photos. Never blocks the normal reply. */
+async function sendWelcomeExtras(number: string, log: (d: "IN" | "OUT", body: string, kind: string) => Promise<void>) {
+  if ((await setting("bot_welcome_on")) !== "1") return;
+  const details = (await setting("bot_shop_details")).trim();
+  if (details) {
+    await log("OUT", details, "WELCOME");
+    await sendWhatsAppText(number, details);
+  }
+  const count = welcomePhotoCount(await setting("bot_welcome_photos"));
+  if (count === 0) return;
+  const picked = pickWelcomeProducts((await getShopProducts()).map((p) => ({ id: p.id, name: p.name, fromPrice: p.fromPrice, available: p.available, coverId: p.coverId })), count * 3);
+  if (picked.length === 0) return;
+  // WhatsApp takes JPEG and PNG pictures only, so skip any other kind.
+  const [okMedia] = await db.execute<Row[]>(
+    `SELECT id FROM acct_product_media WHERE legal_business_id = ? AND id IN (${picked.map(() => "?").join(",")}) AND mime_type IN ('image/jpeg','image/png')`,
+    [BUSINESS_ID, ...picked.map((p) => p.coverId as number)]);
+  const okIds = new Set(okMedia.map((r) => Number(r.id)));
+  let sent = 0;
+  for (const p of picked) {
+    if (sent >= count) break;
+    if (!okIds.has(p.coverId as number)) continue;
+    const caption = photoCaption(p.name, p.fromPrice as number, `${shopBaseUrl()}/shop/${p.id}`);
+    await log("OUT", caption, "WELCOME_PHOTO");
+    const r = await sendWhatsAppImage(number, `${shopBaseUrl()}/api/shop/media/${p.coverId}`, caption);
+    if (r.ok) sent++;
+  }
+}
+
 export async function handleIncoming(m: { from: string; text: string | null; id: string | null; name: string | null }): Promise<void> {
   if (!(await botEnabled())) return;
   const number = m.from.replace(/\D/g, "");
@@ -203,6 +232,9 @@ export async function handleIncoming(m: { from: string; text: string | null; id:
   for (const r of out.replies) {
     await log("OUT", r.text, r.kind);
     await sendWhatsAppText(number, r.text);
+  }
+  if (firstContact && !out.handoff) {
+    try { await sendWelcomeExtras(number, log); } catch (error) { console.error("Welcome extras failed:", error); }
   }
   await db.execute(
     `UPDATE acct_bot_conversations SET awaiting = ?, status = ?, greeted_at = CASE WHEN ? THEN NOW() ELSE greeted_at END WHERE id = ?`,
