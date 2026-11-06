@@ -105,7 +105,7 @@ async function Catalogue({ searchParams }: Props) {
           <summary><strong>WhatsApp and Instagram catalogue (one-time set-up)</strong></summary>
           <p style={{ color: "#475569" }}>
             Meta can read your shop automatically, so the same products appear in your WhatsApp Business catalogue and
-            Instagram Shopping, and update by themselves. Only products switched on, with a price and a photo, are sent.
+            Instagram Shopping, and update by themselves. Every product switched on for the shop that has a price is sent; one without a photo shows the shop logo until you add a photo.
           </p>
           <ol>
             <li>Open Meta Commerce Manager (business.facebook.com/commerce) and choose <em>Add catalogue</em>, then <em>E-commerce</em>.</li>
