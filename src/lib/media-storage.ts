@@ -13,6 +13,7 @@ export const MEDIA_DIR =
 
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 export const MAX_VIDEO_BYTES = 60 * 1024 * 1024;
+export const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
 
 export type DetectedMedia = {
   type: "IMAGE" | "VIDEO";
@@ -46,6 +47,16 @@ export function detectMedia(b: Buffer): DetectedMedia | null {
   return null;
 }
 
+/** Music file kinds the browser can play, from the first bytes. */
+export function detectAudio(b: Buffer): { mime: string; ext: string } | null {
+  if (b.length >= 3 && b.subarray(0, 3).toString("ascii") === "ID3") return { mime: "audio/mpeg", ext: "mp3" };
+  if (b.length >= 2 && b[0] === 0xff && (b[1] & 0xe0) === 0xe0) return { mime: "audio/mpeg", ext: "mp3" };
+  if (b.length >= 4 && b.subarray(0, 4).toString("ascii") === "OggS") return { mime: "audio/ogg", ext: "ogg" };
+  if (b.length >= 12 && b.subarray(0, 4).toString("ascii") === "RIFF" && b.subarray(8, 12).toString("ascii") === "WAVE") return { mime: "audio/wav", ext: "wav" };
+  if (b.length >= 12 && b.subarray(4, 8).toString("ascii") === "ftyp") return { mime: "audio/mp4", ext: "m4a" };
+  return null;
+}
+
 export async function saveMedia(buffer: Buffer, ext: string): Promise<string> {
   await mkdir(MEDIA_DIR, { recursive: true, mode: 0o700 });
   const key = `${randomUUID()}.${ext}`;
@@ -54,7 +65,7 @@ export async function saveMedia(buffer: Buffer, ext: string): Promise<string> {
 }
 
 function safePath(key: string): string | null {
-  if (!/^[a-f0-9-]{36}\.(jpg|png|webp|mp4|mov|webm)$/.test(key)) return null;
+  if (!/^[a-f0-9-]{36}\.(jpg|png|webp|mp4|mov|webm|mp3|m4a|ogg|wav)$/.test(key)) return null;
   return path.join(MEDIA_DIR, key);
 }
 
