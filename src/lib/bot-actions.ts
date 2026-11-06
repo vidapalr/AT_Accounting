@@ -94,3 +94,22 @@ export async function saveAutoSendAction(formData: FormData) {
   revalidatePath(BACK);
   redirect(`${BACK}?result=auto`);
 }
+
+/** Owner only: the welcome after a customer's first message of the day (shop details and the newest photos). */
+export async function saveWelcomeAction(formData: FormData) {
+  const user = await requireGroupOwner();
+  const on = formData.get("welcome") === "1" ? "1" : "0";
+  const details = String(formData.get("details") ?? "").replace(/\r/g, "").trim().slice(0, 1000);
+  const n = Math.floor(Number(formData.get("photos")));
+  const photos = Number.isFinite(n) ? Math.min(8, Math.max(0, n)) : 5;
+  await setSetting(user.legal_business_id, "bot_welcome_on", on, user.id);
+  await setSetting(user.legal_business_id, "bot_shop_details", details, user.id);
+  await setSetting(user.legal_business_id, "bot_welcome_photos", String(photos), user.id);
+  await db.execute(
+    `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
+     VALUES (?, ?, 'BOT_WELCOME_CHANGED', 'SETTING', 0, ?)`,
+    [user.legal_business_id, user.id, JSON.stringify({ on, photos })]
+  );
+  revalidatePath(BACK);
+  redirect(`${BACK}?result=welcome`);
+}

@@ -6,7 +6,7 @@ import { requireAccess } from "@/lib/auth";
 import { botConfigured } from "@/lib/bot/send";
 import { autoSendSettings } from "@/lib/wa-auto";
 import {
-  saveBotSettingsAction, saveAutoSendAction, saveAnswerAction, toggleAnswerAction, deleteAnswerAction, markChatDoneAction,
+  saveBotSettingsAction, saveAutoSendAction, saveWelcomeAction, saveAnswerAction, toggleAnswerAction, deleteAnswerAction, markChatDoneAction,
 } from "@/lib/bot-actions";
 
 type Props = { searchParams: Promise<{ result?: string; edit?: string; q?: string }> };
@@ -22,7 +22,7 @@ async function Chatbot({ searchParams }: Props) {
   const biz = user.legal_business_id;
 
   const [settings] = await db.execute<RowDataPacket[]>(
-    `SELECT setting_key, setting_value FROM acct_business_settings WHERE legal_business_id = ? AND setting_key IN ('bot_enabled','bot_owner_numbers')`, [biz]);
+    `SELECT setting_key, setting_value FROM acct_business_settings WHERE legal_business_id = ? AND setting_key IN ('bot_enabled','bot_owner_numbers','bot_welcome_on','bot_shop_details','bot_welcome_photos')`, [biz]);
   const s = new Map(settings.map((r) => [String(r.setting_key), String(r.setting_value)]));
   const enabled = s.get("bot_enabled") === "1";
   const auto = await autoSendSettings(biz);
@@ -45,6 +45,7 @@ async function Chatbot({ searchParams }: Props) {
       <h1>WhatsApp chatbot</h1>
       {result === "settings" && <p role="status" style={{ color: "#166534" }}>Saved.</p>}
       {result === "auto" && <p role="status" style={{ color: "#166534" }}>Saved.</p>}
+      {result === "welcome" && <p role="status" style={{ color: "#166534" }}>Saved.</p>}
       {result === "answer" && <p role="status" style={{ color: "#166534" }}>Answer saved. The bot will use it from now on.</p>}
       {result === "missing" && <p role="alert" style={{ color: "#b91c1c" }}>Fill in the name, the words customers use, and the reply.</p>}
 
@@ -65,6 +66,29 @@ async function Chatbot({ searchParams }: Props) {
             <button type="submit" className="btn-link btn-link-primary" style={{ ...btn, marginTop: 12 }}>Save</button>
           </form>
         ) : <p style={{ color: "#475569" }}>Only the owner can switch the bot on or off.</p>}
+      </section>
+
+      <section style={box}>
+        <h2 style={{ marginTop: 0 }}>Welcome message with shop details and photos</h2>
+        <p style={{ color: "#475569", marginTop: 0 }}>
+          When someone messages your shop number for the first time in a day, the bot replies with its menu and then sends the details below, followed by the newest
+          products (in stock, with a price and a JPEG or PNG photo), each with its price and a link. These are free because the customer just wrote to you.
+          It does not run when the chat is handed to a person, and the bot must be ON above.
+        </p>
+        {isOwner ? (
+          <form action={saveWelcomeAction} style={{ display: "grid", gap: 12 }}>
+            <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input type="checkbox" name="welcome" value="1" defaultChecked={s.get("bot_welcome_on") === "1"} style={{ width: 22, height: 22 }} /> Send shop details and photos
+            </label>
+            <label>Shop details (address, timings, map link, phone)
+              <br /><textarea name="details" rows={5} maxLength={1000} defaultValue={s.get("bot_shop_details") ?? ""} style={input} placeholder={"Abhiram Textiles\nAddress: ...\nOpen: 10 am to 9 pm, every day\nMap: https://maps.app.goo.gl/..."} />
+            </label>
+            <label>How many latest product photos (0 to 8)
+              <br /><input name="photos" type="number" min={0} max={8} defaultValue={s.get("bot_welcome_photos") ?? "5"} style={{ ...input, width: 120 }} />
+            </label>
+            <div><button type="submit" className="btn-link btn-link-primary" style={btn}>Save</button></div>
+          </form>
+        ) : <p style={{ color: "#475569" }}>Only the owner can change this.</p>}
       </section>
 
       <section style={box}>
