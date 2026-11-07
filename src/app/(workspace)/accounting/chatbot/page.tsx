@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { botConfigured } from "@/lib/bot/send";
 import { autoSendSettings } from "@/lib/wa-auto";
+import { saveBroadcastSettingsAction } from "@/lib/broadcast-actions";
 import {
   saveBotSettingsAction, saveAutoSendAction, saveWelcomeAction, saveAnswerAction, toggleAnswerAction, deleteAnswerAction, markChatDoneAction,
 } from "@/lib/bot-actions";
@@ -22,7 +23,7 @@ async function Chatbot({ searchParams }: Props) {
   const biz = user.legal_business_id;
 
   const [settings] = await db.execute<RowDataPacket[]>(
-    `SELECT setting_key, setting_value FROM acct_business_settings WHERE legal_business_id = ? AND setting_key IN ('bot_enabled','bot_owner_numbers','bot_welcome_on','bot_shop_details','bot_welcome_photos')`, [biz]);
+    `SELECT setting_key, setting_value FROM acct_business_settings WHERE legal_business_id = ? AND setting_key IN ('bot_enabled','bot_owner_numbers','bot_welcome_on','bot_shop_details','bot_welcome_photos','wa_broadcast_template','wa_broadcast_language','wa_broadcast_daily_max','wa_broadcast_rate_paise')`, [biz]);
   const s = new Map(settings.map((r) => [String(r.setting_key), String(r.setting_value)]));
   const enabled = s.get("bot_enabled") === "1";
   const auto = await autoSendSettings(biz);
@@ -45,6 +46,7 @@ async function Chatbot({ searchParams }: Props) {
       <h1>WhatsApp chatbot</h1>
       {result === "settings" && <p role="status" style={{ color: "#166534" }}>Saved.</p>}
       {result === "auto" && <p role="status" style={{ color: "#166534" }}>Saved.</p>}
+      {result === "broadcast" && <p role="status" style={{ color: "#166534" }}>Saved.</p>}
       {result === "welcome" && <p role="status" style={{ color: "#166534" }}>Saved.</p>}
       {result === "answer" && <p role="status" style={{ color: "#166534" }}>Answer saved. The bot will use it from now on.</p>}
       {result === "missing" && <p role="alert" style={{ color: "#b91c1c" }}>Fill in the name, the words customers use, and the reply.</p>}
@@ -67,6 +69,23 @@ async function Chatbot({ searchParams }: Props) {
           </form>
         ) : <p style={{ color: "#475569" }}>Only the owner can switch the bot on or off.</p>}
       </section>
+
+      {isOwner && (
+        <section style={box}>
+          <h2 style={{ marginTop: 0 }}>New-stock messages to customers (automatic)</h2>
+          <p style={{ color: "#475569", marginTop: 0 }}>
+            Used by &ldquo;Send automatically on WhatsApp&rdquo; on the New stock page. You need a Marketing template with a photo at the top and three fill-ins in the body:
+            {" "}{"{{1}}"} customer first name, {"{{2}}"} product, {"{{3}}"} shop link. Put &ldquo;Reply STOP to stop offers&rdquo; in its footer.
+          </p>
+          <form action={saveBroadcastSettingsAction} style={{ display: "grid", gap: 12, maxWidth: 460 }}>
+            <label>Approved template name<br /><input name="template" defaultValue={s.get("wa_broadcast_template") ?? ""} style={input} placeholder="new_stock" /></label>
+            <label>Template language code (for example en or en_US)<br /><input name="language" defaultValue={s.get("wa_broadcast_language") ?? "en"} style={input} /></label>
+            <label>Most messages per day<br /><input name="daily_max" type="number" min={0} max={1000} defaultValue={s.get("wa_broadcast_daily_max") ?? "200"} style={input} /></label>
+            <label>What Meta charges per message, in rupees (for the cost estimate)<br /><input name="rate" defaultValue={s.get("wa_broadcast_rate_paise") ? (Number(s.get("wa_broadcast_rate_paise")) / 100).toFixed(2) : ""} style={input} placeholder="Look it up in WhatsApp Manager" /></label>
+            <div><button type="submit" className="btn-link btn-link-primary" style={btn}>Save</button></div>
+          </form>
+        </section>
+      )}
 
       <section style={box}>
         <h2 style={{ marginTop: 0 }}>Welcome message with shop details and photos</h2>

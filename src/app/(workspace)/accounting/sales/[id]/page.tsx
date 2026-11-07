@@ -158,6 +158,26 @@ async function InvoiceDetails({ params, searchParams }: Props) {
     for (const r of lr) lotOf.set(Number(r.id), String(r.lot_no));
   } catch { /* no lot column yet */ }
 
+  // What WhatsApp said about the last automatic send of this bill (needs migration 074; skipped without it).
+  let waDelivery: { text: string; color: string } | null = null;
+  try {
+    const [ev] = await db.execute<RowDataPacket[]>(
+      `SELECT JSON_UNQUOTE(JSON_EXTRACT(details_json, '$.waId')) AS wa_id, JSON_EXTRACT(details_json, '$.ok') AS ok,
+              DATE_FORMAT(occurred_at, '%d %b %H:%i') AS at
+         FROM acct_audit_events WHERE legal_business_id = ? AND action = 'BILL_AUTO_SEND' AND subject_type = 'SALE' AND subject_id = ?
+        ORDER BY id DESC LIMIT 1`, [user.legal_business_id, Number(invoice.id)]);
+    const e = ev[0];
+    if (e && e.wa_id && e.wa_id !== "null") {
+      const [d] = await db.execute<RowDataPacket[]>(`SELECT status, error_reason FROM acct_wa_delivery WHERE wa_message_id = ?`, [String(e.wa_id)]);
+      const st = d[0]?.status ? String(d[0].status) : "";
+      waDelivery =
+        st === "read" ? { text: `read by the customer (sent ${e.at})`, color: "#166534" }
+        : st === "delivered" ? { text: `delivered (sent ${e.at})`, color: "#166534" }
+        : st === "failed" ? { text: `NOT delivered: ${String(d[0].error_reason ?? "WhatsApp could not deliver it")}. Send it by hand.`, color: "#b91c1c" }
+        : { text: `handed to WhatsApp ${e.at}, delivery not confirmed yet`, color: "#475569" };
+    }
+  } catch { /* migration 074 not run yet */ }
+
   const [payments] = await db.execute<RowDataPacket[]>(
     `SELECT
        pay.id,
@@ -371,6 +391,9 @@ async function InvoiceDetails({ params, searchParams }: Props) {
               />
               {!normalizePhone(String(invoice.customer_phone ?? "")) && <span style={{ color: "#64748b" }}> Add a mobile number first.</span>}
             </div>
+          )}
+          {waDelivery && (
+            <p className="no-print" style={{ color: waDelivery.color, margin: "6px 0" }}>WhatsApp: {waDelivery.text}</p>
           )}
           {shareResult && <p role="status" className="no-print" style={{ color: "#b91c1c" }}>{shareResult.slice(0, 200)}</p>}
           {mobileResult && MOBILE_MESSAGES[mobileResult] && (

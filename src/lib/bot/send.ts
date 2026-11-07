@@ -5,20 +5,24 @@ export function botConfigured(): boolean {
   return Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
 }
 
-export type SendResult = { ok: boolean; code?: number; reason?: string };
+export type SendResult = { ok: boolean; code?: number; reason?: string; id?: string };
 
 async function post(payload: Record<string, unknown>): Promise<SendResult> {
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   if (!token || !phoneId) return { ok: false, reason: "WhatsApp keys are not set on the server." };
   try {
-    const res = await fetch(`https://graph.facebook.com/v21.0/${encodeURIComponent(phoneId)}/messages`, {
+    const res = await fetch(`${(process.env.WHATSAPP_API_BASE || "https://graph.facebook.com/v21.0").replace(/\/+$/, "")}/${encodeURIComponent(phoneId)}/messages`, {
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({ messaging_product: "whatsapp", ...payload }),
       signal: AbortSignal.timeout(10_000),
     });
-    if (res.ok) return { ok: true };
+    if (res.ok) {
+      let id: string | undefined;
+      try { id = ((await res.json()) as { messages?: Array<{ id?: string }> }).messages?.[0]?.id; } catch { /* no id */ }
+      return { ok: true, id };
+    }
     let code: number | undefined;
     let reason = `WhatsApp refused it (${res.status}).`;
     try {
@@ -44,16 +48,11 @@ export function sendWhatsAppTextDetailed(toDigits: string, body: string): Promis
 }
 
 /** An approved message template with its {{1}}, {{2}}... filled in. Works any time, billed by Meta. */
-export function sendWhatsAppTemplate(toDigits: string, name: string, language: string, params: string[]): Promise<SendResult> {
-  return post({
-    to: toDigits,
-    type: "template",
-    template: {
-      name,
-      language: { code: language },
-      components: params.length ? [{ type: "body", parameters: params.map((t) => ({ type: "text", text: t.replace(/\s+/g, " ").slice(0, 500) })) }] : [],
-    },
-  });
+export function sendWhatsAppTemplate(toDigits: string, name: string, language: string, params: string[], headerImageUrl?: string): Promise<SendResult> {
+  const components: Record<string, unknown>[] = [];
+  if (headerImageUrl) components.push({ type: "header", parameters: [{ type: "image", image: { link: headerImageUrl } }] });
+  if (params.length) components.push({ type: "body", parameters: params.map((t) => ({ type: "text", text: t.replace(/\s+/g, " ").slice(0, 500) })) });
+  return post({ to: toDigits, type: "template", template: { name, language: { code: language }, components } });
 }
 
 /** A picture with a short caption, fetched by WhatsApp from a public link. JPEG or PNG only. Free inside 24 hours of the customer's message. */

@@ -22,7 +22,7 @@ export default function ShareBillButton({ saleId, label, disabled, style, auto =
     const tab = auto ? null : window.open("about:blank", "_blank");
     try {
       const r = await billWhatsAppLinkAction(saleId);
-      if (r.sent) setDone("Sent to the customer on WhatsApp.");
+      if (r.sent) setDone("Handed to WhatsApp. Reload this bill in a few minutes to see if it was delivered.");
       else if (r.url && auto) setFallback({ url: r.url, note: r.note ?? "" });
       else if (r.url && tab) tab.location.href = r.url;
       else if (r.url) window.location.href = r.url;

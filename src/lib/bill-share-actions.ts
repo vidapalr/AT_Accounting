@@ -76,7 +76,7 @@ export async function billWhatsAppLinkAction(saleId: number): Promise<{ url?: st
     await db.execute(
       `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
        VALUES (?, ?, 'BILL_AUTO_SEND', 'SALE', ?, ?)`,
-      [user.legal_business_id, user.id, saleId, JSON.stringify({ ok: result.ok, code: result.code ?? null, template: auto.template || null })]
+      [user.legal_business_id, user.id, saleId, JSON.stringify({ ok: result.ok, code: result.code ?? null, template: auto.template || null, waId: result.id ?? null })]
     );
     if (result.ok) return { sent: true };
     return { url: whatsappLink(phone, text), note: `WhatsApp did not send it automatically (${result.reason ?? "unknown reason"}). You can send it by hand instead.` };

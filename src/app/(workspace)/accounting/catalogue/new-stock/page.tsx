@@ -113,7 +113,10 @@ async function NewStock() {
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <CopyTextButton text={text} />
                   <Link className="btn-link btn-link-primary" href={`/accounting/catalogue/share?events=${ids}`}>
-                    Send to customers
+                    Send by hand (free)
+                  </Link>
+                  <Link className="btn-link" href={`/accounting/catalogue/broadcast?events=${ids}`}>
+                    Send automatically on WhatsApp
                   </Link>
                   <Link className="btn-link" href={`/accounting/catalogue/instagram?product=${g.productId}`}>
                     Post to Instagram
