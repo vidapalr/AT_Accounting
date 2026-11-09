@@ -218,7 +218,9 @@ export async function buildLedgerDrafts(
       return null;
     }
 
-    return { kind: "ACCOUNT", accountCode: code };
+    // A cash drawer belongs to one branch: remember it so the cash line can carry it.
+    const drawer = !bank && cash && num(cash.branch_id) !== null ? dims(cash.division_id, cash.branch_id) : undefined;
+    return { kind: "ACCOUNT", accountCode: code, ...(drawer ? { drawer } : {}) };
   }
 
   function add(label: string, build: () => JournalDraft | null) {
