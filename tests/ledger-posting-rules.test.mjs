@@ -495,3 +495,24 @@ test("stock found at a count: stock up, lost-stock cost down by the same amount"
   assert.equal(a[ACCOUNT.INVENTORY].debit, 25000n);
   assert.equal(a[ACCOUNT.DAMAGED_STOCK].credit, 25000n);
 });
+
+test("a supplier payment from a cash drawer books the cash line to the drawer's branch, the supplier line to none", () => {
+  const draft = purchasePaymentEntry({
+    id: 1, paymentNo: "PAY-C", date: "2026-11-09", amount: "4500.00",
+    dims: { divisionId: 1, branchId: null },
+    settlement: { kind: "ACCOUNT", accountCode: "1001", drawer: { divisionId: 1, branchId: 7 } },
+  });
+  const cash = draft.lines.find((l) => l.accountCode === "1001");
+  const payable = draft.lines.find((l) => l.accountCode !== "1001");
+  assert.equal(cash.branchId, 7);
+  assert.equal(payable.branchId, null);
+});
+
+test("a bank payment is unchanged: no drawer, no branch added", () => {
+  const draft = purchasePaymentEntry({
+    id: 2, paymentNo: "PAY-B", date: "2026-11-09", amount: "100.00",
+    dims: { divisionId: 1, branchId: null },
+    settlement: { kind: "ACCOUNT", accountCode: "1002" },
+  });
+  assert.ok(draft.lines.every((l) => l.branchId === null));
+});

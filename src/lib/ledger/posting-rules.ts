@@ -100,7 +100,8 @@ export type Dimensions = {
 
 /** Where money came from, or went to. */
 export type Settlement =
-  | { kind: "ACCOUNT"; accountCode: string } // business bank or cash GL account
+  // business bank or cash GL account; for a cash drawer, `drawer` is the branch (and division) it belongs to
+  | { kind: "ACCOUNT"; accountCode: string; drawer?: Dimensions }
   | { kind: "INVESTOR" } // investor's own bank / cash
   | { kind: "OWNER" }; // owner's personal money
 
@@ -141,6 +142,18 @@ export function formatMoney(paise: bigint): string {
 }
 
 // -------------------------------------------------------------- helpers
+
+/**
+ * Where the bank or cash line of an entry is booked. A cash account needs a branch, but many entries (supplier
+ * payments, owner money, assets) only know the division. When the line has no branch and the money moved
+ * through a cash drawer, use that drawer's branch.
+ */
+function lineDims(settlement: Settlement, dims: Dimensions): Dimensions {
+  if (settlement.kind === "ACCOUNT" && settlement.drawer && dims.branchId === null) {
+    return { divisionId: dims.divisionId ?? settlement.drawer.divisionId, branchId: settlement.drawer.branchId };
+  }
+  return dims;
+}
 
 function settlementAccount(settlement: Settlement): string {
   switch (settlement.kind) {
@@ -276,7 +289,7 @@ export function salesReceiptEntry(receipt: {
   const memo = `Receipt for invoice ${receipt.invoiceNo}`;
 
   return makeDraft("SALES_RECEIPT", receipt.id, receipt.date, memo, [
-    debit(settlementAccount(receipt.settlement), amount, receipt.dims, memo),
+    debit(settlementAccount(receipt.settlement), amount, lineDims(receipt.settlement, receipt.dims), memo),
     credit(ACCOUNT.RECEIVABLES, amount, receipt.dims, memo),
   ]);
 }
@@ -305,7 +318,7 @@ export function staffAdvanceEntry(a: {
   const memo = `Staff advance ${a.advanceNo}: ${a.employeeName}`;
   return makeDraft("STAFF_ADVANCE", a.id, a.date, memo, [
     debit(ACCOUNT.STAFF_ADVANCES, amount, a.dims, memo),
-    credit(settlementAccount(a.settlement), amount, a.dims, memo),
+    credit(settlementAccount(a.settlement), amount, lineDims(a.settlement, a.dims), memo),
   ]);
 }
 
@@ -319,9 +332,10 @@ export function ownerMoneyEntry(a: {
   const amount = parseMoney(a.amount);
   const memo = `${a.direction === "IN" ? "Owner put in" : "Owner took out"} ${a.entryNo}${a.note ? `: ${a.note}` : ""}`;
   const account = settlementAccount(a.settlement);
+  const accountDims = lineDims(a.settlement, a.dims);
   return makeDraft("OWNER_MONEY", a.id, a.date, memo, a.direction === "IN"
-    ? [debit(account, amount, a.dims, memo), credit(ACCOUNT.PROPRIETOR_CAPITAL, amount, a.dims, memo)]
-    : [debit(ACCOUNT.PROPRIETOR_CAPITAL, amount, a.dims, memo), credit(account, amount, a.dims, memo)]);
+    ? [debit(account, amount, accountDims, memo), credit(ACCOUNT.PROPRIETOR_CAPITAL, amount, a.dims, memo)]
+    : [debit(ACCOUNT.PROPRIETOR_CAPITAL, amount, a.dims, memo), credit(account, amount, accountDims, memo)]);
 }
 
 /**
@@ -338,7 +352,7 @@ export function cashTakenEntry(a: {
     : ACCOUNT.PROPRIETOR_CAPITAL;
   return makeDraft("CASH_TAKEN", a.id, a.date, memo, [
     debit(toAccount, amount, a.dims, memo),
-    credit(settlementAccount(a.cash), amount, a.dims, memo),
+    credit(settlementAccount(a.cash), amount, lineDims(a.cash, a.dims), memo),
   ]);
 }
 
@@ -356,9 +370,10 @@ export function fundingReceiptEntry(a: {
   const words = { RECEIVED: "Investor money received", REPAID: "Investor principal paid back", RETURN_SHARE: "Investor profit share paid", RETURN_COST: "Investor return paid (cost)" };
   const memo = `${words[a.kind]} ${a.txNo} (${a.agreementNo})`;
   const account = settlementAccount(a.settlement);
-  if (a.kind === "RECEIVED") return makeDraft("FUNDING_RECEIPT", a.id, a.date, memo, [debit(account, amount, a.dims, memo), credit(principal, amount, a.dims, memo)]);
+  const accountDims = lineDims(a.settlement, a.dims);
+  if (a.kind === "RECEIVED") return makeDraft("FUNDING_RECEIPT", a.id, a.date, memo, [debit(account, amount, accountDims, memo), credit(principal, amount, a.dims, memo)]);
   const from = a.kind === "REPAID" ? principal : a.kind === "RETURN_SHARE" ? ACCOUNT.INVESTOR_PROFIT_SHARE : ACCOUNT.INVESTOR_RETURN_COST;
-  return makeDraft("FUNDING_RECEIPT", a.id, a.date, memo, [debit(from, amount, a.dims, memo), credit(account, amount, a.dims, memo)]);
+  return makeDraft("FUNDING_RECEIPT", a.id, a.date, memo, [debit(from, amount, a.dims, memo), credit(account, amount, accountDims, memo)]);
 }
 
 /** An asset bought: Fixed Assets up, paid from bank or cash (or the owner's / investor's own money). */
@@ -369,7 +384,7 @@ export function fixedAssetPurchaseEntry(a: {
   const memo = `Asset ${a.assetNo}: ${a.name}`;
   return makeDraft("FIXED_ASSET", a.id, a.date, memo, [
     debit(ACCOUNT.FIXED_ASSETS, cost, a.dims, memo),
-    credit(settlementAccount(a.settlement), cost, a.dims, memo),
+    credit(settlementAccount(a.settlement), cost, lineDims(a.settlement, a.dims), memo),
   ]);
 }
 
@@ -398,7 +413,7 @@ export function assetDisposalEntry(a: {
   if (proceeds > 0n && !a.proceedsSettlement) throw new Error("money received for the asset has no account");
   const lossOrGain = cost - accumulated - proceeds; // positive is a loss
   return makeDraft("ASSET_DISPOSAL", a.id, a.date, memo, [
-    ...(proceeds > 0n ? [debit(settlementAccount(a.proceedsSettlement!), proceeds, a.dims, memo)] : []),
+    ...(proceeds > 0n ? [debit(settlementAccount(a.proceedsSettlement!), proceeds, lineDims(a.proceedsSettlement!, a.dims), memo)] : []),
     debit(ACCOUNT.ACCUMULATED_DEPRECIATION, accumulated, a.dims, memo),
     lossOrGain > 0n ? debit(ACCOUNT.DISPOSAL_LOSS, lossOrGain, a.dims, memo) : credit(ACCOUNT.DISPOSAL_LOSS, -lossOrGain, a.dims, memo),
     credit(ACCOUNT.FIXED_ASSETS, cost, a.dims, memo),
@@ -481,7 +496,7 @@ export function purchasePaymentEntry(payment: {
 
   return makeDraft("PURCHASE_PAYMENT", payment.id, payment.date, memo, [
     debit(ACCOUNT.PAYABLES, amount, payment.dims, memo),
-    credit(settlementAccount(payment.settlement), amount, payment.dims, memo),
+    credit(settlementAccount(payment.settlement), amount, lineDims(payment.settlement, payment.dims), memo),
   ]);
 }
 
@@ -543,7 +558,7 @@ export function expensePaymentEntry(payment: {
 
   return makeDraft("EXPENSE_PAYMENT", payment.id, payment.date, memo, [
     debit(ACCOUNT.ACCRUED_EXPENSES, amount, payment.dims, memo),
-    credit(settlementAccount(payment.settlement), amount, payment.dims, memo),
+    credit(settlementAccount(payment.settlement), amount, lineDims(payment.settlement, payment.dims), memo),
   ]);
 }
 
@@ -560,7 +575,7 @@ export function depositPaidEntry(deposit: {
 
   return makeDraft("DEPOSIT_PAID", deposit.id, deposit.date, memo, [
     debit(ACCOUNT.DEPOSITS, amount, deposit.dims, memo),
-    credit(settlementAccount(deposit.settlement), amount, deposit.dims, memo),
+    credit(settlementAccount(deposit.settlement), amount, lineDims(deposit.settlement, deposit.dims), memo),
   ]);
 }
 
@@ -579,7 +594,7 @@ export function depositRefundEntry(refund: {
   const memo = `Deposit refund ${refund.advanceNo}`;
 
   return makeDraft("DEPOSIT_REFUND", refund.id, refund.date, memo, [
-    debit(settlementAccount(refund.settlement), amount, refund.dims, memo),
+    debit(settlementAccount(refund.settlement), amount, lineDims(refund.settlement, refund.dims), memo),
     credit(ACCOUNT.DEPOSITS, amount, refund.dims, memo),
   ]);
 }
@@ -645,7 +660,7 @@ export function salesRefundEntry(refund: {
 
   return makeDraft("SALES_REFUND", refund.id, refund.date, memo, [
     debit(ACCOUNT.RECEIVABLES, amount, refund.dims, memo),
-    credit(settlementAccount(refund.settlement), amount, refund.dims, memo),
+    credit(settlementAccount(refund.settlement), amount, lineDims(refund.settlement, refund.dims), memo),
   ]);
 }
 
@@ -715,7 +730,7 @@ export function supplierRefundEntry(refund: {
   const memo = `Supplier refund (record ${refund.id})`;
 
   return makeDraft("SUPPLIER_REFUND", refund.id, refund.date, memo, [
-    debit(settlementAccount(refund.settlement), amount, refund.dims, memo),
+    debit(settlementAccount(refund.settlement), amount, lineDims(refund.settlement, refund.dims), memo),
     credit(ACCOUNT.PAYABLES, amount, refund.dims, memo),
   ]);
 }
