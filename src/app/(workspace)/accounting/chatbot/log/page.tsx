@@ -71,6 +71,19 @@ async function Content() {
       }
     } catch { logReady = false; }
   }
+  // Messages sent before the step log existed (or while the live site runs older code) only have a final result.
+  if (ids.length > 0) {
+    try {
+      const [fin] = await db.execute<Row[]>(
+        `SELECT wa_message_id, status, error_code, error_reason, DATE_FORMAT(DATE_ADD(updated_at, INTERVAL ${IST_MIN} MINUTE), '%H:%i') AS at
+           FROM acct_wa_delivery WHERE wa_message_id IN (${ids.map(() => "?").join(",")})`, ids);
+      for (const f of fin) {
+        const key = String(f.wa_message_id);
+        if (steps.has(key)) continue;
+        steps.set(key, [{ status: String(f.status), at: String(f.at), code: f.error_code ? Number(f.error_code) : null, reason: f.error_reason ? String(f.error_reason) : null }]);
+      }
+    } catch { /* before migration 074 */ }
+  }
   try {
     const [any] = await db.execute<Row[]>(`SELECT COUNT(*) AS n FROM acct_wa_delivery`);
     anyStatusEver = Number(any[0]?.n ?? 0) > 0;
