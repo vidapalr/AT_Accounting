@@ -36,6 +36,8 @@ const MESSAGES: Record<string, { ok: boolean; text: string }> = {
   invalid: { ok: false, text: "Please check the name, mobile number, GSTIN and credit limit." },
   "phone-used": { ok: false, text: "Another customer already has this mobile number." },
   failed: { ok: false, text: "Could not save. Please try again." },
+  "follow-not-ready": { ok: false, text: "Calls and follow-up days need the database file 078_follow_ups. Run it, then try again." },
+  "bad-follow": { ok: false, text: "The follow-up day does not look right." },
   "note-not-ready": { ok: false, text: "Notes are not set up yet: run the database file 067_customer_notes." },
   merged: { ok: true, text: "Done. The two customer records are now one." },
   "merge-denied": { ok: false, text: "Ask the owner or accountant to join these two customers." },
@@ -267,9 +269,15 @@ async function CustomerPage({ params, searchParams }: Props) {
         <p style={{ color: "#64748b", marginTop: 0 }}>Bills, payments, returns, website orders, items on approval, messages, chats and notes, newest first.</p>
         <form action={addCustomerNoteAction} style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12, maxWidth: 640 }}>
           <input type="hidden" name="customer_id" value={String(customerId)} />
+          <select name="kind" defaultValue="NOTE" aria-label="What happened" style={{ padding: "11px 12px", fontSize: 16, borderRadius: 8, border: "1px solid #cbd5e1" }}>
+            <option value="NOTE">Note</option><option value="CALL">Phone call</option><option value="VISIT">Visit</option><option value="WHATSAPP">WhatsApp chat</option>
+          </select>
           <input name="note" required minLength={2} maxLength={500} placeholder="Add a note (called her, will pay on Friday, likes silk…)"
             style={{ flex: "1 1 280px", padding: "11px 12px", fontSize: 16, borderRadius: 8, border: "1px solid #cbd5e1" }} />
-          <button type="submit" style={{ padding: "11px 18px", fontSize: 16 }}>Add note</button>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, color: "#475569" }}>Follow up on
+            <input type="date" name="follow_up_on" style={{ padding: "10px", fontSize: 16, borderRadius: 8, border: "1px solid #cbd5e1" }} />
+          </label>
+          <button type="submit" style={{ padding: "11px 18px", fontSize: 16 }}>Add</button>
         </form>
         <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>

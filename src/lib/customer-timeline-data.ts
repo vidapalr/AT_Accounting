@@ -56,10 +56,24 @@ export async function loadCustomerTimeline(q: Q, businessId: number, customerId:
               WHERE legal_business_id = ? AND customer_id = ? ORDER BY id DESC LIMIT 20`, [businessId, customerId],
     (r) => ev("MESSAGE", r.at, "WhatsApp message sent", String(r.message_type).replace(/_/g, " ").toLowerCase()));
 
-  await add(`SELECT n.note, DATE_FORMAT(n.created_at, '%Y-%m-%d %H:%i:%s') AS at, u.full_name FROM acct_customer_notes n
+  // With calls and follow-up days (migration 078); the plain version works without it.
+  const before = out.length;
+  await add(`SELECT n.note, n.kind, DATE_FORMAT(n.follow_up_on, '%d %b') AS follow, n.follow_done_at IS NOT NULL AS done,
+                    DATE_FORMAT(n.created_at, '%Y-%m-%d %H:%i:%s') AS at, u.full_name FROM acct_customer_notes n
                LEFT JOIN acct_app_users u ON u.id = n.created_by
               WHERE n.legal_business_id = ? AND n.customer_id = ? ORDER BY n.id DESC LIMIT 50`, [businessId, customerId],
-    (r) => ev("NOTE", r.at, String(r.note), r.full_name ? `by ${r.full_name}` : ""));
+    (r) => {
+      const words: Record<string, string> = { CALL: "Call", VISIT: "Visit", WHATSAPP: "WhatsApp chat" };
+      const prefix = words[String(r.kind)] ? `${words[String(r.kind)]}: ` : "";
+      const bits = [r.full_name ? `by ${r.full_name}` : "", r.follow ? `${Number(r.done) ? "followed up" : "follow up"} ${r.follow}` : ""].filter(Boolean);
+      return ev("NOTE", r.at, prefix + String(r.note), bits.join(" · "));
+    });
+  if (out.length === before) {
+    await add(`SELECT n.note, DATE_FORMAT(n.created_at, '%Y-%m-%d %H:%i:%s') AS at, u.full_name FROM acct_customer_notes n
+                 LEFT JOIN acct_app_users u ON u.id = n.created_by
+                WHERE n.legal_business_id = ? AND n.customer_id = ? ORDER BY n.id DESC LIMIT 50`, [businessId, customerId],
+      (r) => ev("NOTE", r.at, String(r.note), r.full_name ? `by ${r.full_name}` : ""));
+  }
 
   return mergeTimeline(out);
 }

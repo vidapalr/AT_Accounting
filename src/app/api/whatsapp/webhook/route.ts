@@ -53,8 +53,10 @@ type Incoming = {
 export async function POST(request: NextRequest) {
   const raw = await request.text();
   if (!validSignature(raw, request.headers.get("x-hub-signature-256"))) {
+    await noteWebhook("badsig");
     return new NextResponse("Forbidden", { status: 403 });
   }
+  await noteWebhook("hook_ok");
 
   let body: Incoming;
   try {
@@ -110,6 +112,14 @@ export async function POST(request: NextRequest) {
 
 
 const RANK = ["sent", "delivered", "read", "failed"];
+
+/** A trace of when WhatsApp's server last reached us, and whether we refused it (shown on the message log; needs migration 077). */
+async function noteWebhook(kind: "badsig" | "hook_ok") {
+  try {
+    await db.execute(`INSERT INTO acct_wa_status_log (wa_message_id, status) VALUES ('_webhook', ?)`, [kind]);
+    await db.execute(`DELETE FROM acct_wa_status_log WHERE wa_message_id = '_webhook' AND created_at < (NOW() - INTERVAL 30 DAY)`);
+  } catch { /* before migration 077 */ }
+}
 
 /** Meta tells us afterwards whether a message was delivered, read or failed. Remember the furthest state reached. */
 async function saveDelivery(id: string, status: string, error?: { code?: number; title?: string; message?: string }) {
