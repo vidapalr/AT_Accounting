@@ -82,7 +82,8 @@ const messages: Record<string, string> = {
   "duplicate-invoice":
     "This supplier invoice number is already recorded.",
   "not-editable": "This purchase cannot be edited.",
-  "supplier-locked": "The supplier and the receiving place cannot be changed on a purchase whose goods are already received.",
+  "supplier-locked": "The receiving place cannot be changed on a purchase whose goods are already received.",
+  "supplier-has-payments": "A payment has already been recorded on this bill, so its supplier cannot be changed. The payment belongs to the supplier it was made to.",
   "date-after-receipt": "The bill date cannot be after the date the goods were received.",
   "has-return": "Goods from this purchase were already returned to the supplier, so it cannot be edited. Cancel that return first.",
   "payments-exceed": "The new total is less than what has already been paid to the supplier for this purchase.",

@@ -535,7 +535,8 @@ async function savePurchaseDraft(
 
 /**
  * Edit a purchase whose goods have already been received (like QuickBooks): the quantities and costs,
- * the supplier's bill number, the bill date and the remarks can change. Supplier and receiving place stay.
+ * the supplier, the supplier's bill number, the bill date and the remarks can change. The receiving place stays.
+ * The supplier can change only while nothing has been paid on the bill, because a payment belongs to the supplier it was made to.
  * The old journal entry is reversed automatically, stock is corrected with new stock records (the old ones stay
  * in the history), and the purchase is posted again with the new values.
  */
@@ -577,7 +578,7 @@ export async function editReceivedPurchaseAction(form: FormData): Promise<void> 
 
     if (!head) {
       outcome = "not-editable";
-    } else if (Number(head.supplier_id) !== supplierId || Number(head.receiving_location_id) !== locationId) {
+    } else if (Number(head.receiving_location_id) !== locationId) {
       outcome = "supplier-locked";
     } else if (String(head.received_date) < invoiceDate) {
       outcome = "date-after-receipt";
@@ -601,7 +602,24 @@ export async function editReceivedPurchaseAction(form: FormData): Promise<void> 
         [businessId, purchaseId]
       );
 
-      if (returned.length > 0) {
+      const supplierChanged = Number(head.supplier_id) !== supplierId;
+      let newSupplierOk = true;
+      if (supplierChanged) {
+        const [sup] = await conn.execute<RowDataPacket[]>(
+          `SELECT id FROM acct_suppliers WHERE legal_business_id = ? AND id = ?`, [businessId, supplierId]);
+        newSupplierOk = sup.length === 1;
+      }
+      const [anyPayment] = supplierChanged
+        ? await conn.execute<RowDataPacket[]>(
+            `SELECT id FROM acct_purchase_payments WHERE legal_business_id = ? AND purchase_id = ? AND status <> 'VOID' LIMIT 1`,
+            [businessId, purchaseId])
+        : [[] as RowDataPacket[]];
+
+      if (!newSupplierOk) {
+        outcome = "invalid";
+      } else if (supplierChanged && anyPayment.length > 0) {
+        outcome = "supplier-has-payments";
+      } else if (returned.length > 0) {
         outcome = "has-return";
       } else if (BigInt(String(paid[0].paise)) > newTotal) {
         outcome = "payments-exceed";
@@ -680,9 +698,9 @@ export async function editReceivedPurchaseAction(form: FormData): Promise<void> 
               }
 
               await conn.execute(
-                `UPDATE acct_purchase_headers SET supplier_invoice_no = ?, invoice_date = ?, remarks = ?
+                `UPDATE acct_purchase_headers SET supplier_id = ?, supplier_invoice_no = ?, invoice_date = ?, remarks = ?
                   WHERE id = ? AND legal_business_id = ? AND division_id = ? AND status = 'POSTED'`,
-                [invoiceNo || null, invoiceDate, remarks || null, purchaseId, businessId, DIVISION_ID]
+                [supplierId, invoiceNo || null, invoiceDate, remarks || null, purchaseId, businessId, DIVISION_ID]
               );
               await conn.execute(
                 `DELETE FROM acct_purchase_lines WHERE purchase_id = ? AND legal_business_id = ? AND division_id = ?`,
@@ -712,6 +730,8 @@ export async function editReceivedPurchaseAction(form: FormData): Promise<void> 
                  VALUES (?, ?, 'PURCHASE_EDITED', 'PURCHASE', ?, ?)`,
                 [businessId, user.id, purchaseId, JSON.stringify({
                   purchase_no: head.purchase_no,
+                  previous_supplier_id: Number(head.supplier_id),
+                  new_supplier_id: supplierId,
                   previous_lines: oldLines.map((l) => ({ variant_id: Number(l.variant_id), quantity: String(l.quantity), unit_cost: String(l.unit_cost) })),
                   updated_lines: lines.map((l) => ({ variant_id: l.variantId, quantity: l.quantity, unit_cost: l.unitCost })),
                   new_total: scaledString(newTotal, 2),
