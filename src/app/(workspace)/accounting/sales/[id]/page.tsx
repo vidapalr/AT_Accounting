@@ -26,6 +26,7 @@ import ShareBillButton from "@/components/ShareBillButton";
 import { autoSendSettings } from "@/lib/wa-auto";
 import { normalizePhone } from "@/lib/whatsapp/core";
 import { divisionSql } from "@/lib/scope";
+import { explainWhatsAppError } from "@/lib/bot/wa-errors";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -163,17 +164,23 @@ async function InvoiceDetails({ params, searchParams }: Props) {
   try {
     const [ev] = await db.execute<RowDataPacket[]>(
       `SELECT JSON_UNQUOTE(JSON_EXTRACT(details_json, '$.waId')) AS wa_id, JSON_EXTRACT(details_json, '$.ok') AS ok,
+              JSON_UNQUOTE(JSON_EXTRACT(details_json, '$.to')) AS sent_to, JSON_UNQUOTE(JSON_EXTRACT(details_json, '$.template')) AS tpl,
               DATE_FORMAT(occurred_at, '%d %b %H:%i') AS at
          FROM acct_audit_events WHERE legal_business_id = ? AND action = 'BILL_AUTO_SEND' AND subject_type = 'SALE' AND subject_id = ?
         ORDER BY id DESC LIMIT 1`, [user.legal_business_id, Number(invoice.id)]);
     const e = ev[0];
     if (e && e.wa_id && e.wa_id !== "null") {
-      const [d] = await db.execute<RowDataPacket[]>(`SELECT status, error_reason FROM acct_wa_delivery WHERE wa_message_id = ?`, [String(e.wa_id)]);
+      const [d] = await db.execute<RowDataPacket[]>(`SELECT status, error_code, error_reason FROM acct_wa_delivery WHERE wa_message_id = ?`, [String(e.wa_id)]);
       const st = d[0]?.status ? String(d[0].status) : "";
       waDelivery =
         st === "read" ? { text: `read by the customer (sent ${e.at})`, color: "#166534" }
         : st === "delivered" ? { text: `delivered (sent ${e.at})`, color: "#166534" }
-        : st === "failed" ? { text: `NOT delivered: ${String(d[0].error_reason ?? "WhatsApp could not deliver it")}. Send it by hand.`, color: "#b91c1c" }
+        : st === "failed" ? {
+            text: `NOT delivered: ${String(d[0].error_reason ?? "WhatsApp could not deliver it")}${d[0].error_code ? ` (code ${d[0].error_code})` : ""}. ` +
+              `It went to the number ${e.sent_to && e.sent_to !== "null" ? String(e.sent_to) : "saved on this bill"}${e.tpl && e.tpl !== "null" ? ` using template ${String(e.tpl)}` : ""}. ` +
+              `${explainWhatsAppError(d[0].error_code ? Number(d[0].error_code) : null)} Send it by hand.`.replace(/\s+/g, " "),
+            color: "#b91c1c",
+          }
         : { text: `handed to WhatsApp ${e.at}, delivery not confirmed yet`, color: "#475569" };
     }
   } catch { /* migration 074 not run yet */ }

@@ -10,6 +10,7 @@ import { shopBaseUrl } from "@/lib/shop-url";
 import { normalizePhone, whatsappLink } from "@/lib/whatsapp/core";
 import { autoSendSettings } from "@/lib/wa-auto";
 import { sendWhatsAppTemplate, sendWhatsAppTextDetailed } from "@/lib/bot/send";
+import { explainWhatsAppError, maskPhone } from "@/lib/bot/wa-errors";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -76,10 +77,10 @@ export async function billWhatsAppLinkAction(saleId: number): Promise<{ url?: st
     await db.execute(
       `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
        VALUES (?, ?, 'BILL_AUTO_SEND', 'SALE', ?, ?)`,
-      [user.legal_business_id, user.id, saleId, JSON.stringify({ ok: result.ok, code: result.code ?? null, template: auto.template || null, waId: result.id ?? null })]
+      [user.legal_business_id, user.id, saleId, JSON.stringify({ ok: result.ok, code: result.code ?? null, template: auto.template || null, waId: result.id ?? null, to: maskPhone(to), reason: result.ok ? null : (result.reason ?? null) })]
     );
     if (result.ok) return { sent: true };
-    return { url: whatsappLink(phone, text), note: `WhatsApp did not send it automatically (${result.reason ?? "unknown reason"}). You can send it by hand instead.` };
+    return { url: whatsappLink(phone, text), note: `WhatsApp did not send it automatically (${result.reason ?? "unknown reason"}${result.code ? `, code ${result.code}` : ""}). ${explainWhatsAppError(result.code)} You can send it by hand instead.`.replace(/\s+/g, " ") };
   }
   return { url: whatsappLink(phone, text) };
 }
