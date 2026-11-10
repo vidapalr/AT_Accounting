@@ -9,7 +9,7 @@ import { bucketOf, addDays, type Bucket } from "@/lib/follow-up-math";
 import { followUpAction } from "@/lib/follow-up-actions";
 
 type Props = { searchParams: Promise<{ result?: string }> };
-type Item = { type: "LEAD" | "NOTE"; id: number; day: string; name: string; what: string; phone: string | null; href: string };
+type Item = { type: "LEAD" | "NOTE" | "TICKET"; id: number; day: string; name: string; what: string; phone: string | null; href: string };
 
 const MSG: Record<string, string> = {
   done: "Marked done.", moved: "Moved to the new day.", "bad-day": "Pick a valid day.", invalid: "That follow-up was not found.",
@@ -45,6 +45,13 @@ async function Content({ searchParams }: Props) {
         WHERE n.legal_business_id = ? AND n.follow_up_on IS NOT NULL AND n.follow_done_at IS NULL ORDER BY n.follow_up_on LIMIT 300`, [biz]);
     for (const n of notes) items.push({ type: "NOTE", id: Number(n.id), day: String(n.d), name: String(n.full_name), what: String(n.note), phone: n.phone ? String(n.phone) : null, href: `/accounting/customers/${n.customer_id}#history` });
   } catch { notesReady = false; }
+
+  try {
+    const [tickets] = await db.execute<RowDataPacket[]>(
+      `SELECT id, ticket_no, summary, contact_name, contact_phone, DATE_FORMAT(follow_up_on, '%Y-%m-%d') AS d FROM acct_service_tickets
+        WHERE legal_business_id = ? AND status IN ('OPEN','WORKING') AND follow_up_on IS NOT NULL ORDER BY follow_up_on LIMIT 300`, [biz]);
+    for (const t of tickets) items.push({ type: "TICKET", id: Number(t.id), day: String(t.d), name: String(t.contact_name), what: `Ticket ${t.ticket_no}: ${t.summary}`, phone: t.contact_phone ? String(t.contact_phone) : null, href: `/accounting/tickets/${t.id}` });
+  } catch { /* before migration 079 */ }
 
   items.sort((a, b) => a.day.localeCompare(b.day));
   const groups = new Map<Bucket, Item[]>();

@@ -266,6 +266,7 @@ async function CustomerPage({ params, searchParams }: Props) {
 
       <section id="history" className="no-print" style={{ marginTop: 28 }}>
         <h2>History</h2>
+        <p><Link className="btn-link" href={`/accounting/tickets?customer=${customerId}`}>Open a ticket for this customer</Link></p>
         <p style={{ color: "#64748b", marginTop: 0 }}>Bills, payments, returns, website orders, items on approval, messages, chats and notes, newest first.</p>
         <form action={addCustomerNoteAction} style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12, maxWidth: 640 }}>
           <input type="hidden" name="customer_id" value={String(customerId)} />

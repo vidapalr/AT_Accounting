@@ -52,6 +52,7 @@ export const NAVIGATION: NavSection[] = [
     icon: "customers",
     items: [
       { label: "All customers", href: "/accounting/customers", hint: "Customer list, history and credit limits" },
+      { label: "Customer tickets", href: "/accounting/tickets", hint: "Complaints, exchange requests, alterations" },
       { label: "Follow-ups", href: "/accounting/follow-ups", hint: "Who to call or message today" },
       { label: "Leads", href: "/accounting/leads", hint: "People who asked but have not bought yet" },
       { label: "Sales pipeline", href: "/accounting/deals", hint: "Bigger or wholesale deals, from enquiry to won" },
