@@ -42,21 +42,51 @@ export async function closeCashDayAction(formData: FormData) {
     go(accountId, date, "error", "Enter the amounts in rupees, for example 12500 or 12500.50.");
   }
 
-  // Where the cash taken away went: nothing, the owner, or one of the business bank accounts.
+  // Where the cash taken away went: nothing, a bank account, another cash drawer, the owner, or an owner account.
   const toRaw = text("taken_to");
-  let takenTo: "BANK" | "OWNER" | null = null;
+  let takenTo: "BANK" | "OWNER" | "CASH" | null = null;
   let takenBankId: number | null = null;
+  let takenCashId: number | null = null;
+  let takenOwnerId: number | null = null;
   if (takenOut > 0n) {
-    const m = /^BANK:([1-9]\d*)$/.exec(toRaw);
+    const bank = /^BANK:([1-9]\d*)$/.exec(toRaw);
+    const cashTo = /^CASH:([1-9]\d*)$/.exec(toRaw);
+    const ownerAcc = /^OWNERACC:([1-9]\d*)$/.exec(toRaw);
     if (toRaw === "OWNER") takenTo = "OWNER";
-    else if (m) { takenTo = "BANK"; takenBankId = Number(m[1]); }
-    else go(accountId, date, "error", "Say where the cash taken away went: a bank account, or the owner.");
+    else if (bank) { takenTo = "BANK"; takenBankId = Number(bank[1]); }
+    else if (cashTo) { takenTo = "CASH"; takenCashId = Number(cashTo[1]); }
+    else if (ownerAcc) { takenTo = "OWNER"; takenOwnerId = Number(ownerAcc[1]); }
+    else go(accountId, date, "error", "Say where the cash taken away went: a bank account, another cash drawer, or the owner.");
     if (takenBankId !== null) {
       const [b] = await db.execute<RowDataPacket[]>(
         `SELECT id FROM acct_bank_accounts WHERE id = ? AND legal_business_id = ? AND ownership_type = 'BUSINESS' AND status = 'ACTIVE'`,
         [takenBankId, businessId]
       );
       if (b.length !== 1) go(accountId, date, "error", "That bank account cannot be used.");
+    }
+    if (takenCashId !== null || takenOwnerId !== null) {
+      // These two need the database step "076_owner_accounts_cash_destinations".
+      try {
+        await db.execute(`SELECT taken_cash_id, taken_owner_account_id FROM acct_cash_closings LIMIT 0`);
+        if (takenCashId !== null) {
+          if (takenCashId === accountId) go(accountId, date, "error", "Pick a different drawer from the one you are closing.");
+          const [c] = await db.execute<RowDataPacket[]>(
+            `SELECT id FROM acct_cash_accounts WHERE id = ? AND legal_business_id = ? AND status = 'ACTIVE'`,
+            [takenCashId, businessId]
+          );
+          if (c.length !== 1) go(accountId, date, "error", "That cash drawer cannot be used.");
+        }
+        if (takenOwnerId !== null) {
+          const [o] = await db.execute<RowDataPacket[]>(
+            `SELECT id FROM acct_owner_accounts WHERE id = ? AND legal_business_id = ? AND status = 'ACTIVE'`,
+            [takenOwnerId, businessId]
+          );
+          if (o.length !== 1) go(accountId, date, "error", "That owner account cannot be used.");
+        }
+      } catch (e) {
+        if (e && typeof e === "object" && "digest" in e && String((e as { digest: unknown }).digest).startsWith("NEXT_REDIRECT")) throw e;
+        go(accountId, date, "error", "This needs the new database step (076_owner_accounts_cash_destinations) to be run first.");
+      }
     }
   }
 
@@ -98,7 +128,13 @@ export async function closeCashDayAction(formData: FormData) {
       [businessId, existing[0].id]
     );
     const o = old[0];
-    const changed = paiseText(takenOut) !== paiseText(BigInt(Math.round(Number(o?.taken_out ?? 0) * 100))) || (o?.taken_to ?? null) !== takenTo || (o?.taken_bank_id ? Number(o.taken_bank_id) : null) !== takenBankId;
+    let oldCash: number | null = null, oldOwner: number | null = null;
+    try {
+      const [more] = await db.execute<RowDataPacket[]>(`SELECT taken_cash_id, taken_owner_account_id FROM acct_cash_closings WHERE id = ?`, [existing[0].id]);
+      oldCash = more[0]?.taken_cash_id ? Number(more[0].taken_cash_id) : null;
+      oldOwner = more[0]?.taken_owner_account_id ? Number(more[0].taken_owner_account_id) : null;
+    } catch { /* before migration 076 */ }
+    const changed = oldCash !== takenCashId || oldOwner !== takenOwnerId || paiseText(takenOut) !== paiseText(BigInt(Math.round(Number(o?.taken_out ?? 0) * 100))) || (o?.taken_to ?? null) !== takenTo || (o?.taken_bank_id ? Number(o.taken_bank_id) : null) !== takenBankId;
     if (posted.length > 0 && changed) {
       go(accountId, date, "error", "The cash taken away on this day is already in the books, so it cannot be changed here. Ask for it to be reversed first.");
     }
@@ -135,6 +171,15 @@ export async function closeCashDayAction(formData: FormData) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [businessId, accountId, date, ...values, user.id]
     );
+  }
+  if (takenCashId !== null || takenOwnerId !== null || existing.length > 0) {
+    try {
+      await db.execute(
+        `UPDATE acct_cash_closings SET taken_cash_id = ?, taken_owner_account_id = ?
+          WHERE legal_business_id = ? AND cash_account_id = ? AND closing_date = ?`,
+        [takenCashId, takenOwnerId, businessId, accountId, date]
+      );
+    } catch { /* before migration 076; only matters when one of them is set, which was refused above */ }
   }
   await db.execute(
     `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)

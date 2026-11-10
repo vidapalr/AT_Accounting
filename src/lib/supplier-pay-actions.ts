@@ -64,6 +64,7 @@ export async function paySupplierAction(form: FormData): Promise<void> {
   const partyId = id(field(form, "funding_party_id"));
   const agreementId = id(field(form, "funding_agreement_id"));
   const payerName = field(form, "payer_name");
+  const ownerAccountId = id(field(form, "owner_account_id"));
   const reference = field(form, "payment_reference");
   const evidence = field(form, "evidence_reference");
   const remarks = field(form, "remarks");
@@ -136,7 +137,9 @@ export async function paySupplierAction(form: FormData): Promise<void> {
     const owed = bills.reduce((s, b) => s + b.due, 0n);
 
     let sourceValid = false;
-    if (source === "BUSINESS_BANK" || source === "INVESTOR_BANK") {
+    if (ownerAccountId !== null && source !== "OWNER_PERSONAL") {
+      sourceValid = false;
+    } else if (source === "BUSINESS_BANK" || source === "INVESTOR_BANK") {
       const [banks] = await conn.execute<RowDataPacket[]>(
         `SELECT ownership_type, funding_party_id, status FROM acct_bank_accounts
          WHERE legal_business_id = ? AND id = ?`,
@@ -156,6 +159,13 @@ export async function paySupplierAction(form: FormData): Promise<void> {
       sourceValid = c.length === 1;
     } else {
       sourceValid = true;
+      if (ownerAccountId !== null) {
+        const [oa] = await conn.execute<RowDataPacket[]>(
+          `SELECT id FROM acct_owner_accounts WHERE legal_business_id = ? AND id = ? AND status = 'ACTIVE'`,
+          [businessId, ownerAccountId]
+        );
+        sourceValid = oa.length === 1;
+      }
     }
     if (sourceValid && partyId !== null) {
       const [p] = await conn.execute<RowDataPacket[]>(
@@ -226,6 +236,12 @@ export async function paySupplierAction(form: FormData): Promise<void> {
               payerName || null, reference || null, evidence || null, remarks || null,
               user.id, batchNo,
             ]
+          );
+        }
+        if (ownerAccountId !== null) {
+          await conn.execute(
+            `UPDATE acct_purchase_payments SET owner_account_id = ? WHERE legal_business_id = ? AND batch_no = ?`,
+            [ownerAccountId, businessId, batchNo]
           );
         }
         await conn.execute(

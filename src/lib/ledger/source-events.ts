@@ -681,18 +681,30 @@ export async function buildLedgerDrafts(
   // ------------------------------------------- cash taken away at closing
   const takenRows = await select(
     conn,
-    `SELECT id, cash_account_id, taken_to, taken_bank_id, taken_out, DATE_FORMAT(closing_date, '%Y-%m-%d') AS d
+    `SELECT id, cash_account_id, taken_to, taken_bank_id, taken_cash_id, taken_out, DATE_FORMAT(closing_date, '%Y-%m-%d') AS d
      FROM acct_cash_closings WHERE legal_business_id = ? AND taken_out > 0 AND taken_to IS NOT NULL ORDER BY closing_date, id`,
     [businessId]
-  ).catch(() => [] as Row[]); // before migration 039 is run
+  ).catch(() =>
+    // before migration 076 (no taken_cash_id) or before 039 (no taken_to at all)
+    select(
+      conn,
+      `SELECT id, cash_account_id, taken_to, taken_bank_id, NULL AS taken_cash_id, taken_out, DATE_FORMAT(closing_date, '%Y-%m-%d') AS d
+       FROM acct_cash_closings WHERE legal_business_id = ? AND taken_out > 0 AND taken_to IS NOT NULL ORDER BY closing_date, id`,
+      [businessId]
+    ).catch(() => [] as Row[])
+  );
   for (const t of takenRows) {
     const label = `Cash taken ${str(t.d)}`;
     add(label, () => {
       const cash = settle(label, "BUSINESS_CASH", null, t.cash_account_id);
       if (!cash) return null;
-      const to = str(t.taken_to) === "BANK" ? "BANK" : "OWNER";
-      const target = to === "BANK" ? settle(label, "BUSINESS_BANK", t.taken_bank_id, null) : null;
-      if (to === "BANK" && !target) return null;
+      const kind = str(t.taken_to);
+      const to = kind === "BANK" ? "BANK" : kind === "CASH" ? "CASH" : "OWNER";
+      const target =
+        to === "BANK" ? settle(label, "BUSINESS_BANK", t.taken_bank_id, null)
+        : to === "CASH" ? settle(label, "BUSINESS_CASH", null, t.taken_cash_id)
+        : null;
+      if (to !== "OWNER" && !target) return null;
       const drawer = cashAccounts.get(Number(t.cash_account_id));
       return cashTakenEntry({
         id: Number(t.id), date: str(t.d), amount: str(t.taken_out), to, dims: dims(drawer?.division_id, drawer?.branch_id), cash, target,

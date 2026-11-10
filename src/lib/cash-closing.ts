@@ -78,6 +78,16 @@ export async function loadCashMovements(
       WHERE legal_business_id = ? AND proceeds_cash_account_id = ? AND status = 'DISPOSED' AND proceeds > 0 AND disposed_on > ? AND disposed_on <= ?`,
     "IN", (r) => `Sold: ${String(r.asset_name).slice(0, 50)}`
   );
+  // Cash another drawer handed over to this one at its closing (needs migration 076).
+  try {
+    await run(
+      `SELECT DATE_FORMAT(c.closing_date, '%Y-%m-%d') AS d, ROUND(c.taken_out * 100) AS paise, a.cash_name
+         FROM acct_cash_closings c JOIN acct_cash_accounts a ON a.id = c.cash_account_id
+        WHERE c.legal_business_id = ? AND c.taken_to = 'CASH' AND c.taken_cash_id = ? AND c.taken_out > 0
+          AND c.closing_date > ? AND c.closing_date <= ?`,
+      "IN", (r) => `Cash handed over from ${String(r.cash_name)}`
+    );
+  } catch { /* before migration 076 */ }
   return lines.sort((a, b) => a.date.localeCompare(b.date));
 }
 

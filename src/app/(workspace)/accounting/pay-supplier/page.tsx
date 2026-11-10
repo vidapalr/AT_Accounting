@@ -110,7 +110,12 @@ async function Content({ searchParams }: Props) {
   }
   for (const c of cashAccts) options.push({ key: `cash${c.id}`, label: `Cash: ${c.cash_name}`, source: "BUSINESS_CASH", cashId: Number(c.id) });
   for (const p of parties) options.push({ key: `icash${p.id}`, label: `Investor cash: ${p.full_name}`, source: "INVESTOR_CASH", partyId: Number(p.id) });
-  options.push({ key: "owner", label: "Owner's own money", source: "OWNER_PERSONAL" });
+  try {
+    const [ownerAccts] = await db.execute<Row[]>(
+      `SELECT id, account_name FROM acct_owner_accounts WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY account_name`, [businessId]);
+    for (const o of ownerAccts) options.push({ key: `oacc${o.id}`, label: `Owner account: ${o.account_name}`, source: "OWNER_PERSONAL", ownerAccountId: Number(o.id), ownerAccountName: String(o.account_name) });
+  } catch { /* before migration 076 */ }
+  options.push({ key: "owner", label: "Owner's own money (no account)", source: "OWNER_PERSONAL" });
 
   return (
     <main style={{ padding: 16, maxWidth: 800 }}>

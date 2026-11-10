@@ -9,6 +9,9 @@ export type PaidFromOption = {
   bankId?: number;
   cashId?: number;
   partyId?: number;
+  /** An owner account: the owner's own money, tracked against that account. */
+  ownerAccountId?: number;
+  ownerAccountName?: string;
 };
 export type AgreementOption = { id: number; label: string; partyId: number };
 
@@ -36,6 +39,8 @@ export default function PaidFromPicker({ options, agreements }: { options: PaidF
       <input type="hidden" name="source_bank_account_id" value={chosen?.bankId ?? ""} />
       <input type="hidden" name="source_cash_account_id" value={chosen?.cashId ?? ""} />
       <input type="hidden" name="funding_party_id" value={chosen?.partyId ?? ""} />
+      <input type="hidden" name="owner_account_id" value={chosen?.ownerAccountId ?? ""} />
+      {chosen?.ownerAccountId && <input type="hidden" name="payer_name" value={chosen.ownerAccountName ?? "Owner"} />}
       {isInvestor && (
         <label style={{ display: "block", marginTop: 12 }}>
           Investor agreement (optional)
@@ -47,7 +52,7 @@ export default function PaidFromPicker({ options, agreements }: { options: PaidF
           </select>
         </label>
       )}
-      {chosen?.source === "OWNER_PERSONAL" && (
+      {chosen?.source === "OWNER_PERSONAL" && !chosen.ownerAccountId && (
         <label style={{ display: "block", marginTop: 12 }}>
           Who paid (name)
           <input name="payer_name" required minLength={2} maxLength={160} style={input} />

@@ -67,6 +67,13 @@ export async function recordOwnerMoneyAction(form: FormData): Promise<void> {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [businessId, no, direction, date, rupees(amount), kind, bankId, cashId, how, reference || null, note || null, user.id]
     );
+    // Optional: the owner account this money came from or went to (needs migration 076).
+    const ownerAcc = /^[1-9]\d*$/.test(text("owner_account")) ? Number(text("owner_account")) : null;
+    if (ownerAcc !== null) {
+      const [oa] = await conn.execute<Row[]>(`SELECT id FROM acct_owner_accounts WHERE legal_business_id = ? AND id = ? AND status = 'ACTIVE'`, [businessId, ownerAcc]);
+      if (oa.length !== 1) throw new Stop("That owner account cannot be used");
+      await conn.execute(`UPDATE acct_owner_money SET owner_account_id = ? WHERE id = ?`, [ownerAcc, ins.insertId]);
+    }
     await conn.execute(
       `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json) VALUES (?, ?, 'OWNER_MONEY_RECORDED', 'OWNER_MONEY', ?, ?)`,
       [businessId, user.id, ins.insertId, JSON.stringify({ entryNo: no, direction, amount: rupees(amount) })]
