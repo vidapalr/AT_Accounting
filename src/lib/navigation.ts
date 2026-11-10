@@ -40,6 +40,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Coupons", href: "/accounting/offers/coupons", hint: "Codes that take rupees or a percentage off a whole bill" },
       { label: "Online orders", href: "/accounting/online-orders", hint: "Orders customers placed on the website" },
       { label: "WhatsApp chatbot", href: "/accounting/chatbot", hint: "Quick answers, chats that need a person" },
+      { label: "WhatsApp message log", href: "/accounting/chatbot/log", hint: "Where each bill or photo message stopped" },
       { label: "Website customers", href: "/accounting/shop-customers", hint: "People with an account on the website" },
       { label: "Invoices", href: "/accounting/invoices", hint: "Find, view and print past bills" },
       { label: "Returns and refunds", href: "/accounting/returns", hint: "Customer returns, refunds, damaged stock" },

@@ -3,6 +3,8 @@ export function explainWhatsAppError(code: number | null | undefined): string {
   switch (code) {
     case 131026:
       return "WhatsApp could not deliver to that number. Usually the number is not on WhatsApp, the person has not accepted WhatsApp's latest terms, or their WhatsApp is very old. Ask the customer to open WhatsApp once and update it, then try again, or check the number.";
+    case 131042:
+      return "WhatsApp will not send business-started messages until a payment method is added or fixed. In WhatsApp Manager, open Billing / Payment settings and add a payment method.";
     case 131047:
       return "More than 24 hours since the customer last messaged, and no approved template was used.";
     case 131049:
@@ -36,4 +38,19 @@ export function explainWhatsAppError(code: number | null | undefined): string {
 export function maskPhone(digits: string): string {
   const d = digits.replace(/\D/g, "");
   return d.length >= 4 ? `ending ${d.slice(-4)}` : "an unknown number";
+}
+
+/**
+ * What it probably means when WhatsApp took a message but has not reported it delivered.
+ * `status` is the furthest state reported ("" if none). Minutes since we handed it over.
+ */
+export function stuckHint(status: string, minutes: number, hasAnyStatusEver: boolean): string {
+  if (status === "delivered" || status === "read" || status === "failed") return "";
+  if (minutes < 10) return "Wait a few minutes: WhatsApp has not reported back yet.";
+  if (status === "sent") {
+    return "WhatsApp accepted it but has not delivered it. The phone may be off or offline (WhatsApp keeps trying for a day), or the account may have a billing problem: check WhatsApp Manager for a payment-method warning.";
+  }
+  return hasAnyStatusEver
+    ? "WhatsApp reported nothing for this message. Check WhatsApp Manager for a payment-method warning, and that the number is on WhatsApp."
+    : "WhatsApp has not reported on any message yet. In Meta's app, check that the webhook is subscribed to \"messages\" and that the callback address and verify token are right.";
 }

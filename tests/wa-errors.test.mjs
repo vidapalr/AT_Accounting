@@ -11,3 +11,12 @@ test("only the last four digits of a number are shown", () => {
   assert.equal(maskPhone("919876543210"), "ending 3210");
   assert.equal(maskPhone("12"), "an unknown number");
 });
+
+import { stuckHint } from "../src/lib/bot/wa-errors.ts";
+test("stuck messages get a plain hint", () => {
+  assert.match(stuckHint("", 3, true), /Wait a few minutes/);
+  assert.match(stuckHint("sent", 30, true), /payment-method/);
+  assert.match(stuckHint("", 30, false), /webhook/);
+  assert.equal(stuckHint("delivered", 30, true), "");
+  assert.match(explainWhatsAppError(131042), /payment method/);
+});
