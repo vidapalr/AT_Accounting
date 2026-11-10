@@ -1,0 +1,10 @@
+{
+  "baseline": "9f8c44e95deba0b6da2d1657a5aaa8d0b0515269",
+  "files": 656,
+  "lines": 102575,
+  "screens": 136,
+  "endpoints": 36,
+  "tables": 136,
+  "foreignKeys": 174,
+  "migrations": 78
+}

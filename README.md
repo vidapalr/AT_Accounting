@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+﻿# Abhiram Group Accounting
 
-## Getting Started
+Accounting and shop operations for Abhiram Group, built with Next.js, React, TypeScript and MariaDB via mysql2.
 
-First, run the development server:
+**[Open the current project documentation](docs/current/README.md)** for architecture, all 136 screens, database dictionary, E-R diagrams, migrations, code reference, operations and review findings.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Development
+
+Configure a development database using the [operations guide](docs/current/OPERATIONS.md), then run:
+
+```powershell
+npm.cmd ci
+npm.cmd run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`. SQL schema and setup records are required for authenticated pages. Read [AGENTS.md](AGENTS.md) and the installed Next.js guides before changing application code.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Checks
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```powershell
+npm.cmd test
+npm.cmd run lint
+npm.cmd run build
+```
 
-## Learn More
+The [current review](docs/current/REVIEW.md) records test results and a full-lint tooling failure. A complete manual line-by-line audit, browser screenshots and live-database verification remain pending.
 
-To learn more about Next.js, take a look at the following resources:
+## Documentation updates
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```powershell
+node scripts/generate-project-docs.mjs
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This refreshes source-derived references without reading secrets or connecting to a database. Historical planning and release records remain in `docs/`; current implementation documentation is in `docs/current/`.
