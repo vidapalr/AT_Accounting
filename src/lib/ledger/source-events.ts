@@ -18,6 +18,8 @@ import type {
 
 import {
   ACCOUNT,
+  parseMoney,
+  formatMoney,
   salesRefundEntry,
   setupCapitalisationEntry,
   salesReturnEntry,
@@ -496,23 +498,52 @@ export async function buildLedgerDrafts(
     );
   }
 
-  const purchasePayments = await select(
-    conn,
+  // A payment made to a supplier in one amount is saved as parts (one per bill) sharing a batch number.
+  // The books get ONE entry for it, so the bank statement line matches one book line.
+  // Without the batch column (migration 075 not run yet) every payment is its own entry, as before.
+  const paymentSql = (withBatch: boolean) =>
     `SELECT p.id, p.payment_no, p.purchase_id, p.division_id,
             DATE_FORMAT(p.payment_date, '%Y-%m-%d') AS d, p.amount,
             p.payment_method, p.payment_source,
-            p.source_bank_account_id, p.source_cash_account_id
+            p.source_bank_account_id, p.source_cash_account_id${withBatch ? ", p.batch_no" : ""}
      FROM acct_purchase_payments p
      JOIN acct_purchase_headers h
        ON h.legal_business_id = p.legal_business_id AND h.id = p.purchase_id
      WHERE p.legal_business_id = ? AND p.status = 'VERIFIED'
        AND h.status = 'POSTED'
-     ORDER BY p.payment_date, p.id`,
-    [businessId]
-  );
+     ORDER BY p.payment_date, p.id`;
+  let purchasePayments: Row[];
+  let unfinishedBatches = new Set<string>();
+  try {
+    purchasePayments = await select(conn, paymentSql(true), [businessId]);
+    const open = await select(
+      conn,
+      `SELECT DISTINCT batch_no FROM acct_purchase_payments
+       WHERE legal_business_id = ? AND batch_no IS NOT NULL AND status = 'DRAFT'`,
+      [businessId]
+    );
+    unfinishedBatches = new Set(open.map((r) => str(r.batch_no)));
+  } catch {
+    purchasePayments = await select(conn, paymentSql(false), [businessId]);
+  }
+
+  const batchTotals = new Map<string, bigint>();
+  const batchLead = new Map<string, number>();
+  for (const p of purchasePayments) {
+    const key = p.batch_no ? str(p.batch_no) : "";
+    if (!key) continue;
+    batchTotals.set(key, (batchTotals.get(key) ?? 0n) + parseMoney(str(p.amount)));
+    if (!batchLead.has(key)) batchLead.set(key, Number(p.id));
+  }
 
   for (const p of purchasePayments) {
-    const label = `Supplier payment ${str(p.payment_no)}`;
+    const batch = p.batch_no ? str(p.batch_no) : "";
+    if (batch && batchLead.get(batch) !== Number(p.id)) continue; // posted together with its first part
+    if (batch && unfinishedBatches.has(batch)) {
+      warnings.push(`Supplier payment ${batch}: some parts are not confirmed yet, so none of it is in the books yet.`);
+      continue;
+    }
+    const label = `Supplier payment ${batch || str(p.payment_no)}`;
     if (str(p.payment_method) === "CASH" && p.source_bank_account_id !== null) {
       warnings.push(
         `${label}: method is CASH but it was paid from a bank account. ` +
@@ -530,9 +561,9 @@ export async function buildLedgerDrafts(
       if (!settlement) return null;
       return purchasePaymentEntry({
         id: Number(p.id),
-        paymentNo: str(p.payment_no),
+        paymentNo: batch || str(p.payment_no),
         date: str(p.d),
-        amount: str(p.amount),
+        amount: batch ? formatMoney(batchTotals.get(batch) ?? 0n) : str(p.amount),
         dims: dims(p.division_id, null),
         settlement,
       });
@@ -650,18 +681,30 @@ export async function buildLedgerDrafts(
   // ------------------------------------------- cash taken away at closing
   const takenRows = await select(
     conn,
-    `SELECT id, cash_account_id, taken_to, taken_bank_id, taken_out, DATE_FORMAT(closing_date, '%Y-%m-%d') AS d
+    `SELECT id, cash_account_id, taken_to, taken_bank_id, taken_cash_id, taken_out, DATE_FORMAT(closing_date, '%Y-%m-%d') AS d
      FROM acct_cash_closings WHERE legal_business_id = ? AND taken_out > 0 AND taken_to IS NOT NULL ORDER BY closing_date, id`,
     [businessId]
-  ).catch(() => [] as Row[]); // before migration 039 is run
+  ).catch(() =>
+    // before migration 076 (no taken_cash_id) or before 039 (no taken_to at all)
+    select(
+      conn,
+      `SELECT id, cash_account_id, taken_to, taken_bank_id, NULL AS taken_cash_id, taken_out, DATE_FORMAT(closing_date, '%Y-%m-%d') AS d
+       FROM acct_cash_closings WHERE legal_business_id = ? AND taken_out > 0 AND taken_to IS NOT NULL ORDER BY closing_date, id`,
+      [businessId]
+    ).catch(() => [] as Row[])
+  );
   for (const t of takenRows) {
     const label = `Cash taken ${str(t.d)}`;
     add(label, () => {
       const cash = settle(label, "BUSINESS_CASH", null, t.cash_account_id);
       if (!cash) return null;
-      const to = str(t.taken_to) === "BANK" ? "BANK" : "OWNER";
-      const target = to === "BANK" ? settle(label, "BUSINESS_BANK", t.taken_bank_id, null) : null;
-      if (to === "BANK" && !target) return null;
+      const kind = str(t.taken_to);
+      const to = kind === "BANK" ? "BANK" : kind === "CASH" ? "CASH" : "OWNER";
+      const target =
+        to === "BANK" ? settle(label, "BUSINESS_BANK", t.taken_bank_id, null)
+        : to === "CASH" ? settle(label, "BUSINESS_CASH", null, t.taken_cash_id)
+        : null;
+      if (to !== "OWNER" && !target) return null;
       const drawer = cashAccounts.get(Number(t.cash_account_id));
       return cashTakenEntry({
         id: Number(t.id), date: str(t.d), amount: str(t.taken_out), to, dims: dims(drawer?.division_id, drawer?.branch_id), cash, target,

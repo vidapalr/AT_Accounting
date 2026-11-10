@@ -458,6 +458,16 @@ test("cash taken to the bank: bank up, cash down; taken by owner: capital down, 
   assert.equal(o.lines[0].accountCode, "3000"); assert.equal(o.lines[1].accountCode, "1000");
 });
 
+test("cash moved to another drawer: the other drawer goes up with its own branch, this one down", () => {
+  const out = _taken({
+    id: 2, date: "2026-10-28", amount: "700.00", dims: { divisionId: null, branchId: null }, to: "CASH",
+    cash: { kind: "ACCOUNT", accountCode: "1001", drawer: { divisionId: 1, branchId: 1 } },
+    target: { kind: "ACCOUNT", accountCode: "1001", drawer: { divisionId: 1, branchId: 2 } },
+  });
+  assert.equal(out.lines[0].debit, 70000n); assert.equal(out.lines[0].branchId, 2);
+  assert.equal(out.lines[1].credit, 70000n); assert.equal(out.lines[1].branchId, 1);
+});
+
 import { fundingReceiptEntry as _fund } from "../src/lib/ledger/posting-rules.ts";
 test("investor money received: bank up, Investor Capital up; repaid is the reverse", () => {
   const base = { id: 1, txNo: "FTX-0001", date: "2026-10-28", amount: "100000.00", agreementNo: "AGR-1", dims: { divisionId: 1, branchId: 1 }, settlement: { kind: "ACCOUNT", accountCode: "1010" } };

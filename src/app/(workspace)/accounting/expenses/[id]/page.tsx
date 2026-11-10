@@ -10,6 +10,7 @@ import {
   recordExpensePaymentAction,
 } from "@/lib/expense-payment-actions";
 import { openVoucherAction } from "@/lib/voucher-actions";
+import { assignExpenseBranchAction } from "@/lib/expense-branch-actions";
 import { voucherTypeFor } from "@/lib/voucher-math";
 
 type Props = {
@@ -114,12 +115,27 @@ async function Content({ params, searchParams }: Props) {
     [businessId, e.division_id, e.branch_id]
   );
 
+  let ownerAccounts: RowDataPacket[] = [];
+  try {
+    [ownerAccounts] = await db.execute<RowDataPacket[]>(
+      `SELECT id, account_name FROM acct_owner_accounts WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY account_name`,
+      [businessId]
+    );
+  } catch { /* before migration 076 */ }
+
   const [parties] = await db.execute<RowDataPacket[]>(
     `SELECT id, full_name FROM acct_funding_parties
      WHERE legal_business_id = ?
        AND status = 'ACTIVE'`,
     [businessId]
   );
+
+  const [branchChoices] = e.allocation_level !== "BRANCH" && e.status !== "VOID"
+    ? await db.execute<RowDataPacket[]>(
+        `SELECT id, branch_name FROM acct_branches WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY branch_name`,
+        [businessId]
+      )
+    : [[] as RowDataPacket[]];
 
   const paid = payments
     .filter(p => p.status === "RECORDED")
@@ -145,6 +161,19 @@ async function Content({ params, searchParams }: Props) {
       <p>{e.description}</p>
       {e.payee_name ? <p>Paid to: <strong>{String(e.payee_name)}</strong></p> : null}
       <p>Record status: <strong>{e.status}</strong></p>
+      {branchChoices.length > 0 && (
+        <form action={assignExpenseBranchAction} style={{ border: "1px solid #fcd34d", borderRadius: 8, padding: 14, margin: "12px 0" }}>
+          <p style={{ marginTop: 0 }}>
+            <strong>This cost has no branch yet, so it cannot reach the books.</strong> Pick the branch it belongs to.
+          </p>
+          <input type="hidden" name="expense_id" value={expenseId} />
+          <select name="branch_id" required defaultValue="" style={{ padding: 12, fontSize: 16 }}>
+            <option value="">Choose the branch</option>
+            {branchChoices.map(b => <option key={b.id} value={b.id}>{b.branch_name}</option>)}
+          </select>{" "}
+          <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer", fontSize: 16, padding: "12px 20px" }}>Set branch</button>
+        </form>
+      )}
       {e.status !== "DRAFT" && (
         <p>
           <Link className="btn-link" href={`/accounting/expenses/${expenseId}/print`}>Print expense record</Link>
@@ -158,7 +187,9 @@ async function Content({ params, searchParams }: Props) {
 
       {result && (
         <p role="status">
-          {result === "recorded"
+          {result === "branch-set" ? "Branch set. The cost can now reach the books."
+            : result === "already-in-books" ? "This cost is already in the books, so its branch cannot be changed here."
+            : result === "recorded"
             ? "Payment recorded successfully."
             : `Payment not saved: ${result}`}
         </p>
@@ -247,6 +278,18 @@ async function Content({ params, searchParams }: Props) {
               ))}
             </select>
           </label>
+
+          {ownerAccounts.length > 0 && (
+            <label>
+              Owner account (only for Owner Personal)
+              <select name="owner_account_id" defaultValue="">
+                <option value="">Not applicable</option>
+                {ownerAccounts.map(o => (
+                  <option key={o.id} value={o.id}>{o.account_name}</option>
+                ))}
+              </select>
+            </label>
+          )}
 
           <label>
             Amount ₹

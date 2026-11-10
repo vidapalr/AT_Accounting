@@ -3,7 +3,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { RowDataPacket } from "mysql2";
+import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 
@@ -231,8 +231,19 @@ export async function recordExpensePaymentAction(
           }
         }
 
+        // Optional: which owner account the owner's own money came from (needs migration 076).
+        const ownerAccountId = source === "OWNER_PERSONAL" && /^[1-9]\d*$/.test(String(form.get("owner_account_id") ?? ""))
+          ? Number(form.get("owner_account_id")) : null;
+        if (result === "failed" && ownerAccountId !== null) {
+          const [oa] = await conn.execute<RowDataPacket[]>(
+            `SELECT id FROM acct_owner_accounts WHERE legal_business_id = ? AND id = ? AND status = 'ACTIVE'`,
+            [businessId, ownerAccountId]
+          );
+          if (oa.length !== 1) result = "invalid-account";
+        }
+
         if (result === "failed") {
-          await conn.execute(
+          const [insertedPayment] = await conn.execute<ResultSetHeader>(
             `INSERT INTO acct_expense_payments (
                legal_business_id,
                division_id,
@@ -265,6 +276,12 @@ export async function recordExpensePaymentAction(
               user.id,
             ]
           );
+          if (ownerAccountId !== null) {
+            await conn.execute(
+              `UPDATE acct_expense_payments SET owner_account_id = ? WHERE id = ?`,
+              [ownerAccountId, insertedPayment.insertId]
+            );
+          }
 
           await conn.commit();
           result = "recorded";

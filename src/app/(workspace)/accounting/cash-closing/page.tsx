@@ -53,9 +53,17 @@ async function CashClosingContent({ searchParams }: Props) {
   const date = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) && q.date <= today() ? q.date : today();
 
   const [banks] = await db.execute<Row[]>(
-    `SELECT id, bank_name, account_number_last4 FROM acct_bank_accounts WHERE legal_business_id = ? AND ownership_type = 'BUSINESS' AND status = 'ACTIVE' ORDER BY bank_name`,
+    `SELECT id, bank_name, account_label, account_number_last4 FROM acct_bank_accounts WHERE legal_business_id = ? AND ownership_type = 'BUSINESS' AND status = 'ACTIVE' ORDER BY bank_name, account_label`,
     [businessId]
   );
+  // Other places cash can go. Owner accounts need migration 076, so a missing table just means none yet.
+  let ownerAccounts: Row[] = [];
+  try {
+    [ownerAccounts] = await db.execute<Row[]>(
+      `SELECT id, account_name FROM acct_owner_accounts WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY account_name`,
+      [businessId]
+    );
+  } catch { /* before migration 076 */ }
   let body: React.ReactNode = <p>There is no cash drawer set up yet.</p>;
   if (account) {
     const prev = await previousClosing(db, businessId, accountId, date);
@@ -73,6 +81,16 @@ async function CashClosingContent({ searchParams }: Props) {
       [businessId, accountId, date]
     );
     const closed = done[0];
+    if (closed) {
+      try {
+        const [more] = await db.execute<Row[]>(
+          `SELECT taken_cash_id, taken_owner_account_id FROM acct_cash_closings WHERE legal_business_id = ? AND cash_account_id = ? AND closing_date = ?`,
+          [businessId, accountId, date]
+        );
+        closed.taken_cash_id = more[0]?.taken_cash_id ?? null;
+        closed.taken_owner_account_id = more[0]?.taken_owner_account_id ?? null;
+      } catch { /* before migration 076 */ }
+    }
 
     let booksCheck: { books: bigint; takenAway: bigint; booksAfterTaken: bigint; difference: bigint } | null = null;
     if (closed) {
@@ -178,7 +196,7 @@ async function CashClosingContent({ searchParams }: Props) {
             <h2>This day is closed{closed.full_name ? ` by ${closed.full_name}` : ""}</h2>
             <p>
               Counted <strong>{inr(BigInt(closed.c))}</strong>, expected {inr(BigInt(closed.e))}
-              {Number(closed.t) > 0 ? `, cash taken away ${inr(BigInt(closed.t))}${closed.taken_to === "OWNER" ? " by the owner" : closed.taken_to === "BANK" ? " to the bank" : ""}` : ""}.{" "}
+              {Number(closed.t) > 0 ? `, cash taken away ${inr(BigInt(closed.t))}${closed.taken_to === "OWNER" ? (closed.taken_owner_account_id ? ` by the owner (${ownerAccounts.find((o) => Number(o.id) === Number(closed.taken_owner_account_id))?.account_name ?? "owner account"})` : " by the owner") : closed.taken_to === "BANK" ? " to the bank" : closed.taken_to === "CASH" ? ` to ${String(accounts.find((a) => Number(a.id) === Number(closed.taken_cash_id))?.cash_name ?? "another drawer")}` : ""}` : ""}.{" "}
               {Number(closed.df) === 0 ? "It matched exactly." : (
                 <strong style={{ color: "#b91c1c" }}>{Number(closed.df) < 0 ? "Short" : "Extra"} by {inr(BigInt(Math.abs(Number(closed.df))))}.</strong>
               )}
@@ -225,10 +243,12 @@ async function CashClosingContent({ searchParams }: Props) {
                   <input name="taken_out" inputMode="decimal" defaultValue="0" style={{ ...field, width: 170 }} />
                 </label>
                 <label>Where did it go?<br />
-                  <select name="taken_to" defaultValue={closed?.taken_to === "OWNER" ? "OWNER" : closed?.taken_bank_id ? `BANK:${closed.taken_bank_id}` : ""} style={{ ...field, width: 240 }}>
+                  <select name="taken_to" defaultValue={closed?.taken_to === "OWNER" ? (closed.taken_owner_account_id ? `OWNERACC:${closed.taken_owner_account_id}` : "OWNER") : closed?.taken_to === "CASH" && closed.taken_cash_id ? `CASH:${closed.taken_cash_id}` : closed?.taken_bank_id ? `BANK:${closed.taken_bank_id}` : ""} style={{ ...field, width: 280 }}>
                     <option value="">Nothing taken</option>
-                    {banks.map((b) => <option key={String(b.id)} value={`BANK:${b.id}`}>Deposited to {String(b.bank_name)}{b.account_number_last4 ? ` ••${b.account_number_last4}` : ""}</option>)}
-                    <option value="OWNER">Taken by the owner</option>
+                    {banks.map((b) => <option key={String(b.id)} value={`BANK:${b.id}`}>Deposited to {String(b.bank_name)}{b.account_label ? ` ${String(b.account_label)}` : ""}{b.account_number_last4 ? ` ••${b.account_number_last4}` : ""}</option>)}
+                    {accounts.filter((a) => Number(a.id) !== accountId).map((a) => <option key={`c${a.id}`} value={`CASH:${a.id}`}>Handed to cash drawer: {String(a.cash_name)}</option>)}
+                    {ownerAccounts.map((o) => <option key={`o${o.id}`} value={`OWNERACC:${o.id}`}>Moved to owner account: {String(o.account_name)}</option>)}
+                    <option value="OWNER">Taken by the owner (no account)</option>
                   </select>
                 </label>
               </div>

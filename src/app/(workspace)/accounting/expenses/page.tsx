@@ -37,6 +37,7 @@ const categories = [
 const messages: Record<string, string> = {
   created: "Expense saved successfully.",
   invalid: "Please check the expense details. The name of the person or shop paid is needed.",
+  "choose-branch": "Pick the branch this cost belongs to. Every cost is booked to a branch.",
   "invalid-amount": "Enter a valid amount greater than zero.",
   "invalid-payment": "Check the payment details and source account.",
   "payment-exceeds-expense":

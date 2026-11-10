@@ -22,7 +22,8 @@ const fieldStyle: React.CSSProperties = {
 export default function ExpenseAllocationFields({
   branches,
 }: Props) {
-  const [level, setLevel] = useState("BRANCH");
+  // Every cost is booked to a branch, whichever account paid it; head-office costs go to the branch you choose.
+  const [level] = useState("BRANCH");
 
   return (
     <div style={{
@@ -32,17 +33,9 @@ export default function ExpenseAllocationFields({
       gap: 16,
     }}>
       <label>
-        Expense Level
-        <select
-          name="allocation_level"
-          value={level}
-          onChange={e => setLevel(e.target.value)}
-          style={fieldStyle}
-        >
-          <option value="GROUP">Group Level</option>
-          <option value="DIVISION">Division Level</option>
-          <option value="BRANCH">Branch Level</option>
-        </select>
+        Booked to
+        <input type="hidden" name="allocation_level" value={level} />
+        <input value="A branch (pick below)" readOnly style={fieldStyle} />
       </label>
 
       <label>
@@ -83,6 +76,9 @@ export default function ExpenseAllocationFields({
           ))}
         </select>
       </label>
+      <p style={{ gridColumn: "1 / -1", margin: 0, color: "#64748b" }}>
+        Every cost is booked to a branch, whichever account pays it (shop cash, bank, an investor or you). For a head-office cost, pick the branch it belongs to.
+      </p>
     </div>
   );
 }

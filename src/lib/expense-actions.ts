@@ -116,6 +116,12 @@ export async function createExpenseAction(
   const validId = (id: number | null) =>
     id !== null && Number.isSafeInteger(id) && id > 0;
 
+  // The books need a branch on every cost (account 6000), so a cost is always booked to one.
+  const levelIsBranch = () => level === "BRANCH";
+  if (!levelIsBranch()) {
+    redirect(`${PAGE}?result=choose-branch`);
+  }
+
   if (
     !["GROUP", "DIVISION", "BRANCH"].includes(level) ||
     !["DRAFT", "CONFIRMED"].includes(mode) ||

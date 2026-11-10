@@ -343,15 +343,19 @@ export function ownerMoneyEntry(a: {
  * the owner (Proprietor Capital down). Either way the cash drawer goes down.
  */
 export function cashTakenEntry(a: {
-  id: number; date: string; amount: string; to: "BANK" | "OWNER"; dims: Dimensions; cash: Settlement; target: Settlement | null;
+  id: number; date: string; amount: string; to: "BANK" | "OWNER" | "CASH"; dims: Dimensions; cash: Settlement; target: Settlement | null;
 }): JournalDraft {
   const amount = parseMoney(a.amount);
-  const memo = a.to === "BANK" ? "Cash taken from the drawer to the bank" : "Cash taken from the drawer by the owner";
-  const toAccount = a.to === "BANK"
-    ? (a.target ? settlementAccount(a.target) : (() => { throw new Error("no bank account recorded"); })())
-    : ACCOUNT.PROPRIETOR_CAPITAL;
+  const memo = a.to === "BANK" ? "Cash taken from the drawer to the bank"
+    : a.to === "CASH" ? "Cash moved from one drawer to another"
+    : "Cash taken from the drawer by the owner";
+  const needTarget = () => { throw new Error(a.to === "BANK" ? "no bank account recorded" : "no cash drawer recorded"); };
+  const toAccount = a.to === "OWNER"
+    ? ACCOUNT.PROPRIETOR_CAPITAL
+    : (a.target ? settlementAccount(a.target) : needTarget());
+  const toDims = a.to !== "OWNER" && a.target ? lineDims(a.target, a.dims) : a.dims;
   return makeDraft("CASH_TAKEN", a.id, a.date, memo, [
-    debit(toAccount, amount, a.dims, memo),
+    debit(toAccount, amount, toDims, memo),
     credit(settlementAccount(a.cash), amount, lineDims(a.cash, a.dims), memo),
   ]);
 }

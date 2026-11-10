@@ -161,6 +161,7 @@ async function StatementContent({ searchParams }: Props) {
           <PrintButton label="Print statement" />
           {waLink && <a className="btn-link btn-link-primary" href={waLink} target="_blank" rel="noreferrer">Send on WhatsApp</a>}
           <Link className="btn-link" href="/accounting/supplier-returns">Return goods</Link>
+          <Link className="btn-link btn-link-primary" href={`/accounting/pay-supplier?supplier=${supplierId}`}>Pay this supplier</Link>
           <Link className="btn-link" href="/accounting/purchase-management">Pay supplier bills</Link>
           <Link className="btn-link" href="/accounting/supplier-statement">All suppliers</Link>
         </nav>
@@ -214,6 +215,7 @@ async function StatementContent({ searchParams }: Props) {
       </section>
       <nav style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <Link className="btn-link btn-link-primary" href="/accounting/supplier-returns">Return goods to a supplier</Link>
+        <Link className="btn-link btn-link-primary" href="/accounting/pay-supplier">Pay a supplier</Link>
         <Link className="btn-link" href="/accounting/purchase-management">Supplier bills and payments</Link>
       </nav>
     </main>

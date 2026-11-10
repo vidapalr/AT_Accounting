@@ -67,6 +67,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Buy stock (purchases)", href: "/accounting/purchases", hint: "Record stock bought from suppliers" },
       { label: "Supplier bills and payments", href: "/accounting/purchase-management", hint: "Receive goods and pay supplier bills" },
       { label: "Return goods to supplier", href: "/accounting/supplier-returns", hint: "Send items back and get credit, refund or replacement" },
+      { label: "Pay a supplier", href: "/accounting/pay-supplier", hint: "One payment, spread over their oldest bills" },
       { label: "Supplier statement", href: "/accounting/supplier-statement", hint: "What you owe each supplier, and how old it is" },
       { label: "Both sides (also a customer)", href: "/accounting/both-sides", hint: "Suppliers who also buy from us: link them and set off" },
     ],
@@ -130,6 +131,7 @@ export const NAVIGATION: NavSection[] = [
     icon: "investors",
     items: [
       { label: "Owner money in and out", href: "/accounting/owner-money", hint: "Your own money put into, or taken from, the business" },
+      { label: "Owner accounts", href: "/accounting/owner-accounts", hint: "Business money held in your name, and what was paid from it" },
       { label: "Investors and lenders", href: "/funding", hint: "People who put money into the business" },
       { label: "Agreements", href: "/funding/agreements", hint: "Profit-sharing and loan agreements" },
       { label: "Profit shares", href: "/accounting/investor-shares", hint: "What each investor has earned" },

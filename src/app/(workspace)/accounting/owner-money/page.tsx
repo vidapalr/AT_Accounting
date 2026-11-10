@@ -37,6 +37,11 @@ async function Content({ searchParams }: Props) {
     `SELECT id, bank_name, account_number_last4 FROM acct_bank_accounts
       WHERE legal_business_id = ? AND ownership_type = 'BUSINESS' AND status = 'ACTIVE' ORDER BY bank_name`, [businessId]);
 
+  let ownerAccounts: Row[] = [];
+  try {
+    [ownerAccounts] = await db.execute<Row[]>(`SELECT id, account_name FROM acct_owner_accounts WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY account_name`, [businessId]);
+  } catch { /* before migration 076 */ }
+
   const inTotal = rows.filter((r) => r.direction === "IN").reduce((t, r) => t + paise(r.amount), 0n);
   const outTotal = rows.filter((r) => r.direction === "OUT").reduce((t, r) => t + paise(r.amount), 0n);
 
@@ -79,6 +84,14 @@ async function Content({ searchParams }: Props) {
               <option value="BANK_TRANSFER">Bank transfer</option><option value="UPI">UPI</option><option value="CHEQUE">Cheque</option><option value="CASH">Cash</option>
             </select>
           </label>
+          {ownerAccounts.length > 0 && (
+            <label>Your own account (optional)
+              <select name="owner_account" defaultValue="" style={field}>
+                <option value="">Not tracked</option>
+                {ownerAccounts.map((o) => <option key={`oa${o.id}`} value={String(o.id)}>{String(o.account_name)}</option>)}
+              </select>
+            </label>
+          )}
           <label>Bank reference (optional)<input name="reference" maxLength={80} style={field} /></label>
           <label>Note (optional)<input name="note" maxLength={300} style={field} /></label>
           <div><SubmitButton label="Save" question="Save this? It goes into the books and changes the account balance." /></div>
