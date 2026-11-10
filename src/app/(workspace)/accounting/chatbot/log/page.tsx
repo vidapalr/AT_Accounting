@@ -90,6 +90,17 @@ async function Content() {
   } catch { /* before migration 074 */ }
   const now = Date.now();
 
+  // When did WhatsApp's server last reach us, and did we turn it away?
+  let hook: { okAt: string | null; badAt: string | null; badCount: number } | null = null;
+  try {
+    const [h] = await db.execute<Row[]>(
+      `SELECT
+         (SELECT DATE_FORMAT(DATE_ADD(MAX(created_at), INTERVAL ${IST_MIN} MINUTE), '%d %b %H:%i') FROM acct_wa_status_log WHERE wa_message_id = '_webhook' AND status = 'hook_ok') AS ok_at,
+         (SELECT DATE_FORMAT(DATE_ADD(MAX(created_at), INTERVAL ${IST_MIN} MINUTE), '%d %b %H:%i') FROM acct_wa_status_log WHERE wa_message_id = '_webhook' AND status = 'badsig') AS bad_at,
+         (SELECT COUNT(*) FROM acct_wa_status_log WHERE wa_message_id = '_webhook' AND status = 'badsig' AND created_at > NOW() - INTERVAL 2 DAY) AS bad_n`);
+    hook = { okAt: h[0]?.ok_at ? String(h[0].ok_at) : null, badAt: h[0]?.bad_at ? String(h[0].bad_at) : null, badCount: Number(h[0]?.bad_n ?? 0) };
+  } catch { /* before migration 077 */ }
+
   return (
     <main style={{ padding: 16, maxWidth: 1000 }}>
       <nav style={{ marginBottom: 12 }}><Link href="/accounting/chatbot">← WhatsApp chatbot</Link></nav>
@@ -98,6 +109,14 @@ async function Content() {
         Every bill and new-stock message the app sent by itself, and each step WhatsApp reported: handed over, delivered, read, or failed.
         Times are Indian time. Reload to see new steps.
       </p>
+      {hook && (
+        <p style={{ background: hook.badCount > 0 ? "#fef2f2" : "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
+          WhatsApp&rsquo;s server last reached this app: <strong>{hook.okAt ?? "never (since this feature began)"}</strong>.
+          {hook.badCount > 0 && (
+            <span style={{ color: "#b91c1c" }}> It was turned away {hook.badCount} time{hook.badCount === 1 ? "" : "s"} in the last 2 days (last {hook.badAt}) because the app secret on the server does not match Meta&rsquo;s. Re-copy the App Secret from Meta into Hostinger (WHATSAPP_APP_SECRET), then redeploy.</span>
+          )}
+        </p>
+      )}
       {!logReady && <p style={{ color: "#92400e" }}>Step-by-step times need the new database step (077_wa_status_log). Until then only the latest result is shown.</p>}
       {shown.length === 0 ? <p>Nothing has been sent automatically yet.</p> : (
         <div style={{ overflowX: "auto" }}>
