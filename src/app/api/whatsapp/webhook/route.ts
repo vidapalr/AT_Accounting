@@ -115,6 +115,13 @@ const RANK = ["sent", "delivered", "read", "failed"];
 async function saveDelivery(id: string, status: string, error?: { code?: number; title?: string; message?: string }) {
   if (!RANK.includes(status)) return;
   const reason = status === "failed" ? String(error?.message ?? error?.title ?? "Not delivered").slice(0, 300) : null;
+  // A running record of every step, so the message log can show where a message stopped (migration 077).
+  try {
+    await db.execute(
+      `INSERT INTO acct_wa_status_log (wa_message_id, status, error_code, error_reason) VALUES (?, ?, ?, ?)`,
+      [id, status, status === "failed" ? (error?.code ?? null) : null, reason]
+    );
+  } catch { /* before migration 077 */ }
   await db.execute(
     `INSERT INTO acct_wa_delivery (wa_message_id, status, error_code, error_reason) VALUES (?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE

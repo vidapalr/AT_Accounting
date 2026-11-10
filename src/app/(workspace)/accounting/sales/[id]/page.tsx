@@ -165,7 +165,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
     const [ev] = await db.execute<RowDataPacket[]>(
       `SELECT JSON_UNQUOTE(JSON_EXTRACT(details_json, '$.waId')) AS wa_id, JSON_EXTRACT(details_json, '$.ok') AS ok,
               JSON_UNQUOTE(JSON_EXTRACT(details_json, '$.to')) AS sent_to, JSON_UNQUOTE(JSON_EXTRACT(details_json, '$.template')) AS tpl,
-              DATE_FORMAT(occurred_at, '%d %b %H:%i') AS at
+              DATE_FORMAT(DATE_ADD(occurred_at, INTERVAL 330 MINUTE), '%d %b %H:%i') AS at
          FROM acct_audit_events WHERE legal_business_id = ? AND action = 'BILL_AUTO_SEND' AND subject_type = 'SALE' AND subject_id = ?
         ORDER BY id DESC LIMIT 1`, [user.legal_business_id, Number(invoice.id)]);
     const e = ev[0];
@@ -400,7 +400,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
             </div>
           )}
           {waDelivery && (
-            <p className="no-print" style={{ color: waDelivery.color, margin: "6px 0" }}>WhatsApp: {waDelivery.text}</p>
+            <p className="no-print" style={{ color: waDelivery.color, margin: "6px 0" }}>WhatsApp: {waDelivery.text} <Link href="/accounting/chatbot/log">See the full message log</Link></p>
           )}
           {shareResult && <p role="status" className="no-print" style={{ color: "#b91c1c" }}>{shareResult.slice(0, 200)}</p>}
           {mobileResult && MOBILE_MESSAGES[mobileResult] && (
