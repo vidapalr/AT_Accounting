@@ -67,7 +67,7 @@ async function CashClosingContent({ searchParams }: Props) {
   let body: React.ReactNode = <p>There is no cash drawer set up yet.</p>;
   if (account) {
     const prev = await previousClosing(db, businessId, accountId, date);
-    const lines = await loadCashMovements(db, businessId, accountId, prev ? prev.date : dayBefore(date), date);
+    const lines = await loadCashMovements(db, businessId, accountId, prev ? prev.date : dayBefore(date), date, prev ? prev.since : null);
     const cashIn = lines.filter((l) => l.direction === "IN").reduce((s, l) => s + l.amount, 0n);
     const cashOut = lines.filter((l) => l.direction === "OUT").reduce((s, l) => s + l.amount, 0n);
     const opening = prev ? prev.counted : 0n;

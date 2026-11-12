@@ -142,7 +142,7 @@ export async function closeCashDayAction(formData: FormData) {
 
   const prev = await previousClosing(db, businessId, accountId, date);
   const opening = prev ? prev.counted : (openingTyped ?? 0n);
-  const lines = await loadCashMovements(db, businessId, accountId, prev ? prev.date : dayBefore(date), date);
+  const lines = await loadCashMovements(db, businessId, accountId, prev ? prev.date : dayBefore(date), date, prev ? prev.since : null);
   const cashIn = lines.filter((l) => l.direction === "IN").reduce((s, l) => s + l.amount, 0n);
   const cashOut = lines.filter((l) => l.direction === "OUT").reduce((s, l) => s + l.amount, 0n);
   const expected = expectedCash({ opening, cashIn, cashOut, takenOut });
