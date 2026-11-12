@@ -7,6 +7,9 @@ import {
   BarChart3,
   BookOpen,
   ChevronDown,
+  MessageCircle,
+  Tags,
+  Wallet,
   LayoutDashboard,
   Receipt,
   UserRound,
@@ -31,6 +34,9 @@ const ICONS = {
   investors: Users,
   accounting: BookOpen,
   setup: Settings,
+  whatsapp: MessageCircle,
+  products: Tags,
+  money: Wallet,
 };
 
 /** Sidebar: the section you are in stays open, the page you are on is highlighted. */
