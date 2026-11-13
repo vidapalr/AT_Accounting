@@ -3,6 +3,7 @@ import { randomBytes, createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import { db } from "@/lib/db";
+import { isMissingTable } from "@/lib/db-errors";
 import { checkCode, newBackupCodes, normaliseBackupCode } from "@/lib/totp";
 
 const CHALLENGE_COOKIE = "abhiram_accounting_2fa";
@@ -12,13 +13,20 @@ export const MAX_CODE_TRIES = 5;
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 const sqlTime = (d: Date) => d.toISOString().slice(0, 19).replace("T", " ");
 
-/** True when this person has finished setting up two-step login. If the tables are missing (migration 065 not run), false so sign-in keeps working. */
+/**
+ * True when this person has finished setting up two-step login.
+ * Only a missing table (migration 065 not run) counts as "not set up". Any other database
+ * error is thrown, so a sign-in can never skip the code just because the lookup failed.
+ */
 export async function hasTwoStep(userId: number): Promise<boolean> {
   try {
     const [r] = await db.execute<RowDataPacket[]>(
       `SELECT 1 FROM acct_user_totp WHERE user_id = ? AND enabled_at IS NOT NULL`, [userId]);
     return r.length > 0;
-  } catch { return false; }
+  } catch (error) {
+    if (isMissingTable(error)) return false;
+    throw error;
+  }
 }
 
 /** After a right password: remember who is waiting to type a code (cookie + 5-minute row). */

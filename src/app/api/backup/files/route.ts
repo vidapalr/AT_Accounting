@@ -1,3 +1,4 @@
+import { PRIVATE_ROOT as PRIVATE_BASE } from "@/lib/private-root";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -12,9 +13,11 @@ export async function GET() {
   if (!user) return new Response("Sign in first.", { status: 401 });
   if (user.role !== "GROUP_OWNER") return new Response("Not allowed.", { status: 403 });
 
-  const root = process.cwd();
-  const folders = [path.join(root, "private_uploads")];
-  if (process.env.MEDIA_DIR) folders.push(path.resolve(process.env.MEDIA_DIR));
+  const folders = [PRIVATE_BASE];
+  if (process.env.MEDIA_DIR) {
+    const media = path.resolve(process.env.MEDIA_DIR);
+    if (media !== PRIVATE_BASE && !media.startsWith(PRIVATE_BASE + path.sep)) folders.push(media);
+  }
   const present = folders.filter((f) => existsSync(f));
   if (present.length === 0) return new Response("There are no uploaded files to back up yet.", { status: 404 });
 

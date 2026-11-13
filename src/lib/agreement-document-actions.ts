@@ -1,6 +1,7 @@
 
 "use server";
 
+import { PRIVATE_ROOT as PRIVATE_BASE } from "@/lib/private-root";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { randomUUID, createHash } from "node:crypto";
@@ -11,11 +12,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 
-const ROOT = path.join(
-  process.cwd(),
-  "private_uploads",
-  "agreement_documents"
-);
+const ROOT = path.join(PRIVATE_BASE, "agreement_documents");
 
 const MAX_SIZE = 10 * 1024 * 1024;
 

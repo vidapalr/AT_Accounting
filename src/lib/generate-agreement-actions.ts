@@ -1,6 +1,7 @@
 
 "use server";
 
+import { PRIVATE_ROOT as PRIVATE_BASE } from "@/lib/private-root";
 import { randomUUID, createHash } from "node:crypto";
 import { mkdir, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
@@ -69,11 +70,7 @@ export async function generateAgreementAction(form: FormData) {
 
   const connection = await db.getConnection();
 
-  const directory = path.join(
-    process.cwd(),
-    "private_uploads",
-    "agreement_documents"
-  );
+  const directory = path.join(PRIVATE_BASE, "agreement_documents");
 
   const filename = `generated-${randomUUID()}.docx`;
   const storageKey = `agreement_documents/${filename}`;

@@ -72,7 +72,7 @@ async function Content() {
   );
 
   const [owing] = await db.execute<Row[]>(
-    `SELECT h.customer_name AS name, MAX(h.customer_phone) AS phone, MIN(h.invoice_date) AS since,
+    `SELECT MAX(h.customer_name) AS name, MAX(h.customer_phone) AS phone, MIN(h.invoice_date) AS since,
             DATEDIFF(${T}, MIN(CASE WHEN due_row.due > 0.004 THEN h.invoice_date END)) AS days,
             SUM(due_row.due) AS due
        FROM acct_sales_headers h
@@ -84,7 +84,7 @@ async function Content() {
                     + COALESCE((SELECT SUM(f.amount) FROM acct_sales_refunds f JOIN acct_sales_returns r2 ON r2.id = f.return_id WHERE r2.sale_id = h2.id AND f.status = 'RECORDED'), 0) AS due
                FROM acct_sales_headers h2 WHERE h2.legal_business_id = ? AND h2.status = 'POSTED') due_row ON due_row.id = h.id
       WHERE h.legal_business_id = ?
-      GROUP BY h.customer_name HAVING due > 0.004 ORDER BY due DESC LIMIT 10`,
+      GROUP BY COALESCE(CONCAT('c', h.customer_id), CONCAT('n', h.customer_name)) HAVING due > 0.004 ORDER BY due DESC LIMIT 10`,
     [businessId, businessId]
   );
 

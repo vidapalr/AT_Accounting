@@ -16,22 +16,35 @@ export async function saveBudgetsAction(form: FormData): Promise<void> {
   const biz = user.legal_business_id;
   const month = String(form.get("month") ?? "");
   if (!monthRange(month)) redirect(`${PAGE}?result=invalid`);
+  // Check every box first, then save all branches in one all-or-nothing step.
+  const rows: Array<[number, bigint, bigint]> = [];
+  let conn: Awaited<ReturnType<typeof db.getConnection>> | null = null;
   try {
     const [branches] = await db.execute<RowDataPacket[]>(`SELECT id FROM acct_branches WHERE legal_business_id = ?`, [biz]);
     for (const b of branches) {
       const id = Number(b.id);
       const sales = rupeesToPaise(String(form.get(`sales_${id}`) ?? ""));
       const exp = rupeesToPaise(String(form.get(`exp_${id}`) ?? ""));
-      if (sales === null || exp === null) redirect(`${PAGE}?month=${month}&result=invalid`);
-      await db.execute(
+      if (sales === null || exp === null) { rows.length = 0; break; }
+      rows.push([id, sales, exp]);
+    }
+    if (rows.length !== branches.length) redirect(`${PAGE}?month=${month}&result=invalid`);
+    conn = await db.getConnection();
+    await conn.beginTransaction();
+    for (const [id, sales, exp] of rows) {
+      await conn.execute(
         `INSERT INTO acct_budgets (legal_business_id, month, branch_id, sales_target, expense_limit, updated_by)
          VALUES (?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE sales_target = VALUES(sales_target), expense_limit = VALUES(expense_limit), updated_by = VALUES(updated_by)`,
         [biz, month, id, sales.toString(), exp.toString(), user.id]);
     }
+    await conn.commit();
   } catch (error) {
+    if (conn) await conn.rollback().catch(() => undefined);
     if (error && typeof error === "object" && "digest" in error && String((error as { digest: unknown }).digest).startsWith("NEXT_REDIRECT")) throw error;
     redirect(`${PAGE}?month=${month}&result=failed`);
+  } finally {
+    conn?.release();
   }
   revalidatePath(PAGE);
   redirect(`${PAGE}?month=${month}&result=saved`);

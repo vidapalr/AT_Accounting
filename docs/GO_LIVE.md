@@ -15,6 +15,7 @@ Paste each file in the SQL tab, in this order. All are safe to run again if unsu
 ## 2. Server settings on Hostinger (Node.js app, environment variables)
 Required:
 - MEDIA_DIR = a folder OUTSIDE the app folder (photos and videos are saved here; the app folder is replaced on every deploy)
+- PRIVATE_DIR = a folder OUTSIDE the app folder (agreements, bank evidence, vouchers and letters are saved here). Without it they sit inside the app folder and a redeploy can remove them. Before setting it, download the files backup (Backup page) and copy the old private_uploads folder contents into the new folder.
 - SHOP_PUBLIC_URL = https://accounting.abhiraminc.com
 Optional, add when ready:
 - WHATSAPP_VERIFY_TOKEN, WHATSAPP_APP_SECRET (staff stock messages by WhatsApp)

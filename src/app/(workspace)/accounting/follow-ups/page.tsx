@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
+import { isMissingTable } from "@/lib/db-errors";
 import { requireAccess } from "@/lib/auth";
 import { todayInIndia } from "@/lib/reports/money";
 import { bucketOf, addDays, type Bucket } from "@/lib/follow-up-math";
@@ -12,7 +13,7 @@ type Props = { searchParams: Promise<{ result?: string }> };
 type Item = { type: "LEAD" | "NOTE" | "TICKET"; id: number; day: string; name: string; what: string; phone: string | null; href: string };
 
 const MSG: Record<string, string> = {
-  done: "Marked done.", moved: "Moved to the new day.", "bad-day": "Pick a valid day.", invalid: "That follow-up was not found.",
+  done: "Marked done.", moved: "Moved to the new day.", "bad-day": "Pick a valid day.", invalid: "That follow-up was not found.", already: "That follow-up was already done, so nothing was changed.",
   failed: "It could not be saved. Nothing was changed.",
 };
 const HEADINGS: { key: Bucket; title: string; color: string }[] = [
@@ -30,28 +31,34 @@ async function Content({ searchParams }: Props) {
   const query = await searchParams;
   const today = todayInIndia();
   const items: Item[] = [];
+  const CAP = 1000;
+  let capped = false;
+  let loadFailed = false;
 
   try {
     const [leads] = await db.execute<RowDataPacket[]>(
       `SELECT id, full_name, phone, interest, note, DATE_FORMAT(follow_up_on, '%Y-%m-%d') AS d FROM acct_leads
-        WHERE legal_business_id = ? AND status IN ('NEW','FOLLOW_UP') AND follow_up_on IS NOT NULL ORDER BY follow_up_on LIMIT 300`, [biz]);
+        WHERE legal_business_id = ? AND status IN ('NEW','FOLLOW_UP') AND follow_up_on IS NOT NULL ORDER BY follow_up_on LIMIT ${CAP}`, [biz]);
+    if (leads.length >= CAP) capped = true;
     for (const l of leads) items.push({ type: "LEAD", id: Number(l.id), day: String(l.d), name: String(l.full_name), what: `Lead: ${l.interest ?? l.note ?? "asked about our cloth"}`, phone: l.phone ? String(l.phone) : null, href: "/accounting/leads" });
-  } catch { /* before migration 068 */ }
+  } catch (error) { if (!isMissingTable(error)) loadFailed = true; /* a missing table means migration 068 is not run */ }
   let notesReady = true;
   try {
     const [notes] = await db.execute<RowDataPacket[]>(
       `SELECT n.id, n.customer_id, n.note, n.kind, c.full_name, c.phone, DATE_FORMAT(n.follow_up_on, '%Y-%m-%d') AS d
          FROM acct_customer_notes n JOIN acct_customers c ON c.legal_business_id = n.legal_business_id AND c.id = n.customer_id
-        WHERE n.legal_business_id = ? AND n.follow_up_on IS NOT NULL AND n.follow_done_at IS NULL ORDER BY n.follow_up_on LIMIT 300`, [biz]);
+        WHERE n.legal_business_id = ? AND n.follow_up_on IS NOT NULL AND n.follow_done_at IS NULL ORDER BY n.follow_up_on LIMIT ${CAP}`, [biz]);
+    if (notes.length >= CAP) capped = true;
     for (const n of notes) items.push({ type: "NOTE", id: Number(n.id), day: String(n.d), name: String(n.full_name), what: String(n.note), phone: n.phone ? String(n.phone) : null, href: `/accounting/customers/${n.customer_id}#history` });
-  } catch { notesReady = false; }
+  } catch (error) { if (isMissingTable(error)) notesReady = false; else loadFailed = true; }
 
   try {
     const [tickets] = await db.execute<RowDataPacket[]>(
       `SELECT id, ticket_no, summary, contact_name, contact_phone, DATE_FORMAT(follow_up_on, '%Y-%m-%d') AS d FROM acct_service_tickets
-        WHERE legal_business_id = ? AND status IN ('OPEN','WORKING') AND follow_up_on IS NOT NULL ORDER BY follow_up_on LIMIT 300`, [biz]);
+        WHERE legal_business_id = ? AND status IN ('OPEN','WORKING') AND follow_up_on IS NOT NULL ORDER BY follow_up_on LIMIT ${CAP}`, [biz]);
+    if (tickets.length >= CAP) capped = true;
     for (const t of tickets) items.push({ type: "TICKET", id: Number(t.id), day: String(t.d), name: String(t.contact_name), what: `Ticket ${t.ticket_no}: ${t.summary}`, phone: t.contact_phone ? String(t.contact_phone) : null, href: `/accounting/tickets/${t.id}` });
-  } catch { /* before migration 079 */ }
+  } catch (error) { if (!isMissingTable(error)) loadFailed = true; /* a missing table means migration 079 is not run */ }
 
   items.sort((a, b) => a.day.localeCompare(b.day));
   const groups = new Map<Bucket, Item[]>();
@@ -63,8 +70,10 @@ async function Content({ searchParams }: Props) {
       <h1>Follow-ups</h1>
       <p style={{ color: "#64748b" }}>Everyone you promised to call or message: leads with a follow-up day, and customers where you set a follow-up day on a note. Do it, tap Done, and set the next day if there is one.</p>
       {query.result && MSG[query.result] && <p role="status" style={{ fontSize: 17, color: query.result === "done" || query.result === "moved" ? "#166534" : "#b91c1c" }}>{MSG[query.result]}</p>}
+      {loadFailed && <p role="alert" style={{ color: "#b91c1c", fontSize: 17 }}>Some follow-ups could not be loaded because of a database problem. The list below may be incomplete. Reload, and tell me if it stays.</p>}
+      {capped && <p style={{ color: "#92400e" }}>A very long list: only the oldest {CAP} of each kind are shown. Finish some, then reload.</p>}
       {!notesReady && <p style={{ color: "#92400e" }}>Customer follow-ups need the database file 078_follow_ups. Leads still show below.</p>}
-      {items.length === 0 && <p style={{ fontSize: 18 }}>Nothing to follow up. Add a follow-up day on a lead, or on a note on a customer&rsquo;s page.</p>}
+      {items.length === 0 && !loadFailed && <p style={{ fontSize: 18 }}>Nothing to follow up. Add a follow-up day on a lead, or on a note on a customer&rsquo;s page.</p>}
       {HEADINGS.map(({ key, title, color }) => {
         const list = groups.get(key) ?? [];
         if (list.length === 0) return null;

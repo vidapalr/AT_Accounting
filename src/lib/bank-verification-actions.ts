@@ -1,6 +1,7 @@
 
 "use server";
 
+import { PRIVATE_ROOT as PRIVATE_BASE } from "@/lib/private-root";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
@@ -15,11 +16,7 @@ import {
 } from "@/lib/bank-action-navigation";
 
 const PAGE = "/accounting/bank-accounts";
-const ROOT = path.resolve(
-  process.cwd(),
-  "private_uploads",
-  "bank_evidence"
-);
+const ROOT = path.resolve(PRIVATE_BASE, "bank_evidence");
 const MAX_FILE = 8 * 1024 * 1024;
 
 const mimeByExtension: Record<string, string> = {
@@ -235,10 +232,10 @@ export async function verifyBankAccountAction(form: FormData) {
         result = "no-evidence";
       } else {
         const filePath = path.resolve(
-          process.cwd(), "private_uploads", doc.storage_key
+          PRIVATE_BASE, doc.storage_key
         );
         const root = path.resolve(
-          process.cwd(), "private_uploads", "bank_evidence"
+          PRIVATE_BASE, "bank_evidence"
         );
 
         if (!filePath.startsWith(root + path.sep)) {

@@ -1,4 +1,5 @@
 
+import { PRIVATE_ROOT as PRIVATE_BASE } from "@/lib/private-root";
 import "server-only";
 
 import path from "node:path";
@@ -6,10 +7,7 @@ import { readFile } from "node:fs/promises";
 import mammoth from "mammoth";
 import sanitizeHtml from "sanitize-html";
 
-const PRIVATE_ROOT = path.resolve(
-  process.cwd(),
-  "private_uploads"
-);
+const PRIVATE_ROOT = path.resolve(PRIVATE_BASE);
 
 export function resolvePrivateDocument(
   storageKey: string

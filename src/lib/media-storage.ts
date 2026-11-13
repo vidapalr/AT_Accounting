@@ -1,3 +1,4 @@
+import { PRIVATE_ROOT as PRIVATE_BASE } from "@/lib/private-root";
 import "server-only";
 
 import { randomUUID } from "node:crypto";
@@ -9,7 +10,7 @@ import path from "node:path";
  * a folder OUTSIDE the app folder, so a redeploy from git never deletes them.
  */
 export const MEDIA_DIR =
-  process.env.MEDIA_DIR || path.join(process.cwd(), "private_uploads", "media");
+  process.env.MEDIA_DIR || path.join(PRIVATE_BASE, "media");
 
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 export const MAX_VIDEO_BYTES = 60 * 1024 * 1024;
