@@ -58,7 +58,8 @@ jobs:
         env:
           DB_DATABASE: not_a_test_database
 
-      - name: Integration tests on the fresh database (money flows, agreements)
+      - name: Integration tests on the fresh database (money flows, month close, agreements)
         run: |
           node --experimental-strip-types --test tests/money-flow.integration.test.mjs
           NODE_PATH=tests/stubs node --import tsx --test tests/agreement-versions.integration.test.mjs
+          NODE_PATH=tests/stubs node --import tsx --test tests/month-close.integration.test.mjs

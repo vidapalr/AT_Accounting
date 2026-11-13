@@ -10,6 +10,9 @@
 //   1. Owner-paid expense: expense and owner capital move; cash and bank stay unchanged.
 //   2. Partial payment: Rs 1,000 expense, Rs 400 bank + Rs 250 cash -> Rs 350 still owed.
 //   3. Every entry the builder produces balances, and nothing is reported as a problem.
+//   5. Purchase of 10,000 goods, 2,000 sent back (1,500 credit agreed), 5,000 paid from bank.
+//   4. Sale with a partial return and an exchange: revenue, discounts, cost of goods, stock,
+//      customer balance and cash all end where they should.
 
 import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -20,12 +23,15 @@ const DIV = 900020;
 const BRANCH = 900030;
 const CASH = 900040;
 const BANK = 900050;
-const CH = { cash: 900101, bank: 900102, accrued: 900103, capital: 900104, transport: 900105 };
+const CH = { cash: 900101, bank: 900102, accrued: 900103, capital: 900104, transport: 900105,
+  payables: 900114, supplierLoss: 900115, receivables: 900106, inventory: 900107, sales: 900108, discounts: 900109, returns: 900110, cogs: 900111, damaged: 900112, delivery: 900113 };
 
 let conn;
 let build;
 
 const TABLES = [
+  "acct_supplier_returns", "acct_purchase_payments", "acct_purchase_lines", "acct_purchase_headers",
+  "acct_sales_refunds", "acct_sales_return_lines", "acct_sales_returns", "acct_sales_payments", "acct_sales_lines", "acct_sales_headers",
   "acct_expense_payments", "acct_expenses", "acct_cash_accounts", "acct_bank_accounts",
   "acct_chart_of_accounts", "acct_branches", "acct_divisions",
 ];
@@ -66,6 +72,16 @@ before(async () => {
     [CH.accrued, "2200", "Accrued expenses", "LIABILITY", "CURRENT_LIABILITY", "CREDIT"],
     [CH.capital, "3000", "Proprietor capital", "EQUITY", "CAPITAL", "CREDIT"],
     [CH.transport, "6030", "Transport", "EXPENSE", "OPERATING_EXPENSE", "DEBIT"],
+    [CH.payables, "2000", "Payables", "LIABILITY", "CURRENT_LIABILITY", "CREDIT"],
+    [CH.supplierLoss, "5160", "Supplier return loss", "EXPENSE", "COST_OF_SALES", "DEBIT"],
+    [CH.receivables, "1100", "Receivables", "ASSET", "CURRENT_ASSET", "DEBIT"],
+    [CH.inventory, "1200", "Inventory", "ASSET", "CURRENT_ASSET", "DEBIT"],
+    [CH.sales, "4000", "Sales", "REVENUE", "SALES", "CREDIT"],
+    [CH.discounts, "4200", "Sales discounts", "REVENUE", "CONTRA_REVENUE", "DEBIT"],
+    [CH.returns, "4210", "Sales returns", "REVENUE", "CONTRA_REVENUE", "DEBIT"],
+    [CH.delivery, "4300", "Delivery income", "REVENUE", "OTHER_INCOME", "CREDIT"],
+    [CH.cogs, "5000", "Cost of goods sold", "EXPENSE", "COST_OF_SALES", "DEBIT"],
+    [CH.damaged, "5150", "Damaged stock", "EXPENSE", "COST_OF_SALES", "DEBIT"],
   ];
   for (const [id, code, name, type, sub, bal] of chart) {
     await conn.query(
@@ -92,6 +108,46 @@ before(async () => {
   await exp(900202, "T-PART", "1000.00");
   await pay(900302, 900202, "BANK_TRANSFER", "BUSINESS_BANK", "400.00", BANK, null);
   await pay(900303, 900202, "CASH", "BUSINESS_CASH", "250.00", null, CASH);
+
+  // Sale S1: 5,000 less 500 discount = 4,500, cost 3,000, paid in cash.
+  // Return R1: 1,000 selling value, 900 refunded (after its discount share), goods worth 600 back in stock, refund paid in cash.
+  // Exchange: new sale S2 of 1,200 (cost 700) paid in cash.
+  const sale = (id, no, subtotal, discount, total, cost) => conn.query(
+    `INSERT INTO acct_sales_headers (id, legal_business_id, division_id, branch_id, location_id, invoice_no, invoice_date, subtotal, discount_amount, grand_total, shipping_charge, status, created_by)
+     VALUES (?, ?, ?, ?, 1, ?, '2026-11-10', ?, ?, ?, 0, 'POSTED', 1)`, [id, BIZ, DIV, BRANCH, no, subtotal, discount, total])
+    .then(() => conn.query(
+      `INSERT INTO acct_sales_lines (legal_business_id, division_id, sale_id, variant_id, quantity, unit_price, line_total, total_cost)
+       VALUES (?, ?, ?, 1, 1, ?, ?, ?)`, [BIZ, DIV, id, subtotal, subtotal, cost]));
+  const spay = (id, saleId, amount) => conn.query(
+    `INSERT INTO acct_sales_payments (id, legal_business_id, division_id, sale_id, payment_date, payment_method, cash_account_id, amount, status, created_by)
+     VALUES (?, ?, ?, ?, '2026-11-10', 'CASH', ?, ?, 'RECORDED', 1)`, [id, BIZ, DIV, saleId, CASH, amount]);
+  await sale(900401, "T-S1", "5000.00", "500.00", "4500.00", "3000.00");
+  await spay(900411, 900401, "4500.00");
+  await conn.query(
+    `INSERT INTO acct_sales_returns (id, legal_business_id, division_id, branch_id, location_id, sale_id, return_no, return_date, reason, gross_value, refund_value, status, created_by)
+     VALUES (900421, ?, ?, ?, 1, 900401, 'T-R1', '2026-11-10', 'WRONG_SIZE', 1000.00, 900.00, 'POSTED', 1)`, [BIZ, DIV, BRANCH]);
+  await conn.query(
+    `INSERT INTO acct_sales_return_lines (legal_business_id, return_id, sale_line_id, variant_id, quantity, gross_value, refund_value, unit_cost, total_cost, item_condition)
+     VALUES (?, 900421, 1, 1, 1, 1000.00, 900.00, 600.00, 600.00, 'RESELLABLE')`, [BIZ]);
+  await conn.query(
+    `INSERT INTO acct_sales_refunds (id, legal_business_id, division_id, return_id, refund_date, amount, payment_method, cash_account_id, status, created_by)
+     VALUES (900431, ?, ?, 900421, '2026-11-10', 900.00, 'CASH', ?, 'RECORDED', 1)`, [BIZ, DIV, CASH]);
+  await sale(900402, "T-S2", "1200.00", "0.00", "1200.00", "700.00");
+  await spay(900412, 900402, "1200.00");
+
+  // Purchase P1: goods 10,000 received. 2,000 of it sent back, supplier agrees to credit 1,500. 5,000 paid from the bank.
+  await conn.query(
+    `INSERT INTO acct_purchase_headers (id, legal_business_id, division_id, purchase_no, supplier_id, invoice_date, receiving_location_id, status, created_by)
+     VALUES (900501, ?, ?, 'T-P1', 1, '2026-11-10', 1, 'POSTED', 1)`, [BIZ, DIV]);
+  await conn.query(
+    `INSERT INTO acct_purchase_lines (legal_business_id, division_id, purchase_id, line_no, variant_id, quantity, unit_cost, line_amount)
+     VALUES (?, ?, 900501, 1, 1, 100, 100.00, 10000.00)`, [BIZ, DIV]);
+  await conn.query(
+    `INSERT INTO acct_purchase_payments (id, legal_business_id, division_id, purchase_id, payment_no, payment_date, amount, payment_method, payment_source, source_bank_account_id, status, created_by)
+     VALUES (900511, ?, ?, 900501, 'T-PAY1', '2026-11-10', 5000.00, 'BANK_TRANSFER', 'BUSINESS_BANK', ?, 'VERIFIED', 1)`, [BIZ, DIV, BANK]);
+  await conn.query(
+    `INSERT INTO acct_supplier_returns (id, legal_business_id, division_id, supplier_id, location_id, return_no, return_date, reason, cost_value, agreed_value, status, created_by)
+     VALUES (900521, ?, ?, 1, 1, 'T-SR1', '2026-11-10', 'DAMAGED', 2000.00, 1500.00, 'POSTED', 1)`, [BIZ, DIV]);
   await conn.query("SET FOREIGN_KEY_CHECKS = 1");
 });
 
@@ -131,4 +187,35 @@ test("partial payment: bank down 400, cash down 250, 350 still owed", { skip: !e
   assert.equal(m.get("1010"), -40000n);
   assert.equal(m.get("1001"), -25000n);
   assert.equal(m.get("2200"), -35000n); // credit balance = still owed
+});
+
+test("sale, partial return and exchange: revenue, stock, customer balance and cash end right", { skip: !enabled }, async () => {
+  const built = await build(conn, BIZ);
+  assert.deepEqual(built.problems, []);
+  const mine = built.drafts.filter((d) => /T-S1|T-S2|T-R1|return T-R1/.test(d.description));
+  const m = net(mine);
+  assert.equal(m.get("4000"), -620000n);          // sales 5,000 + 1,200
+  assert.equal(m.get("4200"), 40000n);            // discounts 500 given, 100 given back on the return
+  assert.equal(m.get("4210"), 100000n);           // returns 1,000
+  assert.equal(m.get("5000"), 310000n);           // cost of goods 3,700 less 600 restocked
+  assert.equal(m.get("1200"), -310000n);          // stock down by the same 3,100
+  assert.equal(m.get("1100") ?? 0n, 0n);          // the customer owes nothing
+  assert.equal(m.get("1001"), 480000n);           // cash: +4,500 - 900 + 1,200
+  // Net revenue (sales - discounts - returns) is 4,800 and equals the cash taken in.
+  assert.equal(-(m.get("4000") ?? 0n) - (m.get("4200") ?? 0n) - (m.get("4210") ?? 0n), 480000n);
+});
+
+test("purchase with a return and a part payment: stock, supplier balance, loss and bank end right", { skip: !enabled }, async () => {
+  const built = await build(conn, BIZ);
+  assert.deepEqual(built.problems, []);
+  const mine = built.drafts.filter((d) => /T-P1|T-PAY1|T-SR1/.test(d.description));
+  const m = net(mine);
+  assert.equal(m.get("1200"), 800000n);     // stock: +10,000 - 2,000
+  assert.equal(m.get("5160"), 50000n);      // loss on the return: 2,000 cost - 1,500 agreed
+  assert.equal(m.get("2000"), -350000n);    // still owed to the supplier: 10,000 - 1,500 - 5,000
+  assert.equal(m.get("1010"), -500000n);    // bank paid 5,000
+  // Everything in this scenario balances on its own.
+  let total = 0n;
+  for (const v of m.values()) total += v;
+  assert.equal(total, 0n);
 });
