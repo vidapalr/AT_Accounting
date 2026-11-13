@@ -1,0 +1,57 @@
+name: Checks
+
+# Runs on every push and pull request. Builds a brand-new empty database from the saved base schema
+# plus every migration above 040 (twice, to prove they are safe to run twice), then type-checks and tests.
+on:
+  push:
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: ci-root
+          MARIADB_DATABASE: acct_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: ci-root
+      DB_DATABASE: acct_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Build a fresh database (base schema, then migrations above 040, twice)
+        run: |
+          M="mysql -h127.0.0.1 -uroot -pci-root acct_ci"
+          $M < db/base_schema_2026-10-28.sql
+          for pass in 1 2; do
+            for f in $(ls migrations/*.sql | sed 's#.*/##' | awk -F_ '$1>40' | sort); do
+              echo "pass $pass: $f"
+              $M < "migrations/$f"
+            done
+          done
+
+      - name: Check every table the migrations create exists, and the safety triggers are present
+        run: node scripts/check-fresh-db.mjs
+
+      - name: Type check
+        run: |
+          npx next typegen
+          npx tsc --noEmit
+
+      - name: Tests
+        run: npm test
