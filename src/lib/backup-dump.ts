@@ -30,11 +30,12 @@ const typeCast = (field: CastField) => (BLOBS.has(field.type) ? field.buffer() :
  */
 export async function* dumpSql(
   db: Pool,
-  done: (summary: { tables: number; rows: number; triggers: number }) => Promise<void>
+  done: (summary: { tables: number; rows: number; triggers: number; complete: boolean }) => Promise<void>
 ): AsyncGenerator<string> {
   const conn = await db.getConnection();
   let rowTotal = 0;
   let triggerTotal = 0;
+  let complete = true;
   try {
     const tables = await backupTables(db);
     await conn.query("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ");
@@ -79,12 +80,13 @@ export async function* dumpSql(
       }
       if (triggers.length > 0) yield `DELIMITER ;\n`;
     } catch {
-      yield `-- Triggers could not be read with this database login; they were not included.\n`;
+      complete = false;
+      yield `-- *** BACKUP INCOMPLETE *** The safety triggers could not be read with this database login. Restoring this file will NOT bring back the guards that stop posted entries being edited.\n`;
     }
 
     yield `\nSET FOREIGN_KEY_CHECKS = 1;\nSET UNIQUE_CHECKS = 1;\n-- End of backup\n`;
     await conn.query("COMMIT");
-    await done({ tables: tables.length, rows: rowTotal, triggers: triggerTotal });
+    await done({ tables: tables.length, rows: rowTotal, triggers: triggerTotal, complete });
   } finally {
     await conn.query("ROLLBACK").catch(() => {});
     conn.release();

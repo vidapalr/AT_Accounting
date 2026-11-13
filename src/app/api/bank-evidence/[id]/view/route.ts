@@ -1,4 +1,5 @@
 
+import { PRIVATE_ROOT as PRIVATE_BASE } from "@/lib/private-root";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -53,15 +54,10 @@ export async function GET(
     );
   }
 
-  const root = path.resolve(
-    process.cwd(),
-    "private_uploads",
-    "bank_evidence"
-  );
+  const root = path.resolve(PRIVATE_BASE, "bank_evidence");
 
   const filepath = path.resolve(
-    process.cwd(),
-    "private_uploads",
+    PRIVATE_BASE,
     evidence.storage_key
   );
 

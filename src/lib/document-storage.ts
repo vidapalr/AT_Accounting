@@ -1,4 +1,5 @@
 
+import { PRIVATE_ROOT as PRIVATE_BASE } from "@/lib/private-root";
 import "server-only";
 
 import { randomUUID } from "node:crypto";
@@ -10,10 +11,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 
-const STORAGE_DIR = path.join(
-  process.cwd(),
-  "private_uploads"
-);
+const STORAGE_DIR = PRIVATE_BASE;
 
 export const MAX_DOCUMENT_SIZE = 5 * 1024 * 1024;
 

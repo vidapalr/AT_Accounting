@@ -128,6 +128,7 @@ async function DebitNote({ params, searchParams }: Props) {
     </>
   );
 
+  const creditBox = String(cost / 100n);
   return (
     <main style={{ padding: 24, maxWidth: 1000 }}>
       <PrintHeader title={`Debit note ${ret.return_no}`} subtitle={`Goods returned to ${ret.supplier_name}`} />
@@ -178,7 +179,7 @@ async function DebitNote({ params, searchParams }: Props) {
           <form action={correctSupplierCreditAction} style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "end" }}>
             <input type="hidden" name="return_id" value={String(returnId)} />
             <label>Correct credit, in total (₹)<br />
-              <input name="agreed_value" inputMode="decimal" defaultValue={String(cost / 100n)} placeholder="Leave empty for full cost" style={{ ...field, width: 200 }} />
+              <input name="agreed_value" inputMode="decimal" defaultValue={creditBox} placeholder="Leave empty for full cost" style={{ ...field, width: 200 }} />
             </label>
             <button type="submit" className="btn-link" style={{ cursor: "pointer", fontSize: 16, padding: "12px 20px" }}>Correct the credit</button>
           </form>

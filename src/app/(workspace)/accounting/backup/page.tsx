@@ -41,7 +41,7 @@ async function BackupContent() {
           <strong style={{ color: triggers === null ? "#64748b" : triggers > 0 ? "#166534" : "#b91c1c" }}>
             {triggers === null ? "not recorded yet" : triggers > 0 ? `${triggers} included` : "NOT included"}
           </strong>
-          {triggers === 0 && " — your database user may not be allowed to read them. Ask me before relying on this backup."}
+          {triggers === 0 && " — this backup is INCOMPLETE: restoring it would not bring back the guards that stop posted entries being edited. Your database user may not be allowed to read them. Ask me before relying on this backup."}
         </p>
       </section>
 
