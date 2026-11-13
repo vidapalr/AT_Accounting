@@ -23,3 +23,6 @@ Source: second full read of the outside review (R3, 13 Nov 2026).
 
 ## Change-log row to add
 13 Nov 2026: Second full read of the outside review. Checked the SaaS section against code (true, covered by parked 4.13). Added 1.21 to 1.24 and 4.18 to 4.21. The review's tsc error needs generated route types; the GitHub check generates them first.
+
+## Update 13 Nov, evening
+- 1.22 first part built: expense money-flow tests (owner-paid, partial payment, balance check) plus the four agreement integration tests now run on GitHub. Remaining under 1.22: purchase return, sale return and exchange, month close, role checks. 1.23 and 1.24 not started.

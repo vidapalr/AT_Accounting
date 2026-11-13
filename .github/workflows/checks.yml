@@ -1,7 +1,7 @@
 name: Checks
 
 # Runs on every push and pull request. Builds a brand-new empty database from the saved base schema
-# plus every migration above 040 (twice, to prove they are safe to run twice), then type-checks and tests.
+# plus every migration above 040 (twice, to prove they are safe to run twice), then type-checks, runs the tests, and runs the integration tests (money flows) on that database.
 on:
   push:
   pull_request:
@@ -14,7 +14,7 @@ jobs:
         image: mariadb:10.11
         env:
           MARIADB_ROOT_PASSWORD: ci-root
-          MARIADB_DATABASE: acct_ci
+          MARIADB_DATABASE: acct_ci_test
         ports:
           - 3306:3306
         options: >-
@@ -25,7 +25,7 @@ jobs:
       DB_PORT: 3306
       DB_USERNAME: root
       DB_PASSWORD: ci-root
-      DB_DATABASE: acct_ci
+      DB_DATABASE: acct_ci_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,7 +36,7 @@ jobs:
 
       - name: Build a fresh database (base schema, then migrations above 040, twice)
         run: |
-          M="mysql -h127.0.0.1 -uroot -pci-root acct_ci"
+          M="mysql -h127.0.0.1 -uroot -pci-root acct_ci_test"
           $M < db/base_schema_2026-10-28.sql
           for pass in 1 2; do
             for f in $(ls migrations/*.sql | sed 's#.*/##' | awk -F_ '$1>40' | sort); do
@@ -53,5 +53,12 @@ jobs:
           npx next typegen
           npx tsc --noEmit
 
-      - name: Tests
+      - name: Tests (without the database)
         run: npm test
+        env:
+          DB_DATABASE: not_a_test_database
+
+      - name: Integration tests on the fresh database (money flows, agreements)
+        run: |
+          node --experimental-strip-types --test tests/money-flow.integration.test.mjs
+          NODE_PATH=tests/stubs node --import tsx --test tests/agreement-versions.integration.test.mjs
