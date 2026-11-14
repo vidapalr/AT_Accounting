@@ -139,6 +139,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Where the money went", href: "/accounting/cash-flow", hint: "Money in and out of cash and bank, and what is left" },
       { label: "Money in bank and cash", href: "/accounting/account-balances", hint: "Where the money is and how it moved" },
       { label: "Accounting health", href: "/accounting/health", hint: "Is everything in the books? What is waiting and why" },
+      { label: "Books check", href: "/accounting/reconciliation", hint: "Do the books agree with the records, account by account" },
       { label: "Printed papers", href: "/accounting/documents", hint: "Who printed which bill or voucher, reprints with reasons, saved copies" },
     ],
   },
