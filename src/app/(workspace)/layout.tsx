@@ -8,6 +8,7 @@ import { getActiveDivisionId, listDivisions } from "@/lib/division-context";
 import HeaderSearch from "@/components/HeaderSearch";
 import MobileMenu from "@/components/MobileMenu";
 import BrandLogo from "@/components/BrandLogo";
+import FormLock from "@/components/FormLock";
 import { financialYearLabel } from "@/lib/financial-year";
 import styles from "./workspace.module.css";
 
@@ -45,6 +46,7 @@ async function WorkspaceContent({
 
   return (
     <div className={styles.workspace}>
+      <FormLock />
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
           <div className={styles.brandIcon}><BrandLogo size={34} /></div>
