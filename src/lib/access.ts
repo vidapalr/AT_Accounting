@@ -73,6 +73,7 @@ export type Feature =
   | "supplier_returns"
   | "free_stock"
   | "approval_items"
+  | "approval_requests"
   | "cash_closing"
   | "stock_count"
   | "audit_view"
@@ -96,6 +97,8 @@ const FEATURE_ROLES: Record<Feature, Role[]> = {
   // Everyone can ask for free stock; only owner and accountant approve it.
   free_stock: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER", "DIVISION_MANAGER"],
   approval_items: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER", "DIVISION_MANAGER"],
+  // Money entries above a limit wait here for a check and a final approval.
+  approval_requests: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER", "DIVISION_MANAGER"],
   cash_closing: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER", "DIVISION_MANAGER"],
   stock_count: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER", "DIVISION_MANAGER"],
   // Read-only pages for the auditor (every ledger line, change history).
@@ -121,6 +124,7 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/dashboard", "dashboard"],
   ["/accounting/audit", "audit_view"],
   ["/accounting/reports", "reports"],
+  ["/accounting/approvals", "approval_requests"],
   ["/accounting/health", "reports"],
   ["/accounting/reconciliation", "reports"],
   ["/accounting/insights", "reports"],

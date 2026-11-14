@@ -3,8 +3,12 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
+import SubmitButton from "@/components/SubmitButton";
 import { DEFAULT_OWNER_MIN_UNITS, formatUnits, parseUnits } from "@/lib/investor-shares/engine";
 import { saveOwnerMinShareAction } from "@/lib/group-rules-actions";
+import { saveApprovalLimitsAction } from "@/lib/approval-request-actions";
+import { loadLimits } from "@/lib/approval-requests";
+import { APPROVAL_KINDS, KIND_LABEL, LIVE_KINDS } from "@/lib/approval-rules";
 
 type Props = { searchParams: Promise<{ result?: string }> };
 
@@ -17,6 +21,7 @@ async function Rules({ searchParams }: Props) {
   );
   let units = DEFAULT_OWNER_MIN_UNITS;
   try { if (rows[0]) units = parseUnits(String(rows[0].setting_value)); } catch { /* keep default */ }
+  const limits = await loadLimits(db, user.legal_business_id);
   const ownerMin = formatUnits(units);
   const investorMax = formatUnits(1_000_000 - units);
 
@@ -27,6 +32,8 @@ async function Rules({ searchParams }: Props) {
     <div style={{ maxWidth: 680 }}>
       <h1>Group rules</h1>
       {result === "saved" && <p role="status" style={{ color: "#166534" }}>Saved.</p>}
+      {result === "limits-saved" && <p role="status" style={{ color: "#166534" }}>Approval limits saved.</p>}
+      {result === "invalid-limit" && <p role="alert" style={{ color: "#b91c1c" }}>Type each limit as a rupee amount like 5000, or leave it empty.</p>}
       {result === "invalid" && <p role="alert" style={{ color: "#b91c1c" }}>Enter a number between 1 and 100, for example 51.</p>}
       <section style={box}>
         <h2 style={{ marginTop: 0 }}>Your share of the group</h2>
@@ -39,6 +46,20 @@ async function Rules({ searchParams }: Props) {
             <br /><input name="owner_min" defaultValue={ownerMin.replace("%", "")} inputMode="decimal" style={input} />
           </label>
           <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer", fontSize: 16, padding: "12px 20px", alignSelf: "flex-end" }}>Save</button>
+        </form>
+      </section>
+      <section style={box}>
+        <h2 style={{ marginTop: 0 }}>Approval limits</h2>
+        <p style={{ color: "#475569" }}>
+          An entry above its limit is not posted until it is checked by the accountant and approved by the division manager or you. Leave a box empty for no limit. Your own entries never wait.
+        </p>
+        <form action={saveApprovalLimitsAction} style={{ display: "grid", gap: 12, maxWidth: 420 }}>
+          {APPROVAL_KINDS.map((k) => (
+            <label key={k}>{KIND_LABEL[k]} above (₹){LIVE_KINDS.includes(k) ? "" : " (coming soon)"}
+              <br /><input name={`limit_${k}`} defaultValue={limits[k] === null ? "" : (Number(limits[k]) / 100).toString()} inputMode="decimal" style={{ ...input, width: "100%" }} />
+            </label>
+          ))}
+          <SubmitButton label="Save limits" />
         </form>
       </section>
       <section style={box}>

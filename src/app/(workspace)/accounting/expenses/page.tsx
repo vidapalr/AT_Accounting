@@ -45,6 +45,8 @@ const messages: Record<string, string> = {
   "invalid-division": "The selected division is unavailable.",
   "invalid-branch": "The selected branch is unavailable.",
   failed: "Unable to save the expense. Check server logs.",
+  "sent-for-approval": "This is above your approval limit, so it was not posted. It has been sent for approval. Follow it on the Approvals page.",
+  "approval-setup": "Approvals are not set up yet (database step 081 is missing). Nothing was saved.",
 };
 
 function inr(value: string | number): string {
