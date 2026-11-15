@@ -8,7 +8,7 @@ import { DEFAULT_OWNER_MIN_UNITS, formatUnits, parseUnits } from "@/lib/investor
 import { saveOwnerMinShareAction } from "@/lib/group-rules-actions";
 import { saveApprovalLimitsAction } from "@/lib/approval-request-actions";
 import { loadLimits } from "@/lib/approval-requests";
-import { APPROVAL_KINDS, KIND_LABEL, LIVE_KINDS } from "@/lib/approval-rules";
+import { APPROVAL_KINDS, KIND_LABEL } from "@/lib/approval-rules";
 
 type Props = { searchParams: Promise<{ result?: string }> };
 
@@ -55,7 +55,7 @@ async function Rules({ searchParams }: Props) {
         </p>
         <form action={saveApprovalLimitsAction} style={{ display: "grid", gap: 12, maxWidth: 420 }}>
           {APPROVAL_KINDS.map((k) => (
-            <label key={k}>{KIND_LABEL[k]} above (₹){LIVE_KINDS.includes(k) ? "" : " (coming soon)"}
+            <label key={k}>{KIND_LABEL[k]} above (₹)
               <br /><input name={`limit_${k}`} defaultValue={limits[k] === null ? "" : (Number(limits[k]) / 100).toString()} inputMode="decimal" style={{ ...input, width: "100%" }} />
             </label>
           ))}

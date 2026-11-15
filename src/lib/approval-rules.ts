@@ -5,14 +5,13 @@
  * manager or the owner approves for good. The owner may also approve straight away.
  * Nobody approves their own request.
  */
-export type ApprovalKind = "EXPENSE" | "SUPPLIER_PAYMENT" | "CASH_TAKEN";
-export const APPROVAL_KINDS: ApprovalKind[] = ["EXPENSE", "SUPPLIER_PAYMENT", "CASH_TAKEN"];
+export type ApprovalKind = "EXPENSE" | "SUPPLIER_PAYMENT";
+export const APPROVAL_KINDS: ApprovalKind[] = ["EXPENSE", "SUPPLIER_PAYMENT"];
 export type RequestKind = ApprovalKind | "SHOP_SPENDING";
 export const KIND_LABEL: Record<RequestKind, string> = {
   SHOP_SPENDING: "Shop spending (cash from the drawer)",
   EXPENSE: "Expense",
   SUPPLIER_PAYMENT: "Payment to a supplier",
-  CASH_TAKEN: "Cash taken out",
 };
 /** Which kinds can be sent for approval and posted by themselves today. */
 export const LIVE_KINDS: ApprovalKind[] = ["EXPENSE", "SUPPLIER_PAYMENT"];
