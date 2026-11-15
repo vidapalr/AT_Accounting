@@ -66,6 +66,12 @@ async function Content({ searchParams }: Props) {
 
   const hasFailed = log.some((l) => l.status === "FAILED");
 
+  // When did each scheduled job last run on its own? (Written by the cron call.)
+  const [runRows] = await db.execute<RowDataPacket[]>(
+    `SELECT setting_key, setting_value FROM acct_business_settings WHERE legal_business_id = ? AND setting_key LIKE 'wa\\_last\\_run\\_%'`, [businessId]);
+  const lastRun = new Map(runRows.map((r) => [String(r.setting_key).replace("wa_last_run_", ""), String(r.setting_value).split("|")]));
+  const JOBS: Array<[string, string, number]> = [["morning", "Morning job (8 AM)", 30], ["daily", "Evening job (9 PM)", 30], ["monthly", "Monthly job (1st)", 24 * 32]];
+
   // Today's worklist: what to send by hand right now.
   const today = todayInIndia();
   const worklist = [];
@@ -108,6 +114,24 @@ async function Content({ searchParams }: Props) {
 
       {query.done && <p role="status" style={{ color: "#166534" }}>{query.done}</p>}
       {query.error && <p role="alert" style={{ color: "#b91c1c" }}>{query.error}</p>}
+
+      <h2>Automatic sending</h2>
+      <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 12, display: "grid", gap: 6 }}>
+        {JOBS.map(([key, label, maxHours]) => {
+          const r = lastRun.get(key);
+          if (!r) return <div key={key}><strong>{label}:</strong> <span style={{ color: "#b91c1c" }}>has never run on its own. Check the Cron Job in hPanel (see the setup steps at the bottom).</span></div>;
+          const when = new Date(r[0]);
+          const hours = (Date.now() - when.getTime()) / 3600000;
+          const stale = hours > maxHours;
+          const at = when.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+          return (
+            <div key={key}>
+              <strong>{label}:</strong> last ran {at} · sent {r[2]}, nothing to report {r[3]}, failed {r[4]}{Number(r[5]) > 0 ? `, not connected ${r[5]}` : ""}
+              {stale && <span style={{ color: "#b91c1c" }}> · this is overdue, check the Cron Job</span>}
+            </div>
+          );
+        })}
+      </div>
 
       <h2>Send today&apos;s reports</h2>
       {worklist.length === 0 ? (

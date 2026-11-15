@@ -26,6 +26,13 @@ async function handle(request: Request) {
 
   try {
     const summary = await runJob(db, BUSINESS_ID, job, todayInIndia());
+    // Remember that the scheduled job really ran, so the WhatsApp page can show it.
+    const note = `${new Date().toISOString()}|${summary.considered}|${summary.sent}|${summary.skipped}|${summary.failed}|${summary.notConnected}`;
+    await db.execute(
+      `INSERT INTO acct_business_settings (legal_business_id, setting_key, setting_value, updated_by)
+       VALUES (?, ?, ?, NULL) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+      [BUSINESS_ID, `wa_last_run_${job}`, note]
+    ).catch((e) => console.error("Could not note the WhatsApp run", e));
     return Response.json({ job, ...summary });
   } catch (error) {
     console.error("WhatsApp job failed", error);
