@@ -7,7 +7,7 @@ import { isMissingTable } from "@/lib/db-errors";
 import SubmitButton from "@/components/SubmitButton";
 import {
   KIND_LABEL, STATUS_WORDS, canCancel, canCheck, canFinalApprove, canReject,
-  type ApprovalKind, type RequestStatus,
+  type RequestKind, type RequestStatus,
 } from "@/lib/approval-rules";
 import {
   approveRequestAction, cancelRequestAction, checkRequestAction, rejectRequestAction,
@@ -60,7 +60,7 @@ async function Content({ searchParams }: Props) {
     const v = view(r);
     return (
       <div key={String(r.id)} style={box}>
-        <strong>{KIND_LABEL[String(r.kind) as ApprovalKind] ?? String(r.kind)} · {rupees(BigInt(String(r.amount)))}</strong>
+        <strong>{KIND_LABEL[String(r.kind) as RequestKind] ?? String(r.kind)} · {rupees(BigInt(String(r.amount)))}</strong>
         <div style={{ color: "#475569", margin: "4px 0" }}>{String(r.summary)}</div>
         <div style={{ color: "#64748b", fontSize: 14 }}>
           Asked by {String(r.requester ?? "?")} on {String(r.at)}

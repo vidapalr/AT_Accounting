@@ -3,6 +3,8 @@ import type { Pool, RowDataPacket } from "mysql2/promise";
 
 import { APPROVAL_KINDS, limitKey, parseLimit, type ApprovalKind } from "@/lib/approval-rules";
 import { createExpenseCore, ExpenseOutcome } from "@/lib/expense-create";
+import { QuickExpenseError } from "@/lib/expense-quick";
+import { saveShopSpending } from "@/lib/shop-spending-core";
 import { paySupplierCore, SupplierPayOutcome } from "@/lib/supplier-pay-create";
 
 type Row = RowDataPacket & Record<string, unknown>;
@@ -47,7 +49,7 @@ export async function replayRequest(
   requesterId: number,
   approverName: string
 ): Promise<ReplayResult> {
-  if (kind !== "EXPENSE" && kind !== "SUPPLIER_PAYMENT") {
+  if (kind !== "EXPENSE" && kind !== "SUPPLIER_PAYMENT" && kind !== "SHOP_SPENDING") {
     return { ok: false, id: null, note: "This kind cannot be posted by approval yet." };
   }
 
@@ -62,6 +64,22 @@ export async function replayRequest(
     legal_business_id: Number(users[0].legal_business_id),
     scope_division_id: users[0].scope_division_id === null ? null : Number(users[0].scope_division_id),
   };
+
+  if (kind === "SHOP_SPENDING") {
+    const tag = ` · Approved by ${approverName}`;
+    try {
+      const saved = await saveShopSpending(
+        user,
+        { kind: String(payload.kind ?? ""), note: String(payload.note ?? "").slice(0, 200 - tag.length) + tag, payee: String(payload.payee ?? ""), amount: String(payload.amount ?? ""), drawerId: Number(payload.drawer) },
+        { skipDuplicateCheck: true }
+      );
+      return { ok: true, id: saved.id, note: `Posted as ${saved.expenseNo}.` };
+    } catch (e) {
+      if (e instanceof QuickExpenseError) return { ok: false, id: null, note: e.message };
+      console.error("Approved shop spending failed:", e);
+      return { ok: false, id: null, note: "The entry could not be saved." };
+    }
+  }
 
   const form = new FormData();
   for (const [k, v] of Object.entries(payload)) if (!k.startsWith("__")) form.set(k, v);

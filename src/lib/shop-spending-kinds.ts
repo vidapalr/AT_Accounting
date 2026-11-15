@@ -1,6 +1,6 @@
 /** What staff can pick, in plain words, and the expense category each one files under. */
 export const SPENDING_KINDS: Record<string, { label: string; category: string }> = {
-  DAILYWAGES: { label: "Daily wages", category: "WAGES" },
+  DAILYWAGES: { label: "Daily wages", category: "SALARY" },
   TRANSPORT: { label: "Auto, transport or delivery", category: "TRANSPORT" },
   PACKING: { label: "Packing material", category: "PACKING" },
   REPAIR: { label: "Repairs and fixing", category: "MAINTENANCE" },
