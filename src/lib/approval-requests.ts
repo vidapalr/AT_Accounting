@@ -3,6 +3,7 @@ import type { Pool, RowDataPacket } from "mysql2/promise";
 
 import { APPROVAL_KINDS, limitKey, parseLimit, type ApprovalKind } from "@/lib/approval-rules";
 import { createExpenseCore, ExpenseOutcome } from "@/lib/expense-create";
+import { paySupplierCore, SupplierPayOutcome } from "@/lib/supplier-pay-create";
 
 type Row = RowDataPacket & Record<string, unknown>;
 
@@ -28,6 +29,15 @@ const EXPENSE_PROBLEMS: Record<string, string> = {
   "choose-branch": "No branch was chosen.",
   failed: "The entry could not be saved.",
 };
+const SUPPLIER_PROBLEMS: Record<string, string> = {
+  invalid: "Some details are not valid.",
+  "source-invalid": "That account, investor or agreement can no longer be used.",
+  "more-than-owed": "That is more than is owed to this supplier now.",
+  "parts-differ": "The amounts against the bills do not add up.",
+  "part-too-big": "One bill has more against it than is still due.",
+  "duplicate-reference": "A payment with this reference was already saved.",
+  failed: "The payment could not be saved.",
+};
 
 /** Posts an approved request by running the normal save code as the person who asked. */
 export async function replayRequest(
@@ -37,7 +47,9 @@ export async function replayRequest(
   requesterId: number,
   approverName: string
 ): Promise<ReplayResult> {
-  if (kind !== "EXPENSE") return { ok: false, id: null, note: "This kind cannot be posted by approval yet." };
+  if (kind !== "EXPENSE" && kind !== "SUPPLIER_PAYMENT") {
+    return { ok: false, id: null, note: "This kind cannot be posted by approval yet." };
+  }
 
   const [users] = await db.execute<Row[]>(
     `SELECT u.id, a.legal_business_id, a.scope_division_id
@@ -45,29 +57,37 @@ export async function replayRequest(
       WHERE u.id = ? AND u.status = 'ACTIVE' AND a.division_id IS NULL
       ORDER BY FIELD(a.role, 'GROUP_OWNER', 'ACCOUNTANT', 'DIVISION_MANAGER', 'CASHIER') LIMIT 1`, [requesterId]);
   if (!users[0]) return { ok: false, id: null, note: "The person who asked no longer has access." };
+  const user = {
+    id: Number(users[0].id),
+    legal_business_id: Number(users[0].legal_business_id),
+    scope_division_id: users[0].scope_division_id === null ? null : Number(users[0].scope_division_id),
+  };
 
   const form = new FormData();
   for (const [k, v] of Object.entries(payload)) if (!k.startsWith("__")) form.set(k, v);
   const tag = `Approved by ${approverName}`;
   const base = String(payload.remarks ?? "").trim().slice(0, 500 - tag.length - 3);
   form.set("remarks", base ? `${base} · ${tag}` : tag);
-
   const activeDivisionId = Number(payload.__activeDivision) || undefined;
+
+  const problems = kind === "EXPENSE" ? EXPENSE_PROBLEMS : SUPPLIER_PROBLEMS;
   try {
-    await createExpenseCore(
-      { id: Number(users[0].id), legal_business_id: Number(users[0].legal_business_id), scope_division_id: users[0].scope_division_id === null ? null : Number(users[0].scope_division_id) },
-      form,
-      { activeDivisionId }
-    );
+    if (kind === "EXPENSE") await createExpenseCore(user, form, { activeDivisionId });
+    else await paySupplierCore(user, form, { activeDivisionId });
     return { ok: false, id: null, note: "Nothing was saved." };
   } catch (e) {
-    if (!(e instanceof ExpenseOutcome)) {
-      console.error("Approved expense failed:", e);
-      return { ok: false, id: null, note: EXPENSE_PROBLEMS.failed };
+    const url = e instanceof ExpenseOutcome || e instanceof SupplierPayOutcome ? e.url : null;
+    if (url === null) {
+      console.error("Approved entry failed:", e);
+      return { ok: false, id: null, note: problems.failed };
     }
-    const q = new URL(e.url, "http://x").searchParams;
-    const result = q.get("result") ?? "failed";
-    if (result === "created") return { ok: true, id: Number(q.get("id")) || null, note: "Posted." };
-    return { ok: false, id: null, note: EXPENSE_PROBLEMS[result] ?? EXPENSE_PROBLEMS.failed };
+    const parsed = new URL(url, "http://x");
+    const result = parsed.searchParams.get("result") ?? "failed";
+    if (result === "created") {
+      const idNum = Number(parsed.searchParams.get("id")) || null;
+      const batch = parsed.pathname.split("/").pop() ?? "";
+      return { ok: true, id: idNum, note: kind === "SUPPLIER_PAYMENT" ? `Posted as ${batch}. It still needs the owner to verify it, as usual.` : "Posted." };
+    }
+    return { ok: false, id: null, note: problems[result] ?? problems.failed };
   }
 }

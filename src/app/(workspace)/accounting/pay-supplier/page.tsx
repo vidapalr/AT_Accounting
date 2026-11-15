@@ -31,6 +31,8 @@ const MESSAGES: Record<string, string> = {
   "part-too-big": "One bill has more typed against it than is still due on it.",
   "duplicate-reference": "A payment with this reference was already saved for this supplier.",
   failed: "The payment could not be saved. Nothing was changed.",
+  "sent-for-approval": "This is above your approval limit, so it was not recorded. It has been sent for approval. Follow it on the Approvals page.",
+  "approval-setup": "Approvals are not set up yet (database step 081 is missing). Nothing was saved.",
 };
 
 const OWED_SQL = `

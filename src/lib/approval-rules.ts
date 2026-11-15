@@ -14,7 +14,7 @@ export const KIND_LABEL: Record<ApprovalKind, string> = {
   OWNER_MONEY: "Owner money in or out",
 };
 /** Which kinds can be sent for approval and posted by themselves today. */
-export const LIVE_KINDS: ApprovalKind[] = ["EXPENSE"];
+export const LIVE_KINDS: ApprovalKind[] = ["EXPENSE", "SUPPLIER_PAYMENT"];
 
 export type RequestStatus = "WAITING_CHECK" | "WAITING_FINAL" | "APPROVED" | "REJECTED" | "CANCELLED" | "FAILED";
 
