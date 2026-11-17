@@ -5,7 +5,8 @@ import type { Pool, RowDataPacket } from "mysql2/promise";
  * Database files (migrations) and one thing each of them creates. If that thing is missing from the
  * live database, the file has not been run there. Files that only change data or settings are not listed.
  */
-type Marker = { file: string; table: string; column?: string; index?: string };
+/** `enumValue`: the column must allow this value (for files that change a list of allowed values). */
+type Marker = { file: string; table: string; column?: string; index?: string; enumValue?: string };
 
 export const MIGRATION_MARKERS: Marker[] = [
   { file: "005_returns_refunds_damages", table: "acct_sales_returns" },
@@ -68,6 +69,10 @@ export const MIGRATION_MARKERS: Marker[] = [
   { file: "079_service_tickets", table: "acct_service_tickets" },
   { file: "080_budgets", table: "acct_budgets" },
   { file: "081_approval_requests", table: "acct_approval_requests" },
+  { file: "086_business_payment_account", table: "acct_sales_payments", column: "payment_account", enumValue: "BUSINESS" },
+  { file: "085_account_map", table: "acct_account_map" },
+  { file: "084_letter_templates", table: "acct_letter_templates" },
+  { file: "083_business_hosts_and_brand", table: "acct_business_hosts" },
   { file: "082_customer_credit", table: "acct_customer_credits" },
   { file: "070_lots", table: "acct_purchase_lines", column: "lot_no" },
   { file: "069_deals", table: "acct_deals" },
@@ -85,7 +90,7 @@ export const MIGRATION_MARKERS: Marker[] = [
 /** The files from the list above that are not in the live database yet. */
 export async function missingMigrations(pool: Pool): Promise<string[]> {
   const [cols] = await pool.query<RowDataPacket[]>(
-    `SELECT table_name AS t, column_name AS c FROM information_schema.columns WHERE table_schema = DATABASE()`
+    `SELECT table_name AS t, column_name AS c, column_type AS ty FROM information_schema.columns WHERE table_schema = DATABASE()`
   );
   const [idx] = await pool.query<RowDataPacket[]>(
     `SELECT DISTINCT table_name AS t, index_name AS i FROM information_schema.statistics WHERE table_schema = DATABASE()`
@@ -93,8 +98,10 @@ export async function missingMigrations(pool: Pool): Promise<string[]> {
   const tables = new Set(cols.map((r) => String(r.t)));
   const columns = new Set(cols.map((r) => `${r.t}.${r.c}`));
   const indexes = new Set(idx.map((r) => `${r.t}.${r.i}`));
+  const types = new Map(cols.map((r) => [`${r.t}.${r.c}`, String(r.ty)]));
   return MIGRATION_MARKERS.filter((m) =>
-    m.column ? !columns.has(`${m.table}.${m.column}`)
+    m.enumValue ? !(types.get(`${m.table}.${m.column}`) ?? "").includes(`'${m.enumValue}'`)
+    : m.column ? !columns.has(`${m.table}.${m.column}`)
     : m.index ? !indexes.has(`${m.table}.${m.index}`)
     : !tables.has(m.table)
   ).map((m) => m.file);

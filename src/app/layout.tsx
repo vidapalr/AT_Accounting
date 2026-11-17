@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { geistMono, geistSans } from "@/fonts";
 import "./globals.css";
 
@@ -7,6 +7,15 @@ export const metadata: Metadata = {
   title: { default: "Business suite", template: "%s" },
   description: "Accounting, stock, customers and online shop.",
   applicationName: "Business suite",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, statusBarStyle: "default" },
+};
+
+/** Phone-friendly: fits the screen width, keeps pinch-zoom for people who need larger text. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#142c50",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

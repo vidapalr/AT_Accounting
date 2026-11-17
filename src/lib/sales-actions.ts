@@ -404,7 +404,7 @@ export async function createSaleAction(
             paymentAccount:
               bank[0].ownership_type === "INVESTOR"
                 ? "INVESTMENT_BANKING"
-                : "ABHIRAM_GROUP",
+                : "BUSINESS",
           });
         } else {
           const [cash] = await conn.execute<RowDataPacket[]>(

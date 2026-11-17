@@ -54,6 +54,8 @@ import {
   type Settlement,
   type SourceType,
 } from "./posting-rules.ts";
+import { loadCodeMap } from "./account-map.ts";
+import { mapDraftCodes } from "./account-roles.ts";
 
 export type Queryable = Pool | PoolConnection | Connection;
 
@@ -993,6 +995,10 @@ export async function buildLedgerDrafts(
       })
     );
   }
+
+  // --------------------------------------------- the company's own account codes (migration 085)
+  const codeMap = await loadCodeMap(conn, businessId);
+  for (let i = 0; i < drafts.length; i++) drafts[i] = mapDraftCodes(drafts[i], codeMap);
 
   // --------------------------------------------- chart-of-accounts checks
   for (const draft of drafts) {

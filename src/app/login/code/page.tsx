@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import BrandLogo from "@/components/BrandLogo";
 import { readChallenge } from "@/lib/two-step";
 import styles from "../login.module.css";
+import { getBrand } from "@/lib/brand";
 
 export default function CodePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   return (
@@ -15,11 +16,12 @@ export default function CodePage({ searchParams }: { searchParams: Promise<{ err
 async function CodeContent({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   if (!(await readChallenge())) redirect("/login?error=4");
   const params = await searchParams;
+  const brand = await getBrand();
   return (
     <main className={styles.page}>
       <section className={styles.card}>
         <div className={styles.logo}><BrandLogo size={52} /></div>
-        <p className={styles.brand}>ABHIRAM GROUP</p>
+        <p className={styles.brand}>{brand.groupName.toUpperCase()}</p>
         <h1>Enter your code</h1>
         <p className={styles.subtitle}>
           Open your authenticator app and type the 6-digit code. Lost your phone? Type one of your backup codes instead.

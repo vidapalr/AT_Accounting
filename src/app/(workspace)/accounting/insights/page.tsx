@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { getBalanceReport } from "@/lib/reports/report-data";
 import { cell } from "@/lib/ui/styles";
+import { ACCOUNT } from "@/lib/ledger/posting-rules";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 
@@ -132,9 +133,9 @@ async function Content() {
     .slice(0, 10);
 
   const balances = await getBalanceReport(db, businessId, today);
-  const byCode = (code: string) => balances.accounts.find((a) => a.code === code);
-  const recv = byCode("1100") ? Number(byCode("1100")!.debit - byCode("1100")!.credit) / 100 : 0;
-  const pay = byCode("2000") ? Number(byCode("2000")!.credit - byCode("2000")!.debit) / 100 : 0;
+  const byCode = (code: string) => balances.accounts.find((a) => a.standard === code);
+  const recv = byCode(ACCOUNT.RECEIVABLES) ? Number(byCode(ACCOUNT.RECEIVABLES)!.debit - byCode(ACCOUNT.RECEIVABLES)!.credit) / 100 : 0;
+  const pay = byCode(ACCOUNT.PAYABLES) ? Number(byCode(ACCOUNT.PAYABLES)!.credit - byCode(ACCOUNT.PAYABLES)!.debit) / 100 : 0;
 
   const thisWeek = Number(wk.this_week);
   const lastWeek = Number(wk.last_week);

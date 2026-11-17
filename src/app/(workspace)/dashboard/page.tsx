@@ -18,6 +18,7 @@ import {
 import { addDays, inr, inrShort, percent, todayInIndia, toNumber } from "@/lib/reports/money";
 import BarChart from "@/components/BarChart";
 import styles from "./dashboard.module.css";
+import { ACCOUNT } from "@/lib/ledger/posting-rules";
 
 type Props = { searchParams: Promise<{ period?: string }> };
 
@@ -85,12 +86,12 @@ async function DashboardContent({ searchParams }: Props) {
   const netSales = (f: typeof day) => f.sales - f.discounts;
 
   const net = (a: { debit: bigint; credit: bigint }) => a.debit - a.credit;
-  const byCode = (code: string) => balances.accounts.find((a) => a.code === code);
-  const receivables = byCode("1100") ? net(byCode("1100")!) : 0n;
-  const payables = byCode("2000") ? -net(byCode("2000")!) : 0n;
-  const stock = byCode("1200") ? net(byCode("1200")!) : 0n;
-  const investorMoney = byCode("3200") ? -net(byCode("3200")!) : 0n;
-  const setupAsset = byCode("1320") ? net(byCode("1320")!) : 0n;
+  const byCode = (code: string) => balances.accounts.find((a) => a.standard === code);
+  const receivables = byCode(ACCOUNT.RECEIVABLES) ? net(byCode(ACCOUNT.RECEIVABLES)!) : 0n;
+  const payables = byCode(ACCOUNT.PAYABLES) ? -net(byCode(ACCOUNT.PAYABLES)!) : 0n;
+  const stock = byCode(ACCOUNT.INVENTORY) ? net(byCode(ACCOUNT.INVENTORY)!) : 0n;
+  const investorMoney = byCode(ACCOUNT.INVESTOR_CAPITAL) ? -net(byCode(ACCOUNT.INVESTOR_CAPITAL)!) : 0n;
+  const setupAsset = byCode(ACCOUNT.SETUP_ASSET) ? net(byCode(ACCOUNT.SETUP_ASSET)!) : 0n;
   const refundsOwed = BigInt(Math.round(Number(owed[0][0]?.owed ?? 0) * 100));
 
   const businessHeld = [...positions.banks, ...positions.cash];

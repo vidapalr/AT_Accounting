@@ -20,6 +20,7 @@ erDiagram
   acct_user_totp
   acct_user_backup_codes
   acct_login_challenges
+  acct_business_hosts
   acct_legal_businesses |o..o{ acct_branches : "legal_business_id"
   acct_divisions |o..o{ acct_branches : "division_id"
   acct_agreement_versions |o..o{ acct_business_documents : "agreement_version_id"
@@ -37,6 +38,7 @@ erDiagram
   acct_app_users |o..o{ acct_user_access : "user_id"
   acct_legal_businesses |o..o{ acct_user_access : "legal_business_id"
   acct_divisions |o..o{ acct_user_access : "division_id,legal_business_id"
+  acct_legal_businesses |o..o{ acct_business_hosts : "legal_business_id"
 ```
 
 ## Funding and agreements
@@ -162,6 +164,7 @@ erDiagram
   acct_customer_notes
   acct_leads
   acct_deals
+  acct_customer_credits
   acct_legal_businesses |o..o{ acct_customers : "legal_business_id"
   acct_offers |o..o{ acct_offer_products : "offer_id"
   acct_online_orders |o..o{ acct_online_order_lines : "order_id"
@@ -212,6 +215,7 @@ erDiagram
   acct_supplier_return_replacements
   acct_stock_finds
   acct_serials
+  acct_approval_requests
   acct_branches |o..o{ acct_inventory_locations : "legal_business_id,division_id,branch_id"
   acct_legal_businesses |o..o{ acct_inventory_locations : "legal_business_id"
   acct_app_users |o..o{ acct_inventory_locations : "created_by"
@@ -305,6 +309,11 @@ erDiagram
   acct_wa_delivery
   acct_owner_accounts
   acct_wa_status_log
+  acct_service_tickets
+  acct_service_ticket_log
+  acct_budgets
+  acct_letter_templates
+  acct_account_map
   acct_branches |o..o{ acct_advances : "legal_business_id,division_id,branch_id"
   acct_legal_businesses |o..o{ acct_advances : "legal_business_id"
   acct_app_users |o..o{ acct_advances : "created_by"
@@ -346,6 +355,8 @@ erDiagram
   acct_legal_businesses |o..o{ acct_whatsapp_recipients : "legal_business_id"
   acct_app_users |o..o{ acct_whatsapp_recipients : "created_by"
   acct_whatsapp_recipients |o..o{ acct_whatsapp_subscriptions : "recipient_id"
+  acct_legal_businesses |o..o{ acct_letter_templates : "legal_business_id"
+  acct_legal_businesses |o..o{ acct_account_map : "legal_business_id"
 ```
 
 ## Foreign-key evidence
@@ -526,6 +537,9 @@ erDiagram
 | acct_whatsapp_recipients | created_by | acct_app_users | id | [db/base_schema_2026-10-28.sql](../../db/base_schema_2026-10-28.sql) |
 | acct_whatsapp_subscriptions | recipient_id | acct_whatsapp_recipients | id | [db/base_schema_2026-10-28.sql](../../db/base_schema_2026-10-28.sql) |
 | acct_shop_email_verifications | customer_id | acct_shop_customers | id | [migrations/041_shop_email_verification.sql](../../migrations/041_shop_email_verification.sql) |
+| acct_business_hosts | legal_business_id | acct_legal_businesses | id | [migrations/083_business_hosts_and_brand.sql](../../migrations/083_business_hosts_and_brand.sql) |
+| acct_letter_templates | legal_business_id | acct_legal_businesses | id | [migrations/084_letter_templates.sql](../../migrations/084_letter_templates.sql) |
+| acct_account_map | legal_business_id | acct_legal_businesses | id | [migrations/085_account_map.sql](../../migrations/085_account_map.sql) |
 
 ## Logical relationships requiring application enforcement
 

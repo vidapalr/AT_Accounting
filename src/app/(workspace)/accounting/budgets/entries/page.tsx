@@ -7,6 +7,8 @@ import { requireAccess } from "@/lib/auth";
 import { inr, toPaise } from "@/lib/reports/money";
 import { monthRange, sourceLink } from "@/lib/budget-math";
 import { cellTop as cell } from "@/lib/ui/styles";
+import { loadStandardCoder } from "@/lib/ledger/account-map";
+import { ACCOUNT } from "@/lib/ledger/posting-rules";
 
 type Props = { searchParams: Promise<{ month?: string; kind?: string; branch?: string; division?: string }> };
 const num = (v: string | undefined) => (/^[1-9]\d*$/.test(v ?? "") ? Number(v) : null);
@@ -21,7 +23,14 @@ async function Content({ searchParams }: Props) {
   const branch = num(q.branch);
   const division = num(q.division);
 
-  const codeTest = kind === "sales" ? `a.account_code IN ('4000','4300')` : `a.account_code LIKE '6%' AND a.account_code <> '6900'`;
+  // The company's own account codes for sales or running expenses (account mapping, migration 085).
+  const std = await loadStandardCoder(db, biz);
+  const [chart] = await db.execute<RowDataPacket[]>(`SELECT account_code FROM acct_chart_of_accounts WHERE legal_business_id = ?`, [biz]);
+  const wanted = chart.map((c) => String(c.account_code)).filter((code) => {
+    const s = std(code);
+    return kind === "sales" ? s === ACCOUNT.SALES || s === ACCOUNT.DELIVERY_INCOME : s.startsWith("6") && s !== ACCOUNT.SETUP_COSTS;
+  });
+  const codeTest = wanted.length > 0 ? `a.account_code IN (${wanted.map(() => "?").join(",")})` : "1 = 0";
   const scope = branch ? `AND l.branch_id = ${branch}` : division ? `AND l.division_id = ${division}` : "";
   const [rows] = await db.execute<RowDataPacket[]>(
     `SELECT j.id, j.journal_no, DATE_FORMAT(j.entry_date, '%Y-%m-%d') AS day, j.description, j.source_type, j.source_id,
@@ -32,7 +41,7 @@ async function Content({ searchParams }: Props) {
       WHERE l.legal_business_id = ? AND j.status = 'POSTED' AND j.entry_date BETWEEN ? AND ? AND ${codeTest} ${scope}
       GROUP BY j.id, a.account_code, a.account_name
       ORDER BY j.entry_date DESC, j.id DESC LIMIT 500`,
-    [biz, range.from, range.to]);
+    [biz, range.from, range.to, ...wanted]);
 
   let total = 0n;
   const list = rows.map((r) => {

@@ -2,6 +2,10 @@
 
 Baseline: `9f8c44e95deba0b6da2d1657a5aaa8d0b0515269`. This is a focused manual review supported by a complete structural inventory of the selected source directories. It is **not a completed manual audit of all 102,575 lines**. No application defects were changed in this documentation delivery.
 
+## Status update — 17 November 2026
+
+F01 (two-step fallback), F02 (follow-up partial save), F03 (documents now use `PRIVATE_DIR`), F04 (lint crash) and F07 (backup warns when triggers are missing) are fixed in code. F05 and F06 remain open. The full review of 17 Nov (multi-company, payroll, compliance, AI) is in the Claude doc "AT_Accounting – Full Review & Gap Analysis".
+
 ## Findings
 
 ### F01 — High: two-step lookup errors fall back to password-only login

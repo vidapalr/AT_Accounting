@@ -36,6 +36,8 @@ export type TransitItem = {
 };
 
 type Props = {
+  /** Company shop name from the brand settings. */
+  shopName: string;
   scope: "CENTRAL" | "BRANCH" | "ALL";
   stock: InventoryRow[];
   transit: TransitItem[];
@@ -60,7 +62,7 @@ const movements: { key: keyof InventoryRow; label: string }[] = [
 const stockStatus = (n: number) => n < 0 ? "NEGATIVE STOCK" : n === 0 ? "OUT OF STOCK" : "AVAILABLE";
 
 export default function InventoryReportClient({
-  scope, stock, transit, initialFilters = {},
+  scope, stock, transit, initialFilters = {}, shopName,
 }: Props) {
   const [query, setQuery] = useState(initialFilters.q ?? "");
   const [location, setLocation] = useState(initialFilters.location ?? "");
@@ -180,7 +182,7 @@ export default function InventoryReportClient({
     <main className="ir-page">
       <div className="ir-header">
         <div>
-          <div className="ir-eyebrow">ABHIRAM TEXTILES · INVENTORY</div>
+          <div className="ir-eyebrow">{shopName.toUpperCase()} · INVENTORY</div>
           <h1>{scope === "ALL" ? "Stock on Hand" : scope === "CENTRAL" ? "Central Warehouse Inventory" : "Branch Inventory"}</h1>
           <p>Balances from posted inventory movements. In-transit stock is shown separately.</p>
         </div>

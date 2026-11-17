@@ -2,12 +2,14 @@ import type { Pool, RowDataPacket } from "mysql2/promise";
 
 import {
   balanceSheet,
+  SETUP_ACCOUNT,
   profitByScope,
   type BalanceSheet,
   type LedgerTotal,
   type ScopeProfit,
 } from "./profit-levels.ts";
 import { toPaise } from "./money.ts";
+import { loadStandardCoder } from "../ledger/account-map.ts";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 
@@ -41,12 +43,12 @@ export async function getProfitReport(
        ON a.id = l.account_id AND a.legal_business_id = l.legal_business_id
      WHERE l.legal_business_id = ? AND j.status = 'POSTED'
        AND j.entry_date BETWEEN ? AND ?
-       AND a.account_code >= '4'
      GROUP BY a.account_code, l.division_id, l.branch_id`,
     [businessId, from, to]
   );
+  const std = await loadStandardCoder(db, businessId);
   const lines: LedgerTotal[] = rows.map((r) => ({
-    accountCode: String(r.account_code),
+    accountCode: std(String(r.account_code)),
     divisionId: r.division_id === null ? null : Number(r.division_id),
     branchId: r.branch_id === null ? null : Number(r.branch_id),
     debit: toPaise(r.debit),
@@ -66,12 +68,14 @@ export async function getProfitReport(
 }
 
 export type BalanceReport = {
-  accounts: { code: string; name: string; subtype: string; debit: bigint; credit: bigint }[];
+  /** `standard` is the starter-chart code of the account (see account-roles.ts), for telling what an account is. */
+  accounts: { code: string; standard: string; name: string; subtype: string; debit: bigint; credit: bigint }[];
   names: Map<string, string>;
   sheet: BalanceSheet;
 };
 
 export async function getBalanceReport(db: Pool, businessId: number, to: string): Promise<BalanceReport> {
+  const std = await loadStandardCoder(db, businessId);
   const [rows] = await db.execute<Row[]>(
     `SELECT a.account_code, a.account_name, a.account_subtype,
             SUM(l.debit) AS debit, SUM(l.credit) AS credit
@@ -87,6 +91,7 @@ export async function getBalanceReport(db: Pool, businessId: number, to: string)
   );
   const accounts = rows.map((r) => ({
     code: String(r.account_code),
+    standard: std(String(r.account_code)),
     name: String(r.account_name),
     subtype: String(r.account_subtype),
     debit: toPaise(r.debit),
@@ -95,7 +100,7 @@ export async function getBalanceReport(db: Pool, businessId: number, to: string)
   return {
     accounts,
     names: new Map(accounts.map((a) => [a.code, a.name])),
-    sheet: balanceSheet(accounts.map((a) => ({ accountCode: a.code, debit: a.debit, credit: a.credit }))),
+    sheet: balanceSheet(accounts.map((a) => ({ accountCode: std(a.code), debit: a.debit, credit: a.credit }))),
   };
 }
 
@@ -108,6 +113,7 @@ export async function getDailySeries(
   from: string,
   to: string
 ): Promise<DailyPoint[]> {
+  const std = await loadStandardCoder(db, businessId);
   const [rows] = await db.execute<Row[]>(
     `SELECT DATE_FORMAT(j.entry_date, '%Y-%m-%d') AS d, a.account_code,
             SUM(l.debit) AS debit, SUM(l.credit) AS credit
@@ -117,7 +123,7 @@ export async function getDailySeries(
      JOIN acct_chart_of_accounts a
        ON a.id = l.account_id AND a.legal_business_id = l.legal_business_id
      WHERE l.legal_business_id = ? AND j.status = 'POSTED'
-       AND j.entry_date BETWEEN ? AND ? AND a.account_code >= '4'
+       AND j.entry_date BETWEEN ? AND ?
      GROUP BY d, a.account_code`,
     [businessId, from, to]
   );
@@ -131,7 +137,7 @@ export async function getDailySeries(
   for (const r of rows) {
     const point = byDay.get(String(r.d));
     if (!point) continue;
-    const code = String(r.account_code);
+    const code = std(String(r.account_code));
     const credit = toPaise(r.credit) - toPaise(r.debit);
     if (code === "4000") { point.sales += credit; point.gross += credit; }
     else if (code.startsWith("4")) { point.sales += credit; point.gross += credit; }
@@ -159,18 +165,21 @@ export async function getExpenseBreakdown(
      JOIN acct_chart_of_accounts a
        ON a.id = l.account_id AND a.legal_business_id = l.legal_business_id
      WHERE l.legal_business_id = ? AND j.status = 'POSTED'
-       AND j.entry_date BETWEEN ? AND ? AND a.account_code >= '6'
+       AND j.entry_date BETWEEN ? AND ?
      GROUP BY a.account_code, a.account_name
      HAVING amount <> 0
      ORDER BY a.account_code`,
     [businessId, from, to]
   );
-  return rows.map((r) => ({
-    code: String(r.account_code),
-    name: String(r.account_name),
-    amount: toPaise(r.amount),
-    setup: String(r.account_code) === "6900",
-  }));
+  const std = await loadStandardCoder(db, businessId);
+  return rows
+    .filter((r) => std(String(r.account_code)).startsWith("6"))
+    .map((r) => ({
+      code: String(r.account_code),
+      name: String(r.account_name),
+      amount: toPaise(r.amount),
+      setup: std(String(r.account_code)) === SETUP_ACCOUNT,
+    }));
 }
 
 export type AccountPosition = {

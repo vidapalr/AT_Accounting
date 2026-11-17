@@ -62,7 +62,7 @@ async function main() {
       }
     }
 
-    console.log("\nABHIRAM GROUP INITIAL SETUP");
+    console.log("\nBUSINESS INITIAL SETUP");
     console.log("-----------------------------");
     console.log("Legal name:", config.legalName);
     console.log("Trading name:", config.tradingName);

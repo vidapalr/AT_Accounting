@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { requireUser } from "@/lib/auth";
 import { canOpenPath, ROLE_LABELS } from "@/lib/access";
-import { NAVIGATION } from "@/lib/navigation";
+import { menuFor, parseModulesOff } from "@/lib/navigation";
+import { businessSetting } from "@/lib/business-settings";
 import SidebarNav from "@/components/SidebarNav";
 import DivisionSwitcher from "@/components/DivisionSwitcher";
 import { getActiveDivisionId, listDivisions } from "@/lib/division-context";
@@ -37,12 +38,7 @@ async function WorkspaceContent({
   const divisions = await listDivisions(user.legal_business_id, user.scope_division_id);
   const activeDivisionId = divisions.length > 1 ? await getActiveDivisionId(user) : (divisions[0]?.id ?? 0);
 
-  const sections = NAVIGATION
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((item) => canOpenPath(user.role, item.href)),
-    }))
-    .filter((section) => section.items.length > 0);
+  const sections = menuFor((href) => canOpenPath(user.role, href), parseModulesOff(await businessSetting(user.legal_business_id, "modules_off")));
 
   const searchable = sections.flatMap((section) =>
     section.items.map((item) => ({ label: item.label, href: item.href, hint: item.hint, group: section.label })));

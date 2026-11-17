@@ -2,7 +2,23 @@
 
 Source-derived: base schema (through migration 040), followed by migrations 041–078. These are exact CREATE/ALTER definitions, not a database introspection or a flattened final schema. Read later ALTER statements to determine a column’s latest type/default and indexes. DML backfills, triggers and seed records remain in the linked SQL sources. No migrations were executed. The base dump identifies MariaDB 11.8.9; MySQL compatibility must not be assumed.
 
-Tables with CREATE definitions: **136**. Explicit foreign-key declarations extracted: **174**.
+Tables with CREATE definitions: **144**. Explicit foreign-key declarations extracted: **177**.
+
+## acct_account_map
+
+Definition: [migrations/085_account_map.sql](../../migrations/085_account_map.sql) (line 6)
+
+```sql
+CREATE TABLE IF NOT EXISTS acct_account_map (
+  legal_business_id BIGINT UNSIGNED NOT NULL,
+  role_key VARCHAR(60) NOT NULL,
+  account_code VARCHAR(20) NOT NULL,
+  updated_by BIGINT UNSIGNED NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (legal_business_id, role_key),
+  CONSTRAINT fk_account_map_business FOREIGN KEY (legal_business_id) REFERENCES acct_legal_businesses (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
 
 ## acct_accounting_periods
 
@@ -454,6 +470,33 @@ ALTER TABLE `acct_approval_items`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 ```
 
+## acct_approval_requests
+
+Definition: [migrations/081_approval_requests.sql](../../migrations/081_approval_requests.sql) (line 2)
+
+```sql
+CREATE TABLE IF NOT EXISTS acct_approval_requests (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  legal_business_id BIGINT UNSIGNED NOT NULL,
+  kind VARCHAR(30) NOT NULL,
+  amount BIGINT NOT NULL,
+  summary VARCHAR(300) NOT NULL,
+  payload_json LONGTEXT NOT NULL,
+  requested_by BIGINT UNSIGNED NOT NULL,
+  requested_role VARCHAR(30) NOT NULL,
+  status VARCHAR(20) NOT NULL,
+  checked_by BIGINT UNSIGNED NULL,
+  checked_at DATETIME NULL,
+  final_by BIGINT UNSIGNED NULL,
+  final_at DATETIME NULL,
+  reject_reason VARCHAR(300) NULL,
+  result_note VARCHAR(300) NULL,
+  result_id BIGINT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_approval_status (legal_business_id, status, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
 ## acct_asset_dep_runs
 
 Definition: [db/base_schema_2026-10-28.sql](../../db/base_schema_2026-10-28.sql) (line 270)
@@ -888,6 +931,24 @@ ALTER TABLE `acct_branches`
   ADD CONSTRAINT `fk_branch_division` FOREIGN KEY (`division_id`) REFERENCES `acct_divisions` (`id`);
 ```
 
+## acct_budgets
+
+Definition: [migrations/080_budgets.sql](../../migrations/080_budgets.sql) (line 2)
+
+```sql
+CREATE TABLE IF NOT EXISTS acct_budgets (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  legal_business_id BIGINT UNSIGNED NOT NULL,
+  month CHAR(7) NOT NULL,
+  branch_id BIGINT UNSIGNED NOT NULL,
+  sales_target BIGINT NOT NULL DEFAULT 0,
+  expense_limit BIGINT NOT NULL DEFAULT 0,
+  updated_by BIGINT UNSIGNED NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_budget (legal_business_id, month, branch_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
 ## acct_business_documents
 
 Definition: [db/base_schema_2026-10-28.sql](../../db/base_schema_2026-10-28.sql) (line 418)
@@ -946,6 +1007,23 @@ ALTER TABLE `acct_business_documents`
   ADD CONSTRAINT `fk_doc_division` FOREIGN KEY (`division_id`) REFERENCES `acct_divisions` (`id`),
   ADD CONSTRAINT `fk_doc_person` FOREIGN KEY (`person_id`) REFERENCES `acct_business_people` (`id`),
   ADD CONSTRAINT `fk_doc_user` FOREIGN KEY (`uploaded_by`) REFERENCES `acct_app_users` (`id`);
+```
+
+## acct_business_hosts
+
+Definition: [migrations/083_business_hosts_and_brand.sql](../../migrations/083_business_hosts_and_brand.sql) (line 8)
+
+```sql
+CREATE TABLE IF NOT EXISTS acct_business_hosts (
+  host VARCHAR(190) NOT NULL,
+  legal_business_id BIGINT UNSIGNED NOT NULL,
+  purpose ENUM('APP','SHOP') NOT NULL DEFAULT 'APP',
+  status ENUM('ACTIVE','INACTIVE') NOT NULL DEFAULT 'ACTIVE',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (host),
+  KEY idx_business_hosts_business (legal_business_id, purpose),
+  CONSTRAINT fk_business_hosts_business FOREIGN KEY (legal_business_id) REFERENCES acct_legal_businesses (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ## acct_business_people
@@ -1239,6 +1317,34 @@ Change: [migrations/064_offer_branches.sql](../../migrations/064_offer_branches.
 
 ```sql
 ALTER TABLE acct_coupons ADD COLUMN IF NOT EXISTS branch_id BIGINT UNSIGNED NULL;
+```
+
+## acct_customer_credits
+
+Definition: [migrations/082_customer_credit.sql](../../migrations/082_customer_credit.sql) (line 3)
+
+```sql
+CREATE TABLE IF NOT EXISTS acct_customer_credits (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  legal_business_id BIGINT UNSIGNED NOT NULL,
+  division_id BIGINT UNSIGNED NOT NULL,
+  customer_id BIGINT UNSIGNED NOT NULL,
+  entry_type ENUM('RECEIVED','USED','REFUNDED') NOT NULL,
+  entry_date DATE NOT NULL,
+  amount DECIMAL(18,2) NOT NULL,
+  payment_method VARCHAR(20) NULL,
+  bank_account_id BIGINT UNSIGNED NULL,
+  cash_account_id BIGINT UNSIGNED NULL,
+  reference VARCHAR(150) NULL,
+  source_sale_id BIGINT UNSIGNED NULL,
+  applied_sale_id BIGINT UNSIGNED NULL,
+  remarks VARCHAR(300) NULL,
+  status ENUM('RECORDED','VOID') NOT NULL DEFAULT 'RECORDED',
+  created_by BIGINT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_customer_credit (legal_business_id, customer_id, status),
+  KEY idx_customer_credit_sale (applied_sale_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
 ## acct_customer_messages
@@ -2600,6 +2706,24 @@ Change: [db/base_schema_2026-10-28.sql](../../db/base_schema_2026-10-28.sql)
 ```sql
 ALTER TABLE `acct_legal_businesses`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+```
+
+## acct_letter_templates
+
+Definition: [migrations/084_letter_templates.sql](../../migrations/084_letter_templates.sql) (line 5)
+
+```sql
+CREATE TABLE IF NOT EXISTS acct_letter_templates (
+  legal_business_id BIGINT UNSIGNED NOT NULL,
+  letter_type VARCHAR(40) NOT NULL,
+  heading VARCHAR(120) NOT NULL,
+  body TEXT NOT NULL,
+  needs_acceptance TINYINT(1) NOT NULL DEFAULT 0,
+  updated_by BIGINT UNSIGNED NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (legal_business_id, letter_type),
+  CONSTRAINT fk_letter_templates_business FOREIGN KEY (legal_business_id) REFERENCES acct_legal_businesses (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ## acct_login_attempts
@@ -4041,6 +4165,13 @@ ALTER TABLE acct_sales_payments
   ADD INDEX IF NOT EXISTS idx_sales_payments_exchange_return (exchange_return_id);
 ```
 
+Change: [migrations/082_customer_credit.sql](../../migrations/082_customer_credit.sql)
+
+```sql
+ALTER TABLE acct_sales_payments
+  MODIFY payment_method ENUM('CASH','UPI','BANK_TRANSFER','CARD','OTHER','DISCOUNT','SET_OFF','EXCHANGE','CREDIT') NOT NULL;
+```
+
 ## acct_sales_refunds
 
 Definition: [db/base_schema_2026-10-28.sql](../../db/base_schema_2026-10-28.sql) (line 1815)
@@ -4233,6 +4364,52 @@ CREATE TABLE IF NOT EXISTS acct_serials (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_serial_no (legal_business_id, serial_no),
   KEY idx_serial_variant (legal_business_id, variant_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+## acct_service_ticket_log
+
+Definition: [migrations/079_service_tickets.sql](../../migrations/079_service_tickets.sql) (line 25)
+
+```sql
+CREATE TABLE IF NOT EXISTS acct_service_ticket_log (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  legal_business_id BIGINT UNSIGNED NOT NULL,
+  ticket_id BIGINT UNSIGNED NOT NULL,
+  status_after VARCHAR(10) NOT NULL,
+  note VARCHAR(500) NULL,
+  created_by BIGINT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_ticket_log (legal_business_id, ticket_id, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+## acct_service_tickets
+
+Definition: [migrations/079_service_tickets.sql](../../migrations/079_service_tickets.sql) (line 2)
+
+```sql
+CREATE TABLE IF NOT EXISTS acct_service_tickets (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  legal_business_id BIGINT UNSIGNED NOT NULL,
+  ticket_no VARCHAR(20) NOT NULL,
+  kind VARCHAR(12) NOT NULL DEFAULT 'COMPLAINT',
+  status VARCHAR(10) NOT NULL DEFAULT 'OPEN',
+  customer_id BIGINT UNSIGNED NULL,
+  contact_name VARCHAR(160) NOT NULL,
+  contact_phone CHAR(10) NULL,
+  sale_id BIGINT UNSIGNED NULL,
+  summary VARCHAR(200) NOT NULL,
+  details VARCHAR(1000) NULL,
+  follow_up_on DATE NULL,
+  resolution VARCHAR(500) NULL,
+  created_by BIGINT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  resolved_at DATETIME NULL,
+  UNIQUE KEY uq_ticket_no (legal_business_id, ticket_no),
+  KEY idx_ticket_status (legal_business_id, status, follow_up_on),
+  KEY idx_ticket_customer (legal_business_id, customer_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 

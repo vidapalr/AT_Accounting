@@ -18,6 +18,7 @@ import {
   Package,
   Settings,
   Users,
+  IdCard,
 } from "lucide-react";
 
 import { activeHref, type NavSection } from "@/lib/navigation";
@@ -37,6 +38,7 @@ const ICONS = {
   whatsapp: MessageCircle,
   products: Tags,
   money: Wallet,
+  people: IdCard,
 };
 
 /** Sidebar: the section you are in stays open, the page you are on is highlighted. */

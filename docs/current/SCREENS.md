@@ -12,7 +12,19 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("reports")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_bank_accounts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customers`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_posting_failures`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_bank_accounts`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customers`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_posting_failures`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+
+## Account mapping
+
+- Route: `/accounting/account-mapping`
+- Source: [src/app/(workspace)/accounting/account-mapping/page.tsx](../../src/app/(workspace)/accounting/account-mapping/page.tsx)
+- Access: GROUP_OWNER (navigation default)
+- Purpose: Which account each kind of entry is posted to
+- Static headings: Dynamic or delegated
+- Named form controls (including imported UI): None detected statically
+- Direct guard calls: requireGroupOwner()
+- Direct action imports: `@/lib/account-map-actions`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_chart_of_accounts`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Advances and deposits
 
@@ -24,7 +36,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `advance_date`, `advance_type`, `allocation_level`, `amount`, `branch_id`, `description`, `division_id`, `funding_party_id`, `payment_account`, `payment_method`, `payment_reference`, `payment_source`, `recipient_name`, `remarks`
 - Direct guard calls: requireAccess("expenses")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_funding_parties`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_funding_parties`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Items on approval
 
@@ -36,7 +48,19 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `customer_name`, `customer_phone`, `expected_back`, `handed_date`, `item_id`, `location`, `location_id`, `outcome`, `q`, `quantity`, `remarks`
 - Direct guard calls: requireAccess("approval_items")
 - Direct action imports: `@/lib/approval-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_approval_handouts`, `acct_approval_items`, `acct_audit_events`, `acct_cash_accounts`, `acct_customers`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_sales_headers`, `acct_sales_payments`, `acct_sessions`, `acct_stock_damages`, `acct_stock_movements`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_approval_handouts`, `acct_approval_items`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_customers`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_sales_headers`, `acct_sales_payments`, `acct_sessions`, `acct_stock_damages`, `acct_stock_movements`, `acct_user_access`
+
+## Approvals
+
+- Route: `/accounting/approvals`
+- Source: [src/app/(workspace)/accounting/approvals/page.tsx](../../src/app/(workspace)/accounting/approvals/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT, CASHIER, DIVISION_MANAGER
+- Purpose: Entries above a limit waiting for a check or a final approval
+- Static headings: Approvals; Everything else
+- Named form controls (including imported UI): `id`, `reason`
+- Direct guard calls: requireAccess("approval_requests")
+- Direct action imports: `@/lib/approval-request-actions`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_approval_requests`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_expense_payments`, `acct_expenses`, `acct_funding_agreements`, `acct_funding_parties`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_owner_accounts`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_user_access`
 
 ## Change history
 
@@ -48,7 +72,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `from`, `to`, `what`, `who`
 - Direct guard calls: requireAccess("audit_view")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Download for the auditor
 
@@ -60,7 +84,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `format`, `from`, `to`
 - Direct guard calls: requireAccess("audit_view")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_financial_years`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_financial_years`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Every ledger line
 
@@ -72,7 +96,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `account`, `from`, `q`, `source`, `to`
 - Direct guard calls: requireAccess("audit_view")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_chart_of_accounts`, `acct_financial_years`, `acct_journal_entries`, `acct_journal_lines`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_chart_of_accounts`, `acct_financial_years`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Auditor adjustments
 
@@ -84,7 +108,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `adj_branch`, `adj_division`, `entry_date`, `reason`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/auditor-adjustment-actions`
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_auditor_adjustments`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customers`, `acct_divisions`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_product_variants`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_auditor_adjustments`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customers`, `acct_divisions`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_product_variants`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Backup
 
@@ -96,7 +120,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Bank accounts
 
@@ -108,7 +132,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `account_holder_name`, `account_label`, `account_number`, `account_type`, `bank_account_id`, `bank_name`, `branch_name`, `can_receive`, `can_send`, `decision`, `evidence_id`, `file`, `funding_party_id`, `gl_account_id`, `ifsc_code`, `notes`, `ownership_type`, `return_to`, `verification_notes`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/bank-account-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_bank_evidence`, `acct_bank_verifications`, `acct_chart_of_accounts`, `acct_funding_parties`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_bank_evidence`, `acct_bank_verifications`, `acct_business_hosts`, `acct_business_settings`, `acct_chart_of_accounts`, `acct_funding_parties`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Bank statement check
 
@@ -120,7 +144,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `bank_account_id`, `file`, `line_id`, `note`, `pasted`, `undo`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/bank-statement-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_bank_accounts`, `acct_bank_statement_lines`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_reversals`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_bank_accounts`, `acct_bank_statement_lines`, `acct_business_hosts`, `acct_business_settings`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Bill terms
 
@@ -132,7 +156,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `body`, `reset`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/bill-terms-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_bill_terms`, `acct_sales_headers`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_bill_terms`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_sales_headers`, `acct_sessions`, `acct_user_access`
 
 ## Cancel one against the other
 
@@ -144,9 +168,9 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `amount`, `note`, `setoff_date`, `supplier_id`
 - Direct guard calls: requireAccess("both_sides")
 - Direct action imports: `@/lib/party-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_customers`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_product_variants`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_customers`, `acct_legal_businesses`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_product_variants`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
-## Both sides (also a supplier)
+## Both sides (customer and supplier)
 
 - Route: `/accounting/both-sides`
 - Source: [src/app/(workspace)/accounting/both-sides/page.tsx](../../src/app/(workspace)/accounting/both-sides/page.tsx)
@@ -156,7 +180,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `customer_id`, `supplier_id`
 - Direct guard calls: requireAccess("both_sides")
 - Direct action imports: `@/lib/party-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_customers`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_product_variants`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_customers`, `acct_legal_businesses`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_product_variants`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## /accounting/branch-inventory
 
@@ -170,6 +194,42 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Direct action imports: None
 - Referenced tables (dependency closure): None detected
 
+## Brand and modules
+
+- Route: `/accounting/brand`
+- Source: [src/app/(workspace)/accounting/brand/page.tsx](../../src/app/(workspace)/accounting/brand/page.tsx)
+- Access: GROUP_OWNER (navigation default)
+- Purpose: Name, logo, phone and words printed on bills and the website; parts of the app in use
+- Static headings: Dynamic or delegated
+- Named form controls (including imported UI): `shop_nav_links`
+- Direct guard calls: requireGroupOwner()
+- Direct action imports: `@/lib/brand-actions`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
+
+## /accounting/budgets/entries
+
+- Route: `/accounting/budgets/entries`
+- Source: [src/app/(workspace)/accounting/budgets/entries/page.tsx](../../src/app/(workspace)/accounting/budgets/entries/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT, AUDITOR
+- Purpose: See page source and linked modules for redirect or dynamic content.
+- Static headings: Dynamic or delegated
+- Named form controls (including imported UI): None detected statically
+- Direct guard calls: requireAccess("reports")
+- Direct action imports: None
+- Referenced tables (dependency closure): `acct_account_map`, `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_chart_of_accounts`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
+
+## Budget against actual
+
+- Route: `/accounting/budgets`
+- Source: [src/app/(workspace)/accounting/budgets/page.tsx](../../src/app/(workspace)/accounting/budgets/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT, AUDITOR
+- Purpose: Monthly targets and spending limits per branch
+- Static headings: Budget against actual
+- Named form controls (including imported UI): `month`
+- Direct guard calls: requireAccess("reports")
+- Direct action imports: `@/lib/budget-actions`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_advance_transactions`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_budgets`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_divisions`, `acct_expense_payments`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_user_access`
+
 ## Cash accounts
 
 - Route: `/accounting/cash-accounts`
@@ -180,7 +240,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `branch_id`, `cash_name`, `cash_type`, `custodian_name`, `division_id`, `gl_account_code`, `notes`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/cash-account-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_divisions`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_divisions`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
 
 ## Close the day (cash count)
 
@@ -192,7 +252,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `account`, `cash_account_id`, `closing_date`, `counted`, `date`, `denominations`, `note`, `opening`, `taken_out`, `taken_to`
 - Direct guard calls: requireAccess("cash_closing")
 - Direct action imports: `@/lib/cash-closing-actions`
-- Referenced tables (dependency closure): `acct_advance_transactions`, `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_cash_closings`, `acct_cash_note_log`, `acct_chart_of_accounts`, `acct_divisions`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_fixed_assets`, `acct_funding_transactions`, `acct_inventory_locations`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_reversals`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_accounts`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_staff_advances`, `acct_supplier_refunds`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_advance_transactions`, `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_cash_note_log`, `acct_chart_of_accounts`, `acct_divisions`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_fixed_assets`, `acct_funding_transactions`, `acct_inventory_locations`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_accounts`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_staff_advances`, `acct_supplier_refunds`, `acct_user_access`
 
 ## Where the money went
 
@@ -204,7 +264,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `from`, `to`
 - Direct guard calls: requireAccess("reports")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_bank_accounts`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_financial_years`, `acct_journal_entries`, `acct_journal_lines`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_bank_accounts`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_financial_years`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Add photos and videos
 
@@ -216,7 +276,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `care_text`, `description`, `files`, `highlights`, `media_id`, `product_id`, `size_guide`
 - Direct guard calls: requireAccess("products")
 - Direct action imports: `@/lib/shop-actions`, `@/lib/catalogue-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_business_settings`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_stock_events`, `acct_stock_movements`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_stock_events`, `acct_stock_movements`, `acct_user_access`
 
 ## /accounting/catalogue/broadcast/[id]
 
@@ -228,19 +288,19 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_settings`, `acct_customers`, `acct_product_media`, `acct_products`, `acct_sessions`, `acct_stock_events`, `acct_user_access`, `acct_wa_broadcast_recipients`, `acct_wa_broadcasts`, `acct_wa_delivery`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_customers`, `acct_legal_businesses`, `acct_product_media`, `acct_products`, `acct_sessions`, `acct_stock_events`, `acct_user_access`, `acct_wa_broadcast_recipients`, `acct_wa_broadcasts`, `acct_wa_delivery`
 
-## 1. Send a test to your own number
+## Send new stock on WhatsApp
 
 - Route: `/accounting/catalogue/broadcast`
 - Source: [src/app/(workspace)/accounting/catalogue/broadcast/page.tsx](../../src/app/(workspace)/accounting/catalogue/broadcast/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT
-- Purpose: 1. Send a test to your own number; 2. Send to everyone on the list; Earlier sends; Send new stock on WhatsApp (automatic)
+- Purpose: Automatic messages to customers who agreed
 - Static headings: 1. Send a test to your own number; 2. Send to everyone on the list; Earlier sends; Send new stock on WhatsApp (automatic)
 - Named form controls (including imported UI): `confirm`, `count`, `events`, `phone`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/broadcast-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_settings`, `acct_customers`, `acct_product_media`, `acct_products`, `acct_sessions`, `acct_stock_events`, `acct_user_access`, `acct_wa_broadcast_recipients`, `acct_wa_broadcasts`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_customers`, `acct_legal_businesses`, `acct_product_media`, `acct_products`, `acct_sessions`, `acct_stock_events`, `acct_user_access`, `acct_wa_broadcast_recipients`, `acct_wa_broadcasts`
 
 ## /accounting/catalogue/instagram
 
@@ -252,7 +312,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("products")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_instagram_posts`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_instagram_posts`, `acct_legal_businesses`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_user_access`
 
 ## New stock arrivals
 
@@ -264,19 +324,19 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `event_ids`, `status`
 - Direct guard calls: requireAccess("products")
 - Direct action imports: `@/lib/catalogue-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_divisions`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_stock_events`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_legal_businesses`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_stock_events`, `acct_user_access`
 
-## Catalogue
+## Photos and videos
 
 - Route: `/accounting/catalogue`
 - Source: [src/app/(workspace)/accounting/catalogue/page.tsx](../../src/app/(workspace)/accounting/catalogue/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT
-- Purpose: Photos and videos of every product
+- Purpose: Photos and videos of every product; switch products on for the shop
 - Static headings: Catalogue
 - Named form controls (including imported UI): `mode`, `q`, `view`, `whatsapp`
 - Direct guard calls: requireAccess("products")
 - Direct action imports: `@/lib/shop-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_business_settings`, `acct_divisions`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
 
 ## Add photos
 
@@ -288,31 +348,31 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("products")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_product_media`, `acct_products`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_product_media`, `acct_products`, `acct_sessions`, `acct_user_access`
 
-## Shop prices
+## Website prices
 
 - Route: `/accounting/catalogue/prices`
 - Source: [src/app/(workspace)/accounting/catalogue/prices/page.tsx](../../src/app/(workspace)/accounting/catalogue/prices/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT
-- Purpose: Shop prices
+- Purpose: Price shown on the online shop, per size and colour
 - Static headings: Shop prices
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("products")
 - Direct action imports: `@/lib/shop-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_business_settings`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
 
-## Add a song
+## Music for reels
 
 - Route: `/accounting/catalogue/reels/music`
 - Source: [src/app/(workspace)/accounting/catalogue/reels/music/page.tsx](../../src/app/(workspace)/accounting/catalogue/reels/music/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT
-- Purpose: Add a song; Music for reels
+- Purpose: Songs to use in product reels
 - Static headings: Add a song; Music for reels
 - Named form controls (including imported UI): `file`, `id`, `licence`, `name`
 - Direct guard calls: requireAccess("products")
 - Direct action imports: `@/lib/reel-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_reel_tracks`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_reel_tracks`, `acct_sessions`, `acct_user_access`
 
 ## /accounting/catalogue/reels
 
@@ -324,19 +384,19 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("products")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_business_settings`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_reel_tracks`, `acct_selling_prices`, `acct_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_reel_tracks`, `acct_selling_prices`, `acct_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
 
 ## Tell customers about new stock
 
 - Route: `/accounting/catalogue/share`
 - Source: [src/app/(workspace)/accounting/catalogue/share/page.tsx](../../src/app/(workspace)/accounting/catalogue/share/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT
-- Purpose: Tell customers about new stock
+- Purpose: Ready messages and photos to share
 - Static headings: Tell customers about new stock
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("customers")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_customer_messages`, `acct_customers`, `acct_divisions`, `acct_product_variants`, `acct_products`, `acct_sales_headers`, `acct_sessions`, `acct_stock_events`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_customer_messages`, `acct_customers`, `acct_divisions`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_sales_headers`, `acct_sessions`, `acct_stock_events`, `acct_user_access`
 
 ## Chart of accounts
 
@@ -348,7 +408,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `account_id`, `account_name`, `account_subtype`, `account_type`, `description`, `q`, `requires_branch`, `requires_division`, `status`, `target_status`, `type`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/chart-of-accounts-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_chart_of_accounts`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_business_hosts`, `acct_business_settings`, `acct_chart_of_accounts`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## WhatsApp message log
 
@@ -360,7 +420,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("online_orders")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_sales_headers`, `acct_sessions`, `acct_user_access`, `acct_wa_broadcast_recipients`, `acct_wa_broadcasts`, `acct_wa_delivery`, `acct_wa_status_log`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_sales_headers`, `acct_sessions`, `acct_user_access`, `acct_wa_broadcast_recipients`, `acct_wa_broadcasts`, `acct_wa_delivery`, `acct_wa_status_log`
 
 ## WhatsApp chatbot
 
@@ -372,7 +432,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `auto`, `daily_max`, `details`, `enabled`, `id`, `keywords`, `language`, `owner_numbers`, `photos`, `rate`, `reply`, `template`, `title`, `welcome`
 - Direct guard calls: requireAccess("online_orders")
 - Direct action imports: `@/lib/broadcast-actions`, `@/lib/bot-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bot_answers`, `acct_bot_conversations`, `acct_bot_messages`, `acct_business_settings`, `acct_customers`, `acct_product_media`, `acct_products`, `acct_sessions`, `acct_stock_events`, `acct_user_access`, `acct_wa_broadcast_recipients`, `acct_wa_broadcasts`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bot_answers`, `acct_bot_conversations`, `acct_bot_messages`, `acct_business_hosts`, `acct_business_settings`, `acct_customers`, `acct_legal_businesses`, `acct_product_media`, `acct_products`, `acct_sessions`, `acct_stock_events`, `acct_user_access`, `acct_wa_broadcast_recipients`, `acct_wa_broadcasts`
 
 ## Who owes, and how long
 
@@ -384,7 +444,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("customers")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_customers`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_customers`, `acct_legal_businesses`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Bills and payments
 
@@ -393,10 +453,10 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Access: GROUP_OWNER, ACCOUNTANT, CASHIER, DIVISION_MANAGER
 - Purpose: Bills and payments; Customer details; History
 - Static headings: Bills and payments; Customer details; History
-- Named form controls (including imported UI): `address`, `city`, `credit_limit`, `customer_id`, `customer_type`, `follow_up_on`, `full_name`, `gstin`, `kind`, `note`, `notes`, `phone`, `source_id`, `target_id`, `whatsapp_opt_in`
+- Named form controls (including imported UI): `account`, `address`, `amount`, `city`, `credit_limit`, `customer_id`, `customer_type`, `entry_date`, `follow_up_on`, `full_name`, `gstin`, `kind`, `method`, `note`, `notes`, `phone`, `reference`, `source_id`, `target_id`, `whatsapp_opt_in`
 - Direct guard calls: requireAccess("customers")
-- Direct action imports: `@/lib/customer-actions`, `@/lib/customer-merge-actions`, `@/lib/customer-note-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_approval_handouts`, `acct_approval_items`, `acct_audit_events`, `acct_bot_conversations`, `acct_bot_messages`, `acct_branches`, `acct_coupons`, `acct_customer_messages`, `acct_customer_notes`, `acct_customers`, `acct_divisions`, `acct_free_stock`, `acct_online_orders`, `acct_product_variants`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sale_rewards`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_returns`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Direct action imports: `@/lib/customer-actions`, `@/lib/customer-merge-actions`, `@/lib/customer-note-actions`, `@/lib/customer-credit-actions`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_approval_handouts`, `acct_approval_items`, `acct_audit_events`, `acct_bank_accounts`, `acct_bot_conversations`, `acct_bot_messages`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_coupons`, `acct_customer_credits`, `acct_customer_messages`, `acct_customer_notes`, `acct_customers`, `acct_divisions`, `acct_free_stock`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_online_orders`, `acct_product_variants`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sale_rewards`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_returns`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## All customers
 
@@ -408,7 +468,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `city`, `customer_type`, `full_name`, `phone`, `q`, `view`, `whatsapp_opt_in`
 - Direct guard calls: requireAccess("customers")
 - Direct action imports: `@/lib/customer-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_customers`, `acct_product_variants`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_customers`, `acct_legal_businesses`, `acct_product_variants`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Cut-over check by agreement
 
@@ -420,7 +480,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_agreement_funding_policies`, `acct_agreement_versions`, `acct_app_users`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_journal_entries`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_funding_details`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_agreement_funding_policies`, `acct_agreement_versions`, `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_journal_entries`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_funding_details`, `acct_sessions`, `acct_user_access`
 
 ## Cut-over check
 
@@ -432,7 +492,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `cutover`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_journal_entries`, `acct_opening_balance_batches`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_journal_entries`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_sessions`, `acct_user_access`
 
 ## Sales pipeline
 
@@ -444,7 +504,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `deal_id`, `expected_close`, `expected_value`, `lost_reason`, `note`, `party_name`, `phone`, `title`, `to`
 - Direct guard calls: requireAccess("customers")
 - Direct action imports: `@/lib/deal-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_customers`, `acct_deals`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_customers`, `acct_deals`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## /accounting/documents/[id]
 
@@ -456,19 +516,19 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("reports")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_document_copies`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_document_copies`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Printed papers
 
 - Route: `/accounting/documents`
 - Source: [src/app/(workspace)/accounting/documents/page.tsx](../../src/app/(workspace)/accounting/documents/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT, AUDITOR
-- Purpose: Who printed which bill or voucher, reprints with reasons, saved copies
+- Purpose: Who printed which bill or voucher, reprints with reasons
 - Static headings: Printed papers
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("reports")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_document_log`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_document_log`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Add Payment
 
@@ -480,7 +540,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `account_id`, `amount`, `branch_id`, `expense_id`, `funding_party_id`, `owner_account_id`, `payment_date`, `payment_id`, `payment_method`, `payment_reference`, `payment_source`
 - Direct guard calls: requireAccess("expenses")
 - Direct action imports: `@/lib/expense-payment-actions`, `@/lib/voucher-actions`, `@/lib/expense-branch-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_expense_payments`, `acct_expenses`, `acct_funding_parties`, `acct_journal_entries`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_owner_accounts`, `acct_sessions`, `acct_user_access`, `acct_vouchers`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_expense_payments`, `acct_expenses`, `acct_funding_parties`, `acct_journal_entries`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_owner_accounts`, `acct_sessions`, `acct_user_access`, `acct_vouchers`
 
 ## /accounting/expenses/[id]/print
 
@@ -492,19 +552,19 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("expenses")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_document_copies`, `acct_document_log`, `acct_expense_payments`, `acct_expenses`, `acct_funding_parties`, `acct_sales_headers`, `acct_sessions`, `acct_user_access`, `acct_vouchers`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_document_copies`, `acct_document_log`, `acct_expense_payments`, `acct_expenses`, `acct_funding_parties`, `acct_legal_businesses`, `acct_sales_headers`, `acct_sessions`, `acct_user_access`, `acct_vouchers`
 
 ## Expenses
 
 - Route: `/accounting/expenses`
 - Source: [src/app/(workspace)/accounting/expenses/page.tsx](../../src/app/(workspace)/accounting/expenses/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT
-- Purpose: Rent, salaries, transport and other costs
+- Purpose: Rent, electricity, transport and other costs
 - Static headings: Expense Register; Expenses; New Expense
 - Named form controls (including imported UI): `allocation_level`, `amount`, `branch_id`, `category`, `description`, `division_id`, `expense_date`, `initial_funding_party_id`, `initial_paid_amount`, `initial_payment_account`, `initial_payment_date`, `initial_payment_method`, `initial_payment_reference`, `initial_payment_source`, `is_setup_cost`, `mode`, `payee_name`, `remarks`
 - Direct guard calls: requireAccess("expenses")
 - Direct action imports: `@/lib/expense-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_expense_payments`, `acct_expenses`, `acct_funding_parties`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_approval_requests`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_expense_payments`, `acct_expenses`, `acct_funding_agreements`, `acct_funding_parties`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_owner_accounts`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_user_access`
 
 ## Fixed assets
 
@@ -516,7 +576,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `asset_id`, `asset_name`, `category`, `cost`, `disposed_on`, `into`, `kind`, `life_years`, `note`, `paid_from`, `proceeds`, `purchase_date`, `remarks`, `salvage_value`, `up_to`
 - Direct guard calls: requireAccess("expenses")
 - Direct action imports: `@/lib/asset-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_divisions`, `acct_fixed_assets`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_fixed_assets`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
 
 ## Follow-ups
 
@@ -528,7 +588,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `id`, `mode`, `next_day`, `result`, `type`
 - Direct guard calls: requireAccess("customers")
 - Direct action imports: `@/lib/follow-up-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_customer_notes`, `acct_customers`, `acct_leads`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_customer_notes`, `acct_customers`, `acct_leads`, `acct_legal_businesses`, `acct_service_ticket_log`, `acct_service_tickets`, `acct_sessions`, `acct_user_access`
 
 ## Give stock free
 
@@ -540,7 +600,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `customer_id`, `entry_id`, `given_date`, `given_to`, `location`, `location_id`, `q`, `reason`, `reject_reason`
 - Direct guard calls: requireAccess("free_stock")
 - Direct action imports: `@/lib/free-stock-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_cash_accounts`, `acct_customers`, `acct_free_stock`, `acct_free_stock_lines`, `acct_inventory_locations`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_stock_damages`, `acct_stock_movements`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_customers`, `acct_free_stock`, `acct_free_stock_lines`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_stock_damages`, `acct_stock_movements`, `acct_user_access`
 
 ## Group rules
 
@@ -548,11 +608,11 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Source: [src/app/(workspace)/accounting/group-rules/page.tsx](../../src/app/(workspace)/accounting/group-rules/page.tsx)
 - Access: GROUP_OWNER (navigation default)
 - Purpose: Least share you keep; funding limits
-- Static headings: Funding limits; Group rules; Your share of the group
+- Static headings: Approval limits; Funding limits; Group rules; Your share of the group
 - Named form controls (including imported UI): `owner_min`
 - Direct guard calls: requireGroupOwner()
-- Direct action imports: `@/lib/group-rules-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_settings`, `acct_sessions`, `acct_user_access`
+- Direct action imports: `@/lib/group-rules-actions`, `@/lib/approval-request-actions`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_approval_requests`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_expense_payments`, `acct_expenses`, `acct_funding_agreements`, `acct_funding_parties`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_owner_accounts`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_user_access`
 
 ## GST settings
 
@@ -564,7 +624,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `effective_date`, `gstin`, `inclusive`, `state_code`, `status`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/gst-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_business_settings`, `acct_products`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_products`, `acct_sessions`, `acct_user_access`
 
 ## Accounting health
 
@@ -576,7 +636,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("reports")
 - Direct action imports: `@/lib/posting-retry-actions`
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_approval_items`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_auditor_adjustments`, `acct_bank_accounts`, `acct_bank_statement_lines`, `acct_bot_answers`, `acct_branches`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_cash_note_log`, `acct_chart_of_accounts`, `acct_customer_messages`, `acct_customer_notes`, `acct_customers`, `acct_deals`, `acct_divisions`, `acct_document_log`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_instagram_posts`, `acct_invoice_shares`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_leads`, `acct_login_attempts`, `acct_offers`, `acct_online_orders`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_accounts`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_posting_failures`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_orders`, `acct_purchase_payments`, `acct_reel_tracks`, `acct_sale_rewards`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_selling_prices`, `acct_serials`, `acct_sessions`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_shop_password_resets`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_stock_movements`, `acct_stock_reporters`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`, `acct_user_totp`, `acct_vouchers`, `acct_wa_broadcasts`, `acct_wa_status_log`, `acct_whatsapp_recipients`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_approval_items`, `acct_approval_requests`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_auditor_adjustments`, `acct_bank_accounts`, `acct_bank_statement_lines`, `acct_bot_answers`, `acct_branches`, `acct_budgets`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_cash_note_log`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customer_messages`, `acct_customer_notes`, `acct_customers`, `acct_deals`, `acct_divisions`, `acct_document_log`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_instagram_posts`, `acct_invoice_shares`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_leads`, `acct_legal_businesses`, `acct_login_attempts`, `acct_offers`, `acct_online_orders`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_accounts`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_posting_failures`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_orders`, `acct_purchase_payments`, `acct_reel_tracks`, `acct_sale_rewards`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_selling_prices`, `acct_serials`, `acct_service_tickets`, `acct_sessions`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_shop_password_resets`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_stock_movements`, `acct_stock_reporters`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`, `acct_user_totp`, `acct_vouchers`, `acct_wa_broadcasts`, `acct_wa_status_log`, `acct_whatsapp_recipients`
 
 ## Earlier funding entries
 
@@ -588,7 +648,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `agreement_id`, `agreement_version_id`, `amount`, `batch_id`, `description`, `evidence_reference`, `payment_method`, `payment_reference`, `remarks`, `transaction_date`, `transaction_type`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/historical-funding-actions`
-- Referenced tables (dependency closure): `acct_agreement_versions`, `acct_app_users`, `acct_audit_events`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_historical_funding_batches`, `acct_historical_funding_items`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_agreement_versions`, `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_historical_funding_batches`, `acct_historical_funding_items`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_sessions`, `acct_user_access`
 
 ## Insights
 
@@ -600,7 +660,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("reports")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_advance_transactions`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_customers`, `acct_divisions`, `acct_expense_payments`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_product_variants`, `acct_products`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_returns`, `acct_sessions`, `acct_stock_movements`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_advance_transactions`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_customers`, `acct_divisions`, `acct_expense_payments`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_product_variants`, `acct_products`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_returns`, `acct_sessions`, `acct_stock_movements`, `acct_user_access`
 
 ## Investor money by account
 
@@ -612,7 +672,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_bank_accounts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customers`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_posting_failures`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_bank_accounts`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customers`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_posting_failures`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Investor bank links
 
@@ -624,7 +684,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `bank_account_id`, `branch_id`, `division_id`, `funding_party_id`, `purpose`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/investor-bank-scope-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_divisions`, `acct_funding_parties`, `acct_investor_bank_scopes`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_funding_parties`, `acct_investor_bank_scopes`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Change investor scope
 
@@ -636,7 +696,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `confirm`, `effective_from`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/investor-scope-amendment-actions`, `@/lib/investor-scope-approval-actions`
-- Referenced tables (dependency closure): `acct_agreement_amendments`, `acct_agreement_funding_policies`, `acct_agreement_versions`, `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_divisions`, `acct_funding_agreements`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_agreement_amendments`, `acct_agreement_funding_policies`, `acct_agreement_versions`, `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_funding_agreements`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Profit shares
 
@@ -648,7 +708,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `from`, `to`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_advance_transactions`, `acct_agreement_versions`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_divisions`, `acct_expense_payments`, `acct_financial_years`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_profit_waterfall_policies`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_advance_transactions`, `acct_agreement_versions`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_divisions`, `acct_expense_payments`, `acct_financial_years`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_profit_waterfall_policies`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_user_access`
 
 ## Invoices
 
@@ -660,7 +720,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `q`, `tab`
 - Direct guard calls: requireAccess("sales")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_inventory_locations`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sessions`, `acct_user_access`
 
 ## Debit and Credit Lines
 
@@ -672,7 +732,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `accounting_period_id`, `confirm`, `original_journal_id`, `reversal_date`, `reversal_reason`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/journal-reversal-actions`
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_chart_of_accounts`, `acct_divisions`, `acct_financial_years`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_chart_of_accounts`, `acct_divisions`, `acct_financial_years`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Journals
 
@@ -684,7 +744,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `accounting_period_id`, `confirm`, `description`, `entry_date`, `financial_year_id`, `journal_id`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/draft-journal-actions`, `@/lib/journal-posting-actions`, `@/lib/journal-reversal-actions`
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_chart_of_accounts`, `acct_divisions`, `acct_financial_years`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_chart_of_accounts`, `acct_divisions`, `acct_financial_years`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Leads
 
@@ -696,19 +756,31 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `action`, `follow_up_on`, `full_name`, `interest`, `lead_id`, `note`, `phone`, `source`
 - Direct guard calls: requireAccess("customers")
 - Direct action imports: `@/lib/lead-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_bot_conversations`, `acct_customers`, `acct_leads`, `acct_product_variants`, `acct_sales_headers`, `acct_sales_payments`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_bot_conversations`, `acct_business_hosts`, `acct_business_settings`, `acct_customers`, `acct_leads`, `acct_legal_businesses`, `acct_product_variants`, `acct_sales_headers`, `acct_sales_payments`, `acct_sessions`, `acct_user_access`
+
+## Letter templates
+
+- Route: `/accounting/letter-templates`
+- Source: [src/app/(workspace)/accounting/letter-templates/page.tsx](../../src/app/(workspace)/accounting/letter-templates/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT
+- Purpose: Wording of offer, joining, salary and leaving letters
+- Static headings: Dynamic or delegated
+- Named form controls (including imported UI): `body`, `heading`, `letter_type`, `needs_acceptance`
+- Direct guard calls: requireAccess("salary")
+- Direct action imports: `@/lib/letter-template-actions`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_letter_templates`, `acct_sessions`, `acct_user_access`
 
 ## Find by lot
 
 - Route: `/accounting/lots`
 - Source: [src/app/(workspace)/accounting/lots/page.tsx](../../src/app/(workspace)/accounting/lots/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT, DIVISION_MANAGER
-- Purpose: Trace a dye batch to its supplier and customers
+- Purpose: Trace a batch to its supplier and customers
 - Static headings: Find by lot; Sold from this lot
 - Named form controls (including imported UI): `q`
 - Direct guard calls: requireAccess("stock")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_sales_headers`, `acct_sales_lines`, `acct_sessions`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_sales_headers`, `acct_sales_lines`, `acct_sessions`, `acct_suppliers`, `acct_user_access`
 
 ## Running low
 
@@ -720,7 +792,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `back`, `level`, `q`, `variant_id`
 - Direct guard calls: requireAccess("stock")
 - Direct action imports: `@/lib/stock-count-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_cash_accounts`, `acct_inventory_locations`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_stock_count_lines`, `acct_stock_counts`, `acct_stock_damages`, `acct_stock_finds`, `acct_stock_movements`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_stock_count_lines`, `acct_stock_counts`, `acct_stock_damages`, `acct_stock_finds`, `acct_stock_movements`, `acct_user_access`
 
 ## Month close
 
@@ -732,7 +804,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customers`, `acct_divisions`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_reversals`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_salary_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_counts`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customers`, `acct_divisions`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_salary_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_counts`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## My investment
 
@@ -744,7 +816,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `from`, `to`
 - Direct guard calls: requireAccess("investor_view")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_advance_transactions`, `acct_agreement_versions`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_divisions`, `acct_expense_payments`, `acct_financial_years`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_profit_waterfall_policies`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_advance_transactions`, `acct_agreement_versions`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_divisions`, `acct_expense_payments`, `acct_financial_years`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_profit_waterfall_policies`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_user_access`
 
 ## Coupons
 
@@ -756,7 +828,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `code`, `coupon_id`, `ends_on`, `kind`, `max_discount`, `min_bill`, `once`, `starts_on`, `status`, `value`, `works_at`
 - Direct guard calls: requireAccess("products")
 - Direct action imports: `@/lib/rewards-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_coupons`, `acct_customers`, `acct_divisions`, `acct_sale_rewards`, `acct_sales_headers`, `acct_sales_returns`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_coupons`, `acct_customers`, `acct_divisions`, `acct_legal_businesses`, `acct_sale_rewards`, `acct_sales_headers`, `acct_sales_returns`, `acct_sessions`, `acct_user_access`
 
 ## Offers
 
@@ -768,7 +840,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `channel`, `ends_on`, `fabric`, `kind`, `name`, `offer_id`, `op`, `product_ids`, `scope`, `starts_on`, `value`, `works_at`
 - Direct guard calls: requireAccess("products")
 - Direct action imports: `@/lib/offer-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_divisions`, `acct_offer_products`, `acct_offers`, `acct_products`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_products`, `acct_sessions`, `acct_user_access`
 
 ## Online orders
 
@@ -780,7 +852,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `op`, `order_id`, `shipping`, `staff_note`
 - Direct guard calls: requireAccess("online_orders")
 - Direct action imports: `@/lib/online-order-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_online_order_lines`, `acct_online_orders`, `acct_sales_headers`, `acct_sessions`, `acct_shop_customers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_online_order_lines`, `acct_online_orders`, `acct_sales_headers`, `acct_sessions`, `acct_shop_customers`, `acct_user_access`
 
 ## Opening balances
 
@@ -792,7 +864,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `description`, `opening_date`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/opening-balance-actions`
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_divisions`, `acct_financial_years`, `acct_funding_agreements`, `acct_funding_parties`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_funding_details`, `acct_opening_investor_bank_balances`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_divisions`, `acct_financial_years`, `acct_funding_agreements`, `acct_funding_parties`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_funding_details`, `acct_opening_investor_bank_balances`, `acct_sessions`, `acct_user_access`
 
 ## Account-wise Review
 
@@ -804,7 +876,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `confirm`, `reconciliation_notes`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/opening-balance-posting-actions`, `@/lib/opening-balance-authorization-actions`
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_agreement_funding_policies`, `acct_agreement_versions`, `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_divisions`, `acct_financial_years`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_legal_businesses`, `acct_opening_balance_authorizations`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_funding_details`, `acct_opening_investor_bank_balances`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_agreement_funding_policies`, `acct_agreement_versions`, `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_divisions`, `acct_financial_years`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_legal_businesses`, `acct_opening_balance_authorizations`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_funding_details`, `acct_opening_investor_bank_balances`, `acct_sessions`, `acct_user_access`
 
 ## Owner accounts
 
@@ -816,7 +888,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `account_name`, `note`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/owner-account-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_cash_accounts`, `acct_cash_closings`, `acct_expense_payments`, `acct_expenses`, `acct_owner_accounts`, `acct_owner_money`, `acct_purchase_payments`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_expense_payments`, `acct_expenses`, `acct_legal_businesses`, `acct_owner_accounts`, `acct_owner_money`, `acct_purchase_payments`, `acct_sessions`, `acct_user_access`
 
 ## Owner money in and out
 
@@ -828,7 +900,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `account`, `amount`, `direction`, `entry_date`, `how`, `note`, `owner_account`, `reference`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/owner-money-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_cash_accounts`, `acct_owner_accounts`, `acct_owner_money`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_legal_businesses`, `acct_owner_accounts`, `acct_owner_money`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
 
 ## /accounting/pay-supplier/[batch]
 
@@ -840,7 +912,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `batch_no`, `confirm`
 - Direct guard calls: requireAccess("purchases")
 - Direct action imports: `@/lib/supplier-pay-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_divisions`, `acct_funding_agreements`, `acct_funding_parties`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_owner_accounts`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_approval_requests`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_expense_payments`, `acct_expenses`, `acct_funding_agreements`, `acct_funding_parties`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_owner_accounts`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Pay a supplier
 
@@ -852,7 +924,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `amount`, `evidence_reference`, `funding_agreement_id`, `funding_party_id`, `owner_account_id`, `payer_name`, `payment_date`, `payment_method`, `payment_reference`, `payment_source`, `remarks`, `source_bank_account_id`, `source_cash_account_id`, `supplier_id`
 - Direct guard calls: requireAccess("purchases")
 - Direct action imports: `@/lib/supplier-pay-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_divisions`, `acct_funding_agreements`, `acct_funding_parties`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_owner_accounts`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_approval_requests`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_expense_payments`, `acct_expenses`, `acct_funding_agreements`, `acct_funding_parties`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_owner_accounts`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Months and years
 
@@ -864,7 +936,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `operation`, `period_id`, `reason`, `start_year`, `year`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/accounting-period-actions`, `@/lib/accounting-period-status-actions`
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_audit_events`, `acct_financial_years`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_financial_years`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Product groups
 
@@ -876,7 +948,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `category_name`, `display_order`, `parent_category_id`
 - Direct guard calls: requireAccess("products")
 - Direct action imports: `@/lib/product-category-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_divisions`, `acct_legal_businesses`, `acct_product_categories`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_legal_businesses`, `acct_product_categories`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
 
 ## Product profit
 
@@ -888,19 +960,19 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("reports")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_product_variants`, `acct_products`, `acct_sales_headers`, `acct_sales_lines`, `acct_sessions`, `acct_stock_movements`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_sales_headers`, `acct_sales_lines`, `acct_sessions`, `acct_stock_movements`, `acct_user_access`
 
-## Product HSN codes and GST rates
+## HSN codes and GST rates
 
 - Route: `/accounting/products/gst`
 - Source: [src/app/(workspace)/accounting/products/gst/page.tsx](../../src/app/(workspace)/accounting/products/gst/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT
-- Purpose: Product HSN codes and GST rates
+- Purpose: Tax details for each product (ready for GST)
 - Static headings: Product HSN codes and GST rates
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("products")
 - Direct action imports: `@/lib/gst-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_business_settings`, `acct_products`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_products`, `acct_sessions`, `acct_user_access`
 
 ## Products
 
@@ -912,19 +984,19 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `brand_name`, `category_id`, `color_name`, `description`, `design_code`, `design_name`, `fabric`, `product_id`, `product_name`, `size_label`, `unit_of_measure`
 - Direct guard calls: requireAccess("products")
 - Direct action imports: `@/lib/product-master-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_divisions`, `acct_legal_businesses`, `acct_product_categories`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_legal_businesses`, `acct_product_categories`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_user_access`
 
 ## Quantity prices
 
 - Route: `/accounting/products/quantity-prices`
 - Source: [src/app/(workspace)/accounting/products/quantity-prices/page.tsx](../../src/app/(workspace)/accounting/products/quantity-prices/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT
-- Purpose: Lower price per piece when a customer buys 4 or more, or 10 or more
+- Purpose: Lower price per piece when a customer buys more
 - Static headings: One rule for every product; Own price for a product (optional); Quantity prices
 - Named form controls (including imported UI): `off10`, `off4`
 - Direct guard calls: requireAccess("products")
 - Direct action imports: `@/lib/qty-price-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_business_settings`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
 
 ## Selling prices
 
@@ -936,7 +1008,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("products")
 - Direct action imports: `@/lib/selling-price-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_sessions`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_sessions`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
 
 ## Supplier bills and payments
 
@@ -948,7 +1020,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `amount`, `confirm`, `evidence_reference`, `funding_agreement_id`, `funding_party_id`, `payer_name`, `payment_date`, `payment_id`, `payment_method`, `payment_reference`, `payment_source`, `purchase_id`, `remarks`, `return_to`, `source_bank_account_id`, `source_cash_account_id`
 - Direct guard calls: requireAccess("purchases")
 - Direct action imports: `@/lib/purchase-payment-actions`, `@/lib/purchase-payment-verification-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_divisions`, `acct_funding_agreements`, `acct_funding_parties`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_product_variants`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_funding_agreements`, `acct_funding_parties`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_product_variants`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Next step
 
@@ -960,7 +1032,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `expected_date`, `location_id`, `order_date`, `order_id`, `remarks`, `supplier_id`
 - Direct guard calls: requireAccess("purchases")
 - Direct action imports: `@/lib/purchase-order-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_divisions`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_order_lines`, `acct_purchase_orders`, `acct_sessions`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_order_lines`, `acct_purchase_orders`, `acct_sessions`, `acct_suppliers`, `acct_user_access`
 
 ## New purchase order
 
@@ -972,7 +1044,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `expected_date`, `location_id`, `order_date`, `order_id`, `remarks`, `supplier_id`
 - Direct guard calls: requireAccess("purchases")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_divisions`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_order_lines`, `acct_purchase_orders`, `acct_sessions`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_order_lines`, `acct_purchase_orders`, `acct_sessions`, `acct_suppliers`, `acct_user_access`
 
 ## Purchase orders
 
@@ -984,7 +1056,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("purchases")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_divisions`, `acct_purchase_order_lines`, `acct_purchase_orders`, `acct_sessions`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_legal_businesses`, `acct_purchase_order_lines`, `acct_purchase_orders`, `acct_sessions`, `acct_suppliers`, `acct_user_access`
 
 ## Goods Receipt
 
@@ -996,7 +1068,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `confirm`, `purchase_id`, `received_date`
 - Direct guard calls: requireAccess("purchases")
 - Direct action imports: `@/lib/goods-receipt-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_divisions`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_order_lines`, `acct_purchase_orders`, `acct_sessions`, `acct_stock_events`, `acct_stock_movements`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_order_lines`, `acct_purchase_orders`, `acct_sessions`, `acct_stock_events`, `acct_stock_movements`, `acct_suppliers`, `acct_user_access`
 
 ## Payment History &amp; Verification
 
@@ -1008,7 +1080,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `amount`, `confirm`, `evidence_reference`, `funding_agreement_id`, `funding_party_id`, `investor_bank_id`, `payer_name`, `payment_date`, `payment_id`, `payment_method`, `payment_reference`, `payment_source`, `purchase_id`, `reason`, `remarks`, `source_bank_account_id`, `source_cash_account_id`
 - Direct guard calls: requireAccess("purchases")
 - Direct action imports: `@/lib/purchase-payment-split-actions`, `@/lib/purchase-payment-actions`, `@/lib/purchase-payment-verification-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_divisions`, `acct_funding_agreements`, `acct_funding_parties`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_funding_agreements`, `acct_funding_parties`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Buy stock (purchases)
 
@@ -1020,19 +1092,31 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `invoice_date`, `location_id`, `purchase_id`, `remarks`, `report_ids`, `supplier_id`, `supplier_invoice_no`
 - Direct guard calls: requireAccess("purchases")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_divisions`, `acct_financial_years`, `acct_inventory_locations`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_stock_drafts`, `acct_stock_movements`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_financial_years`, `acct_inventory_locations`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_stock_drafts`, `acct_stock_movements`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+
+## Books check
+
+- Route: `/accounting/reconciliation`
+- Source: [src/app/(workspace)/accounting/reconciliation/page.tsx](../../src/app/(workspace)/accounting/reconciliation/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT, AUDITOR
+- Purpose: Do the books agree with the records, account by account
+- Static headings: Books check
+- Named form controls (including imported UI): None detected statically
+- Direct guard calls: requireAccess("reports")
+- Direct action imports: None
+- Referenced tables (dependency closure): `acct_account_map`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_bank_accounts`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customers`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Profit and balance sheet
 
 - Route: `/accounting/reports`
 - Source: [src/app/(workspace)/accounting/reports/page.tsx](../../src/app/(workspace)/accounting/reports/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT, AUDITOR
-- Purpose: Gross, operating and net profit; what the group owns and owes
+- Purpose: Gross, operating and net profit; what the business owns and owes
 - Static headings: Reports
 - Named form controls (including imported UI): `from`, `mode`, `to`
 - Direct guard calls: requireAccess("reports")
 - Direct action imports: `@/lib/ledger-sync-actions`, `@/lib/ledger-sync-actions`
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customers`, `acct_divisions`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_posting_failures`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customers`, `acct_divisions`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_posting_failures`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Returns and refunds
 
@@ -1044,7 +1128,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `account`, `amount`, `damage_date`, `damage_id`, `exchange`, `location_id`, `method`, `quantity`, `reason`, `refund_account`, `refund_date`, `refund_delivery`, `refund_id`, `refund_method`, `refund_now`, `remarks`, `return_date`, `return_id`, `sale`, `sale_id`, `variant_id`
 - Direct guard calls: requireAccess("returns")
 - Direct action imports: `@/lib/returns-actions`, `@/lib/write-off-cancel-actions`
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_cash_accounts`, `acct_document_sequences`, `acct_financial_years`, `acct_inventory_locations`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_stock_count_lines`, `acct_stock_damages`, `acct_stock_movements`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_document_sequences`, `acct_financial_years`, `acct_inventory_locations`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_stock_count_lines`, `acct_stock_damages`, `acct_stock_movements`, `acct_user_access`
 
 ## /accounting/salaries/[id]/letters
 
@@ -1053,10 +1137,10 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Access: GROUP_OWNER, ACCOUNTANT
 - Purpose: See page source and linked modules for redirect or dynamic content.
 - Static headings: Dynamic or delegated
-- Named form controls (including imported UI): `hours`, `leaves`, `month`, `notice`, `off`, `probation`, `title`, `type`
+- Named form controls (including imported UI): `effective`, `hours`, `leaves`, `month`, `new_salary`, `notice`, `off`, `probation`, `reason`, `title`, `type`
 - Direct guard calls: requireAccess("salary")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_employees`, `acct_salary_payments`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_employees`, `acct_legal_businesses`, `acct_letter_templates`, `acct_salary_payments`, `acct_sessions`, `acct_user_access`
 
 ## Change the pay
 
@@ -1068,19 +1152,19 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `effective_from`, `employee_id`, `joined_on`, `left_on`, `monthly_salary`, `note`, `notice_given_on`
 - Direct guard calls: requireAccess("salary")
 - Direct action imports: `@/lib/staff-record-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_employee_pay_history`, `acct_employees`, `acct_salary_payments`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_employee_pay_history`, `acct_employees`, `acct_legal_businesses`, `acct_salary_payments`, `acct_sessions`, `acct_user_access`
 
-## Salaries
+## Salaries and staff records
 
 - Route: `/accounting/salaries`
 - Source: [src/app/(workspace)/accounting/salaries/page.tsx](../../src/app/(workspace)/accounting/salaries/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT
-- Purpose: Pay the staff each month and send pay slips
+- Purpose: Pay the staff each month, staff records, letters and pay slips
 - Static headings: Add a person; Salaries
 - Named form controls (including imported UI): `account`, `amount`, `branch_id`, `deduct`, `employee_id`, `full_name`, `how`, `job_title`, `joined_on`, `month`, `monthly_salary`, `note`, `phone`, `what`
 - Direct guard calls: requireAccess("salary")
 - Direct action imports: `@/lib/salary-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_document_sequences`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_salary_payments`, `acct_sessions`, `acct_staff_advance_recoveries`, `acct_staff_advances`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_document_sequences`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_legal_businesses`, `acct_salary_payments`, `acct_sessions`, `acct_staff_advance_recoveries`, `acct_staff_advances`, `acct_user_access`
 
 ## Sales and purchase report
 
@@ -1092,19 +1176,19 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `branch`, `division`, `month`, `type`, `year`
 - Direct guard calls: requireAccess("reports")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customers`, `acct_divisions`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_posting_failures`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customers`, `acct_divisions`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_posting_failures`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Payment Details
 
 - Route: `/accounting/sales/[id]`
 - Source: [src/app/(workspace)/accounting/sales/[id]/page.tsx](../../src/app/(workspace)/accounting/sales/[id]/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT, CASHIER, DIVISION_MANAGER
-- Purpose: Payment Details
-- Static headings: Payment Details
+- Purpose: Payment Details; Returns on this bill
+- Static headings: Payment Details; Returns on this bill
 - Named form controls (including imported UI): `account`, `address`, `amount`, `method`, `payment_date`, `phone`, `reason`, `reference`, `sale_id`
 - Direct guard calls: requireAccess("sales")
-- Direct action imports: `@/lib/sales-actions`, `@/lib/sale-payment-actions`, `@/lib/customer-merge-actions`
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_approval_handouts`, `acct_approval_items`, `acct_audit_events`, `acct_bank_accounts`, `acct_bill_terms`, `acct_branches`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_note_log`, `acct_coupons`, `acct_customer_messages`, `acct_customers`, `acct_divisions`, `acct_document_copies`, `acct_document_log`, `acct_document_sequences`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_free_stock`, `acct_inventory_locations`, `acct_invoice_shares`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_sale_rewards`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_returns`, `acct_selling_prices`, `acct_serials`, `acct_sessions`, `acct_stock_drafts`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`, `acct_wa_delivery`
+- Direct action imports: `@/lib/sales-actions`, `@/lib/customer-credit-actions`, `@/lib/sale-payment-actions`, `@/lib/customer-merge-actions`
+- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_approval_handouts`, `acct_approval_items`, `acct_audit_events`, `acct_bank_accounts`, `acct_bill_terms`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_note_log`, `acct_coupons`, `acct_customer_credits`, `acct_customer_messages`, `acct_customers`, `acct_divisions`, `acct_document_copies`, `acct_document_log`, `acct_document_sequences`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_free_stock`, `acct_inventory_locations`, `acct_invoice_shares`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_sale_rewards`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_returns`, `acct_selling_prices`, `acct_serials`, `acct_sessions`, `acct_stock_drafts`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`, `acct_wa_delivery`
 
 ## New sale / bill
 
@@ -1116,7 +1200,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `approval_item_ids`, `branch_id`, `confirm_draft_id`, `coupon_code`, `customer_address`, `customer_name`, `customer_phone`, `customer_type`, `exchange_return_id`, `invoice_date`, `invoice_discount`, `lines_json`, `mode`, `online_order_id`, `payments_json`, `points_used`, `remarks`, `report_id`, `sale_id`, `shipping_charge`, `submit_token`
 - Direct guard calls: requireAccess("sales")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_approval_handouts`, `acct_approval_items`, `acct_audit_events`, `acct_bank_accounts`, `acct_bill_terms`, `acct_branches`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_note_log`, `acct_coupons`, `acct_customers`, `acct_divisions`, `acct_document_sequences`, `acct_financial_years`, `acct_inventory_locations`, `acct_invoice_shares`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_sale_rewards`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_returns`, `acct_selling_prices`, `acct_serials`, `acct_sessions`, `acct_stock_drafts`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_app_users`, `acct_approval_handouts`, `acct_approval_items`, `acct_audit_events`, `acct_bank_accounts`, `acct_bill_terms`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_note_log`, `acct_coupons`, `acct_customers`, `acct_divisions`, `acct_document_sequences`, `acct_financial_years`, `acct_inventory_locations`, `acct_invoice_shares`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_sale_rewards`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_returns`, `acct_selling_prices`, `acct_serials`, `acct_sessions`, `acct_stock_drafts`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
 
 ## Two-step login
 
@@ -1128,7 +1212,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `code`
 - Direct guard calls: requireUser()
 - Direct action imports: `@/lib/two-step-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_login_challenges`, `acct_sessions`, `acct_user_access`, `acct_user_backup_codes`, `acct_user_totp`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_login_challenges`, `acct_sessions`, `acct_user_access`, `acct_user_backup_codes`, `acct_user_totp`
 
 ## Piece labels
 
@@ -1140,7 +1224,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("products")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_product_variants`, `acct_products`, `acct_serials`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_serials`, `acct_sessions`, `acct_user_access`
 
 ## Piece tracking
 
@@ -1152,7 +1236,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `count`, `on`, `serial_id`, `variant_id`
 - Direct guard calls: requireAccess("products")
 - Direct action imports: `@/lib/serial-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_product_variants`, `acct_products`, `acct_sales_headers`, `acct_serials`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_sales_headers`, `acct_serials`, `acct_sessions`, `acct_user_access`
 
 ## Website customers
 
@@ -1164,7 +1248,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `customer_id`, `op`, `q`
 - Direct guard calls: requireAccess("online_orders")
 - Direct action imports: `@/lib/shop-customer-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_settings`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_sessions`, `acct_shop_customers`, `acct_shop_password_resets`, `acct_shop_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_sessions`, `acct_shop_customers`, `acct_shop_password_resets`, `acct_shop_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
 
 ## Shop spending
 
@@ -1176,7 +1260,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `amount`, `drawer`, `kind`, `note`, `payee`
 - Direct guard calls: requireAccess("shop_spending")
 - Direct action imports: `@/lib/shop-spending-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_document_sequences`, `acct_expense_payments`, `acct_expenses`, `acct_inventory_locations`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_approval_requests`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_expense_payments`, `acct_expenses`, `acct_funding_agreements`, `acct_funding_parties`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_owner_accounts`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_user_access`
 
 ## Staff advances
 
@@ -1188,7 +1272,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `account`, `amount`, `employee_id`, `given_on`, `how`, `instalment`, `note`
 - Direct guard calls: requireAccess("salary")
 - Direct action imports: `@/lib/staff-advance-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_cash_accounts`, `acct_employees`, `acct_product_variants`, `acct_sessions`, `acct_staff_advance_recoveries`, `acct_staff_advances`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_employees`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_staff_advance_recoveries`, `acct_staff_advances`, `acct_user_access`
 
 ## Count stock
 
@@ -1200,7 +1284,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `count_id`, `location`, `location_id`, `note`, `q`
 - Direct guard calls: requireAccess("stock_count")
 - Direct action imports: `@/lib/stock-count-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_cash_accounts`, `acct_inventory_locations`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_stock_count_lines`, `acct_stock_counts`, `acct_stock_damages`, `acct_stock_finds`, `acct_stock_movements`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_stock_count_lines`, `acct_stock_counts`, `acct_stock_damages`, `acct_stock_finds`, `acct_stock_movements`, `acct_user_access`
 
 ## Staff stock reports
 
@@ -1212,7 +1296,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `full_name`, `id`, `location_id`, `message`, `phone`
 - Direct guard calls: requireAccess("stock")
 - Direct action imports: `@/lib/stock-report-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_cash_accounts`, `acct_inventory_locations`, `acct_product_variants`, `acct_sessions`, `acct_stock_damages`, `acct_stock_drafts`, `acct_stock_movements`, `acct_stock_reporters`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_stock_damages`, `acct_stock_drafts`, `acct_stock_movements`, `acct_stock_reporters`, `acct_user_access`
 
 ## Move stock
 
@@ -1224,7 +1308,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `from_location_id`, `received_date`, `remarks`, `to_location_id`, `transfer_date`, `transfer_id`
 - Direct guard calls: requireAccess("purchases")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_divisions`, `acct_document_sequences`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_document_sequences`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
 
 ## Stock on hand
 
@@ -1236,7 +1320,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: Inspect page dependencies / layout
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_inventory_locations`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`, `acct_user_access`
 
 ## Credit on my account
 
@@ -1248,7 +1332,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `account`, `agreed_value`, `amount`, `method`, `refund_date`, `replacement_purchase_id`, `return_id`
 - Direct guard calls: requireAccess("supplier_returns")
 - Direct action imports: `@/lib/supplier-return-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_cash_accounts`, `acct_inventory_locations`, `acct_journal_entries`, `acct_journal_reversals`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_stock_damages`, `acct_stock_movements`, `acct_supplier_refunds`, `acct_supplier_return_lines`, `acct_supplier_return_replacements`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_inventory_locations`, `acct_journal_entries`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_stock_damages`, `acct_stock_movements`, `acct_supplier_refunds`, `acct_supplier_return_lines`, `acct_supplier_return_replacements`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Return goods to supplier
 
@@ -1260,7 +1344,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `accept_loss`, `agreed_value`, `location`, `location_id`, `purchase`, `purchase_id`, `reason`, `remarks`, `return_date`, `supplier_note_no`
 - Direct guard calls: requireAccess("supplier_returns")
 - Direct action imports: `@/lib/supplier-return-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_cash_accounts`, `acct_inventory_locations`, `acct_journal_entries`, `acct_journal_reversals`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_stock_damages`, `acct_stock_movements`, `acct_supplier_refunds`, `acct_supplier_return_lines`, `acct_supplier_return_replacements`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_inventory_locations`, `acct_journal_entries`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_stock_damages`, `acct_stock_movements`, `acct_supplier_refunds`, `acct_supplier_return_lines`, `acct_supplier_return_replacements`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Supplier statement
 
@@ -1272,7 +1356,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("supplier_returns")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_customers`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_customers`, `acct_legal_businesses`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Suppliers
 
@@ -1284,7 +1368,31 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `address`, `city`, `contact_person`, `credit_days`, `email`, `gstin`, `mobile`, `notes`, `payment_terms`, `postal_code`, `state_name`, `supplier_name`, `supplier_type`, `whatsapp_number`
 - Direct guard calls: requireAccess("purchases")
 - Direct action imports: `@/lib/supplier-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_suppliers`, `acct_user_access`
+
+## History
+
+- Route: `/accounting/tickets/[id]`
+- Source: [src/app/(workspace)/accounting/tickets/[id]/page.tsx](../../src/app/(workspace)/accounting/tickets/[id]/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT, CASHIER, DIVISION_MANAGER
+- Purpose: History; Update
+- Static headings: History; Update
+- Named form controls (including imported UI): `follow_up_on`, `id`, `note`, `resolution`, `status`
+- Direct guard calls: requireAccess("customers")
+- Direct action imports: `@/lib/ticket-actions`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_customers`, `acct_legal_businesses`, `acct_product_variants`, `acct_sales_headers`, `acct_service_ticket_log`, `acct_service_tickets`, `acct_sessions`, `acct_user_access`
+
+## Customer tickets
+
+- Route: `/accounting/tickets`
+- Source: [src/app/(workspace)/accounting/tickets/page.tsx](../../src/app/(workspace)/accounting/tickets/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT, CASHIER, DIVISION_MANAGER
+- Purpose: Complaints, exchange requests, alterations
+- Static headings: Customer tickets; Open a ticket
+- Named form controls (including imported UI): `contact_name`, `contact_phone`, `details`, `follow_up_on`, `invoice_no`, `kind`, `summary`
+- Direct guard calls: requireAccess("customers")
+- Direct action imports: `@/lib/ticket-actions`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_customers`, `acct_legal_businesses`, `acct_product_variants`, `acct_sales_headers`, `acct_service_ticket_log`, `acct_service_tickets`, `acct_sessions`, `acct_user_access`
 
 ## /accounting/warehouse-inventory
 
@@ -1304,11 +1412,11 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Source: [src/app/(workspace)/accounting/whatsapp/page.tsx](../../src/app/(workspace)/accounting/whatsapp/page.tsx)
 - Access: GROUP_OWNER (navigation default)
 - Purpose: Daily and monthly reports to your team
-- Static headings: Add a person; Message log; People and their reports; Send today&apos;s reports; WhatsApp Reports
+- Static headings: Add a person; Automatic sending; Message log; People and their reports; Send today&apos;s reports; WhatsApp Reports
 - Named form controls (including imported UI): `full_name`, `investor_party_id`, `phone`, `recipient_id`, `report_type`, `scope`, `status`, `subscription_id`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/whatsapp-actions`
-- Referenced tables (dependency closure): `acct_advance_transactions`, `acct_advances`, `acct_agreement_versions`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_bank_accounts`, `acct_branches`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customers`, `acct_divisions`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_inventory_locations`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_reversals`, `acct_online_orders`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_product_variants`, `acct_products`, `acct_profit_waterfall_policies`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_stock_movements`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`, `acct_whatsapp_outbox`, `acct_whatsapp_recipients`, `acct_whatsapp_subscriptions`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_advance_transactions`, `acct_advances`, `acct_agreement_versions`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customers`, `acct_divisions`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_inventory_locations`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_online_orders`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_product_variants`, `acct_products`, `acct_profit_waterfall_policies`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_stock_movements`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`, `acct_whatsapp_outbox`, `acct_whatsapp_recipients`, `acct_whatsapp_subscriptions`
 
 ## Year end
 
@@ -1320,7 +1428,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `confirm`, `year_id`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/year-end-actions`
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_bank_accounts`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customers`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_reversals`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_bank_accounts`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customers`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Branches
 
@@ -1332,7 +1440,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `address_line1`, `address_line2`, `branch_id`, `branch_name`, `city`, `division_id`, `opened_on`, `postal_code`, `state`, `status`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/branch-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_divisions`, `acct_financial_years`, `acct_funding_agreements`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_financial_years`, `acct_funding_agreements`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
 
 ## Dashboard
 
@@ -1344,7 +1452,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("dashboard")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customers`, `acct_divisions`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_online_orders`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_posting_failures`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customers`, `acct_divisions`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_legal_businesses`, `acct_online_orders`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_posting_failures`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_sessions`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
 ## Divisions
 
@@ -1356,7 +1464,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `divisionId`, `name`, `status`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/division-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_cash_accounts`, `acct_divisions`, `acct_financial_years`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_categories`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_financial_years`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_product_categories`, `acct_product_variants`, `acct_products`, `acct_sessions`, `acct_user_access`
 
 ## Agreement Documents
 
@@ -1368,7 +1476,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `additional_funding_allowed`, `agreement_document_role`, `agreement_id`, `agreement_notes`, `agreement_version_id`, `amendment_id`, `amendment_reason`, `bank_account_id`, `change_reason`, `committed_amount`, `confirmed`, `decision`, `document`, `document_verified`, `effective_from`, `effective_to`, `entitlement_on_zero_balance`, `evidence_id`, `evidence_reference`, `file`, `flexible_repayment_allowed`, `funding_model`, `gl_account_id`, `interest_method`, `investor_consent_verified`, `loss_settlement_method`, `loss_share_percentage`, `loss_sharing_model`, `loss_sharing_terms`, `maximum_loss_exposure`, `maximum_outstanding`, `minimum_funding`, `payout_frequency`, `policy_notes`, `principal_repayment_terms`, `profit_basis`, `profit_calculation_order`, `profit_entitlement_model`, `profit_share_percentage`, `return_percentage`, `return_to`, `review_notes`, `signed_document_id`, `verification_notes`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/agreement-amendment-actions`, `@/lib/agreement-activation-actions`, `@/lib/amendment-approval-actions`, `@/lib/agreement-document-actions`, `@/lib/generate-agreement-actions`, `@/lib/profit-share-amendment-actions`, `@/lib/amendment-review-actions`
-- Referenced tables (dependency closure): `acct_advance_transactions`, `acct_agreement_amendments`, `acct_agreement_funding_policies`, `acct_agreement_versions`, `acct_amendment_evidence_reviews`, `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_bank_evidence`, `acct_bank_verifications`, `acct_branches`, `acct_business_documents`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_divisions`, `acct_expense_payments`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_profit_waterfall_policies`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_advance_transactions`, `acct_agreement_amendments`, `acct_agreement_funding_policies`, `acct_agreement_versions`, `acct_amendment_evidence_reviews`, `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_bank_evidence`, `acct_bank_verifications`, `acct_branches`, `acct_business_documents`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_divisions`, `acct_expense_payments`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_profit_waterfall_policies`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_user_access`
 
 ## Agreements
 
@@ -1380,7 +1488,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `agreement_notes`, `branch_id`, `committed_amount`, `division_id`, `effective_from`, `effective_to`, `funding_scope`, `funding_type`, `interest_method`, `interest_rate_percentage`, `loss_sharing_terms`, `party_id`, `payout_frequency`, `principal_repayment_terms`, `profit_basis`, `profit_share_percentage`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_agreement_versions`, `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_divisions`, `acct_financial_years`, `acct_funding_agreements`, `acct_funding_parties`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_agreement_versions`, `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_financial_years`, `acct_funding_agreements`, `acct_funding_parties`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
 
 ## Investors and lenders
 
@@ -1392,7 +1500,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `email`, `full_name`, `notes`, `pan_last4`, `party_code`, `party_id`, `party_type`, `phone`, `status`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/funding-party-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_funding_agreements`, `acct_funding_parties`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_funding_agreements`, `acct_funding_parties`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
 
 ## Share register
 
@@ -1404,7 +1512,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `asOf`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_agreement_amendments`, `acct_agreement_funding_policies`, `acct_agreement_versions`, `acct_app_users`, `acct_branches`, `acct_divisions`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_agreement_amendments`, `acct_agreement_funding_policies`, `acct_agreement_versions`, `acct_app_users`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Share check
 
@@ -1416,7 +1524,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `date`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_agreement_amendments`, `acct_agreement_funding_policies`, `acct_agreement_versions`, `acct_amendment_evidence_reviews`, `acct_app_users`, `acct_branches`, `acct_divisions`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_agreement_amendments`, `acct_agreement_funding_policies`, `acct_agreement_versions`, `acct_amendment_evidence_reviews`, `acct_app_users`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Money received and returned
 
@@ -1428,19 +1536,19 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `account`, `agreement_id`, `amount`, `kind`, `payment_method`, `payment_reference`, `remarks`, `transaction_date`, `transaction_id`, `treatment`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/funding-transactions`, `@/lib/investor-payment-actions`, `@/lib/funding-receipt-actions`
-- Referenced tables (dependency closure): `acct_agreement_amendments`, `acct_agreement_funding_policies`, `acct_agreement_versions`, `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_cash_accounts`, `acct_divisions`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_agreement_amendments`, `acct_agreement_funding_policies`, `acct_agreement_versions`, `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_funding_agreements`, `acct_funding_parties`, `acct_funding_transactions`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_user_access`
 
-## Group details
+## Business details
 
 - Route: `/group`
 - Source: [src/app/(workspace)/group/page.tsx](../../src/app/(workspace)/group/page.tsx)
 - Access: GROUP_OWNER (navigation default)
-- Purpose: Archived Documents; Business Documents; Business Information; Financial Years; Group Master; Owners &amp; Authorized Persons; Update Business Registration
+- Purpose: Legal details, people and documents of the business
 - Static headings: Archived Documents; Business Documents; Business Information; Financial Years; Group Master; Owners &amp; Authorized Persons; Update Business Registration
 - Named form controls (including imported UI): `archive_reason`, `division_id`, `document`, `document_id`, `document_type`, `email`, `full_name`, `gstin`, `legal_name`, `pan_last4`, `person_id`, `phone`, `registration_year`, `role`, `status`, `trading_name`, `udyam_registration_no`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/group-actions`, `@/lib/person-update-actions`, `@/lib/document-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_documents`, `acct_business_people`, `acct_divisions`, `acct_financial_years`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_documents`, `acct_business_hosts`, `acct_business_people`, `acct_business_settings`, `acct_divisions`, `acct_financial_years`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## Users and access
 
@@ -1452,7 +1560,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `email`, `full_name`, `party_id`, `password`, `role`, `scope_division_id`, `status`, `user_id`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/user-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_divisions`, `acct_funding_parties`, `acct_login_challenges`, `acct_sessions`, `acct_user_access`, `acct_user_backup_codes`, `acct_user_totp`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_divisions`, `acct_funding_parties`, `acct_legal_businesses`, `acct_login_challenges`, `acct_sessions`, `acct_user_access`, `acct_user_backup_codes`, `acct_user_totp`
 
 ## Enter your code
 
@@ -1464,7 +1572,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `code`
 - Direct guard calls: Inspect page dependencies / layout
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_login_challenges`, `acct_user_backup_codes`, `acct_user_totp`
+- Referenced tables (dependency closure): `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_login_challenges`, `acct_user_backup_codes`, `acct_user_totp`
 
 ## Accounting Portal
 
@@ -1476,7 +1584,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `email`, `password`
 - Direct guard calls: getSessionUser()
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
 
 ## /
 
@@ -1488,7 +1596,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: Inspect page dependencies / layout
 - Direct action imports: None
-- Referenced tables (dependency closure): None detected
+- Referenced tables (dependency closure): `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
 
 ## /shop/[id]
 
@@ -1500,7 +1608,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: Inspect page dependencies / layout
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_business_settings`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
+- Referenced tables (dependency closure): `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
 
 ## /shop/account/forgot
 
@@ -1524,7 +1632,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `email`, `name`, `password`, `phone`
 - Direct guard calls: Inspect page dependencies / layout
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_business_settings`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_shop_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
+- Referenced tables (dependency closure): `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_shop_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
 
 ## Your orders
 
@@ -1536,7 +1644,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: Inspect page dependencies / layout
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_business_settings`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_shop_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
+- Referenced tables (dependency closure): `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_shop_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
 
 ## /shop/account/register
 
@@ -1548,7 +1656,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `email`, `name`, `password`, `phone`
 - Direct guard calls: Inspect page dependencies / layout
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_business_settings`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_shop_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
+- Referenced tables (dependency closure): `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_shop_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
 
 ## /shop/account/reset
 
@@ -1572,19 +1680,19 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `token`
 - Direct guard calls: Inspect page dependencies / layout
 - Direct action imports: `@/lib/shop-verify-actions`
-- Referenced tables (dependency closure): `acct_business_settings`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
+- Referenced tables (dependency closure): `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
 
-## Abhiram Textiles
+## /shop/bill/[token]
 
 - Route: `/shop/bill/[token]`
 - Source: [src/app/shop/bill/[token]/page.tsx](../../src/app/shop/bill/[token]/page.tsx)
 - Access: Outside workspace; public or shop-account-specific checks apply
-- Purpose: Abhiram Textiles
-- Static headings: Abhiram Textiles
+- Purpose: See page source and linked modules for redirect or dynamic content.
+- Static headings: Dynamic or delegated
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: Inspect page dependencies / layout
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_bill_terms`, `acct_branches`, `acct_business_settings`, `acct_invoice_shares`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_selling_prices`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
+- Referenced tables (dependency closure): `acct_bill_terms`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_invoice_shares`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_selling_prices`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
 
 ## /shop/cart
 
@@ -1608,19 +1716,19 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `address`, `city`, `country`, `country_other`, `email`, `name`, `note`, `phone`, `postal`, `state`, `website`
 - Direct guard calls: Inspect page dependencies / layout
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_business_settings`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_shop_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
+- Referenced tables (dependency closure): `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_shop_sessions`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
 
-## Cotton sets
+## Fresh on the shelf
 
 - Route: `/shop`
 - Source: [src/app/shop/page.tsx](../../src/app/shop/page.tsx)
 - Access: Outside workspace; public or shop-account-specific checks apply
-- Purpose: Cotton sets; Fresh on the shelf; Kalamkari; Not sure about size or colour?; Sarees; Shop
-- Static headings: Cotton sets; Fresh on the shelf; Kalamkari; Not sure about size or colour?; Sarees; Shop
+- Purpose: Fresh on the shelf; Not sure about size or colour?; Shop
+- Static headings: Fresh on the shelf; Not sure about size or colour?; Shop
 - Named form controls (including imported UI): `fabric`, `q`
 - Direct guard calls: Inspect page dependencies / layout
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_business_settings`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
+- Referenced tables (dependency closure): `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_offer_products`, `acct_offers`, `acct_online_order_lines`, `acct_online_orders`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_selling_prices`, `acct_stock_movements`, `acct_stock_transfer_lines`, `acct_stock_transfers`
 
 ## Thank you!
 

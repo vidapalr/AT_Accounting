@@ -6,6 +6,7 @@ import InventoryReportClient, {
   type TransitItem,
 } from "./InventoryReportClient";
 import "./inventory-report.css";
+import { getBrand } from "@/lib/brand";
 
 type InventoryScope = "CENTRAL" | "BRANCH" | "ALL";
 type InventoryFilters = { q?: string; location?: string; availability?: string };
@@ -133,6 +134,7 @@ export default async function LocationInventoryReport({
   }));
 
   return <InventoryReportClient
+    shopName={(await getBrand()).shopName}
     scope={scope}
     stock={stock}
     transit={transit}

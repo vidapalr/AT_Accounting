@@ -4,6 +4,8 @@
  * Money is in paise (bigint). Transfers between places are left out on both sides: they only move stock.
  */
 import type { Pool, RowDataPacket } from "mysql2/promise";
+import { ACCOUNT } from "./posting-rules.ts";
+import { loadCodeMap } from "./account-map.ts";
 
 type Row = RowDataPacket & Record<string, unknown>;
 
@@ -101,12 +103,12 @@ export async function getStockTieOut(pool: Pool, businessId: number): Promise<St
             SUM(ROUND(l.debit * 100) - ROUND(l.credit * 100)) AS paise
        FROM acct_journal_lines l
        JOIN acct_journal_entries je ON je.id = l.journal_entry_id AND je.legal_business_id = l.legal_business_id AND je.status = 'POSTED'
-       JOIN acct_chart_of_accounts a ON a.id = l.account_id AND a.account_code = '1200'
+       JOIN acct_chart_of_accounts a ON a.id = l.account_id AND a.account_code = ?
        LEFT JOIN acct_journal_entries orig
               ON je.source_type = 'JOURNAL_REVERSAL' AND orig.id = je.source_id AND orig.legal_business_id = je.legal_business_id
       WHERE je.legal_business_id = ?
       GROUP BY COALESCE(orig.source_type, je.source_type), COALESCE(orig.source_id, je.source_id), l.division_id`,
-    [businessId]
+    [(await loadCodeMap(pool, businessId)).get(ACCOUNT.INVENTORY) ?? ACCOUNT.INVENTORY, businessId]
   );
   return compareStockToBooks(
     mv.map((r) => ({ sourceType: String(r.source_type), sourceId: Number(r.source_id), divisionId: Number(r.division_id), paise: BigInt(String(r.paise)) })),

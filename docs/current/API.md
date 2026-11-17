@@ -37,7 +37,8 @@ Static source inventory. A named guard is evidence of a call, not proof of compl
 | `/api/shop/media/[id]` | GET | [src/app/api/shop/media/[id]/route.ts](../../src/app/api/shop/media/[id]/route.ts) | Inspect source | acct_product_media, acct_products |
 | `/api/shop/order` | POST | [src/app/api/shop/order/route.ts](../../src/app/api/shop/order/route.ts) | getShopCustomer( |  |
 | `/api/whatsapp/preview` | GET | [src/app/api/whatsapp/preview/route.ts](../../src/app/api/whatsapp/preview/route.ts) | getSessionUser( | acct_whatsapp_recipients, acct_whatsapp_subscriptions |
-| `/api/whatsapp/run` | GET, POST | [src/app/api/whatsapp/run/route.ts](../../src/app/api/whatsapp/run/route.ts) | authorised( |  |
+| `/api/whatsapp/run` | GET, POST | [src/app/api/whatsapp/run/route.ts](../../src/app/api/whatsapp/run/route.ts) | authorised( | acct_business_settings |
 | `/api/whatsapp/webhook` | GET, POST | [src/app/api/whatsapp/webhook/route.ts](../../src/app/api/whatsapp/webhook/route.ts) | Inspect source | acct_customers, acct_wa_delivery, acct_wa_status_log |
+| `/manifest.webmanifest` | GET | [src/app/manifest.webmanifest/route.ts](../../src/app/manifest.webmanifest/route.ts) | Inspect source |  |
 | `/shop/feed.csv` | GET | [src/app/shop/feed.csv/route.ts](../../src/app/shop/feed.csv/route.ts) | Inspect source |  |
 

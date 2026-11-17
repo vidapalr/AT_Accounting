@@ -97,7 +97,7 @@ export async function receiveSalePaymentAction(form: FormData): Promise<void> {
           bankId = accountId;
           accountType = method === "UPI" ? "UPI" : method === "CARD" ? "CARD" : "BANK";
           paymentAccount =
-            bank[0].ownership_type === "INVESTOR" ? "INVESTMENT_BANKING" : "ABHIRAM_GROUP";
+            bank[0].ownership_type === "INVESTOR" ? "INVESTMENT_BANKING" : "BUSINESS";
         }
       } else {
         const [cash] = await conn.execute<RowDataPacket[]>(

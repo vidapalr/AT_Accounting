@@ -3,6 +3,7 @@ import type { Pool } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 
 import type { ExportAccount, ExportJournal } from "@/lib/export/tally";
+import { loadStandardCoder } from "@/lib/ledger/account-map";
 import { toPaise } from "@/lib/reports/money";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -51,5 +52,6 @@ export async function loadAccounts(db: Pool, businessId: number): Promise<Export
       WHERE legal_business_id = ? AND is_posting_account = 1 ORDER BY account_code`,
     [businessId]
   );
-  return rows.map((r) => ({ code: String(r.account_code), name: String(r.account_name), type: String(r.account_type) }));
+  const std = await loadStandardCoder(db, businessId);
+  return rows.map((r) => ({ code: String(r.account_code), standard: std(String(r.account_code)), name: String(r.account_name), type: String(r.account_type) }));
 }

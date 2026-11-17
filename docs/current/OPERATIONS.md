@@ -31,8 +31,11 @@ Compare the resulting schema with the [DDL history](DATABASE_DICTIONARY.md), the
 | SQL | DB variables above and a compatible MariaDB server |
 | Bank account encryption | `BANK_ENCRYPTION_KEY` and `BANK_FINGERPRINT_KEY`, each a 32-byte hex key; preserve keys securely across deployments/restores |
 | Product media | `MEDIA_DIR`; use persistent storage outside the replaced application release folder |
-| Private documents | Currently hard-coded to `<process.cwd()>/private_uploads`; provision persistence or fix storage configuration before relying on redeploy survival |
-| Host routing | `ACCOUNTING_HOST`, `TEXTILES_HOST`; login routes also contain production-origin assumptions |
+| Private documents | `PRIVATE_DIR` (outside the release folder); falls back to `<process.cwd()>/private_uploads` |
+| Host routing | `APP_HOSTS` and `SHOP_HOSTS` (comma lists, paired per company; older `ACCOUNTING_HOST` / `TEXTILES_HOST` / `SHOP_PUBLIC_URL` still read). Sign-in checks the request's own address |
+| Companies | `acct_business_hosts` (migration 083) links addresses to companies; `DEFAULT_BUSINESS_ID` optional; see `docs/MULTI_COMPANY.md` |
+| Cookies | `COOKIE_PREFIX` (default `app`) |
+| WhatsApp templates | `WHATSAPP_TEMPLATE_PREFIX` (e.g. `abhiram_` keeps the templates already approved) |
 | Public URLs | `SHOP_PUBLIC_URL`, `SHOP_BUSINESS_ID`; verify links from actual public hosts |
 | Email | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`, optional `SHOP_NOTIFY_EMAIL` |
 | Scheduled tasks | `CRON_SECRET`; ledger and WhatsApp run endpoints can create postings or send messages |

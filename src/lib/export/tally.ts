@@ -16,7 +16,8 @@ export type ExportJournal = {
   lines: ExportLine[];
 };
 
-export type ExportAccount = { code: string; name: string; type: string };
+/** `standard` = the starter-chart code (account mapping), used to pick the Tally group; defaults to `code`. */
+export type ExportAccount = { code: string; name: string; type: string; standard?: string };
 
 /** The Tally voucher type each kind of entry is filed under. */
 const VOUCHER_TYPES: Record<string, string> = {
@@ -85,7 +86,7 @@ export function tallyLedgersXml(accounts: ExportAccount[]): string {
     .map(
       (a) =>
         `    <TALLYMESSAGE xmlns:UDF="TallyUDF">\n     <LEDGER NAME="${xmlEscape(a.name.trim())}" ACTION="Create">\n` +
-        `      <NAME>${xmlEscape(a.name.trim())}</NAME>\n      <PARENT>${xmlEscape(tallyGroup(a.code, a.type))}</PARENT>\n     </LEDGER>\n    </TALLYMESSAGE>\n`
+        `      <NAME>${xmlEscape(a.name.trim())}</NAME>\n      <PARENT>${xmlEscape(tallyGroup(a.standard ?? a.code, a.type))}</PARENT>\n     </LEDGER>\n    </TALLYMESSAGE>\n`
     )
     .join("");
   return envelope("All Masters", body);

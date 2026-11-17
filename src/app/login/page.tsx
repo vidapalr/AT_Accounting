@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import BrandLogo from "@/components/BrandLogo";
 import styles from "./login.module.css";
+import { getBrand } from "@/lib/brand";
 
 export default function LoginPage({
   searchParams,
@@ -37,13 +38,14 @@ async function LoginContent({
   }
 
   const params = await searchParams;
+  const brand = await getBrand();
 
   return (
     <main className={styles.page}>
       <section className={styles.card}>
         <div className={styles.logo}><BrandLogo size={52} /></div>
 
-        <p className={styles.brand}>ABHIRAM GROUP</p>
+        <p className={styles.brand}>{brand.groupName.toUpperCase()}</p>
         <h1>Accounting Portal</h1>
         <p className={styles.subtitle}>
           Sign in to manage your business finances.

@@ -82,4 +82,11 @@ For a new empty database, the documented baseline is the base dump through 040, 
 | [migrations/076_owner_accounts_cash_destinations.sql](../../migrations/076_owner_accounts_cash_destinations.sql) | owner accounts cash destinations | acct_cash_closings, acct_expense_payments, acct_owner_accounts, acct_owner_money, acct_purchase_payments |
 | [migrations/077_wa_status_log.sql](../../migrations/077_wa_status_log.sql) | wa status log | acct_wa_status_log |
 | [migrations/078_follow_ups.sql](../../migrations/078_follow_ups.sql) | follow ups | acct_customer_notes |
+| [migrations/079_service_tickets.sql](../../migrations/079_service_tickets.sql) | service tickets | acct_service_ticket_log, acct_service_tickets |
+| [migrations/080_budgets.sql](../../migrations/080_budgets.sql) | budgets | acct_budgets |
+| [migrations/081_approval_requests.sql](../../migrations/081_approval_requests.sql) | approval requests | acct_approval_requests |
+| [migrations/082_customer_credit.sql](../../migrations/082_customer_credit.sql) | customer credit | acct_customer_credits, acct_sales_payments |
+| [migrations/083_business_hosts_and_brand.sql](../../migrations/083_business_hosts_and_brand.sql) | business hosts and brand | acct_business_hosts, acct_business_settings, acct_legal_businesses |
+| [migrations/084_letter_templates.sql](../../migrations/084_letter_templates.sql) | letter templates | acct_legal_businesses, acct_letter_templates |
+| [migrations/085_account_map.sql](../../migrations/085_account_map.sql) | account map | acct_account_map, acct_legal_businesses |
 

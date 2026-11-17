@@ -25,6 +25,16 @@ Read `docs/ROADMAP.md` for goals, phases and the page audit. Read `AGENTS.md` be
 4. **Codes are always automatic.** Never ask a person to type a code or number (division, branch, cash account, supplier, product, SKU, barcode, group, agreement, transaction, account number). Use `nextCode()` / `nextBarcode()` in `src/lib/codes.ts`. Only outside identifiers (supplier's own invoice number, bank account number, IFSC, GSTIN) are typed.
 5. Staff only see what their role allows (see `src/lib/access.ts`); deny by default.
 
+## Product rules (owner's instruction, 17 Nov 2026)
+
+The app will be sold to other companies, adapted to new kinds of business and turned into a mobile app. So:
+
+1. **Nothing fixed in code.** No business id, division id, company name, phone, address, domain, logo path or account code in code. Company: `currentBusinessId()` / `user.legal_business_id`; division: `getActiveDivision(user)`; names, phones, logos: `getBrand()`; other choices: `businessSetting()`; ledger accounts: a role from `ACCOUNT`, mapped per company on Accounting > Account mapping; server settings: `src/lib/app-config.ts`.
+2. **No copied code.** Shared styles `src/lib/ui/styles.ts`, formats `src/lib/format.ts`, screen kit `src/components/ui`, letterhead `src/components/Letterhead.tsx`. Move a repeated block to a shared module instead of pasting it.
+3. **Every change follows `docs/templates/CHANGE_CHECKLIST.md`**; new screens start from `docs/templates/SCREEN_TEMPLATE.md`, new migrations from `docs/templates/MIGRATION_TEMPLATE.sql`.
+4. **Menu:** every screen sits under one header in `src/lib/navigation.ts`, each header belongs to a module the company can switch off (Set-up > Brand and modules).
+5. **Mobile-ready:** business rules live in `src/lib` (pure where possible), pages only show data; see `docs/MOBILE_APP.md`.
+
 ## Business rules already decided (do not re-ask)
 
 - Money is exact (paise/bigint). Posted journals are immutable; fix by reversal.
