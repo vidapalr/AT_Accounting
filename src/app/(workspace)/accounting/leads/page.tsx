@@ -9,12 +9,13 @@ import { prettyPhone } from "@/lib/customer-phone";
 import { whatsappLink } from "@/lib/whatsapp/core";
 import TableSearch from "@/components/TableSearch";
 import styles from "../accounting.module.css";
+import { getBrand } from "@/lib/brand";
+import { cellTop as cell } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ tab?: string; saved?: string; error?: string }> };
 type Tab = "open" | "won" | "lost";
 
 const todayIst = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
-const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 const input: React.CSSProperties = { padding: "10px 12px", fontSize: 16, borderRadius: 8, border: "1px solid #cbd5e1" };
 
 export default function LeadsPage(props: Props) {
@@ -23,6 +24,7 @@ export default function LeadsPage(props: Props) {
 
 async function Content({ searchParams }: Props) {
   const user = await requireAccess("customers");
+  const brand = await getBrand();
   const q = await searchParams;
   const tab: Tab = q.tab === "won" ? "won" : q.tab === "lost" ? "lost" : "open";
   const b = user.legal_business_id;
@@ -142,7 +144,7 @@ async function Content({ searchParams }: Props) {
                               <button type="submit" name="action" value="customer" style={{ padding: "8px 12px", background: "#166534", color: "#fff" }}>They bought: make customer</button>
                               <button type="submit" name="action" value="lost" style={{ padding: "8px 12px" }}>Not interested</button>
                             </div>
-                            {phone && <a className="btn-link" href={whatsappLink(`91${phone}`, `Hello ${l.full_name}, this is Abhiram Textiles. Thank you for asking about our cloth. Can we help you choose?`)} target="_blank" rel="noreferrer">WhatsApp them</a>}
+                            {phone && <a className="btn-link" href={whatsappLink(`91${phone}`, `Hello ${l.full_name}, this is ${brand.shopName}. Thank you for asking about our cloth. Can we help you choose?`)} target="_blank" rel="noreferrer">WhatsApp them</a>}
                           </form>
                         )}
                         {tab === "won" && l.customer_id && <Link href={`/accounting/customers/${l.customer_id}`}>Open customer</Link>}

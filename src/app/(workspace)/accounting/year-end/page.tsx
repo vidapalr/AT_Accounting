@@ -7,12 +7,12 @@ import { requireGroupOwner } from "@/lib/auth";
 import { getSyncStatus } from "@/lib/ledger/sync-status";
 import { closeYearAction, startNextYearAction } from "@/lib/year-end-actions";
 import { nextYearStart, yearLabel } from "@/lib/period-math";
+import { box } from "@/lib/ui/styles";
+import { todayInIndia as today } from "@/lib/format";
 
 type Props = { searchParams: Promise<{ saved?: string; error?: string }> };
 
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
 const bigBtn: React.CSSProperties = { cursor: "pointer", fontSize: 16, padding: "12px 22px" };
-const today = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
 
 async function Content({ searchParams }: Props) {
   const user = await requireGroupOwner();

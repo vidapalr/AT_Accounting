@@ -17,6 +17,7 @@ import {
 import {
   reversePostedJournalAction,
 } from "@/lib/journal-reversal-actions";
+import { getBrand } from "@/lib/brand";
 
 type Props = {
   searchParams: Promise<{ result?: string ; posting?: string ; reversal?: string }>;
@@ -131,6 +132,7 @@ async function JournalsContent({
   searchParams,
 }: Props) {
   const user = await requireGroupOwner();
+  const brand = await getBrand();
   const query = await searchParams;
   const businessId = user.legal_business_id;
 
@@ -238,7 +240,7 @@ async function JournalsContent({
       <header>
         <h1>Journal Entries</h1>
         <p>
-          Create balanced draft journals for Abhiram Group.
+          Create balanced draft journals for {brand.groupName}.
           Financial posting is not enabled yet.
         </p>
 

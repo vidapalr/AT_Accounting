@@ -36,6 +36,13 @@ export async function getActiveDivisionId(user: { legal_business_id: number; sco
   throw new Error("No active division is set up.");
 }
 
+/** The active division with its name (for forms that show which division an entry goes to). */
+export async function getActiveDivision(user: { legal_business_id: number; scope_division_id?: number | null }): Promise<DivisionOption> {
+  const id = await getActiveDivisionId(user);
+  const divisions = await listDivisions(user.legal_business_id, user.scope_division_id);
+  return divisions.find((d) => d.id === id) ?? { id, name: "" };
+}
+
 /** The division a branch belongs to, or null when the branch is not ours. */
 export async function divisionOfBranch(
   businessId: number,

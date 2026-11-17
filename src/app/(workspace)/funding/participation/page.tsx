@@ -20,6 +20,7 @@ import {
 } from "@/lib/investor-register";
 
 import styles from "../funding.module.css";
+import { getBrand } from "@/lib/brand";
 
 type Props = {
   searchParams: Promise<{ asOf?: string }>;
@@ -105,7 +106,8 @@ type EffectiveParticipation = {
 
 function getEffectiveBranchParticipation(
   branchMembers: InvestorPosition[],
-  divisionMembers: InvestorPosition[]
+  divisionMembers: InvestorPosition[],
+  groupName: string
 ): EffectiveParticipation[] {
   const branchAllocated = branchMembers.reduce(
     (sum, member) =>
@@ -158,7 +160,7 @@ function getEffectiveBranchParticipation(
     MAX_SHARE;
 
   result.push({
-    participant: "Abhiram Group — Residual",
+    participant: `${groupName} — Residual`,
     source: "Calculated After Division Participation",
     units: groupUnits,
   });
@@ -209,6 +211,7 @@ async function ParticipationContent({
   searchParams,
 }: Props) {
   const user = await requireGroupOwner();
+  const brand = await getBrand();
   const query = await searchParams;
 
   const today = new Date().toISOString().slice(0, 10);
@@ -380,7 +383,8 @@ async function ParticipationContent({
           pool.scope_type === "BRANCH"
             ? getEffectiveBranchParticipation(
                 members,
-                divisionMembers
+                divisionMembers,
+                brand.groupName
               )
             : [];
 
@@ -499,7 +503,7 @@ async function ParticipationContent({
                       <strong>
                         {pool.scope_type === "BRANCH"
                           ? "Branch Pool Residual — Before Division Allocation"
-                          : "Abhiram Group — Residual"}
+                          : `${brand.groupName} — Residual`}
                       </strong>
                     </td>
                     <td>Calculated</td>
@@ -697,7 +701,7 @@ async function ParticipationContent({
                   )}. Review agreements.`
                 : `Investor participation: ${formatShare(
                     allocated
-                  )}. Abhiram Group residual: ${formatShare(
+                  )}. {brand.groupName} residual: ${formatShare(
                     residual
                   )}.`}
             </p>

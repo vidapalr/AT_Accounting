@@ -35,6 +35,8 @@ test("every report type has a template whose placeholders match its parameter co
   }
   assert.equal(TEMPLATES.length, REPORT_TYPES.length);
   assert.equal(templateFor("ALERTS", { WHATSAPP_TEMPLATE_ALERTS: "my_alerts" }).name, "my_alerts");
+  assert.equal(templateFor("ALERTS", { WHATSAPP_TEMPLATE_PREFIX: "acme_" }).name, "acme_alerts");
+  assert.match(templateFor("ALERTS", {}, "Acme").body, /^Acme alerts for/);
 });
 
 test("jobs cover every report type exactly once", () => {
@@ -60,16 +62,17 @@ test("tap-to-send message holds the key figures and no PDF promise", () => {
       { heading: "Invoices", columns: ["Invoice", "Customer", "Total"], rows: [["A1", "X", "₹1"]] },
     ],
   };
-  const text = composeMessage(daily, "Owner");
-  assert.match(text, /\*Abhiram Group\* - Daily Sales Summary/);
+  const text = composeMessage(daily, "Owner", "Test Group");
+  assert.match(text, /\*Test Group\* - Daily Sales Summary/);
   assert.match(text, /Gross profit: ₹24,115.00/);
   assert.doesNotMatch(text, /Invoices|attached/);
 
-  const inv = composeMessage({ type: "INVESTOR_STATEMENT", title: "t", subtitle: "s", params: ["Test Investor", "October 2026", "₹16,235.00", "1"], sections: [] }, "Test Investor");
+  const inv = composeMessage({ type: "INVESTOR_STATEMENT", title: "t", subtitle: "s", params: ["Test Investor", "October 2026", "₹16,235.00", "1"], sections: [] }, "Test Investor", "Test Group");
+  assert.match(inv, /Test Group profit statement/);
   assert.match(inv, /Dear Test Investor/);
   assert.match(inv, /₹16,235.00/);
 
-  const stock = composeMessage({ type: "STOCK_DAILY", title: "Daily Stock Report", subtitle: "s", params: ["d", "p", "22", "1122.5", "31"], sections: [] }, "O");
+  const stock = composeMessage({ type: "STOCK_DAILY", title: "Daily Stock Report", subtitle: "s", params: ["d", "p", "22", "1122.5", "31"], sections: [] }, "O", "Test Group");
   assert.match(stock, /Items in stock: 22/);
 });
 
@@ -85,6 +88,6 @@ test("morning digest is a morning job and reads as plain lines", async () => {
   const text = core.composeMessage({
     type: "MORNING_DIGEST", title: "Morning Digest", subtitle: "Whole group - 29 Oct 2026", params: [],
     sections: [{ heading: "Needs you", columns: ["", ""], rows: [["New website orders", "3"]] }],
-  }, "Owner");
+  }, "Owner", "Test Group");
   assert.match(text, /New website orders: 3/);
 });

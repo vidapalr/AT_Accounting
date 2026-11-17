@@ -22,6 +22,7 @@ function nullableId(value: unknown): number | null {
 interface Payment extends RowDataPacket {
   id: number;
   purchase_id: number;
+  division_id: number;
   payment_date: string;
   amount: string;
   payment_method: string;
@@ -69,6 +70,7 @@ export async function verifyPurchasePaymentCore(
         `SELECT
            pp.id,
            pp.purchase_id,
+           pp.division_id,
            DATE_FORMAT(pp.payment_date, '%Y-%m-%d')
              AS payment_date,
            CAST(pp.amount AS CHAR) AS amount,
@@ -101,7 +103,6 @@ export async function verifyPurchasePaymentCore(
          WHERE pp.id = ?
            AND pp.purchase_id = ?
            AND pp.legal_business_id = ?
-           AND pp.division_id = 1
          FOR UPDATE`,
         [paymentId, purchaseId, businessId]
       );
@@ -143,11 +144,11 @@ export async function verifyPurchasePaymentCore(
                      AS other_payments
              FROM acct_purchase_payments
              WHERE legal_business_id = ?
-               AND division_id = 1
+               AND division_id = ?
                AND purchase_id = ?
                AND id <> ?
                AND status IN ('DRAFT', 'VERIFIED')`,
-            [businessId, purchaseId, paymentId]
+            [businessId, payment.division_id, purchaseId, paymentId]
           );
 
           const otherPayments =

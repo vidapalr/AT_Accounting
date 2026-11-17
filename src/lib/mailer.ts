@@ -5,7 +5,7 @@ import type { MailText } from "@/lib/shop-mail-text";
 
 /**
  * Sends email through the shop's mailbox. The settings live in Hostinger's server settings only:
- * SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and MAIL_FROM (for example "Abhiram Textiles <orders@abhiraminc.com>").
+ * SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and MAIL_FROM (for example "Acme Shop <orders@example.com>").
  * Without them nothing is sent and the shop carries on, so an email problem never blocks an order.
  */
 export function mailConfigured(): boolean {

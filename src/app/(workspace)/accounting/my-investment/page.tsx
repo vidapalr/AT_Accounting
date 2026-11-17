@@ -7,12 +7,11 @@ import { inr, isDate, todayInIndia } from "@/lib/reports/money";
 import { loadInvestorStatement } from "@/lib/investor-statement";
 import PrintHeader from "@/components/PrintHeader";
 import PrintButton from "@/components/PrintButton";
+import { cellTop as cell, box } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ from?: string; to?: string }> };
 
-const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 const right: React.CSSProperties = { ...cell, textAlign: "right" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
 const pretty = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 
 async function Content({ searchParams }: Props) {

@@ -7,6 +7,7 @@ import { getDivisions } from "@/lib/business-master";
 import { getFundingAgreements } from "@/lib/funding-agreements";
 import styles from "../funding.module.css";
 import { getBranches } from "@/lib/branch-master";
+import { getBrand } from "@/lib/brand";
 
 type PageProps = {
   searchParams: Promise<{ result?: string }>;
@@ -47,6 +48,7 @@ async function AgreementsContent({
   searchParams,
 }: PageProps) {
   const user = await requireGroupOwner();
+  const brand = await getBrand();
 
   
   const [parties, divisions, branches, agreements] =
@@ -191,7 +193,7 @@ async function AgreementsContent({
                     {agreement.party_name}
                     <small>{agreement.party_code}</small>
                   </td>
-                  <td>{agreement.division_name ?? "Abhiram Group"}</td>
+                  <td>{agreement.division_name ?? `${brand.groupName}`}</td>
                   <td>
                     {agreement.branch_id !== null
                       ? agreement.branch_name ??

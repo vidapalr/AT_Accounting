@@ -30,7 +30,7 @@ export async function createProductCategoryAction(
   form: FormData
 ): Promise<void> {
   const user = await requireAccess("products");
-  const TEXTILES_DIVISION_ID = await getActiveDivisionId(user);
+  const ACTIVE_DIVISION_ID = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
 
   const code = await nextCode(db, { table: "acct_product_categories", column: "category_code", prefix: "CAT-", width: 3, where: "legal_business_id = ?", params: [businessId] });
@@ -70,7 +70,7 @@ export async function createProductCategoryAction(
       `SELECT id
        FROM acct_divisions
        WHERE id = ? AND legal_business_id = ?`,
-      [TEXTILES_DIVISION_ID, businessId]
+      [ACTIVE_DIVISION_ID, businessId]
     );
 
     if (business.length !== 1 || division.length !== 1) {
@@ -85,7 +85,7 @@ export async function createProductCategoryAction(
            WHERE id = ?
              AND legal_business_id = ?
              AND division_id = ?`,
-          [parentId, businessId, TEXTILES_DIVISION_ID]
+          [parentId, businessId, ACTIVE_DIVISION_ID]
         );
 
         // We allow only two levels:
@@ -105,7 +105,7 @@ export async function createProductCategoryAction(
            WHERE legal_business_id = ?
              AND division_id = ?
              AND category_code = ?`,
-          [businessId, TEXTILES_DIVISION_ID, code]
+          [businessId, ACTIVE_DIVISION_ID, code]
         );
 
         if (duplicates.length > 0) {
@@ -122,7 +122,7 @@ export async function createProductCategoryAction(
              VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', ?)`,
             [
               businessId,
-              TEXTILES_DIVISION_ID,
+              ACTIVE_DIVISION_ID,
               parentId,
               code,
               name,
@@ -149,7 +149,7 @@ export async function createProductCategoryAction(
                 code,
                 name,
                 parent_id: parentId,
-                division_id: TEXTILES_DIVISION_ID,
+                division_id: ACTIVE_DIVISION_ID,
               }),
             ]
           );
@@ -194,7 +194,7 @@ const DEFAULT_CATEGORIES = [
 
 export async function seedTextileCategoriesAction(): Promise<void> {
   const user = await requireAccess("products");
-  const TEXTILES_DIVISION_ID = await getActiveDivisionId(user);
+  const ACTIVE_DIVISION_ID = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
   const conn = await db.getConnection();
 
@@ -212,7 +212,7 @@ export async function seedTextileCategoriesAction(): Promise<void> {
     const [division] = await conn.execute<RowDataPacket[]>(
       `SELECT id FROM acct_divisions
        WHERE id = ? AND legal_business_id = ?`,
-      [TEXTILES_DIVISION_ID, businessId]
+      [ACTIVE_DIVISION_ID, businessId]
     );
 
     if (business.length !== 1 || division.length !== 1) {
@@ -223,7 +223,7 @@ export async function seedTextileCategoriesAction(): Promise<void> {
          FROM acct_product_categories
          WHERE legal_business_id = ?
            AND division_id = ?`,
-        [businessId, TEXTILES_DIVISION_ID]
+        [businessId, ACTIVE_DIVISION_ID]
       );
 
       const ids = new Map<string, number>();
@@ -291,7 +291,7 @@ export async function seedTextileCategoriesAction(): Promise<void> {
              VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', ?)`,
             [
               businessId,
-              TEXTILES_DIVISION_ID,
+              ACTIVE_DIVISION_ID,
               parentId,
               item.code,
               item.name,
@@ -317,9 +317,9 @@ export async function seedTextileCategoriesAction(): Promise<void> {
             user.id,
             "TEXTILE_CATEGORIES_INITIALIZED",
             "DIVISION",
-            TEXTILES_DIVISION_ID,
+            ACTIVE_DIVISION_ID,
             JSON.stringify({
-              division_id: TEXTILES_DIVISION_ID,
+              division_id: ACTIVE_DIVISION_ID,
               inserted_count: insertedCount,
             }),
           ]

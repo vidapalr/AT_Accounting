@@ -12,8 +12,8 @@ const btn: React.CSSProperties = { cursor: "pointer", fontSize: 17, padding: "14
 
 /** A vertical reel from product photos: slow zoom, cross-fades, name and price on top, optional music. Made in this browser. */
 export default function ReelMaker({
-  productId, productName, priceText, photos, tracks,
-}: { productId: number; productName: string; priceText: string; photos: Photo[]; tracks: Track[] }) {
+  productId, productName, priceText, photos, tracks, shopName,
+}: { productId: number; productName: string; priceText: string; photos: Photo[]; tracks: Track[]; shopName: string }) {
   const [picked, setPicked] = useState<number[]>(() => photos.slice(0, REEL_MAX_PHOTOS).map(p => p.id));
   const [seconds, setSeconds] = useState(3);
   const [track, setTrack] = useState<string>("");
@@ -91,7 +91,7 @@ export default function ReelMaker({
         wrap(ctx, title, W / 2, H - 230, W - 100, 62);
         if (price) { ctx.font = "bold 46px Arial, sans-serif"; ctx.fillText(price, W / 2, H - 120); }
         ctx.font = "32px Arial, sans-serif"; ctx.fillStyle = "rgba(255,255,255,0.9)";
-        ctx.fillText("Abhiram Textiles", W / 2, H - 55);
+        ctx.fillText(shopName, W / 2, H - 55);
       };
 
       rec.start(250);

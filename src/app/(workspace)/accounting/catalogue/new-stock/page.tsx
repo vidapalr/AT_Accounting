@@ -7,6 +7,7 @@ import { requireAccess } from "@/lib/auth";
 import { getActiveDivisionId } from "@/lib/division-context";
 import { updateStockEventAction } from "@/lib/catalogue-actions";
 import CopyTextButton from "@/components/CopyTextButton";
+import { getBrand } from "@/lib/brand";
 
 type Group = {
   productId: number;
@@ -20,6 +21,7 @@ type Group = {
 
 async function NewStock() {
   const user = await requireAccess("products");
+  const brand = await getBrand();
   const divisionId = await getActiveDivisionId(user);
 
   const [rows] = await db.execute<RowDataPacket[]>(
@@ -91,7 +93,7 @@ async function NewStock() {
             `New arrival: ${g.name}`,
             g.fabric ? `Fabric: ${g.fabric}` : "",
             ...g.lines.map(l => `• ${l.label}: ${l.qty} ${l.unit}`),
-            "Visit Abhiram Textiles or message us to order.",
+            `Visit ${brand.shopName} or message us to order.`,
           ].filter(Boolean).join("\n");
           const ids = g.eventIds.join(",");
           return (

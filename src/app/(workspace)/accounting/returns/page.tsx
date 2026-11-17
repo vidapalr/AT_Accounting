@@ -15,6 +15,8 @@ import {
 } from "@/lib/returns-actions";
 import { cancelWriteOffAction } from "@/lib/write-off-cancel-actions";
 import ConfirmButton from "@/components/ConfirmButton";
+import { cell, box } from "@/lib/ui/styles";
+import { todayInIndia as today } from "@/lib/format";
 
 type Props = {
   searchParams: Promise<{ sale?: string; saved?: string; error?: string; edit?: string; editRefund?: string }>;
@@ -25,10 +27,7 @@ type Row = RowDataPacket & Record<string, string | number | null>;
 const inr = (value: string | number | null) =>
   `₹${Number(value ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const today = () => new Date().toISOString().slice(0, 10);
 
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
 
 async function ReturnsContent({ searchParams }: Props) {
   const user = await requireAccess("returns");

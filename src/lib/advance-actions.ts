@@ -174,7 +174,7 @@ export async function createAdvanceAction(
         throw new Error("Division not found");
       }
 
-      // Current implementation: Abhiram Textiles.
+      // The active division (chosen in the header).
       if (divisionId !== 1) {
         throw new Error("Unsupported division");
       }

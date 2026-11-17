@@ -19,7 +19,7 @@ export function toHashtag(text: string): string | null {
 }
 
 export function buildCaption(input: CaptionInput): string {
-  const shop = clean(input.shop) || "Abhiram Textiles";
+  const shop = clean(input.shop) || "our shop";
   const name = clean(input.name);
   const fabric = clean(input.fabric);
   const design = clean(input.designName);

@@ -33,7 +33,7 @@ const messages: Record<string, string> = {
   invalid: "Check the category code, name and display order.",
   duplicate: "A category with this code already exists.",
   "invalid-parent": "Select an active main category.",
-  "division-missing": "Abhiram Textiles division was not found.",
+  "division-missing": "The division was not found.",
   "hierarchy-conflict":
     "An existing category has a conflicting parent. Review the hierarchy.",
   failed: "Unable to save the category. Check server logs.",
@@ -108,7 +108,7 @@ async function CategoryContent({ searchParams }: Props) {
       <h1>Product Groups</h1>
 
       <p>
-        Manage categories for the Abhiram Textiles
+        Manage categories for the active
         division. Categories will be shared by the
         central warehouse and all retail branches.
       </p>

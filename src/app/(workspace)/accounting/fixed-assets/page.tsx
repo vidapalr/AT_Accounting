@@ -8,6 +8,7 @@ import { todayInIndia } from "@/lib/reports/money";
 import { monthFromIndex, monthIndex, monthsToRun } from "@/lib/asset-math";
 import { addAssetAction, disposeAssetAction, runDepreciationAction } from "@/lib/asset-actions";
 import SubmitButton from "@/components/SubmitButton";
+import { cellTop as cell, box, fieldFull as field } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ saved?: string; error?: string; show?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -16,10 +17,7 @@ const paise = (v: unknown) => BigInt(Math.round(Number(v ?? 0) * 100));
 const rupees = (p: bigint) => `₹${(p / 100n).toLocaleString("en-IN")}.${String(p % 100n).padStart(2, "0")}`;
 const pretty = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 const monthName = (ym: string) => new Date(`${ym}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
-const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 const right: React.CSSProperties = { ...cell, textAlign: "right" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
-const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0, width: "100%" };
 const KINDS: Record<string, string> = { FURNITURE_FITTINGS: "Furniture and fittings", MACHINERY: "Machinery", COMPUTERS: "Computers and phones", VEHICLE: "Vehicle", OTHER: "Other" };
 const HOW: Record<string, string> = { SOLD: "Sold", SCRAPPED: "Scrapped", GIVEN_AWAY: "Given away" };
 

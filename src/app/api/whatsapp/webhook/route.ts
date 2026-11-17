@@ -6,6 +6,8 @@ import { findReporterByPhone, saveStockDrafts } from "@/lib/stock-drafts";
 import { handleEcho, handleIncoming } from "@/lib/bot/handle";
 import { sendWhatsAppText } from "@/lib/bot/send";
 import { optWord } from "@/lib/broadcast-math";
+import { businessIdForWhatsAppNumber, currentBusinessId } from "@/lib/tenant";
+import { loadBrand } from "@/lib/brand";
 
 /**
  * Where WhatsApp (Meta Cloud API) delivers messages that employees send to the
@@ -13,9 +15,9 @@ import { optWord } from "@/lib/broadcast-math";
  *   WHATSAPP_VERIFY_TOKEN  any long secret you also type into Meta's webhook settings
  *   WHATSAPP_APP_SECRET    the app secret from Meta, used to check messages are genuine
  * Staff messages become stock drafts. Other messages go to the shop chatbot (when it is switched on).
+ * The company is the one whose WhatsApp number received the message (setting wa_phone_number_id),
+ * else the company of this web address.
  */
-
-const BUSINESS_ID = 1;
 
 export async function GET(request: NextRequest) {
   const p = request.nextUrl.searchParams;
@@ -41,6 +43,7 @@ type Incoming = {
     changes?: Array<{
       field?: string;
       value?: {
+        metadata?: { phone_number_id?: string };
         contacts?: Array<{ wa_id?: string; profile?: { name?: string } }>;
         messages?: Array<{ id?: string; from?: string; type?: string; text?: { body?: string } }>;
         message_echoes?: Array<{ to?: string }>;
@@ -65,12 +68,14 @@ export async function POST(request: NextRequest) {
     return new NextResponse("Bad request", { status: 400 });
   }
 
+  const fallbackBusiness = await currentBusinessId();
   for (const entry of body.entry ?? []) {
     for (const change of entry.changes ?? []) {
+      const BUSINESS_ID = (await businessIdForWhatsAppNumber(change.value?.metadata?.phone_number_id).catch(() => null)) ?? fallbackBusiness;
       for (const echo of change.value?.message_echoes ?? []) {
         // A person answered from the phone: the bot steps back.
         if (!echo.to) continue;
-        try { await handleEcho(echo.to); } catch (error) { console.error("Echo failed:", error); }
+        try { await handleEcho(BUSINESS_ID, echo.to); } catch (error) { console.error("Echo failed:", error); }
       }
       for (const st of change.value?.statuses ?? []) {
         if (!st.id || !st.status) continue;
@@ -83,7 +88,7 @@ export async function POST(request: NextRequest) {
           // STOP / START about offer messages work even when the bot is off.
           const word = optWord(text);
           if (word) {
-            await handleOptWord(message.from, word);
+            await handleOptWord(BUSINESS_ID, message.from, word);
             continue;
           }
           const reporter = text ? await findReporterByPhone(db, BUSINESS_ID, message.from) : null;
@@ -98,7 +103,7 @@ export async function POST(request: NextRequest) {
             continue;
           }
           const name = change.value?.contacts?.find(c => c.wa_id === message.from)?.profile?.name ?? null;
-          await handleIncoming({ from: message.from, text, id: message.id ?? null, name });
+          await handleIncoming(BUSINESS_ID, { from: message.from, text, id: message.id ?? null, name });
         } catch (error) {
           console.error("WhatsApp message failed:", error);
         }
@@ -143,7 +148,8 @@ async function saveDelivery(id: string, status: string, error?: { code?: number;
 }
 
 /** A customer replied STOP or START: change their offers tick and answer. Free, because they just wrote to us. */
-async function handleOptWord(from: string, word: "STOP" | "START") {
+async function handleOptWord(BUSINESS_ID: number, from: string, word: "STOP" | "START") {
+  const shop = (await loadBrand(BUSINESS_ID)).shopName;
   const phone = from.replace(/\D/g, "").slice(-10);
   if (phone.length !== 10) return;
   const [found] = await db.execute<import("mysql2").RowDataPacket[]>(
@@ -154,13 +160,13 @@ async function handleOptWord(from: string, word: "STOP" | "START") {
     } catch {
       await db.execute(`UPDATE acct_customers SET whatsapp_opt_in = 0 WHERE legal_business_id = ? AND phone = ?`, [BUSINESS_ID, phone]);
     }
-    await sendWhatsAppText(from, "You will not get offer messages from Abhiram Textiles any more. Reply START if you want them again.");
+    await sendWhatsAppText(from, `You will not get offer messages from ${shop} any more. Reply START if you want them again.`);
   } else if (found.length) {
     try {
       await db.execute(`UPDATE acct_customers SET whatsapp_opt_in = 1, whatsapp_opted_out_at = NULL WHERE legal_business_id = ? AND phone = ?`, [BUSINESS_ID, phone]);
     } catch {
       await db.execute(`UPDATE acct_customers SET whatsapp_opt_in = 1 WHERE legal_business_id = ? AND phone = ?`, [BUSINESS_ID, phone]);
     }
-    await sendWhatsAppText(from, "Thank you. You will get new-stock messages from Abhiram Textiles. Reply STOP any time to stop them.");
+    await sendWhatsAppText(from, `Thank you. You will get new-stock messages from ${shop}. Reply STOP any time to stop them.`);
   }
 }

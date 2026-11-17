@@ -3,10 +3,10 @@ import { Suspense } from "react";
 import { requireAccess } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { RowDataPacket } from "mysql2";
+import { field } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ from?: string; to?: string }> };
 
-const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0 };
 const btn: React.CSSProperties = { cursor: "pointer", fontSize: 16, padding: "12px 20px" };
 const isDate = (v?: string): v is string => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
 

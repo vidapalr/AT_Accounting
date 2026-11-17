@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSession } from "@/lib/auth";
+import { fromThisSite, siteOrigin } from "@/lib/same-origin";
 import { readChallenge, endChallenge, countWrongCode, checkLoginCode, MAX_CODE_TRIES } from "@/lib/two-step";
 
 export async function POST(request: NextRequest) {
-  const publicOrigin =
-    process.env.NODE_ENV === "production" ? "https://accounting.abhiraminc.com" : request.nextUrl.origin;
-  if (request.headers.get("origin") !== publicOrigin) return new NextResponse("Forbidden", { status: 403 });
+  const publicOrigin = siteOrigin(request);
+  if (!fromThisSite(request)) return new NextResponse("Forbidden", { status: 403 });
 
   const codeUrl = new URL("/login/code", publicOrigin);
   const loginUrl = new URL("/login", publicOrigin);

@@ -14,6 +14,8 @@ import { loadSupplierBalances, loadSupplierEvents } from "@/lib/supplier-ledger"
 import { ageDues, buildStatement } from "@/lib/supplier-statement";
 import { canAccess } from "@/lib/access";
 import { loadCustomerEntries, loadOtherSide } from "@/lib/party-link";
+import { getBrand } from "@/lib/brand";
+import { cell, box } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ supplier?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -27,8 +29,6 @@ const rupees = (p: bigint) => {
 const prettyDate = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
 const right: React.CSSProperties = { ...cell, textAlign: "right" };
 
 const LABEL = {
@@ -46,6 +46,7 @@ function balanceWords(balance: bigint): string {
 
 async function StatementContent({ searchParams }: Props) {
   const user = await requireAccess("supplier_returns");
+  const brand = await getBrand();
   const businessId = user.legal_business_id;
   const query = await searchParams;
   const today = todayInIndia();
@@ -90,7 +91,7 @@ async function StatementContent({ searchParams }: Props) {
 
     const phone = normalizePhone(String(supplier.whatsapp_number ?? "")) ?? normalizePhone(String(supplier.mobile ?? ""));
     const message =
-      `Hello ${supplier.supplier_name}, this is Abhiram Textiles. As on ${prettyDate(today)}, ` +
+      `Hello ${supplier.supplier_name}, this is ${brand.shopName}. As on ${prettyDate(today)}, ` +
       (balance > 0n
         ? `our account shows ${rupees(balance)} payable to you.`
         : balance < 0n

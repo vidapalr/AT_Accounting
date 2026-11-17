@@ -4,8 +4,8 @@ import { useSyncExternalStore } from "react";
 
 export type CartLine = { variantId: number; qty: number; product: string; detail: string; price: number | null; coverId: number | null; productId: number };
 
-const KEY = "abhiram_cart_v1";
-const EVENT = "abhiram-cart";
+const KEY = "shop_cart_v1";
+const EVENT = "shop-cart";
 let cache: { raw: string; lines: CartLine[] } = { raw: "[]", lines: [] };
 
 function read(): CartLine[] {

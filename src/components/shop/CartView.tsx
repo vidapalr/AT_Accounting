@@ -5,8 +5,8 @@ import { useEffect, useRef } from "react";
 
 import styles from "@/app/shop/shop.module.css";
 import { removeFromCart, setQty, updateCartDetails, useCart, type CartLine } from "./cart-store";
+import { inr0 as inr } from "@/lib/format";
 
-const inr = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
 export default function CartView() {
   const lines = useCart();

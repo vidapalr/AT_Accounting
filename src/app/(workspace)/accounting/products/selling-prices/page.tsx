@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { saveSellingPricesAction } from "@/lib/selling-price-actions";
 import { loadPriceOverrides } from "@/lib/selling-price-data";
+import { cell } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ result?: string }> };
 
@@ -17,7 +18,6 @@ const MESSAGES: Record<string, { ok: boolean; text: string }> = {
   failed: { ok: false, text: "Could not save. Nothing was changed." },
 };
 
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
 const box: React.CSSProperties = { padding: 8, width: 100, border: "1px solid #cbd5e1", borderRadius: 6 };
 const inr = (n: number | null) => (n === null ? "—" : `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`);
 

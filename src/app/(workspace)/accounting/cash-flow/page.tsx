@@ -5,10 +5,10 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { loadCashFlow } from "@/lib/reports/cash-flow-data";
 import { inr, isDate, todayInIndia } from "@/lib/reports/money";
+import { cell } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ from?: string; to?: string }> };
 
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
 const num: React.CSSProperties = { ...cell, textAlign: "right", whiteSpace: "nowrap" };
 const field: React.CSSProperties = { padding: "9px 12px", fontSize: 15, minWidth: 0 };
 const money = (v: bigint) => <span style={{ color: v < 0n ? "#b91c1c" : undefined }}>{inr(v)}</span>;

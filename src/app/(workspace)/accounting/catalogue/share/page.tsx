@@ -6,11 +6,13 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { getActiveDivisionId } from "@/lib/division-context";
 import ShareComposer from "@/components/ShareComposer";
+import { getBrand } from "@/lib/brand";
 
 type Props = { searchParams: Promise<{ events?: string }> };
 
 async function Share({ searchParams }: Props) {
   const user = await requireAccess("customers");
+  const brand = await getBrand();
   const divisionId = await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
   const { events } = await searchParams;
@@ -43,9 +45,9 @@ async function Share({ searchParams }: Props) {
       : `See them and order: ${site}/shop`;
   const defaultText =
     names.length === 0
-      ? "New stock has arrived at Abhiram Textiles. Visit us or message us to order."
+      ? `New stock has arrived at ${brand.shopName}. Visit us or message us to order.`
       : [
-          "New stock has arrived at Abhiram Textiles:",
+          `New stock has arrived at ${brand.shopName}:`,
           ...names.map(n => `• ${n}`),
           ...(shopLine ? [shopLine] : []),
           "Visit us or message us to order.",

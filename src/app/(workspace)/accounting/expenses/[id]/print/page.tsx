@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import LoggedPrintButton from "@/components/LoggedPrintButton";
 import { printCount } from "@/lib/document-register";
-import { BRAND_NAME, SHOP_PHONE, SHOP_EMAIL, SHOP_WEBSITES } from "@/lib/brand";
+import Letterhead from "@/components/Letterhead";
 import { rupeesInWords } from "@/lib/voucher-math";
 
 type Props = {
@@ -48,7 +48,7 @@ async function Content({ params, searchParams }: Props) {
   );
   if (rows.length !== 1) notFound();
   const e = rows[0];
-  const address = [e.address_line1, e.address_line2, e.city, e.state, e.postal_code].filter(Boolean).join(", ") || "Kapra, Hyderabad";
+  const address = [e.address_line1, e.address_line2, e.city, e.state, e.postal_code].filter(Boolean).join(", ");
 
   let voucher: RowDataPacket | null = null;
   if (paymentText) {
@@ -96,20 +96,7 @@ async function Content({ params, searchParams }: Props) {
       </div>
 
       <section data-print-sheet style={{ border: "2px solid #142c50", padding: 20, background: "#fff", color: "#0f172a" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 16, borderBottom: "2px solid #142c50", paddingBottom: 12 }}>
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/abhiram-logo-print.png" alt="Abhiram Group" width={72} height={72} />
-            <div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: "#142c50" }}>ABHIRAM GROUP</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#142c50" }}>{BRAND_NAME}</div>
-              <div style={{ fontSize: 12, color: "#475569" }}>{address}</div>
-              <div style={{ fontSize: 12, color: "#475569" }}>Phone {SHOP_PHONE} · {SHOP_EMAIL}</div>
-              <div style={{ fontSize: 12, color: "#475569" }}>{SHOP_WEBSITES}</div>
-            </div>
-          </div>
-          <div style={{ textAlign: "right", fontWeight: 800, color: "#142c50", fontSize: 16 }}>{title}</div>
-        </div>
+        <Letterhead address={address} right={title} />
 
         <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 14 }}>
           <tbody>

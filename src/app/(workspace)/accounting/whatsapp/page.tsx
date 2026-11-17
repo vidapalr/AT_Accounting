@@ -3,6 +3,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
+import { getBrand } from "@/lib/brand";
 import {
   addRecipientAction,
   addSubscriptionAction,
@@ -14,11 +15,12 @@ import {
   setRecipientStatusAction,
   setSubscriptionStatusAction,
 } from "@/lib/whatsapp-actions";
-import { REPORT_LABELS, REPORT_TYPES, TEMPLATES, composeMessage, reportPeriod, whatsappLink, type ReportType } from "@/lib/whatsapp/core";
+import { REPORT_LABELS, REPORT_TYPES, TEMPLATES, composeMessage, templateFor, reportPeriod, whatsappLink, type ReportType } from "@/lib/whatsapp/core";
 import { buildReport } from "@/lib/whatsapp/reports";
 import { todayInIndia } from "@/lib/reports/money";
 import { getProvider } from "@/lib/whatsapp/provider";
 import styles from "../accounting.module.css";
+import { requestOrigin } from "@/lib/tenant";
 
 type Props = { searchParams: Promise<{ done?: string; error?: string }> };
 
@@ -32,6 +34,8 @@ export default function WhatsAppPage(props: Props) {
 
 async function Content({ searchParams }: Props) {
   const owner = await requireGroupOwner();
+  const origin = await requestOrigin();
+  const brand = await getBrand(owner.legal_business_id);
   const businessId = owner.legal_business_id;
   const query = await searchParams;
   const provider = getProvider();
@@ -97,7 +101,7 @@ async function Content({ searchParams }: Props) {
         investor: r.investor_party_id === null ? null : { partyId: Number(r.investor_party_id), name: String(r.full_name) },
       });
       empty = !!content.empty;
-      text = composeMessage(content, String(r.full_name));
+      text = composeMessage(content, String(r.full_name), brand.groupName);
     } catch (error) {
       problem = error instanceof Error ? error.message : "Could not build this report.";
     }
@@ -321,7 +325,7 @@ async function Content({ searchParams }: Props) {
           Submit these message templates for approval (category Utility, language English, with a PDF document as the header). The wording
           and the numbered blanks must match exactly:
           <ul>
-            {TEMPLATES.filter((t, i, a) => a.findIndex((x) => x.name === t.name) === i).map((t) => (
+            {TEMPLATES.filter((t, i, a) => a.findIndex((x) => x.name === t.name) === i).map((t) => templateFor(t.type, process.env, brand.groupName)).map((t) => (
               <li key={t.name}><code>{t.name}</code>: {t.body}</li>
             ))}
           </ul>
@@ -334,7 +338,7 @@ async function Content({ searchParams }: Props) {
           In hPanel → Cron Jobs add three jobs that call the portal (use your <code>CRON_SECRET</code>; times are server time, adjust
           if the server is not on India time):
           <ul>
-            <li>Every day 9 PM: <code>curl -s -H &quot;Authorization: Bearer YOUR_SECRET&quot; &quot;https://accounting.abhiraminc.com/api/whatsapp/run?job=daily&quot;</code></li>
+            <li>Every day 9 PM: <code>curl -s -H &quot;Authorization: Bearer YOUR_SECRET&quot; &quot;{origin}/api/whatsapp/run?job=daily&quot;</code></li>
             <li>Every day 8 AM: same address with <code>?job=morning</code></li>
             <li>1st of each month 9 AM: same address with <code>?job=monthly</code></li>
           </ul>

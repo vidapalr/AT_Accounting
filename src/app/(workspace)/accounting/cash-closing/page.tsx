@@ -11,6 +11,8 @@ import { drawerVsBooks, expectedCash, paiseText } from "@/lib/cash-math";
 import { getAccountPositions } from "@/lib/reports/report-data";
 import NoteCounter from "@/components/accounting/NoteCounter";
 import { NOTE_KINDS, cleanNotes, expectedNotes, notesValue } from "@/lib/cash-notes";
+import { cell, box, field } from "@/lib/ui/styles";
+import { todayInIndia as today } from "@/lib/format";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 type Props = { searchParams: Promise<{ account?: string; date?: string; saved?: string; error?: string }> };
@@ -18,12 +20,8 @@ type Props = { searchParams: Promise<{ account?: string; date?: string; saved?: 
 const inr = (p: bigint) => `${p < 0n ? "-" : ""}₹${((p < 0n ? -p : p) / 100n).toLocaleString("en-IN")}.${String((p < 0n ? -p : p) % 100n).padStart(2, "0")}`;
 const pretty = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
-const today = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
 
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
 const right: React.CSSProperties = { ...cell, textAlign: "right" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
-const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0 };
 const bigBtn: React.CSSProperties = { cursor: "pointer", fontSize: 16, padding: "12px 22px" };
 
 function noteLine(json: unknown): string {

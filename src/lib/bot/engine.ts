@@ -1,17 +1,24 @@
+import { inr0 as inr } from "../format.ts";
 // The chatbot's thinking, with no database and no network, so it can be tested on its own.
 // It never guesses: it answers only from saved answers, shop data it is handed, or hands the chat to a person.
 
-export const BRAND = "Abhiram Textiles";
-export const TAG = "Elegance in every thread";
+/** The bot's fixed replies, in the company's own name (brand settings; see brand-core.ts). */
+export function botText(shopName: string, tagline = "") {
+  const hello = tagline ? `${shopName} - ${tagline}` : shopName;
+  return {
+    menu: `Hello! Welcome to ${hello}.\n\nReply with a number:\n1 - Prices and availability\n2 - Order status\n3 - Talk to a person\n\nOr just type your question.`,
+    askProduct: "Please type the name of the item you are looking for.",
+    askOrder: "Please send your order number, for example WEB-00012.",
+    handoff: "Thank you! Our team will reply to you shortly. They reply during shop hours.",
+    noProduct: "We could not find that item in our online shop. Our team will help you shortly. They reply during shop hours.",
+    noOrder: "We could not find that order for this number. Please check the order number, or type 3 to talk to a person.",
+  };
+}
 
-export const TEXT = {
-  menu: `Hello! Welcome to ${BRAND} - ${TAG}.\n\nReply with a number:\n1 - Prices and availability\n2 - Order status\n3 - Talk to a person\n\nOr just type your question.`,
-  askProduct: "Please type the name of the item, for example: banarasi saree.",
-  askOrder: "Please send your order number, for example WEB-00012.",
-  handoff: "Thank you! Our team will reply to you shortly. They reply during shop hours.",
-  noProduct: "We could not find that item in our online shop. Our team will help you shortly. They reply during shop hours.",
-  noOrder: "We could not find that order for this number. Please check the order number, or type 3 to talk to a person.",
-};
+export type BotText = ReturnType<typeof botText>;
+
+/** The replies with a neutral shop name (used only when no brand is known, and by the tests). */
+export const TEXT: BotText = botText("our shop");
 
 const GREET = new Set(["hi", "hii", "hiii", "hello", "helo", "hai", "hey", "namaste", "namaskar", "namaskaram", "good", "morning", "afternoon", "evening", "ok", "okay", "thanks", "thank", "you", "thx", "ty", "welcome", "bye"]);
 const GREET_WORDS = new Set(["hi", "hii", "hiii", "hello", "helo", "hai", "hey", "namaste", "namaskar", "namaskaram", "good"]);
@@ -89,7 +96,6 @@ export function matchProducts(query: string, items: ShopItem[]): ShopItem[] {
   return scored.filter((s) => s.score >= need).sort((a, b) => b.score - a.score).slice(0, 3).map((s) => s.it);
 }
 
-const inr = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
 export function productReply(found: ShopItem[], shopUrl: string): string {
   const lines = found.map((p) => `*${p.name}*${p.fromPrice !== null ? ` - from ${inr(p.fromPrice)}` : " - ask us for the price"} - ${p.available ? "in stock" : "currently out of stock"}\n${shopUrl}/shop/${p.id}`);

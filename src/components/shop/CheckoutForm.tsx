@@ -6,8 +6,8 @@ import { useState } from "react";
 
 import styles from "@/app/shop/shop.module.css";
 import { clearCart, useCart } from "./cart-store";
+import { inr0 as inr } from "@/lib/format";
 
-const inr = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const COUNTRIES = ["India", "United States", "United Kingdom", "Canada", "Australia", "United Arab Emirates", "Singapore", "Saudi Arabia", "Qatar", "Kuwait", "Germany", "New Zealand"];
 
 export default function CheckoutForm({ me }: { me: { name: string; email: string; phone: string } }) {

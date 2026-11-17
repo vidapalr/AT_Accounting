@@ -7,16 +7,16 @@ import { connection } from "next/server";
 import { db } from "@/lib/db";
 import styles from "../../shop.module.css";
 import { getShopSettings } from "@/lib/shop";
-import { TAGLINE } from "@/lib/brand";
+import { loadBrand } from "@/lib/brand";
 import BillWatermark from "@/components/BillWatermark";
 import BillTerms from "@/components/BillTerms";
 import { termsForSale } from "@/lib/bill-terms";
 import { normalizePhone } from "@/lib/whatsapp/core";
+import { inr2 as inr } from "@/lib/format";
 
 
 export const metadata: Metadata = { title: "Your bill", robots: { index: false, follow: false } };
 type Row = RowDataPacket & Record<string, string | number | null>;
-const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const cell: React.CSSProperties = { padding: "8px 6px", borderBottom: "1px solid #e8e4da", textAlign: "left" };
 const right: React.CSSProperties = { ...cell, textAlign: "right" };
 
@@ -47,8 +47,9 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
     [h.legal_business_id, h.id]
   );
   const { whatsapp } = await getShopSettings(Number(h.legal_business_id));
+  const brand = await loadBrand(Number(h.legal_business_id));
   const phone = normalizePhone(whatsapp);
-  const address = [h.address_line1, h.address_line2, h.city, h.state, h.postal_code].filter(Boolean).join(", ") || "Kapra, Hyderabad";
+  const address = [h.address_line1, h.address_line2, h.city, h.state, h.postal_code].filter(Boolean).join(", ") || brand.place;
   const total = Number(h.grand_total);
   const paidAmt = Number(paid[0]?.paid ?? 0);
   const due = Math.max(0, total - paidAmt);
@@ -58,10 +59,10 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
       <BillWatermark />
       <div style={{ display: "flex", alignItems: "center", gap: 14, borderBottom: "2px solid var(--indigo)", paddingBottom: 12, marginBottom: 10 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/abhiram-logo-192.png" alt="Abhiram Textiles logo" width={64} height={64} />
+        <img src={brand.logoSmall} alt={`${brand.shopName} logo`} width={64} height={64} />
         <div>
-          <h1 style={{ fontFamily: "var(--font-display), Georgia, serif", fontWeight: 400, color: "var(--indigo)", margin: 0 }}>Abhiram Textiles</h1>
-          <div className={styles.muted}>{TAGLINE}</div>
+          <h1 style={{ fontFamily: "var(--font-display), Georgia, serif", fontWeight: 400, color: "var(--indigo)", margin: 0 }}>{brand.shopName}</h1>
+          {brand.tagline ? <div className={styles.muted}>{brand.tagline}</div> : null}
         </div>
       </div>
       <p className={styles.muted} style={{ margin: "0 0 4px" }}>{address}{phone ? <> · <a href={`tel:${phone}`}>{whatsapp}</a></> : null}</p>
@@ -91,7 +92,7 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
       {!isEstimate && <p style={{ textAlign: "right", margin: 0 }}>Paid {inr(paidAmt)}</p>}
       {!isEstimate && <p style={{ textAlign: "right", margin: 0 }}>{due > 0 ? <>Balance due <strong>{inr(due)}</strong></> : <strong>Paid in full. Thank you!</strong>}</p>}
       <BillTerms text={await termsForSale(db, Number(h.legal_business_id), Number(h.id))} />
-      <p style={{ marginTop: 28, fontSize: 18, textAlign: "center", color: "var(--indigo)" }}><strong>{isEstimate ? "Thank you for visiting Abhiram Textiles!" : "Thanks for shopping with Abhiram Textiles!"}</strong></p>
+      <p style={{ marginTop: 28, fontSize: 18, textAlign: "center", color: "var(--indigo)" }}><strong>{isEstimate ? `Thank you for visiting ${brand.shopName}!` : `Thanks for shopping with ${brand.shopName}!`}</strong></p>
       <p className={styles.muted} style={{ textAlign: "center" }}>
         If anything looks wrong, message us{phone ? <> on <a href={`https://wa.me/${phone.replace(/\D/g, "")}`}>WhatsApp {whatsapp}</a></> : " on WhatsApp"}.
       </p>

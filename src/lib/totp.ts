@@ -60,7 +60,7 @@ export function checkCode(secret: string, typed: string, nowMs: number, lastUsed
 }
 
 /** The text an authenticator app reads from the QR code. */
-export function otpAuthUrl(secret: string, account: string, issuer = "Abhiram Group"): string {
+export function otpAuthUrl(secret: string, account: string, issuer: string): string {
   return `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(account)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
 }
 

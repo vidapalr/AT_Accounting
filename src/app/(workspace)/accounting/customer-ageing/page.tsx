@@ -11,6 +11,8 @@ import { todayInIndia } from "@/lib/reports/money";
 import { normalizePhone } from "@/lib/customer-phone";
 import UnpaidWalkIns from "@/components/accounting/UnpaidWalkIns";
 import { ageDues } from "@/lib/supplier-statement";
+import { getBrand } from "@/lib/brand";
+import { cell, box } from "@/lib/ui/styles";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 type Props = { searchParams: Promise<{ min?: string }> };
@@ -20,12 +22,11 @@ const prettyDate = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 const dayNumber = (iso: string) => Math.floor(Date.parse(`${iso}T00:00:00Z`) / 86400000);
 
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
 const right: React.CSSProperties = { ...cell, textAlign: "right" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
 
 async function AgeingContent({ searchParams }: Props) {
   const user = await requireAccess("customers");
+  const brand = await getBrand();
   const businessId = user.legal_business_id;
   const { min } = await searchParams;
   const minDays = [0, 30, 60, 90].includes(Number(min)) ? Number(min) : 0;
@@ -124,7 +125,7 @@ async function AgeingContent({ searchParams }: Props) {
             {list.map((x) => {
               const phone = normalizePhone(String(x.c!.phone ?? ""));
               const message =
-                `Hello ${x.c!.full_name}, this is Abhiram Textiles. A small reminder: ${rupees(x.ageing.totalDue)} ` +
+                `Hello ${x.c!.full_name}, this is ${brand.shopName}. A small reminder: ${rupees(x.ageing.totalDue)} ` +
                 `is pending on your account` + (x.oldest ? ` (oldest bill dated ${prettyDate(x.oldest)})` : "") +
                 `. Please pay when convenient. Thank you!`;
               return (

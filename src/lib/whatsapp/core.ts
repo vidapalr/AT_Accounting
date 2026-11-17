@@ -94,9 +94,13 @@ export function cleanParam(value: string, max = 200): string {
 
 export type TemplateDef = {
   type: ReportType;
-  /** Name registered with WhatsApp. Can be overridden with WHATSAPP_TEMPLATE_<TYPE>. */
+  /**
+   * Name registered with WhatsApp: WHATSAPP_TEMPLATE_PREFIX + this name (e.g. prefix "acme_" gives "acme_daily_sales"),
+   * or the full name in WHATSAPP_TEMPLATE_<TYPE>.
+   */
   name: string;
   language: string;
+  /** Wording to register; {company} is the company's name (brand settings). */
   body: string;
   paramCount: number;
 };
@@ -104,59 +108,60 @@ export type TemplateDef = {
 export const TEMPLATES: TemplateDef[] = [
   {
     type: "DAILY_SALES",
-    name: "abhiram_daily_sales",
+    name: "daily_sales",
     language: "en",
-    body: "Abhiram Group daily sales for {{1}} - {{2}}. Invoices: {{3}}. Net sales: {{4}}. Collected: {{5}}. Gross profit: {{6}}. The full report is attached.",
+    body: "{company} daily sales for {{1}} - {{2}}. Invoices: {{3}}. Net sales: {{4}}. Collected: {{5}}. Gross profit: {{6}}. The full report is attached.",
     paramCount: 6,
   },
   {
     type: "DAILY_FULL",
-    name: "abhiram_daily_report",
+    name: "daily_report",
     language: "en",
-    body: "Abhiram Group daily report for {{1}} - {{2}}. Net sales: {{3}}. Gross profit: {{4}}. Operating profit: {{5}}. Cash and bank: {{6}}. The full report is attached.",
+    body: "{company} daily report for {{1}} - {{2}}. Net sales: {{3}}. Gross profit: {{4}}. Operating profit: {{5}}. Cash and bank: {{6}}. The full report is attached.",
     paramCount: 6,
   },
   {
     type: "STOCK_DAILY",
-    name: "abhiram_stock_report",
+    name: "stock_report",
     language: "en",
-    body: "Abhiram Group {{1}} - {{2}}. Items in stock: {{3}}. Total units: {{4}}. Low-stock items: {{5}}. The full report is attached.",
+    body: "{company} {{1}} - {{2}}. Items in stock: {{3}}. Total units: {{4}}. Low-stock items: {{5}}. The full report is attached.",
     paramCount: 5,
   },
   {
     type: "STOCK_MONTHLY",
-    name: "abhiram_stock_report",
+    name: "stock_report",
     language: "en",
-    body: "Abhiram Group {{1}} - {{2}}. Items in stock: {{3}}. Total units: {{4}}. Low-stock items: {{5}}. The full report is attached.",
+    body: "{company} {{1}} - {{2}}. Items in stock: {{3}}. Total units: {{4}}. Low-stock items: {{5}}. The full report is attached.",
     paramCount: 5,
   },
   {
     type: "ALERTS",
-    name: "abhiram_alerts",
+    name: "alerts",
     language: "en",
-    body: "Abhiram Group alerts for {{1}} - {{2}}. Low-stock items: {{3}}. Customers owing: {{4}} totalling {{5}}. Suppliers to pay: {{6}}. Details are attached.",
+    body: "{company} alerts for {{1}} - {{2}}. Low-stock items: {{3}}. Customers owing: {{4}} totalling {{5}}. Suppliers to pay: {{6}}. Details are attached.",
     paramCount: 6,
   },
   {
     type: "MORNING_DIGEST",
-    name: "abhiram_morning_digest",
+    name: "morning_digest",
     language: "en",
-    body: "Abhiram Group morning digest for {{1}} - {{2}}. Yesterday's net sales: {{3}}. Cash and bank: {{4}}. New website orders: {{5}}. Items needing your attention: {{6}}.",
+    body: "{company} morning digest for {{1}} - {{2}}. Yesterday's net sales: {{3}}. Cash and bank: {{4}}. New website orders: {{5}}. Items needing your attention: {{6}}.",
     paramCount: 6,
   },
   {
     type: "INVESTOR_STATEMENT",
-    name: "abhiram_investor_statement",
+    name: "investor_statement",
     language: "en",
-    body: "Dear {{1}}, your Abhiram Group profit statement for {{2}} is attached. Your share for the month: {{3}}. Agreements covered: {{4}}.",
+    body: "Dear {{1}}, your {company} profit statement for {{2}} is attached. Your share for the month: {{3}}. Agreements covered: {{4}}.",
     paramCount: 4,
   },
 ];
 
-export function templateFor(type: ReportType, env: Record<string, string | undefined> = {}): TemplateDef {
+export function templateFor(type: ReportType, env: Record<string, string | undefined> = {}, company = "{company}"): TemplateDef {
   const base = TEMPLATES.find((t) => t.type === type)!;
   const override = env[`WHATSAPP_TEMPLATE_${type}`]?.trim();
-  return override ? { ...base, name: override } : base;
+  const prefix = (env.WHATSAPP_TEMPLATE_PREFIX ?? "").trim();
+  return { ...base, name: override || `${prefix}${base.name}`, body: base.body.replaceAll("{company}", company) };
 }
 
 /** What a scheduled report holds, independent of how it is shown. */
@@ -192,19 +197,19 @@ const MAX_TABLE_ROWS = 12;
  * carry a PDF, so the message holds the key figures and the PDF can be
  * attached separately.
  */
-export function composeMessage(content: ReportContent, recipientName: string): string {
+export function composeMessage(content: ReportContent, recipientName: string, company: string): string {
   const lines: string[] = [];
   const p = content.params;
 
   if (content.type === "INVESTOR_STATEMENT") {
     lines.push(`Dear ${recipientName},`);
-    lines.push(`Your Abhiram Group profit statement for ${p[1]}:`);
+    lines.push(`Your ${company} profit statement for ${p[1]}:`);
     lines.push(`Your share for the month: *${p[2]}*`);
     lines.push(`Agreements covered: ${p[3]}`);
     return lines.join("\n");
   }
 
-  lines.push(`*Abhiram Group* - ${content.title}`);
+  lines.push(`*${company}* - ${content.title}`);
   lines.push(content.subtitle);
 
   if (content.type === "STOCK_DAILY" || content.type === "STOCK_MONTHLY") {

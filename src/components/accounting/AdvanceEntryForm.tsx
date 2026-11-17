@@ -31,6 +31,8 @@ type Props = {
   cash: Cash[];
   investors: Investor[];
   today: string;
+  /** The active division, from the server (nothing fixed in code). */
+  division: { id: number; name: string };
 };
 
 const field: React.CSSProperties = {
@@ -46,6 +48,7 @@ export default function AdvanceEntryForm({
   cash,
   investors,
   today,
+  division,
 }: Props) {
   const [level, setLevel] = useState("BRANCH");
   const [source, setSource] = useState("BUSINESS_BANK");
@@ -103,10 +106,10 @@ export default function AdvanceEntryForm({
           <select
             name="division_id"
             disabled={level === "GROUP"}
-            defaultValue="1"
+            defaultValue={String(division.id)}
             style={field}
           >
-            <option value="1">Abhiram Textiles</option>
+            <option value={division.id}>{division.name}</option>
           </select>
         </label>
 
@@ -186,7 +189,7 @@ export default function AdvanceEntryForm({
         Description
         <input
           name="description"
-          placeholder="Example: Refundable Kapra shop security deposit"
+          placeholder="Example: Refundable shop security deposit"
           maxLength={500}
           required
           style={field}

@@ -9,6 +9,8 @@ import {
   startTwoStepAction, confirmTwoStepAction, turnOffTwoStepAction, newBackupCodesAction,
 } from "@/lib/two-step-actions";
 import styles from "../accounting.module.css";
+import { BACKUP_CODES_COOKIE } from "@/lib/app-config";
+import { getBrand } from "@/lib/brand";
 
 type Props = { searchParams: Promise<{ done?: string; error?: string }> };
 
@@ -33,9 +35,9 @@ async function SecurityContent({ searchParams }: Props) {
   } catch { tablesMissing = true; }
 
   const jar = await cookies();
-  const justCodes = (jar.get("abhiram_backup_codes")?.value ?? "").split(",").filter(Boolean);
+  const justCodes = (jar.get(BACKUP_CODES_COOKIE)?.value ?? "").split(",").filter(Boolean);
 
-  const qr = secret ? await QRCode.toDataURL(otpAuthUrl(secret, user.email), { margin: 1, width: 220 }) : null;
+  const qr = secret ? await QRCode.toDataURL(otpAuthUrl(secret, user.email, (await getBrand(user.legal_business_id)).appName), { margin: 1, width: 220 }) : null;
   const big = { padding: "14px 18px", fontSize: 16 } as const;
 
   return (

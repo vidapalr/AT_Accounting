@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import styles from "@/app/shop/shop.module.css";
 import { shopOrderLink } from "@/lib/shop-link";
 import { addToCart } from "./cart-store";
+import { inr0 as inr } from "@/lib/format";
 
 type Variant = {
   id: number; sku: string; size: string | null; color: string | null; style: string | null;
@@ -19,12 +20,12 @@ type Props = {
   };
   media: { id: number; type: "IMAGE" | "VIDEO" }[];
   whatsapp: string;
+  shopName: string;
 };
 
-const inr = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const label = (v: Variant, withStyle = false) => [v.size, v.color, withStyle ? v.style ?? v.sku : null].filter(Boolean).join(", ");
 
-export default function ProductPicker({ product, media, whatsapp }: Props) {
+export default function ProductPicker({ product, media, whatsapp, shopName }: Props) {
   const { variants } = product;
   const colours = useMemo(() => [...new Set(variants.map((v) => v.color).filter((c): c is string => Boolean(c)))], [variants]);
   const sizes = useMemo(() => [...new Set(variants.map((v) => v.size).filter((s): s is string => Boolean(s)))], [variants]);
@@ -167,7 +168,7 @@ export default function ProductPicker({ product, media, whatsapp }: Props) {
 
         {whatsapp && (
           <p style={{ marginTop: 14 }}>
-            <a className={styles.btnWa} href={shopOrderLink(whatsapp, [{ product: product.name, detail: v ? label(v) : "" }])}>Ask us on WhatsApp</a>
+            <a className={styles.btnWa} href={shopOrderLink(whatsapp, [{ product: product.name, detail: v ? label(v) : "" }], shopName)}>Ask us on WhatsApp</a>
           </p>
         )}
 

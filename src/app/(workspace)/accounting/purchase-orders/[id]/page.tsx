@@ -14,19 +14,20 @@ import { cancelPurchaseOrderAction, receivePurchaseOrderAction } from "@/lib/pur
 import SubmitButton from "@/components/SubmitButton";
 import ConfirmButton from "@/components/ConfirmButton";
 import PurchaseOrderForm from "../PurchaseOrderForm";
+import { getBrand } from "@/lib/brand";
+import { cellTop as cell, box } from "@/lib/ui/styles";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; error?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
 
 const rupees = (p: bigint) => `₹${(p / 100n).toLocaleString("en-IN")}.${String(p % 100n).padStart(2, "0")}`;
 const pretty = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
-const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 const right: React.CSSProperties = { ...cell, textAlign: "right" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
 const SAVED: Record<string, string> = { created: "Order saved.", changed: "Order changed.", cancelled: "Order cancelled." };
 
 async function Content({ params, searchParams }: Props) {
   const user = await requireAccess("purchases");
+  const brand = await getBrand();
   const businessId = user.legal_business_id;
   const divisionId = await getActiveDivisionId(user);
   const id = Number((await params).id);
@@ -60,7 +61,7 @@ async function Content({ params, searchParams }: Props) {
 
   const phone = normalizePhone(String(o.whatsapp_number ?? "")) ?? normalizePhone(String(o.mobile ?? ""));
   const message =
-    `Hello ${o.supplier_name}, this is Abhiram Textiles. Purchase order ${o.order_no} dated ${pretty(String(o.od))}:\n` +
+    `Hello ${o.supplier_name}, this is ${brand.shopName}. Purchase order ${o.order_no} dated ${pretty(String(o.od))}:\n` +
     lines.map((l) => `• ${name(l)} (${l.sku}) × ${qty(l.quantity)} @ ₹${Number(l.unit_cost)}`).join("\n") +
     `\nTotal ${rupees(total)}.` + (o.ed ? ` Please deliver by ${pretty(String(o.ed))}.` : "") + (o.remarks ? `\n${o.remarks}` : "") + `\nPlease confirm. Thank you!`;
 

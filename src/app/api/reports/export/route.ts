@@ -7,6 +7,7 @@ import { canAccess } from "@/lib/access";
 import { db } from "@/lib/db";
 import { getBalanceReport, getProfitReport } from "@/lib/reports/report-data";
 import { isDate, todayInIndia, toNumber } from "@/lib/reports/money";
+import { getBrand } from "@/lib/brand";
 
 const MONEY = '#,##0.00;[Red]-#,##0.00';
 
@@ -24,14 +25,15 @@ export async function GET(request: Request) {
   const scopes = await getProfitReport(db, businessId, from, to);
   const { accounts, sheet, names } = await getBalanceReport(db, businessId, to);
 
+  const brand = await getBrand(businessId);
   const book = new ExcelJS.Workbook();
-  book.creator = "Abhiram Group Accounting";
+  book.creator = brand.appName;
 
   const bold = { bold: true };
 
   // Profit
   const profit = book.addWorksheet("Profit");
-  profit.addRow(["Abhiram Group"]).font = { bold: true, size: 14 };
+  profit.addRow([brand.groupName]).font = { bold: true, size: 14 };
   profit.addRow([`Profit report ${from} to ${to}`]);
   profit.addRow([]);
   profit.addRow([
@@ -54,7 +56,7 @@ export async function GET(request: Request) {
 
   // Balance sheet
   const bs = book.addWorksheet("Balance Sheet");
-  bs.addRow(["Abhiram Group"]).font = { bold: true, size: 14 };
+  bs.addRow([brand.groupName]).font = { bold: true, size: 14 };
   bs.addRow([`Balance sheet as at ${to}`]);
   bs.addRow([]);
   const block = (title: string, rows: { code: string; amount: bigint }[]) => {
@@ -73,7 +75,7 @@ export async function GET(request: Request) {
 
   // Trial balance
   const tb = book.addWorksheet("Trial Balance");
-  tb.addRow(["Abhiram Group"]).font = { bold: true, size: 14 };
+  tb.addRow([brand.groupName]).font = { bold: true, size: 14 };
   tb.addRow([`Trial balance as at ${to}`]);
   tb.addRow([]);
   tb.addRow(["Account", "Debit", "Credit"]).font = bold;
@@ -92,7 +94,7 @@ export async function GET(request: Request) {
   tb.getColumn(3).numFmt = MONEY;
 
   try {
-    const logo = await readFile(join(process.cwd(), "public", "brand", "abhiram-logo-print.png"));
+    const logo = await readFile(join(process.cwd(), "public", ...brand.logoPrint.split("/").filter((p) => p && p !== "..")));
     const imageId = book.addImage({ buffer: logo as unknown as ExcelJS.Buffer, extension: "png" });
     for (const sheet of book.worksheets) {
       sheet.addImage(imageId, { tl: { col: sheet.columnCount + 0.3, row: 0.2 }, ext: { width: 64, height: 64 } });
@@ -105,7 +107,7 @@ export async function GET(request: Request) {
   return new Response(buffer as ArrayBuffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="abhiram-reports-${from}-to-${to}.xlsx"`,
+      "Content-Disposition": `attachment; filename="${brand.fileSlug}-reports-${from}-to-${to}.xlsx"`,
       "Cache-Control": "no-store",
     },
   });

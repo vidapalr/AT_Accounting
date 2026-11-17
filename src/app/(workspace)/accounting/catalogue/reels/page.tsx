@@ -7,12 +7,14 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { getShopProducts } from "@/lib/shop";
 import ReelMaker from "@/components/ReelMaker";
+import { getBrand } from "@/lib/brand";
 
 type Props = { searchParams: Promise<{ product?: string }> };
 
 async function Content({ searchParams }: Props) {
   const user = await requireAccess("products");
   const businessId = user.legal_business_id;
+  const brand = await getBrand(businessId);
   const productId = Number((await searchParams).product);
   if (!Number.isSafeInteger(productId) || productId <= 0) notFound();
 
@@ -45,6 +47,7 @@ async function Content({ searchParams }: Props) {
       <h1>Make a reel: {String(prod[0].product_name)}</h1>
       <p style={{ color: "#475569" }}>A short vertical video from the product photos, with the name, price and music. You see it before anything is posted.</p>
       <ReelMaker
+        shopName={brand.shopName}
         productId={productId}
         productName={String(prod[0].product_name)}
         priceText={priceText}

@@ -8,10 +8,10 @@ import { botConfigured } from "@/lib/bot/send";
 import { audienceFor, getSettings, loadArrival, sentToday } from "@/lib/broadcast-data";
 import { eventKey, estimatePaise, roomLeft } from "@/lib/broadcast-math";
 import { startBroadcastAction, sendBroadcastTestAction } from "@/lib/broadcast-actions";
+import { card as box } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ events?: string; error?: string; test?: string }> };
 
-const box: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, marginBottom: 16 };
 const input: React.CSSProperties = { padding: 12, border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 16, boxSizing: "border-box" };
 const ERRORS: Record<string, string> = {
   confirm: "Tick the box to confirm the number of messages and the cost.",

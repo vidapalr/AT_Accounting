@@ -7,13 +7,13 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { getActiveDivisionId } from "@/lib/division-context";
 import { todayInIndia } from "@/lib/reports/money";
+import { cellTop as cell } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ show?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
 
 const rupees = (p: bigint) => `₹${(p / 100n).toLocaleString("en-IN")}.${String(p % 100n).padStart(2, "0")}`;
 const pretty = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
-const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 
 async function Content({ searchParams }: Props) {
   const user = await requireAccess("purchases");

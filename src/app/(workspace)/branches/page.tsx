@@ -9,6 +9,7 @@ import {
 } from "@/lib/branch-actions";
 
 import styles from "../funding/funding.module.css";
+import { getBrand } from "@/lib/brand";
 
 type PageProps = {
   searchParams: Promise<{ result?: string }>;
@@ -46,6 +47,7 @@ async function BranchesContent({
   searchParams,
 }: PageProps) {
   const user = await requireGroupOwner();
+  const brand = await getBrand();
 
   const [branches, divisions] = await Promise.all([
     getBranches(user.legal_business_id),
@@ -76,7 +78,7 @@ async function BranchesContent({
         <h1>Branch Management</h1>
         <p>
           Create and maintain branches across
-          Abhiram Group's business divisions.
+          {brand.groupName}'s business divisions.
         </p>
       </header>
 
@@ -164,7 +166,6 @@ async function BranchesContent({
             <Field label="City">
               <input
                 name="city"
-                defaultValue="Hyderabad"
                 maxLength={100}
               />
             </Field>

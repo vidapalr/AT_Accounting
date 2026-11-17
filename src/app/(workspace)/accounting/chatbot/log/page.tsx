@@ -5,13 +5,13 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { explainWhatsAppError, maskPhone, stuckHint } from "@/lib/bot/wa-errors";
+import { cellTop as cell } from "@/lib/ui/styles";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 type Entry = {
   at: string; ms: number; what: string; to: string; waId: string | null; failedToSend: string | null;
 };
 
-const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 const IST_MIN = 330; // the database keeps UTC; show Indian time
 
 async function Content() {

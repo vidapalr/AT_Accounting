@@ -8,8 +8,8 @@ test("hashtags are letters and digits only", () => {
 });
 
 test("caption has the details and hashtags", () => {
-  const c = buildCaption({ name: "Silk Saree", fabric: "Silk", colors: ["Red", "Red", "Blue"] });
-  assert.match(c, /New at Abhiram Textiles/);
+  const c = buildCaption({ shop: "Test Shop", name: "Silk Saree", fabric: "Silk", colors: ["Red", "Red", "Blue"] });
+  assert.match(c, /New at Test Shop/);
   assert.match(c, /Colours: Red, Blue/);
   assert.match(c, /#SilkSaree/);
   assert.ok(c.length <= 2200);

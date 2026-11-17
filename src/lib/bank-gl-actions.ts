@@ -44,7 +44,7 @@ export async function mapBankToGLAction(form: FormData) {
     await connection.beginTransaction();
 
     // Same lock-order convention as other
-    // Abhiram Group financial operations.
+    // The business's own financial operations.
     const [businesses] =
       await connection.execute<RowDataPacket[]>(
         `SELECT id

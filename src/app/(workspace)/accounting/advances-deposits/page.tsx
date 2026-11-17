@@ -5,6 +5,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { getActiveDivision } from "@/lib/division-context";
 import AdvanceEntryForm from
   "@/components/accounting/AdvanceEntryForm";
 
@@ -31,6 +32,7 @@ const cell: React.CSSProperties = {
 
 async function Content({ searchParams }: Props) {
   const user = await requireAccess("expenses");
+  const activeDivision = await getActiveDivision(user);
   const businessId = user.legal_business_id;
   const { result, id } = await searchParams;
 
@@ -203,6 +205,7 @@ async function Content({ searchParams }: Props) {
       </section>
 
       <AdvanceEntryForm
+        division={activeDivision}
         branches={branches.map(b => ({
           id: Number(b.id),
           name: String(b.branch_name),

@@ -11,9 +11,10 @@ import { normalizePhone, whatsappLink } from "@/lib/whatsapp/core";
 import { autoSendSettings } from "@/lib/wa-auto";
 import { sendWhatsAppTemplate, sendWhatsAppTextDetailed } from "@/lib/bot/send";
 import { explainWhatsAppError, maskPhone } from "@/lib/bot/wa-errors";
+import { getBrand } from "@/lib/brand";
+import { inr2 as inr } from "./format.ts";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
-const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /** Gives back a WhatsApp link with the customer's number and a private link to their bill. The page opens it in a new tab; staff press send. */
 export async function billWhatsAppLinkAction(saleId: number): Promise<{ url?: string; sent?: boolean; note?: string; error?: string }> {
@@ -57,14 +58,15 @@ export async function billWhatsAppLinkAction(saleId: number): Promise<{ url?: st
   );
 
   const total = Number(s.grand_total);
+  const shopName = (await getBrand(user.legal_business_id)).shopName;
   const auto = await autoSendSettings(user.legal_business_id);
   const due = Math.max(0, total - Number(s.paid));
   const name = String(s.customer_name ?? "").trim();
   const text = isEstimate
-    ? `Hello${name ? ` ${name}` : ""}, thanks for visiting Abhiram Textiles.\n` +
+    ? `Hello${name ? ` ${name}` : ""}, thanks for visiting ${shopName}.\n` +
       `Your estimate ${s.estimate_no ?? s.invoice_no}: ${inr(total)}. This is an estimate, not a bill.\n` +
       `See your estimate: ${shopBaseUrl()}/shop/bill/${token}`
-    : `Hello${name ? ` ${name}` : ""}, thanks for shopping with Abhiram Textiles.\n` +
+    : `Hello${name ? ` ${name}` : ""}, thanks for shopping with ${shopName}.\n` +
       `Your bill ${s.invoice_no}: ${inr(total)}${due > 0 ? ` (balance due ${inr(due)})` : " (paid in full)"}.\n` +
       `See your bill: ${shopBaseUrl()}/shop/bill/${token}`;
   if (auto.on) {

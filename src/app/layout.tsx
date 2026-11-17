@@ -1,20 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { geistMono, geistSans } from "@/fonts";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
+/** Neutral defaults; the shop and the staff app set their own titles from the company's brand settings. */
 export const metadata: Metadata = {
-  title: "An Abhiram Group",
-  description: "Abhiram Textiles is a part of Abhiram Group, a leading textile retailer specializing in high-quality fabrics and garments.",
+  title: { default: "Business suite", template: "%s" },
+  description: "Accounting, stock, customers and online shop.",
+  applicationName: "Business suite",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

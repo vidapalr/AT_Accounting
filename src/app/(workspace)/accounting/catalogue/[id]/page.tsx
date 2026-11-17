@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { setCoverAction, removeMediaAction } from "@/lib/catalogue-actions";
 import CopyTextButton from "@/components/CopyTextButton";
+import { getBrand } from "@/lib/brand";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -32,6 +33,7 @@ function uploadMessage(code?: string): { ok: boolean; text: string } | null {
 
 async function ProductMedia({ params, searchParams }: Props) {
   const user = await requireAccess("products");
+  const brand = await getBrand();
   const { id } = await params;
   const { upload, details } = await searchParams;
   const productId = Number(id);
@@ -72,7 +74,7 @@ async function ProductMedia({ params, searchParams }: Props) {
     p.fabric ? `Fabric: ${p.fabric}` : "",
     sizes.length ? `Sizes: ${sizes.join(", ")}` : "",
     colours.length ? `Colours: ${colours.join(", ")}` : "",
-    "Visit Abhiram Textiles or message us to order.",
+    `Visit ${brand.shopName} or message us to order.`,
   ].filter(Boolean).join("\n");
 
   return (

@@ -13,6 +13,7 @@ import {
 import {
   changeAccountingPeriodStatusAction,
 } from "@/lib/accounting-period-status-actions";
+import { getBrand } from "@/lib/brand";
 
 type Props = {
   searchParams: Promise<{
@@ -111,6 +112,7 @@ async function AccountingPeriodsContent({
   searchParams,
 }: Props) {
   const user = await requireGroupOwner();
+  const brand = await getBrand();
   const query = await searchParams;
 
   const [yearRows] = await db.execute<RowDataPacket[]>(
@@ -173,7 +175,7 @@ async function AccountingPeriodsContent({
 
         <p>
           Manage monthly posting periods for
-          Abhiram Group&apos;s April–March
+          {brand.groupName}&apos;s April–March
           financial years.
         </p>
 

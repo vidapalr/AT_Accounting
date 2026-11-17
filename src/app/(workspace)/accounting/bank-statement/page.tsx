@@ -5,11 +5,10 @@ import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 import { loadBookLines } from "@/lib/bank-statement-data";
 import { importStatementAction, ignoreLineAction, rematchAction, unmatchLineAction } from "@/lib/bank-statement-actions";
+import { cellTopCompact as cell, box } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ bank?: string; saved?: string; error?: string }> };
 
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 const inr = (paise: number) => `₹${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const p = (v: unknown) => Math.round(Number(v ?? 0) * 100);
 

@@ -11,6 +11,7 @@ import {
   saveOpeningBalancesAction,
 } from "@/lib/opening-balance-actions";
 import { OPENING_ROW_COUNT } from "@/lib/opening-balance-constants";
+import { getBrand } from "@/lib/brand";
 
 type Props = {
   searchParams: Promise<{ result?: string }>;
@@ -369,6 +370,7 @@ async function OpeningBalancesContent({
   searchParams,
 }: Props) {
   const user = await requireGroupOwner();
+  const brand = await getBrand();
   const businessId = user.legal_business_id;
   const query = await searchParams;
 
@@ -593,7 +595,7 @@ async function OpeningBalancesContent({
       <OpeningSteps current={1} />
 
       <p>
-        Enter the opening position for Abhiram Group,
+        Enter the opening position for {brand.groupName},
         including registered business banks, cash
         locations, investor-bank Group activity, funding
         and other ledgers.
@@ -727,7 +729,7 @@ async function OpeningBalancesContent({
               <p>
                 Positive bank balances are normally
                 entered as Debit. Enter only balances
-                belonging to Abhiram Group.
+                belonging to {brand.groupName}.
               </p>
 
               <div style={{ overflowX: "auto" }}>

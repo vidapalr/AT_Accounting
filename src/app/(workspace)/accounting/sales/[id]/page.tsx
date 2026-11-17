@@ -4,7 +4,7 @@ import DocumentHeader from "@/components/DocumentHeader";
 import BillTerms from "@/components/BillTerms";
 import { termsForSale } from "@/lib/bill-terms";
 import { getShopSettings } from "@/lib/shop";
-import { SHOP_PHONE, OWNER_PERSONAL_PHONE } from "@/lib/brand";
+import { getBrand } from "@/lib/brand";
 import { setInvoiceAddressAction, voidEstimateAction } from "@/lib/sales-actions";
 import BillWatermark from "@/components/BillWatermark";
 import LoggedPrintButton from "@/components/LoggedPrintButton";
@@ -81,6 +81,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
   }
 
   const businessId = user.legal_business_id;
+  const brand = await getBrand(businessId);
   const mine = divisionSql(user, "s.division_id");
   const query = await searchParams;
   const payResult = query?.pay;
@@ -126,7 +127,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
   const shop = await getShopSettings(businessId);
   const printedBefore = await printCount(businessId, isEstimate ? "ESTIMATE" : "INVOICE", Number(invoice.id));
   const autoSend = (await autoSendSettings(businessId)).on;
-  const shopAddress = [invoice.address_line1, invoice.address_line2, invoice.city, invoice.state, invoice.postal_code].filter(Boolean).join(", ") || "Kapra, Hyderabad";
+  const shopAddress = [invoice.address_line1, invoice.address_line2, invoice.city, invoice.state, invoice.postal_code].filter(Boolean).join(", ") || brand.place;
 
   const [items] = await db.execute<RowDataPacket[]>(
     `SELECT
@@ -341,7 +342,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         title={`${docWord} ${docNo}`}
         date={String(invoice.invoice_date)}
         shopAddress={shopAddress}
-        shopPhone={`${SHOP_PHONE} / ${OWNER_PERSONAL_PHONE}`}
+        shopPhone={[brand.shopPhone, brand.ownerPhone].filter(Boolean).join(" / ")}
         customerName={String(invoice.customer_name || "Walk-in customer")}
         customerPhone={invoice.customer_phone ? String(invoice.customer_phone) : undefined}
         customerAddress={invoice.customer_address ? String(invoice.customer_address) : undefined}

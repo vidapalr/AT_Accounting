@@ -13,6 +13,7 @@ import {
   rejectDraftAction,
   toggleReporterAction,
 } from "@/lib/stock-report-actions";
+import { requestOrigin } from "@/lib/tenant";
 
 type Props = { searchParams: Promise<{ result?: string; error?: string; note?: string; n?: string; p?: string }> };
 
@@ -28,6 +29,7 @@ const ACTION_WORDS: Record<string, string> = {
 
 async function Content({ searchParams }: Props) {
   const user = await requireAccess("stock");
+  const origin = await requestOrigin();
   const { result, error, note, n, p } = await searchParams;
   const businessId = user.legal_business_id;
 
@@ -192,7 +194,7 @@ async function Content({ searchParams }: Props) {
       <section style={card}>
         <h2 style={{ marginTop: 0 }}>One-time set-up for automatic WhatsApp</h2>
         <ol>
-          <li>In Meta’s WhatsApp settings, set the webhook address to <code>https://accounting.abhiraminc.com/api/whatsapp/webhook</code> and subscribe to “messages”.</li>
+          <li>In Meta’s WhatsApp settings, set the webhook address to <code>{origin}/api/whatsapp/webhook</code> and subscribe to “messages”.</li>
           <li>Type the same secret word in Meta and in the server setting <code>WHATSAPP_VERIFY_TOKEN</code>.</li>
           <li>Put Meta’s app secret in the server setting <code>WHATSAPP_APP_SECRET</code>.</li>
         </ol>

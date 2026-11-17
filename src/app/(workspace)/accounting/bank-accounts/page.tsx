@@ -124,7 +124,7 @@ async function BankAccountsContent({
       <h1>Bank Account Management</h1>
 
       <p>
-        Manage Abhiram-controlled bank accounts
+        Manage business-controlled bank accounts
         and investor funding/payment accounts.
       </p>
 
@@ -167,7 +167,7 @@ async function BankAccountsContent({
               style={inputStyle}
             >
               <option value="BUSINESS">
-                Abhiram Group / Business Controlled
+                Business controlled
               </option>
               <option value="INVESTOR">
                 Investor Owned

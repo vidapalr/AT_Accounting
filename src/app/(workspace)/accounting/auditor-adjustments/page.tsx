@@ -6,13 +6,11 @@ import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 import { createAuditorAdjustmentAction } from "@/lib/auditor-adjustment-actions";
 import ConfirmButton from "@/components/ConfirmButton";
+import { cellTopCompact as cell, box, fieldFull as field } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ saved?: string; error?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
 
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
-const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0, width: "100%" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
 const inr = (v: string | number | null) =>
   `₹${Number(v ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const SLOTS = 6;

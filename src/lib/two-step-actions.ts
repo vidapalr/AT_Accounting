@@ -7,6 +7,7 @@ import { newSecret, checkCode } from "@/lib/totp";
 import { beginSetup, confirmSetup, removeTwoStep, replaceBackupCodes, hasTwoStep } from "@/lib/two-step";
 import { db } from "@/lib/db";
 import type { RowDataPacket } from "mysql2";
+import { BACKUP_CODES_COOKIE } from "@/lib/app-config";
 
 const PAGE = "/accounting/security";
 
@@ -30,7 +31,7 @@ export async function confirmTwoStepAction(form: FormData) {
   if (!codes) redirect(`${PAGE}?error=${encodeURIComponent("That code is not right. Wait for a new code in the app and try again.")}`);
   // Shown once, in the address of the next page only through a short-lived cookie-free hand-off: render directly.
   const { cookies } = await import("next/headers");
-  (await cookies()).set("abhiram_backup_codes", codes.join(","), { httpOnly: true, path: PAGE, maxAge: 120, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
+  (await cookies()).set(BACKUP_CODES_COOKIE, codes.join(","), { httpOnly: true, path: PAGE, maxAge: 120, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
   redirect(PAGE);
 }
 
@@ -56,6 +57,6 @@ export async function newBackupCodesAction(form: FormData) {
   }
   const codes = await replaceBackupCodes(user.id);
   const { cookies } = await import("next/headers");
-  (await cookies()).set("abhiram_backup_codes", codes.join(","), { httpOnly: true, path: PAGE, maxAge: 120, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
+  (await cookies()).set(BACKUP_CODES_COOKIE, codes.join(","), { httpOnly: true, path: PAGE, maxAge: 120, sameSite: "lax", secure: process.env.NODE_ENV === "production" });
   redirect(PAGE);
 }

@@ -55,8 +55,8 @@ async function AmendmentContent({ searchParams }: Props) {
       </p>
 
       <p>
-        Existing scope: Kapra Branch.
-        Proposed scope: Abhiram Textiles Division.
+        Existing scope: the original branch.
+        Proposed scope: the whole division.
       </p>
 
       {result && (
@@ -135,9 +135,9 @@ async function AmendmentContent({ searchParams }: Props) {
         </p>
 
         <p>
-          Version 1: Kapra Branch
+          Version 1: the original branch
           {" → "}
-          Version 2: Abhiram Textiles Division
+          Version 2: the whole division
         </p>
 
         <p>

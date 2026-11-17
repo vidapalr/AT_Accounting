@@ -299,7 +299,7 @@ export default function QuickSupplierSelect({
                   onChange={(event) =>
                     update("city", event.target.value)
                   }
-                  placeholder="Pedana / Hyderabad"
+                  placeholder="Town or city"
                   style={inputStyle}
                 />
               </label>

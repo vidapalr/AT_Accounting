@@ -4,9 +4,9 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import styles from "../accounting.module.css";
+import { cellTop as cell } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ q?: string }> };
-const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 
 export default function LotsPage(props: Props) {
   return <Suspense fallback={<p>Loading…</p>}><Content {...props} /></Suspense>;

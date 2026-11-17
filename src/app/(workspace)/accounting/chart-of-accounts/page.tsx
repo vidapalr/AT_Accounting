@@ -11,6 +11,7 @@ import {
   updateLedgerAccountAction,
   changeLedgerAccountStatusAction,
 } from "@/lib/chart-of-accounts-actions";
+import { getBrand } from "@/lib/brand";
 
 type Search = {
   q?: string;
@@ -111,6 +112,7 @@ async function ChartOfAccountsContent({
   searchParams,
 }: Props) {
   const user = await requireGroupOwner();
+  const brand = await getBrand();
   const query = await searchParams;
 
   const search = (query.q ?? "").trim().slice(0, 100);
@@ -224,7 +226,7 @@ async function ChartOfAccountsContent({
         <h1>Chart of Accounts</h1>
 
         <p>
-          Manage Abhiram Group ledger accounts for
+          Manage {brand.groupName} ledger accounts for
           all divisions and branches.
         </p>
 

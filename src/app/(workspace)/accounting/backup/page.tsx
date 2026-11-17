@@ -4,8 +4,8 @@ import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 import { BACKUP_REMINDER_DAYS, lastBackup, lastBackupTriggers, lastFilesBackup } from "@/lib/backup-status";
 import { backupTables } from "@/lib/backup-dump";
+import { box } from "@/lib/ui/styles";
 
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
 
 async function BackupContent() {
   const user = await requireGroupOwner();

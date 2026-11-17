@@ -10,6 +10,7 @@ import { matchOrder, MATCH_WORDS, TOLERANCE_PERCENT, type MatchLine, type MatchR
 import {
   postGoodsReceiptAction,
 } from "@/lib/goods-receipt-actions";
+import { getBrand } from "@/lib/brand";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -88,6 +89,7 @@ async function PurchaseDetailContent({
   searchParams,
 }: Props) {
   const user = await requireAccess("purchases");
+  const brand = await getBrand();
   const { id } = await params;
   const query = await searchParams;
 
@@ -446,7 +448,7 @@ async function PurchaseDetailContent({
         <h2>Supplier Payments</h2>
 
         <p>
-          Record payments made by Abhiram Group,
+          Record payments made by {brand.groupName},
           investors or the owner against this purchase.
         </p>
 

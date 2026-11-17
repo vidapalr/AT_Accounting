@@ -29,6 +29,7 @@ import {
   getBusinessDocuments,
   DOCUMENT_TYPES,
 } from "@/lib/business-documents";
+import { getBrand } from "@/lib/brand";
 
 type GroupMasterPageProps = {
   searchParams: Promise<{
@@ -54,6 +55,7 @@ async function GroupMasterContent({
 }: GroupMasterPageProps) {
   const params = await searchParams;
   const user = await requireGroupOwner();
+  const brand = await getBrand();
   const documents = await getBusinessDocuments(
     user.legal_business_id
   );
@@ -258,7 +260,7 @@ async function GroupMasterContent({
           <label>
             Business Assignment
             <select name="division_id" defaultValue="">
-              <option value="">Abhiram Group</option>
+              <option value="">{brand.groupName}</option>
               {divisions
                 .filter((division) => division.status === "ACTIVE")
                 .map((division) => (
@@ -290,7 +292,7 @@ async function GroupMasterContent({
                 <tr key={person.id}>
                   <td>{person.full_name}</td>
                   <td>{person.role.replaceAll("_", " ")}</td>
-                  <td>{person.division_name ?? "Abhiram Group"}</td>
+                  <td>{person.division_name ?? `${brand.groupName}`}</td>
                   <td>{person.status}</td>
                   <td>
                     {person.role === "LEGAL_PROPRIETOR" ? (
@@ -350,7 +352,7 @@ async function GroupMasterContent({
                             name="division_id"
                             defaultValue={person.division_id ?? ""}
                           >
-                            <option value="">Abhiram Group</option>
+                            <option value="">{brand.groupName}</option>
                             {divisions
                               .filter(
                                 (division) =>
@@ -447,7 +449,7 @@ async function GroupMasterContent({
           <label>
             Business / Division
             <select name="division_id" defaultValue="">
-              <option value="">Abhiram Group</option>
+              <option value="">{brand.groupName}</option>
               {divisions
                 .filter((division) => division.status === "ACTIVE")
                 .map((division) => (
@@ -502,7 +504,7 @@ async function GroupMasterContent({
                   <td>
                     {document.document_type.replaceAll("_", " ")}
                   </td>
-                  <td>{document.division_name ?? "Abhiram Group"}</td>
+                  <td>{document.division_name ?? `${brand.groupName}`}</td>
                   <td>{document.uploaded_at}</td>
                   <td>
                     <div className={styles.documentActions}>
@@ -595,7 +597,7 @@ async function GroupMasterContent({
                   <td>
                     {document.document_type.replaceAll("_", " ")}
                   </td>
-                  <td>{document.division_name ?? "Abhiram Group"}</td>
+                  <td>{document.division_name ?? `${brand.groupName}`}</td>
                   <td>{document.archived_at ?? "—"}</td>
                   <td>{document.archive_reason ?? "—"}</td>
                   <td>

@@ -8,9 +8,10 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 import { getActiveDivisionId } from "@/lib/division-context";
+import { CUTOVER_SCOPE } from "@/lib/legacy/cutover-records";
 
-const BUSINESS_AGREEMENT_ID = 2;
-const OLD_BRANCH_ID = 1;
+const BUSINESS_AGREEMENT_ID = CUTOVER_SCOPE.agreementId;
+const OLD_BRANCH_ID = CUTOVER_SCOPE.oldBranchId;
 const RETURN_URL = "/accounting/investor-scope-amendment";
 
 function validDate(value: string): boolean {
@@ -86,7 +87,7 @@ export async function createDivisionScopeAmendmentAction(
       business.length !== 1 ||
       !agreement ||
       agreement.status !== "ACTIVE" ||
-      Number(agreement.party_id) !== 2 ||
+      Number(agreement.party_id) !== CUTOVER_SCOPE.partyId ||
       Number(agreement.division_id) !== DIVISION_ID ||
       Number(agreement.branch_id) !== OLD_BRANCH_ID ||
       agreement.funding_type !== "PROFIT_LINKED"
@@ -211,8 +212,8 @@ export async function createDivisionScopeAmendmentAction(
                   effectiveFrom,
                   effectiveTo,
                   JSON.stringify(nextTerms),
-                  "Proposed extension from Kapra Branch " +
-                    "to Abhiram Textiles division-wide funding",
+                  "Proposed extension from the original branch " +
+                    "to division-wide funding",
                   user.id,
                 ]
               );
@@ -296,8 +297,8 @@ export async function createDivisionScopeAmendmentAction(
                   current.id,
                   version.insertId,
                   "Request to extend investor funding scope " +
-                    "from Kapra Branch to all Abhiram " +
-                    "Textiles branches while preserving " +
+                    "from the original branch to all branches " +
+                    "of the division while preserving " +
                     "existing approved economic terms.",
                   user.id,
                 ]

@@ -6,9 +6,9 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { inr, toPaise } from "@/lib/reports/money";
 import { monthRange, sourceLink } from "@/lib/budget-math";
+import { cellTop as cell } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ month?: string; kind?: string; branch?: string; division?: string }> };
-const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 const num = (v: string | undefined) => (/^[1-9]\d*$/.test(v ?? "") ? Number(v) : null);
 
 async function Content({ searchParams }: Props) {

@@ -9,6 +9,7 @@ import { todayInIndia } from "@/lib/reports/money";
 import { updateTicketAction } from "@/lib/ticket-actions";
 import { KIND_LABEL, STATUS_LABEL, allowedNext, isOpenStatus, type TicketKind, type TicketStatus } from "@/lib/ticket-math";
 import SubmitButton from "@/components/SubmitButton";
+import { cellTopCompact as cell } from "@/lib/ui/styles";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ result?: string }> };
 const MSG: Record<string, { ok: boolean; text: string }> = {
@@ -20,7 +21,6 @@ const MSG: Record<string, { ok: boolean; text: string }> = {
   "need-resolution": { ok: false, text: "Write what was done before resolving or closing." },
   failed: { ok: false, text: "It could not be saved. Nothing was changed." },
 };
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 const field: React.CSSProperties = { display: "block", width: "100%", padding: 12, fontSize: 16, marginTop: 6, border: "1px solid #cbd5e1", borderRadius: 6 };
 
 async function Content({ params, searchParams }: Props) {

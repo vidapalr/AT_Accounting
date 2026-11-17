@@ -1,16 +1,28 @@
 import "server-only";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { connection } from "next/server";
 import type { RowDataPacket } from "mysql2";
 
 import { loadPriceOverrides } from "@/lib/selling-price-data";
 import { db } from "@/lib/db";
+import { currentBusinessId } from "@/lib/tenant";
 import { bestOffer, type Offer } from "@/lib/offer-math";
 
-/** The shop shows one business. Change here when more than one business sells online. */
-export const SHOP_BUSINESS_ID = Number(process.env.SHOP_BUSINESS_ID ?? 1);
+const chosenShop = new AsyncLocalStorage<number>();
 
-export async function getShopSettings(businessId = SHOP_BUSINESS_ID) {
+/** The business whose shop is being used: the one chosen by withShopBusiness, else the web address (tenant.ts). */
+export async function shopBusinessId(): Promise<number> {
+  return chosenShop.getStore() ?? currentBusinessId();
+}
+
+/** Run shop reads for a given business (the WhatsApp chatbot has no shop address to go by). */
+export function withShopBusiness<T>(businessId: number, work: () => Promise<T>): Promise<T> {
+  return chosenShop.run(businessId, work);
+}
+
+export async function getShopSettings(given?: number) {
   await connection(); // read at request time, never while the site is being built
+  const businessId = given ?? (await shopBusinessId());
   const [rows] = await db.execute<RowDataPacket[]>(
     `SELECT setting_key, setting_value FROM acct_business_settings
       WHERE legal_business_id = ? AND setting_key IN ('shop_whatsapp')`,
@@ -32,14 +44,14 @@ export async function latestPrices(variantIds: number[]): Promise<Map<number, nu
       WHERE t.legal_business_id = ? AND t.status = 'RECEIVED'
         AND COALESCE(tl.max_selling_price, tl.suggested_selling_price) IS NOT NULL AND tl.variant_id IN (?)
       ORDER BY t.received_at DESC, t.id DESC`,
-    [SHOP_BUSINESS_ID, variantIds]
+    [(await shopBusinessId()), variantIds]
   );
   for (const r of rows) {
     const id = Number(r.variant_id);
     if (!prices.has(id)) prices.set(id, Number(r.price));
   }
   // A price the owner typed himself (Products > Selling prices) wins over the one that came with the stock.
-  const own = await loadPriceOverrides(SHOP_BUSINESS_ID);
+  const own = await loadPriceOverrides((await shopBusinessId()));
   for (const id of variantIds) {
     const o = own.get(id);
     const v = o ? o.max ?? o.suggested : null;
@@ -51,7 +63,8 @@ export async function latestPrices(variantIds: number[]): Promise<Map<number, nu
 const todayIst = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
 
 /** Active offers as the maths module wants them. */
-export async function loadOffers(businessId = SHOP_BUSINESS_ID): Promise<Offer[]> {
+export async function loadOffers(given?: number): Promise<Offer[]> {
+  const businessId = given ?? (await shopBusinessId());
   await connection(); // read at request time, never while the site is being built
   const cols = `id, offer_name, channel, kind, offer_value, scope, fabric,
             DATE_FORMAT(starts_on, '%Y-%m-%d') AS starts_on, DATE_FORMAT(ends_on, '%Y-%m-%d') AS ends_on, status`;
@@ -85,13 +98,13 @@ export async function sellableQty(variantIds: number[], conn: { query: typeof db
   const [stock] = await conn.query<RowDataPacket[]>(
     `SELECT variant_id, SUM(quantity_change) AS qty FROM acct_stock_movements
       WHERE legal_business_id = ? AND variant_id IN (?) GROUP BY variant_id`,
-    [SHOP_BUSINESS_ID, variantIds]
+    [(await shopBusinessId()), variantIds]
   );
   const [held] = await conn.query<RowDataPacket[]>(
     `SELECT l.variant_id, SUM(l.quantity) AS qty FROM acct_online_order_lines l
        JOIN acct_online_orders o ON o.id = l.order_id
       WHERE o.legal_business_id = ? AND o.status IN ('REQUESTED','CONFIRMED') AND o.sale_id IS NULL AND l.variant_id IN (?) GROUP BY l.variant_id`,
-    [SHOP_BUSINESS_ID, variantIds]
+    [(await shopBusinessId()), variantIds]
   );
   for (const r of stock) out.set(Number(r.variant_id), Number(r.qty));
   for (const r of held) out.set(Number(r.variant_id), (out.get(Number(r.variant_id)) ?? 0) - Number(r.qty));
@@ -142,14 +155,14 @@ async function load(where: string, params: (string | number)[]): Promise<ShopPro
        FROM acct_products p
       WHERE p.legal_business_id = ? AND p.status = 'ACTIVE' AND p.show_in_shop = 1 ${where}
       ORDER BY p.product_name LIMIT 200`,
-    [SHOP_BUSINESS_ID, ...params]
+    [(await shopBusinessId()), ...params]
   );
   if (prods.length === 0) return [];
   const ids = prods.map(p => Number(p.id));
   const [vars] = await db.query<RowDataPacket[]>(
     `SELECT id, product_id, sku, size_label, color_name, design_code, shop_price, compare_price, photo_media_id FROM acct_product_variants
       WHERE legal_business_id = ? AND status = 'ACTIVE' AND product_id IN (?) ORDER BY id`,
-    [SHOP_BUSINESS_ID, ids]
+    [(await shopBusinessId()), ids]
   );
   const variantIds = vars.map(v => Number(v.id));
   const [prices, stocked, offers] = await Promise.all([latestPrices(variantIds), inStock(variantIds), loadOffers()]);
@@ -209,7 +222,7 @@ export async function getShopMedia(productId: number) {
        JOIN acct_products p ON p.id = m.product_id AND p.legal_business_id = m.legal_business_id
       WHERE m.legal_business_id = ? AND m.product_id = ? AND m.status = 'ACTIVE' AND p.show_in_shop = 1
       ORDER BY m.is_cover DESC, m.sort_order, m.id LIMIT 12`,
-    [SHOP_BUSINESS_ID, productId]
+    [(await shopBusinessId()), productId]
   );
   return rows.map(r => ({ id: Number(r.id), type: r.media_type === "VIDEO" ? ("VIDEO" as const) : ("IMAGE" as const) }));
 }

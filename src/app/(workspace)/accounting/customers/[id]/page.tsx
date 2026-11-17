@@ -23,6 +23,7 @@ import { addCustomerNoteAction } from "@/lib/customer-note-actions";
 import { receiveCreditAction, refundCreditAction } from "@/lib/customer-credit-actions";
 import { customerCreditPaise } from "@/lib/customer-credit";
 import { isMissingTable } from "@/lib/db-errors";
+import { getBrand } from "@/lib/brand";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -68,6 +69,7 @@ const card: React.CSSProperties = {
 
 async function CustomerPage({ params, searchParams }: Props) {
   const user = await requireAccess("customers");
+  const brand = await getBrand();
   const { id } = await params;
   const { result, other: otherParam } = await searchParams;
   const customerId = Number(id);
@@ -132,7 +134,7 @@ async function CustomerPage({ params, searchParams }: Props) {
     c.phone && net > 0
       ? whatsappLink(
           `91${c.phone}`,
-          `Hello ${c.full_name}, this is a gentle reminder from Abhiram Textiles. ₹${inr(net)} is pending on your bills. Thank you!`
+          `Hello ${c.full_name}, this is a gentle reminder from ${brand.shopName}. ₹${inr(net)} is pending on your bills. Thank you!`
         )
       : null;
 

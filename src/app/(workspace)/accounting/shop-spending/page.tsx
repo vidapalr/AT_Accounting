@@ -7,12 +7,12 @@ import { CASHIER_SPENDING_LIMIT } from "@/lib/access";
 import { recordShopSpendingAction } from "@/lib/shop-spending-actions";
 import { SPENDING_KINDS } from "@/lib/shop-spending-kinds";
 import SubmitButton from "@/components/SubmitButton";
+import { box } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ saved?: string; error?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
 
 const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
 const field: React.CSSProperties = { padding: "14px 12px", fontSize: 18, minWidth: 0, width: "100%" };
 const inr = (v: string | number | null) =>
   `₹${Number(v ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

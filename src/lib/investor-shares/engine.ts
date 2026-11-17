@@ -2,7 +2,7 @@
  * Investor profit sharing: who is owed what, and whether the agreements fit
  * together. Pure functions, no database, so every rule can be tested.
  *
- * Rules (as agreed for Abhiram Group):
+ * Rules (as agreed with the owner):
  *  - An agreement shares the profit of one place: the whole Group, a Division
  *    (including its branches) or a single Branch.
  *  - It names the profit it shares: GROSS, OPERATING or NET.

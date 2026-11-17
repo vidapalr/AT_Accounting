@@ -42,6 +42,7 @@ import { getFundingPolicies } from
   "@/lib/funding-policies";
 import BankAccountSections from
   "../../../accounting/bank-accounts/BankAccountSections";
+import { getBrand } from "@/lib/brand";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -117,6 +118,7 @@ async function AgreementDetailsContent({
   searchParams,
 }: Props) {
   const user = await requireGroupOwner();
+  const brand = await getBrand();
   const { id } = await params;
   const query = await searchParams;
 
@@ -176,7 +178,7 @@ async function AgreementDetailsContent({
           <h1>{agreement.agreement_no}</h1>
           <p>
             {agreement.party_name} ·{" "}
-            {agreement.division_name ?? "Abhiram Group"}
+            {agreement.division_name ?? `${brand.groupName}`}
           </p>
         </div>
         <span className={styles.status}>{agreement.status}</span>

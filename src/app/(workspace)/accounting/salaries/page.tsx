@@ -7,13 +7,12 @@ import { prettyPhone } from "@/lib/customer-phone";
 import { addEmployeeAction, paySalaryAction, updateEmployeeAction } from "@/lib/salary-actions";
 import SubmitButton from "@/components/SubmitButton";
 import ConfirmButton from "@/components/ConfirmButton";
+import { cellTop as cell, box, fieldFull as field } from "@/lib/ui/styles";
+import { getBrand } from "@/lib/brand";
 
 type Props = { searchParams: Promise<{ month?: string; saved?: string; error?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
 
-const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
-const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0, width: "100%" };
 const inr = (v: string | number | null) =>
   `₹${Number(v ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
@@ -27,6 +26,7 @@ const monthLabel = (month: string) =>
 
 async function SalariesContent({ searchParams }: Props) {
   const user = await requireAccess("salary");
+  const brand = await getBrand();
   const businessId = user.legal_business_id;
   const query = await searchParams;
   const nowMonth = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 7);
@@ -99,7 +99,7 @@ async function SalariesContent({ searchParams }: Props) {
         {people.map((p) => {
           const left = p.status !== "ACTIVE";
           const slip = p.paid_amount !== null && p.phone
-            ? `https://wa.me/91${p.phone}?text=${encodeURIComponent(`Hello ${p.full_name}, your salary for ${monthLabel(month)} of ₹${Number(p.paid_amount).toLocaleString("en-IN")} was paid on ${p.paid_on}.` + (Number(p.advance_deducted) > 0 ? ` ₹${Number(p.advance_deducted).toLocaleString("en-IN")} was taken off for your advance; advance balance ₹${Number(p.advance_left).toLocaleString("en-IN")}.` : "") + ` - Abhiram Textiles`)}`
+            ? `https://wa.me/91${p.phone}?text=${encodeURIComponent(`Hello ${p.full_name}, your salary for ${monthLabel(month)} of ₹${Number(p.paid_amount).toLocaleString("en-IN")} was paid on ${p.paid_on}.` + (Number(p.advance_deducted) > 0 ? ` ₹${Number(p.advance_deducted).toLocaleString("en-IN")} was taken off for your advance; advance balance ₹${Number(p.advance_left).toLocaleString("en-IN")}.` : "") + ` - ${brand.shopName}`)}`
             : null;
           return (
             <div key={String(p.id)} style={{ ...cell, display: "grid", gap: 8 }}>

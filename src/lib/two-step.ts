@@ -5,8 +5,9 @@ import type { RowDataPacket, ResultSetHeader } from "mysql2";
 import { db } from "@/lib/db";
 import { isMissingTable } from "@/lib/db-errors";
 import { checkCode, newBackupCodes, normaliseBackupCode } from "@/lib/totp";
+import { TWO_STEP_COOKIE } from "@/lib/app-config";
 
-const CHALLENGE_COOKIE = "abhiram_accounting_2fa";
+const CHALLENGE_COOKIE = TWO_STEP_COOKIE;
 const CHALLENGE_MINUTES = 5;
 export const MAX_CODE_TRIES = 5;
 

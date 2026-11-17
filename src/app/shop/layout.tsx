@@ -1,32 +1,60 @@
 import type { Metadata } from "next";
-import { Hanken_Grotesk, Young_Serif } from "next/font/google";
 import Link from "next/link";
-import { TAGLINE } from "@/lib/brand";
 import { Suspense } from "react";
 
 import AnnounceBar from "@/components/shop/AnnounceBar";
 import AccountLink from "@/components/shop/AccountLink";
 import CartLink from "@/components/shop/CartLink";
+import { getBrand } from "@/lib/brand";
+import { shopNavLinks } from "@/lib/shop-nav";
+import { shopBody, shopDisplay } from "@/fonts";
 import styles from "./shop.module.css";
 
-const display = Young_Serif({ subsets: ["latin"], weight: "400", variable: "--font-display", display: "swap" });
-const body = Hanken_Grotesk({ subsets: ["latin"], variable: "--font-body", display: "swap" });
+/** Title and description come from the company's brand settings. */
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getBrand();
+  const head = brand.tagline ? `${brand.shopName} | ${brand.tagline}` : brand.shopName;
+  return {
+    title: { default: head, template: `%s | ${brand.shopName}` },
+    description: brand.description || `${brand.shopName}${brand.place ? `, ${brand.place}` : ""}.`,
+  };
+}
 
-export const metadata: Metadata = {
-  title: { default: "Abhiram Textiles | Elegance in every thread", template: "%s | Abhiram Textiles" },
-  description: "Cotton sets, everyday essentials and traditional sarees from Abhiram Textiles, Kapra, Hyderabad. We ship across India and worldwide.",
-};
+async function BrandMark() {
+  const brand = await getBrand();
+  return <Link href="/shop" className={styles.brand}>{brand.shopName}{brand.tagline ? <small>{brand.tagline}</small> : null}</Link>;
+}
+
+async function NavLinks() {
+  const links = await shopNavLinks();
+  return (
+    <>
+      {links.map((l) => <Link key={l.href} href={l.href} className={styles.hideSm}>{l.label}</Link>)}
+    </>
+  );
+}
+
+async function Footer() {
+  const brand = await getBrand();
+  return (
+    <footer className={styles.footer}>
+      <p style={{ fontWeight: 700 }}>{brand.shopName}</p>
+      {brand.tagline ? <p style={{ fontStyle: "italic" }}>{brand.tagline}</p> : null}
+      <p>We ship across India and worldwide.</p>
+      {brand.parentLine ? <p>{brand.parentLine}</p> : null}
+    </footer>
+  );
+}
 
 export default function ShopLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className={`${styles.shell} ${display.variable} ${body.variable}`}>
+    <div className={`${styles.shell} ${shopDisplay.variable} ${shopBody.variable}`}>
       <Suspense fallback={null}><AnnounceBar /></Suspense>
       <header className={styles.header}>
         <div className={styles.bar}>
-          <Link href="/shop" className={styles.brand}>Abhiram Textiles<small>{TAGLINE}</small></Link>
+          <Suspense fallback={<span className={styles.brand} />}><BrandMark /></Suspense>
           <nav className={styles.nav}>
-            <Link href="/shop?q=saree#products" className={styles.hideSm}>Sarees</Link>
-            <Link href="/shop?q=cotton#products" className={styles.hideSm}>Cotton sets</Link>
+            <Suspense fallback={null}><NavLinks /></Suspense>
             <Link href="/shop#products" className={styles.hideSm}>All</Link>
             <Suspense fallback={null}><AccountLink /></Suspense>
             <CartLink />
@@ -34,12 +62,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
         </div>
       </header>
       <div className={styles.main}>{children}</div>
-      <footer className={styles.footer}>
-        <p style={{ fontWeight: 700 }}>Abhiram Textiles</p>
-        <p style={{ fontStyle: "italic" }}>{TAGLINE}</p>
-        <p>We ship across India and worldwide.</p>
-        <p><a href="https://abhiraminc.com">A part of Abhiram Group</a></p>
-      </footer>
+      <Suspense fallback={null}><Footer /></Suspense>
     </div>
   );
 }

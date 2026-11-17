@@ -1,11 +1,32 @@
-/** Words used on bills and the website. Change them here and they change everywhere. */
-export const BRAND_NAME = "Abhiram Textiles";
-export const TAGLINE = "Elegance in every thread";
-export const WATERMARK_TEXT = "Abhiram Textiles | An Abhiram Group";
+import "server-only";
 
-/** Standard contact details printed on vouchers (owner, 3 Nov 2026). */
-export const SHOP_PHONE = "9640976976";
-/** Owner's personal number: printed on invoices and estimates only, never on vouchers (owner, 3 Nov 2026). */
-export const OWNER_PERSONAL_PHONE = "7416516574";
-export const SHOP_EMAIL = "textiles@abhiraminc.com";
-export const SHOP_WEBSITES = "textiles.abhiraminc.com / abhiraminc.com";
+import { cache } from "react";
+import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
+
+import { db } from "@/lib/db";
+import { currentBusinessId } from "@/lib/tenant";
+import { BRAND_KEYS, brandFrom, type Brand } from "@/lib/brand-core";
+
+export type { Brand } from "@/lib/brand-core";
+
+/** The brand of one business, read from the database. */
+export async function loadBrand(businessId: number, pool: Pool | PoolConnection = db): Promise<Brand> {
+  const [biz] = await pool.execute<RowDataPacket[]>(
+    `SELECT legal_name, trading_name FROM acct_legal_businesses WHERE id = ?`,
+    [businessId]
+  );
+  const keys = Object.values(BRAND_KEYS);
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT setting_key, setting_value FROM acct_business_settings
+      WHERE legal_business_id = ? AND setting_key IN (${keys.map(() => "?").join(",")})`,
+    [businessId, ...keys]
+  );
+  const settings: Record<string, string> = {};
+  for (const r of rows) settings[String(r.setting_key)] = String(r.setting_value);
+  return brandFrom((biz[0] ?? {}) as { legal_name?: string | null; trading_name?: string | null }, settings);
+}
+
+/** The brand of a business, read once per request. */
+export const getBrand = cache(async (businessId?: number): Promise<Brand> =>
+  loadBrand(businessId ?? (await currentBusinessId()))
+);

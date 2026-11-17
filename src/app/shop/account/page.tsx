@@ -10,10 +10,10 @@ import LogoutButton from "@/components/shop/LogoutButton";
 import { db } from "@/lib/db";
 import { getShopCustomer } from "@/lib/shop-account";
 import styles from "../shop.module.css";
+import { inr2 as inr } from "@/lib/format";
 
 export const metadata: Metadata = { title: "My account" };
 const WORDS: Record<string, string> = { REQUESTED: "Received. We will confirm soon", CONFIRMED: "Confirmed", COMPLETED: "Completed", CANCELLED: "Cancelled" };
-const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 async function Content() {
   const me = await getShopCustomer();

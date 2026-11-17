@@ -31,5 +31,5 @@ test("backup codes and url", () => {
   assert.ok(codes.every((c) => /^[A-Z2-9]{5}-[A-Z2-9]{5}$/.test(c)));
   assert.equal(new Set(codes).size, 8);
   assert.equal(normaliseBackupCode("k7qd-4m2x9p"), "K7QD4M2X9P");
-  assert.ok(otpAuthUrl("ABC", "a@b.com").startsWith("otpauth://totp/Abhiram%20Group:a%40b.com?secret=ABC"));
+  assert.ok(otpAuthUrl("ABC", "a@b.com", "Test Co").startsWith("otpauth://totp/Test%20Co:a%40b.com?secret=ABC"));
 });

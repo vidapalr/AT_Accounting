@@ -2,8 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 
 import { db } from "@/lib/db";
 import { autoPostPending } from "@/lib/ledger/auto-post";
-
-const BUSINESS_ID = 1;
+import { allBusinessIds } from "@/lib/tenant";
 
 function authorised(request: Request): boolean {
   const expected = process.env.CRON_SECRET?.trim();
@@ -17,7 +16,12 @@ function authorised(request: Request): boolean {
 async function handle(request: Request) {
   if (!authorised(request)) return new Response("Forbidden", { status: 403 });
   try {
-    return Response.json(await autoPostPending(db, BUSINESS_ID, { force: true }));
+    // Every company; each one's own "Automatic posting" switch still decides whether it runs.
+    const results: Record<number, unknown> = {};
+    for (const businessId of await allBusinessIds()) {
+      results[businessId] = await autoPostPending(db, businessId, { force: true });
+    }
+    return Response.json(results);
   } catch (error) {
     console.error("Auto-post failed", error);
     return Response.json({ error: "Auto-post failed. See the server log." }, { status: 500 });

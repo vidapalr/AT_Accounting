@@ -55,7 +55,7 @@ export async function createExpenseCore(
   form: FormData,
   opts: { activeDivisionId?: number } = {}
 ): Promise<never> {
-  const TEXTILES_DIVISION_ID = opts.activeDivisionId ?? await getActiveDivisionId(user);
+  const ACTIVE_DIVISION_ID = opts.activeDivisionId ?? await getActiveDivisionId(user);
   const businessId = user.legal_business_id;
 
   const level = String(form.get("allocation_level") ?? "");
@@ -185,8 +185,8 @@ export async function createExpenseCore(
 
     if (level !== "GROUP") {
       // For this release, expenses are restricted to
-      // the Abhiram Textiles division.
-      if (divisionId !== TEXTILES_DIVISION_ID) {
+      // the active division.
+      if (divisionId !== ACTIVE_DIVISION_ID) {
         outcome = "invalid-division";
       } else {
         const [divisions] = await conn.execute<RowDataPacket[]>(

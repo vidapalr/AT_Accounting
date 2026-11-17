@@ -3,6 +3,7 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import type { RowDataPacket } from "mysql2";
+import { groupNameSql } from "@/lib/brand-core";
 
 export type ScopeType = "GROUP" | "DIVISION" | "BRANCH";
 
@@ -42,7 +43,7 @@ export async function getInvestorPools(
        'GROUP' AS scope_type,
        NULL AS division_id,
        NULL AS branch_id,
-       'Abhiram Group' AS pool_name,
+       ${groupNameSql(String(Math.trunc(Number(businessId))))} AS pool_name,
        'GROUP' AS pool_code
 
      UNION ALL

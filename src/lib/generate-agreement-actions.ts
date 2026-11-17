@@ -18,6 +18,8 @@ import {
 import {
   convertAgreementToPdf,
 } from "@/lib/agreement-pdf-converter";
+import { groupNameSql } from "@/lib/brand-core";
+import { loadBrand } from "@/lib/brand";
 
 interface SourceRow extends RowDataPacket {
   agreement_no: string;
@@ -101,7 +103,7 @@ export async function generateAgreementAction(form: FormData) {
            WHEN b.id IS NOT NULL THEN
              CONCAT(d.name, ' / ', b.branch_name)
            WHEN d.id IS NOT NULL THEN d.name
-           ELSE 'Abhiram Group'
+           ELSE ${groupNameSql("a.legal_business_id")}
          END AS scope_name,
          v.version_no,
          v.terms_json
@@ -168,6 +170,7 @@ export async function generateAgreementAction(form: FormData) {
           : null;
 
       const document = await generateFullAgreementDocx({
+        ...(await agreementSettings(businessId)),
         agreementNo: source.agreement_no,
         investorName: source.investor_name,
         fundingScope: source.scope_name,
@@ -331,4 +334,19 @@ export async function generateAgreementAction(form: FormData) {
   }
 
   redirect(`${back}?document=${outcome}`);
+}
+
+/** Who signs for the business and which Word template to fill: business settings, nothing fixed in code. */
+async function agreementSettings(businessId: number): Promise<{ businessParty: string; templateFile: string }> {
+  const [rows] = await db.execute<RowDataPacket[]>(
+    `SELECT setting_key, setting_value FROM acct_business_settings
+      WHERE legal_business_id = ? AND setting_key IN ('agreement_business_party', 'agreement_template_file')`,
+    [businessId]
+  );
+  const get = (k: string) => String(rows.find((r) => r.setting_key === k)?.setting_value ?? "").trim();
+  const brand = await loadBrand(businessId);
+  return {
+    businessParty: get("agreement_business_party") || brand.groupName,
+    templateFile: get("agreement_template_file") || "profit_participation_agreement.docx",
+  };
 }

@@ -10,6 +10,9 @@ type Branch = {
 
 type Props = {
   branches: Branch[];
+  /** The group name and the active division, from the server (nothing fixed in code). */
+  groupName: string;
+  division: { id: number; name: string };
 };
 
 const fieldStyle: React.CSSProperties = {
@@ -21,6 +24,8 @@ const fieldStyle: React.CSSProperties = {
 
 export default function ExpenseAllocationFields({
   branches,
+  groupName,
+  division,
 }: Props) {
   // Every cost is booked to a branch, whichever account paid it; head-office costs go to the branch you choose.
   const [level] = useState("BRANCH");
@@ -41,7 +46,7 @@ export default function ExpenseAllocationFields({
       <label>
         Group
         <input
-          value="Abhiram Group"
+          value={groupName}
           readOnly
           style={fieldStyle}
         />
@@ -52,10 +57,10 @@ export default function ExpenseAllocationFields({
         <select
           name="division_id"
           disabled={level === "GROUP"}
-          defaultValue="1"
+          defaultValue={String(division.id)}
           style={fieldStyle}
         >
-          <option value="1">Abhiram Textiles</option>
+          <option value={division.id}>{division.name}</option>
         </select>
       </label>
 

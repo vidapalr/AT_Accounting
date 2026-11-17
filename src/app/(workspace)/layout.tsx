@@ -10,6 +10,8 @@ import MobileMenu from "@/components/MobileMenu";
 import BrandLogo from "@/components/BrandLogo";
 import FormLock from "@/components/FormLock";
 import { financialYearLabel } from "@/lib/financial-year";
+import { getBrand } from "@/lib/brand";
+import { todayInIndia } from "@/lib/reports/money";
 import styles from "./workspace.module.css";
 
 export default function WorkspaceLayout({
@@ -30,6 +32,7 @@ async function WorkspaceContent({
   children: React.ReactNode;
 }) {
   const user = await requireUser();
+  const brand = await getBrand(user.legal_business_id);
 
   const divisions = await listDivisions(user.legal_business_id, user.scope_division_id);
   const activeDivisionId = divisions.length > 1 ? await getActiveDivisionId(user) : (divisions[0]?.id ?? 0);
@@ -51,7 +54,7 @@ async function WorkspaceContent({
         <div className={styles.brand}>
           <div className={styles.brandIcon}><BrandLogo size={34} /></div>
           <div>
-            <strong>Abhiram Group</strong>
+            <strong>{brand.groupName}</strong>
             <span>Accounting</span>
           </div>
         </div>
@@ -64,8 +67,8 @@ async function WorkspaceContent({
       <div className={styles.mainArea}>
         <header className={styles.topbar}>
           <div>
-            <strong>Abhiram Group Accounting</strong>
-            <small>Financial Year {financialYearLabel(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }))}</small>
+            <strong>{brand.appName}</strong>
+            <small>Financial Year {financialYearLabel(todayInIndia())}</small>
           </div>
 
           <HeaderSearch pages={searchable} />

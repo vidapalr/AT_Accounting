@@ -1,17 +1,18 @@
 import { Suspense } from "react";
-import { TAGLINE } from "@/lib/brand";
+import { getBrand } from "@/lib/brand";
+import { shopNavLinks } from "@/lib/shop-nav";
 import Link from "next/link";
 
 import { getShopProducts, getShopSettings } from "@/lib/shop";
 import styles from "./shop.module.css";
+import { inr0 as inr } from "@/lib/format";
 
 type Props = { searchParams: Promise<{ fabric?: string; q?: string }> };
 
-const inr = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
 async function Products({ searchParams }: Props) {
   const q = await searchParams;
-  const [all, settings] = await Promise.all([getShopProducts(), getShopSettings()]);
+  const [all, settings, brand] = await Promise.all([getShopProducts(), getShopSettings(), getBrand()]);
   const fabrics = [...new Set(all.map((p) => p.fabric).filter((f): f is string => Boolean(f)))].sort();
   const fabric = fabrics.includes(q.fabric ?? "") ? q.fabric : undefined;
   const term = (q.q ?? "").trim().toLowerCase().slice(0, 60);
@@ -71,7 +72,7 @@ async function Products({ searchParams }: Props) {
           </div>
         )}
         {all.length === 0 ? (
-          <p className={styles.muted}>Our online collection is on its way. Visit us in Kapra, Hyderabad in the meantime.</p>
+          <p className={styles.muted}>Our online collection is on its way. Visit our shop or message us in the meantime.</p>
         ) : products.length === 0 ? (
           <p className={styles.muted}>Nothing matches that search. <Link href="/shop#products">See everything</Link>.</p>
         ) : (
@@ -83,7 +84,7 @@ async function Products({ searchParams }: Props) {
         <section className={styles.contact}>
           <h2>Not sure about size or colour?</h2>
           <p>Message us a photo or a question. We reply personally and can ship your order anywhere in the world.</p>
-          {settings.whatsapp && <a className={styles.btnWa} href={`https://wa.me/91${settings.whatsapp.replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent("Hello Abhiram Textiles, I have a question.")}`}>Message us on WhatsApp</a>}
+          {settings.whatsapp && <a className={styles.btnWa} href={`https://wa.me/91${settings.whatsapp.replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(`Hello ${brand.shopName}, I have a question.`)}`}>Message us on WhatsApp</a>}
         </section>
       )}
     </>
@@ -104,39 +105,49 @@ async function Home({ searchParams }: Props) {
   if (q.fabric || (q.q ?? "").trim()) {
     return <div className={styles.pageTop}><h1>Shop</h1></div>;
   }
+  const [brand, links, all] = await Promise.all([getBrand(), shopNavLinks(), getShopProducts()]);
+  const withPhoto = all.filter((p) => p.coverId !== null).sort((x, y) => y.id - x.id);
+  const photo = (id: number | null) => (id === null ? null : `/api/shop/media/${id}`);
+  // A tile per header link, with the newest photo of a product that matches its search words.
+  const tiles = links.map((l) => {
+    const q = decodeURIComponent(l.href.replace(/^\/shop\?q=/, "").replace(/#.*$/, "")).toLowerCase();
+    const match = withPhoto.find((p) => `${p.name} ${p.fabric ?? ""}`.toLowerCase().includes(q));
+    return { ...l, img: photo(match?.coverId ?? null) };
+  });
+  const heroImgs = withPhoto.slice(0, 2).map((p) => photo(p.coverId));
   /* eslint-disable @next/next/no-img-element */
   return (
     <>
       <section className={styles.homeHero}>
         <div className={styles.heroCopy}>
-          <p style={{ color: "var(--gold)", letterSpacing: ".14em", textTransform: "uppercase", fontSize: ".85rem", fontWeight: 700, margin: "0 0 10px" }}>{TAGLINE}</p>
-          <h1><span style={{ display: "block" }}>A little colour.</span><span style={{ display: "block" }}>A lot of comfort.</span></h1>
-          <p>Cotton sets for every day, sarees for the days that matter, and Kalamkari prints made to be loved. From our shop in Kapra, Hyderabad to your door, anywhere in the world.</p>
+          {brand.tagline ? <p style={{ color: "var(--gold)", letterSpacing: ".14em", textTransform: "uppercase", fontSize: ".85rem", fontWeight: 700, margin: "0 0 10px" }}>{brand.tagline}</p> : null}
+          <h1>Welcome to {brand.shopName}</h1>
+          {brand.description ? <p>{brand.description} We deliver to your door, anywhere in the world.</p> : <p>We deliver to your door, anywhere in the world.</p>}
           <div className={styles.heroBtns}>
-            <Link href="/shop?q=saree#products" className={styles.btnGold}>Shop sarees</Link>
-            <Link href="/shop?q=cotton#products" className={styles.btnLine}>Shop cotton sets</Link>
+            {links.slice(0, 2).map((l, i) => (
+              <Link key={l.href} href={l.href} className={i === 0 ? styles.btnGold : styles.btnLine}>Shop {l.label.toLowerCase()}</Link>
+            ))}
+            {links.length === 0 ? <Link href="/shop#products" className={styles.btnGold}>Shop now</Link> : null}
           </div>
         </div>
-        <div className={styles.arches} aria-hidden="true">
-          <div className={`${styles.arch} ${styles.archSmall}`}><img src="/images/textiles/cottons.webp" alt="" /></div>
-          <div className={`${styles.arch} ${styles.archBig}`}><img src="/images/textiles/sarees.webp" alt="" /></div>
-        </div>
+        {heroImgs.length > 0 ? (
+          <div className={styles.arches} aria-hidden="true">
+            {heroImgs[1] ? <div className={`${styles.arch} ${styles.archSmall}`}><img src={heroImgs[1]} alt="" /></div> : null}
+            <div className={`${styles.arch} ${styles.archBig}`}><img src={heroImgs[0] as string} alt="" /></div>
+          </div>
+        ) : null}
       </section>
 
-      <section className={styles.tiles} aria-label="Shop by kind">
-        <Link href="/shop?q=saree#products" className={styles.tile}>
-          <div className={styles.archImg}><img src="/images/textiles/sarees.webp" alt="Silk sarees with woven gold borders" /></div>
-          <h3>Sarees</h3><span>Banaras, Mangalagiri, Uppada</span>
-        </Link>
-        <Link href="/shop?q=cotton#products" className={styles.tile}>
-          <div className={styles.archImg}><img src="/images/textiles/cottons.webp" alt="Soft cotton fabrics with indigo prints" /></div>
-          <h3>Cotton sets</h3><span>Soft, easy, all-day wear</span>
-        </Link>
-        <Link href="/shop?q=kalamkari#products" className={styles.tile}>
-          <div className={styles.archImg}><img src="/images/textiles/kalamkari.webp" alt="Kalamkari printed cotton" /></div>
-          <h3>Kalamkari</h3><span>Hand-inspired prints</span>
-        </Link>
-      </section>
+      {tiles.length > 0 ? (
+        <section className={styles.tiles} aria-label="Shop by kind">
+          {tiles.map((t) => (
+            <Link key={t.href} href={t.href} className={styles.tile}>
+              {t.img ? <div className={styles.archImg}><img src={t.img} alt={t.label} /></div> : null}
+              <h3>{t.label}</h3>
+            </Link>
+          ))}
+        </section>
+      ) : null}
     </>
   );
   /* eslint-enable @next/next/no-img-element */

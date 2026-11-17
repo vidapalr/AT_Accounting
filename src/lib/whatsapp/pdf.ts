@@ -2,10 +2,10 @@ import "server-only";
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-// @ts-ignore pdfkit may be installed without TypeScript declarations.
 import PDFDocument from "pdfkit";
 
 import type { ReportContent } from "./core";
+import { DEFAULT_LOGOS, type Brand } from "../brand-core.ts";
 
 const NAVY = "#142c50";
 const GREY = "#64748b";
@@ -14,16 +14,22 @@ async function asset(...parts: string[]): Promise<Buffer> {
   return readFile(join(/* turbopackIgnore: true */ process.cwd(), ...parts));
 }
 
-/** A4 PDF with the Abhiram Group letterhead, one table per section. */
-export async function renderPdf(content: ReportContent, printedOn: string): Promise<Buffer> {
+/** The logo file under public/ (a web address or missing file falls back to the default logo). */
+async function logoFile(path: string): Promise<Buffer> {
+  const clean = path.startsWith("/") && !path.includes("..") ? path : DEFAULT_LOGOS.print;
+  return asset("public", ...clean.split("/").filter(Boolean)).catch(() => asset("public", ...DEFAULT_LOGOS.print.split("/").filter(Boolean)));
+}
+
+/** A4 PDF with the company's letterhead (brand settings), one table per section. */
+export async function renderPdf(content: ReportContent, printedOn: string, brand: Pick<Brand, "groupName" | "logoPrint">): Promise<Buffer> {
   const [regular, bold, logo] = await Promise.all([
     asset("assets", "fonts", "DejaVuSans.ttf"),
     asset("assets", "fonts", "DejaVuSans-Bold.ttf"),
-    asset("public", "brand", "abhiram-logo-print.png"),
+    logoFile(brand.logoPrint),
   ]);
 
   const wide = content.sections.some((s) => s.columns.length > 5);
-  const doc = new PDFDocument({ size: "A4", layout: wide ? "landscape" : "portrait", margin: 36, info: { Title: content.title, Author: "Abhiram Group" } });
+  const doc = new PDFDocument({ size: "A4", layout: wide ? "landscape" : "portrait", margin: 36, info: { Title: content.title, Author: brand.groupName } });
   doc.registerFont("R", regular);
   doc.registerFont("B", bold);
   doc.font("R");
@@ -39,7 +45,7 @@ export async function renderPdf(content: ReportContent, printedOn: string): Prom
   const width = doc.page.width - left - doc.page.margins.right;
 
   doc.image(logo, left, 36, { width: 52 });
-  doc.font("B").fontSize(18).fillColor(NAVY).text("ABHIRAM GROUP", left + 64, 40);
+  doc.font("B").fontSize(18).fillColor(NAVY).text(brand.groupName.toUpperCase(), left + 64, 40);
   doc.font("R").fontSize(12).fillColor("#334155").text(content.title, left + 64, 62);
   doc.fontSize(9).fillColor(GREY).text(content.subtitle, left + 64, 78, { width: width - 64 });
   doc.fontSize(8).fillColor(GREY).text(`Printed ${printedOn}`, left, 40, { width, align: "right" });

@@ -369,8 +369,8 @@ async function PaymentContent({ params, searchParams }: Props) {
                 Paid From / Payment Source
                 <select name="payment_source" required defaultValue="" style={input}>
                   <option value="">Select Source</option>
-                  <option value="BUSINESS_BANK">Abhiram Group Bank</option>
-                  <option value="BUSINESS_CASH">Abhiram Group Cash</option>
+                  <option value="BUSINESS_BANK">Business bank</option>
+                  <option value="BUSINESS_CASH">Business cash</option>
                   <option value="INVESTOR_BANK">Investor Bank</option>
                   <option value="INVESTOR_CASH">Investor Cash</option>
                   <option value="OWNER_PERSONAL">Owner Personal Funds</option>

@@ -48,7 +48,7 @@ export default function InstagramPostKit({
     try {
       const res = await fetch(`/api/catalogue/media/${m.id}`);
       const blob = await res.blob();
-      const file = new File([blob], `abhiram-${m.id}.${blob.type.split("/")[1] || "jpg"}`, { type: blob.type });
+      const file = new File([blob], `photo-${m.id}.${blob.type.split("/")[1] || "jpg"}`, { type: blob.type });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file] });
         setNote(copied ? "Choose Instagram, then paste the caption." : "Choose Instagram.");

@@ -9,6 +9,7 @@ import accountingStyles from "../accounting.module.css";
 import {
   createCashAccountAction,
 } from "@/lib/cash-account-actions";
+import { getBrand } from "@/lib/brand";
 
 type Props = {
   searchParams: Promise<{
@@ -68,6 +69,7 @@ async function CashAccountsContent({
   searchParams,
 }: Props) {
   const user = await requireGroupOwner();
+  const brand = await getBrand();
   const query = await searchParams;
   const businessId = user.legal_business_id;
 
@@ -131,7 +133,7 @@ async function CashAccountsContent({
 
       <p>
         Register physical cash locations and their
-        custodians for Abhiram Group.
+        custodians for {brand.groupName}.
       </p>
 
       <Link href="/accounting/chart-of-accounts">
@@ -175,7 +177,7 @@ async function CashAccountsContent({
             Cash Account Name
             <input
               name="cash_name"
-              placeholder="Kapra Shop Cash"
+              placeholder="Main shop cash"
               maxLength={150}
               required
               style={inputStyle}

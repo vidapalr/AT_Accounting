@@ -7,6 +7,7 @@ import {
   updateFundingPartyAction,
 } from "@/lib/funding-party-actions";
 import styles from "./funding.module.css";
+import { getBrand } from "@/lib/brand";
 
 type PageProps = {
   searchParams: Promise<{ result?: string }>;
@@ -48,6 +49,7 @@ async function FundingContent({
   searchParams,
 }: PageProps) {
   const user = await requireGroupOwner();
+  const brand = await getBrand();
 
   const parties = await getFundingParties(
     user.legal_business_id
@@ -68,7 +70,7 @@ async function FundingContent({
         <div>
           <h1>Investors & Lenders</h1>
           <p>
-            Maintain funding parties for Abhiram Group
+            Maintain funding parties for {brand.groupName}
             and its business divisions.
           </p>
         </div>

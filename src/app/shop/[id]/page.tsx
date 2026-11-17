@@ -6,13 +6,14 @@ import type { Metadata } from "next";
 import ProductPicker from "@/components/shop/ProductPicker";
 import { getShopMedia, getShopProduct, getShopSettings } from "@/lib/shop";
 import styles from "../shop.module.css";
+import { getBrand } from "@/lib/brand";
 
 type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const id = Number((await params).id);
   const p = Number.isSafeInteger(id) && id > 0 ? await getShopProduct(id) : null;
-  return p ? { title: p.name, description: p.description ?? `${p.name} from Abhiram Textiles` } : {};
+  return p ? { title: p.name, description: p.description ?? `${p.name} from ${(await getBrand()).shopName}` } : {};
 }
 
 async function Product({ params }: Props) {
@@ -20,7 +21,7 @@ async function Product({ params }: Props) {
   if (!Number.isSafeInteger(id) || id <= 0) notFound();
   const product = await getShopProduct(id);
   if (!product) notFound();
-  const [media, settings] = await Promise.all([getShopMedia(id), getShopSettings()]);
+  const [media, settings, brand] = await Promise.all([getShopMedia(id), getShopSettings(), getBrand()]);
 
   return (
     <>
@@ -29,6 +30,7 @@ async function Product({ params }: Props) {
         product={{ id: product.id, name: product.name, fabric: product.fabric, description: product.description, highlights: product.highlights, care: product.care, sizeGuide: product.sizeGuide, coverId: product.coverId, variants: product.variants }}
         media={media}
         whatsapp={settings.whatsapp}
+        shopName={brand.shopName}
       />
     </>
   );

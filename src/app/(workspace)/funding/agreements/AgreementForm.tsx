@@ -98,7 +98,7 @@ export default function AgreementForm({
           }
         >
           <option value="GROUP">
-            Abhiram Group
+            Whole group
           </option>
           <option value="DIVISION">
             Business Division

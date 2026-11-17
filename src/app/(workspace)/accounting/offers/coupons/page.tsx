@@ -7,12 +7,10 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { createCouponAction, setCouponStatusAction } from "@/lib/rewards-actions";
+import { cellTopCompact as cell, box, fieldBlock as field } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ saved?: string; error?: string }> };
 
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
-const field: React.CSSProperties = { display: "block", padding: 10, fontSize: 16, width: "100%", marginTop: 4 };
 const inr = (v: unknown) => `₹${Number(v).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
 async function Content({ searchParams }: Props) {

@@ -84,7 +84,7 @@ export async function autoPostPending(pool: Pool, businessId: number, opts: { fo
   let posted = 0;
   let skipped = 0;
   let failed = 0;
-  const lockName = `abhiram_autopost_${businessId}`;
+  const lockName = `autopost_${businessId}`;
   let locked = false;
   try {
     const [got] = await conn.query<Row[]>("SELECT GET_LOCK(?, 0) AS ok", [lockName]);

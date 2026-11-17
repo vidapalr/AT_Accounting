@@ -5,16 +5,12 @@ import {
 } from "@/lib/auth";
 import { hasTwoStep, startChallenge } from "@/lib/two-step";
 import { tooManyAttempts, recordWrongPassword, tidyAfterLogin } from "@/lib/login-guard";
+import { fromThisSite, siteOrigin } from "@/lib/same-origin";
 
 export async function POST(request: NextRequest) {
-  const publicOrigin =
-    process.env.NODE_ENV === "production"
-      ? "https://accounting.abhiraminc.com"
-      : request.nextUrl.origin;
+  const publicOrigin = siteOrigin(request);
 
-  const origin = request.headers.get("origin");
-
-  if (!origin || origin !== publicOrigin) {
+  if (!fromThisSite(request)) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 

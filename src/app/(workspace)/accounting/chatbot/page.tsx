@@ -9,10 +9,10 @@ import { saveBroadcastSettingsAction } from "@/lib/broadcast-actions";
 import {
   saveBotSettingsAction, saveAutoSendAction, saveWelcomeAction, saveAnswerAction, toggleAnswerAction, deleteAnswerAction, markChatDoneAction,
 } from "@/lib/bot-actions";
+import { card as box } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ result?: string; edit?: string; q?: string }> };
 
-const box: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, marginBottom: 16 };
 const input: React.CSSProperties = { padding: 12, border: "1px solid #cbd5e1", borderRadius: 8, width: "100%", fontSize: 16, boxSizing: "border-box" };
 const btn: React.CSSProperties = { cursor: "pointer", fontSize: 16, padding: "12px 20px" };
 
@@ -100,7 +100,7 @@ async function Chatbot({ searchParams }: Props) {
               <input type="checkbox" name="welcome" value="1" defaultChecked={s.get("bot_welcome_on") === "1"} style={{ width: 22, height: 22 }} /> Send shop details and photos
             </label>
             <label>Shop details (address, timings, map link, phone)
-              <br /><textarea name="details" rows={5} maxLength={1000} defaultValue={s.get("bot_shop_details") ?? ""} style={input} placeholder={"Abhiram Textiles\nAddress: ...\nOpen: 10 am to 9 pm, every day\nMap: https://maps.app.goo.gl/..."} />
+              <br /><textarea name="details" rows={5} maxLength={1000} defaultValue={s.get("bot_shop_details") ?? ""} style={input} placeholder={"Shop name\nAddress: ...\nOpen: 10 am to 9 pm, every day\nMap: https://maps.app.goo.gl/..."} />
             </label>
             <label>How many latest product photos (0 to 8)
               <br /><input name="photos" type="number" min={0} max={8} defaultValue={s.get("bot_welcome_photos") ?? "5"} style={{ ...input, width: 120 }} />

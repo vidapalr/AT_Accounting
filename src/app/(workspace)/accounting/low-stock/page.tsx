@@ -4,13 +4,11 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { setLowStockLevelAction } from "@/lib/stock-count-actions";
+import { cell, box, field } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ q?: string; saved?: string; error?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
 
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
-const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0 };
 const n = (v: string | number | null) => String(Number(v ?? 0));
 const name = (r: Row) => [r.product_name, r.size_label, r.color_name].filter(Boolean).join(" · ");
 

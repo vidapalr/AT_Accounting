@@ -6,16 +6,18 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import PrintButton from "@/components/PrintButton";
-import { BRAND_NAME, SHOP_PHONE, SHOP_EMAIL, SHOP_WEBSITES } from "@/lib/brand";
-import { DEFAULT_TERMS, LETTER_TYPES, buildLetter, type LetterType, type Terms } from "@/lib/staff-letters";
+import Letterhead from "@/components/Letterhead";
+import { DEFAULT_TERMS, LETTER_TYPES, renderLetter, type LetterType, type Terms } from "@/lib/staff-letters";
+import { loadLetterTemplate } from "@/lib/letter-templates";
+import { getBrand } from "@/lib/brand";
+import { fieldBlock as field } from "@/lib/ui/styles";
+import { todayInIndia as today } from "@/lib/format";
 
-type SP = { type?: string; title?: string; notice?: string; probation?: string; hours?: string; off?: string; leaves?: string; month?: string };
+type SP = { type?: string; title?: string; notice?: string; probation?: string; hours?: string; off?: string; leaves?: string; month?: string; new_salary?: string; effective?: string; reason?: string };
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<SP> };
 
-const field: React.CSSProperties = { display: "block", padding: 10, fontSize: 16, width: "100%", marginTop: 4 };
 const dmy = (v: unknown) => (v ? new Date(v as string).toLocaleDateString("en-GB").replaceAll("/", "-") : "");
 const inr = (v: unknown) => Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const today = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
 const clean = (v: string | undefined, max: number, fallback: string) => (v ?? "").trim().slice(0, max) || fallback;
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -25,6 +27,7 @@ async function Content({ params, searchParams }: Props) {
   const q = await searchParams;
   if (!/^[1-9]\d{0,9}$/.test(id)) notFound();
   const businessId = user.legal_business_id;
+  const brand = await getBrand(businessId);
 
   const [emp] = await db.execute<RowDataPacket[]>(
     `SELECT * FROM acct_employees WHERE legal_business_id = ? AND id = ?`, [businessId, Number(id)]);
@@ -46,12 +49,16 @@ async function Content({ params, searchParams }: Props) {
     `SELECT address_line1, address_line2, city, state, postal_code FROM acct_branches
       WHERE legal_business_id = ? AND id = ? LIMIT 1`, [businessId, Number(e.branch_id ?? 0)]);
   const b = branch[0];
-  const address = [b?.address_line1, b?.address_line2, b?.city, b?.state, b?.postal_code].filter(Boolean).join(", ") || "Kapra, Hyderabad";
+  const address = [b?.address_line1, b?.address_line2, b?.city, b?.state, b?.postal_code].filter(Boolean).join(", ") || brand.place;
 
   const ctx = {
     title, name: String(e.full_name), jobTitle: String(e.job_title ?? ""),
     salary: inr(e.monthly_salary), joinedOn: dmy(e.joined_on), noticeGivenOn: dmy(e.notice_given_on),
-    leftOn: dmy(e.left_on), letterDate: dmy(today()), place: String(b?.city ?? "Hyderabad"), terms,
+    leftOn: dmy(e.left_on), letterDate: dmy(today()), place: String(b?.city ?? brand.place), terms,
+    employer: brand.shopName !== brand.groupName ? `${brand.groupName} (${brand.shopName})` : brand.groupName,
+    newSalary: /^\d{1,9}(\.\d{1,2})?$/.test(q.new_salary ?? "") ? inr(q.new_salary) : "",
+    effectiveFrom: /^\d{4}-\d{2}-\d{2}$/.test(q.effective ?? "") ? dmy(q.effective) : "",
+    reason: clean(q.reason, 300, ""),
   };
 
   let slip: RowDataPacket | null = null;
@@ -61,7 +68,7 @@ async function Content({ params, searchParams }: Props) {
         WHERE legal_business_id = ? AND employee_id = ? AND salary_month = ?`, [businessId, Number(id), month]);
     slip = s[0] ?? null;
   }
-  const letter = type === "payslip" ? null : buildLetter(type, ctx);
+  const letter = type === "payslip" ? null : renderLetter(await loadLetterTemplate(businessId, type), ctx);
   const [yy, mm] = month.split("-");
 
   return (
@@ -87,46 +94,35 @@ async function Content({ params, searchParams }: Props) {
           <label>Weekly off<input name="off" defaultValue={terms.weeklyOff} style={field} /></label>
           <label>Paid leaves in a year (0 = none)<input name="leaves" defaultValue={terms.leaves} inputMode="numeric" style={field} /></label>
           <label>Pay slip month<input type="month" name="month" defaultValue={month} style={field} /></label>
+          <label>New monthly salary (salary increase)<input name="new_salary" defaultValue={q.new_salary ?? ""} inputMode="decimal" style={field} /></label>
+          <label>Change starts on<input type="date" name="effective" defaultValue={q.effective ?? ""} style={field} /></label>
+          <label>Reason (warning letter)<input name="reason" defaultValue={ctx.reason} maxLength={300} style={field} /></label>
           <div style={{ alignSelf: "end", display: "flex", gap: 8 }}>
             <button type="submit" className="btn-link btn-link-primary" style={{ fontSize: 16, padding: "12px 22px" }}>Show the paper</button>
             <PrintButton label="Print" />
           </div>
         </form>
         <p style={{ color: "#64748b", fontSize: 13 }}>
-          Check the terms above, press Show the paper, read it, then Print. Anything in [square brackets] is missing from the staff record: fill it on the person&apos;s Staff record page first.
+          The wording of each letter can be changed on <Link href="/accounting/letter-templates">Letter templates</Link>. Check the terms above, press Show the paper, read it, then Print. Anything in [square brackets] is missing from the staff record: fill it on the person&apos;s Staff record page first.
         </p>
       </div>
 
       <section data-print-sheet style={{ border: "1px solid #cbd5e1", padding: 28, background: "#fff", color: "#0f172a", lineHeight: 1.6 }}>
-        <div style={{ display: "flex", gap: 14, alignItems: "center", borderBottom: "2px solid #142c50", paddingBottom: 12 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/abhiram-logo-print.png" alt="Abhiram Group" width={72} height={72} />
-          <div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: "#142c50" }}>ABHIRAM GROUP</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#142c50" }}>{BRAND_NAME}</div>
-            <div style={{ fontSize: 12, color: "#475569" }}>{address}</div>
-            <div style={{ fontSize: 12, color: "#475569" }}>Phone {SHOP_PHONE} · {SHOP_EMAIL}</div>
-            <div style={{ fontSize: 12, color: "#475569" }}>{SHOP_WEBSITES}</div>
-          </div>
-        </div>
+        <Letterhead address={address} />
 
         {letter ? (
           <>
             <p style={{ textAlign: "right", margin: "16px 0 4px" }}>Date: {ctx.letterDate}</p>
             <p style={{ margin: "4px 0" }}>To: {title ? `${title} ` : ""}{ctx.name}{ctx.jobTitle ? `, ${ctx.jobTitle}` : ""}</p>
             <h2 style={{ textAlign: "center", textDecoration: "underline", margin: "18px 0" }}>{letter.heading}</h2>
-            {letter.paragraphs.map((t, i) => <p key={i}>{t}</p>)}
-            {letter.points && (
-              <ol style={{ paddingLeft: 22 }}>
-                {letter.points.map((t, i) => <li key={i} style={{ marginBottom: 4 }}>{t}</li>)}
+            {letter.blocks.map((block, i) => block.kind === "p" ? <p key={i}>{block.text}</p> : (
+              <ol key={i} style={{ paddingLeft: 22 }}>
+                {block.items.map((t, j) => <li key={j} style={{ marginBottom: 4 }}>{t}</li>)}
               </ol>
-            )}
-            {(type === "offer" || type === "appointment") && (
-              <p>Please sign and return a copy of this letter to confirm that you accept these terms.</p>
-            )}
-            <p style={{ marginTop: 36 }}>For ABHIRAM GROUP</p>
+            ))}
+            <p style={{ marginTop: 36 }}>For {brand.groupName.toUpperCase()}</p>
             <p style={{ marginTop: 40 }}>_____________________________<br />Authorised signatory</p>
-            {(type === "offer" || type === "appointment") && (
+            {letter.needsAcceptance && (
               <p style={{ marginTop: 28 }}>I accept the above terms.<br /><br />_____________________________ &nbsp;&nbsp; Date: ______________<br />{title ? `${title} ` : ""}{ctx.name}</p>
             )}
           </>
@@ -146,7 +142,7 @@ async function Content({ params, searchParams }: Props) {
                 ))}
               </tbody>
             </table>
-            <p style={{ marginTop: 36 }}>For ABHIRAM GROUP<br /><br />_____________________________<br />Authorised signatory</p>
+            <p style={{ marginTop: 36 }}>For {brand.groupName.toUpperCase()}<br /><br />_____________________________<br />Authorised signatory</p>
           </>
         )}
       </section>

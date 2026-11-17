@@ -5,10 +5,10 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { removeTrackAction } from "@/lib/reel-actions";
+import { card as box } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ saved?: string; removed?: string; error?: string }> };
 
-const box: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, marginBottom: 16 };
 const input: React.CSSProperties = { padding: 12, border: "1px solid #cbd5e1", borderRadius: 8, width: "100%", fontSize: 16, boxSizing: "border-box" };
 const ERRORS: Record<string, string> = {
   missing: "Choose a song file and give it a name.",

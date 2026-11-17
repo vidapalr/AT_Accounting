@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { buildCaption } from "@/lib/instagram-caption";
 import InstagramPostKit from "@/components/InstagramPostKit";
+import { getBrand } from "@/lib/brand";
 
 type Props = { searchParams: Promise<{ product?: string }> };
 
@@ -44,6 +45,7 @@ async function Content({ searchParams }: Props) {
   const facebookPost = Boolean(process.env.FACEBOOK_PAGE_ID && process.env.FACEBOOK_PAGE_ACCESS_TOKEN && process.env.SHOP_PUBLIC_URL);
 
   const caption = buildCaption({
+    shop: (await getBrand(businessId)).shopName,
     name: String(p.product_name),
     fabric: p.fabric ? String(p.fabric) : null,
     designName: p.design_name ? String(p.design_name) : null,

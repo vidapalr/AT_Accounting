@@ -8,6 +8,7 @@ import {
 } from "@/lib/division-actions";
 import DivisionChecklist from "@/components/DivisionChecklist";
 import styles from "../masters.module.css";
+import { getBrand } from "@/lib/brand";
 
 type PageProps = {
   searchParams: Promise<{
@@ -34,6 +35,7 @@ async function DivisionsContent({
   searchParams,
 }: PageProps) {
   const user = await requireGroupOwner();
+  const brand = await getBrand();
   const divisions = await getDivisions(user.legal_business_id);
   const params = await searchParams;
 
@@ -66,7 +68,7 @@ async function DivisionsContent({
       <div className={styles.heading}>
         <h1>Business Divisions</h1>
         <p>
-          Create and manage business activities under Abhiram Group.
+          Create and manage business activities under {brand.groupName}.
         </p>
       </div>
 
@@ -109,7 +111,7 @@ async function DivisionsContent({
               id="divisionName"
               type="text"
               name="name"
-              placeholder="e.g. Abhiram Agriculture"
+              placeholder="e.g. Agriculture"
               minLength={3}
               maxLength={180}
               required

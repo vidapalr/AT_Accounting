@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { field } from "@/lib/ui/styles";
 
 const NOTES = [500, 200, 100, 50, 20, 10];
 const inr = (n: number) => n.toLocaleString("en-IN");
-const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0 };
 
 /** Count notes by kind; the total fills the "counted" amount. Typing the amount directly still works. */
 export default function NoteCounter({ expected }: { expected?: Record<string, number> | null }) {

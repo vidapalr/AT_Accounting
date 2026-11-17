@@ -4,7 +4,7 @@ import type { ResultSetHeader } from "mysql2";
 
 import { db } from "@/lib/db";
 import { nextCode } from "@/lib/codes";
-import { getShopProducts, sellableQty, SHOP_BUSINESS_ID } from "@/lib/shop";
+import { getShopProducts, sellableQty, shopBusinessId } from "@/lib/shop";
 import { emailOkToOrder } from "@/lib/shop-verify";
 import { checkOrder, orderTotalPaise } from "@/lib/shop-order-math";
 
@@ -54,7 +54,7 @@ export async function placeOrder(raw: unknown, shopCustomerId: number): Promise<
     try {
       const orderNo = await nextCode(conn, {
         table: "acct_online_orders", column: "order_no", prefix: "WEB-", width: 5,
-        where: "legal_business_id = ?", params: [SHOP_BUSINESS_ID],
+        where: "legal_business_id = ?", params: [(await shopBusinessId())],
       });
       await conn.beginTransaction();
       // Lock these items so two customers cannot take the last piece at the same moment, then check what is left.
@@ -74,7 +74,7 @@ export async function placeOrder(raw: unknown, shopCustomerId: number): Promise<
         `INSERT INTO acct_online_orders
            (legal_business_id, order_no, customer_name, phone, email, country, address_line, city, state_region, postal_code, customer_note, items_total, shop_customer_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [SHOP_BUSINESS_ID, orderNo, order.name, order.phone, order.email || null, order.country, order.address,
+        [(await shopBusinessId()), orderNo, order.name, order.phone, order.email || null, order.country, order.address,
          order.city, order.state || null, order.postal || null, order.note || null, total.toFixed(2), shopCustomerId]
       );
       for (const p of priced) {

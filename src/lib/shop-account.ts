@@ -6,10 +6,11 @@ import bcrypt from "bcryptjs";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { SHOP_BUSINESS_ID } from "@/lib/shop";
+import { shopBusinessId } from "@/lib/shop";
 import { checkSignUp, normalizeEmail, tooManyTries } from "@/lib/shop-account-math";
+import { SHOP_SESSION_COOKIE } from "@/lib/app-config";
 
-const COOKIE = "abhiram_shop_session";
+const COOKIE = SHOP_SESSION_COOKIE;
 const SESSION_DAYS = 30;
 const hits = new Map<string, number[]>();
 // A real hash to compare against when the email is unknown, so the reply takes the same time either way.
@@ -39,7 +40,7 @@ export async function registerCustomer(raw: unknown, ip: string): Promise<Result
   try {
     const [res] = await db.execute<ResultSetHeader>(
       `INSERT INTO acct_shop_customers (legal_business_id, email, full_name, phone, password_hash) VALUES (?, ?, ?, ?, ?)`,
-      [SHOP_BUSINESS_ID, email, name, phone, hash]
+      [(await shopBusinessId()), email, name, phone, hash]
     );
     await startSession(res.insertId);
     sendVerifyLink(res.insertId).catch((e) => console.error("Verify link failed:", e));
@@ -61,7 +62,7 @@ export async function loginCustomer(raw: unknown, ip: string): Promise<Result> {
   }
   const [rows] = await db.execute<RowDataPacket[]>(
     `SELECT id, password_hash, status FROM acct_shop_customers WHERE legal_business_id = ? AND email = ?`,
-    [SHOP_BUSINESS_ID, email]
+    [(await shopBusinessId()), email]
   );
   const row = rows[0];
   const valid = await bcrypt.compare(password, row ? String(row.password_hash) : getDummyHash());
@@ -88,7 +89,7 @@ export async function getShopCustomer(): Promise<ShopCustomer | null> {
     `SELECT c.id, c.full_name, c.email, c.phone
        FROM acct_shop_sessions s JOIN acct_shop_customers c ON c.id = s.customer_id
       WHERE s.token_hash = ? AND s.expires_at > NOW() AND c.status = 'ACTIVE' AND c.legal_business_id = ?`,
-    [tokenHash(token), SHOP_BUSINESS_ID]
+    [tokenHash(token), (await shopBusinessId())]
   );
   const r = rows[0];
   return r ? { id: Number(r.id), name: String(r.full_name), email: String(r.email), phone: String(r.phone) } : null;

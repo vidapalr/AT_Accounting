@@ -44,7 +44,7 @@ async function main() {
     );
 
     if (businesses.length !== 1) {
-      throw new Error("Abhiram Group business record not found.");
+      throw new Error("Business record not found. Run scripts/setup-business.mjs first.");
     }
 
     const [existing] = await connection.execute(
@@ -56,7 +56,7 @@ async function main() {
       throw new Error("User already exists. No changes made.");
     }
 
-    console.log("Creating Abhiram Group Owner account");
+    console.log("Creating the Group Owner account");
     console.log("Email:", email);
 
     const newPassword = await password({

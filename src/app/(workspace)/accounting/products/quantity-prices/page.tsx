@@ -8,6 +8,7 @@ import { requireAccess } from "@/lib/auth";
 import { saveQtyPricesAction } from "@/lib/qty-price-actions";
 import { loadQtyRule } from "@/lib/qty-price-data";
 import { latestPrices } from "@/lib/shop";
+import { cell } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ result?: string }> };
 
@@ -17,7 +18,6 @@ const MESSAGES: Record<string, { ok: boolean; text: string }> = {
   failed: { ok: false, text: "Could not save. Nothing was changed." },
 };
 
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
 const input: React.CSSProperties = { padding: 8, width: 110, border: "1px solid #cbd5e1", borderRadius: 6 };
 
 async function Content({ searchParams }: Props) {

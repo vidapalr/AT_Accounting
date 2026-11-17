@@ -1,11 +1,11 @@
-import { BRAND_NAME, TAGLINE } from "@/lib/brand";
+import { getBrand } from "@/lib/brand";
 import { todayInIndia } from "@/lib/reports/money";
 
 /**
  * Letterhead for a bill or estimate on paper / PDF: shop name, shop address and phone,
  * the document number and date, and who it is for. Hidden on screen.
  */
-export default function DocumentHeader(props: {
+export default async function DocumentHeader(props: {
   title: string; // e.g. "Invoice AB_AT_KA_SA_12" or "Estimate EST-0004"
   date: string;
   shopAddress: string;
@@ -15,18 +15,19 @@ export default function DocumentHeader(props: {
   customerAddress?: string;
   note?: string;
 }) {
+  const brand = await getBrand();
   return (
     <div className="print-only" style={{ marginBottom: 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, borderBottom: "2px solid #142c50", paddingBottom: 10 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/abhiram-logo-print.png" alt={BRAND_NAME} width={64} height={64} />
+        <img src={brand.logoPrint} alt={brand.shopName} width={64} height={64} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#142c50", letterSpacing: 0.5 }}>{BRAND_NAME.toUpperCase()}</div>
-          <div style={{ fontSize: 12, fontStyle: "italic", color: "#142c50" }}>{TAGLINE}</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "#142c50", letterSpacing: 0.5 }}>{brand.shopName.toUpperCase()}</div>
+          {brand.tagline ? <div style={{ fontSize: 12, fontStyle: "italic", color: "#142c50" }}>{brand.tagline}</div> : null}
           <div style={{ fontSize: 12, color: "#475569" }}>
             {props.shopAddress}{props.shopPhone ? ` · Phone ${props.shopPhone}` : ""}
           </div>
-          <div style={{ fontSize: 11, color: "#64748b" }}>An Abhiram Group company</div>
+          {brand.parentLine ? <div style={{ fontSize: 11, color: "#64748b" }}>{brand.parentLine}</div> : null}
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#142c50" }}>{props.title}</div>

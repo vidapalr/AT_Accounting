@@ -34,7 +34,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
 
   if (request.nextUrl.searchParams.get("download") === "1") {
     const ext = String(media.mime_type).split("/")[1]?.replace(/[^a-z0-9]/gi, "") || "bin";
-    headers["Content-Disposition"] = `attachment; filename="abhiram-${id}.${ext}"`;
+    headers["Content-Disposition"] = `attachment; filename="media-${id}.${ext}"`;
   }
 
   const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get("range") ?? "");

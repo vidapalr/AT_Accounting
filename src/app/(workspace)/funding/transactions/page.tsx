@@ -21,6 +21,7 @@ import {
 
 import SubmitButton from "@/components/SubmitButton";
 import styles from "../funding.module.css";
+import { getBrand } from "@/lib/brand";
 
 type Props = {
   searchParams: Promise<{
@@ -81,6 +82,7 @@ async function FundingTransactionsContent({
   searchParams,
 }: Props) {
   const user = await requireGroupOwner();
+  const brand = await getBrand();
 
   const [agreements, transactions] =
     await Promise.all([
@@ -130,7 +132,7 @@ async function FundingTransactionsContent({
         <h1>Funding Transactions</h1>
         <p>
           Record investor and lender funding received
-          for Abhiram Group divisions and branches.
+          for {brand.groupName} divisions and branches.
         </p>
       </header>
 
@@ -214,7 +216,7 @@ async function FundingTransactionsContent({
                     {" — "}
                     {agreement.branch_name ??
                       agreement.division_name ??
-                      "Abhiram Group"}
+                      `${brand.groupName}`}
                   </option>
                 ))}
               </select>
@@ -327,7 +329,7 @@ async function FundingTransactionsContent({
                 <option value="" disabled>Select funding agreement</option>
                 {agreements.map((agreement) => (
                   <option key={agreement.id} value={agreement.id}>
-                    {agreement.agreement_no} — {agreement.party_name} — {agreement.branch_name ?? agreement.division_name ?? "Abhiram Group"}
+                    {agreement.agreement_no} — {agreement.party_name} — {agreement.branch_name ?? agreement.division_name ?? `${brand.groupName}`}
                   </option>
                 ))}
               </select>

@@ -13,6 +13,10 @@ export type AgreementMergeData = {
   fundingType: "LOAN" | "PROFIT_LINKED";
   terms: Record<string, unknown>;
   policy: Record<string, unknown> | null;
+  /** Who signs for the business, e.g. "A. Owner, proprietor, carrying on business as Acme Group" (setting agreement_business_party). */
+  businessParty: string;
+  /** Word template file inside private_templates (setting agreement_template_file). */
+  templateFile: string;
 };
 
 function display(value: unknown): string {
@@ -54,7 +58,7 @@ export async function generateFullAgreementDocx(
   const templatePath = path.join(
     process.cwd(),
     "private_templates",
-    "Abhiram_Group_Profit_Participation_Agreement.docx"
+    path.basename(input.templateFile)
   );
 
   const template = await readFile(templatePath);
@@ -134,9 +138,7 @@ export async function generateFullAgreementDocx(
     agreement_no: input.agreementNo,
     execution_details:
       "TO BE COMPLETED AT EXECUTION",
-    business_party:
-      "Ravi Shanker Vidapalapati, proprietor, " +
-      "carrying on business as Abhiram Group",
+    business_party: input.businessParty,
     investor_name: input.investorName,
     funding_scope: input.fundingScope,
     profit_share: profitShare,

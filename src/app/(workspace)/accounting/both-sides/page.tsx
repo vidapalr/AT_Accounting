@@ -15,15 +15,13 @@ import {
 } from "@/lib/party-actions";
 import SubmitButton from "@/components/SubmitButton";
 import ConfirmButton from "@/components/ConfirmButton";
+import { cellTop as cell, box, fieldFull as field } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ saved?: string; error?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
 
 const rupees = (p: bigint) => `₹${(p / 100n).toLocaleString("en-IN")}.${String(p % 100n).padStart(2, "0")}`;
-const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 const right: React.CSSProperties = { ...cell, textAlign: "right" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
-const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0, width: "100%" };
 
 const SAVED: Record<string, string> = {
   linked: "Linked. Both records stay as they were.",

@@ -7,15 +7,14 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { changeOfferAction, saveOfferAction } from "@/lib/offer-actions";
 import { describeOffer } from "@/lib/offer-math";
+import { box, field } from "@/lib/ui/styles";
+import { todayInIndia as today } from "@/lib/format";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 type Props = { searchParams: Promise<{ saved?: string; error?: string }> };
 
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
-const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0 };
 const bigBtn: React.CSSProperties = { cursor: "pointer", fontSize: 16, padding: "10px 18px" };
 const WHERE: Record<string, string> = { STORE: "Store only", ONLINE: "Online only", BOTH: "Store and online" };
-const today = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
 
 async function Content({ searchParams }: Props) {
   const user = await requireAccess("products");

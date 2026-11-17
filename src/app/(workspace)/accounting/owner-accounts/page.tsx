@@ -6,6 +6,7 @@ import { requireGroupOwner } from "@/lib/auth";
 import { loadOwnerAccounts } from "@/lib/owner-accounts-data";
 import { createOwnerAccountAction } from "@/lib/owner-account-actions";
 import SubmitButton from "@/components/SubmitButton";
+import { cellTopCompact as cell, box } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ saved?: string; error?: string }> };
 
@@ -15,9 +16,7 @@ const rupees = (p: bigint) => {
   return `${neg ? "-" : ""}₹${(a / 100n).toLocaleString("en-IN")}.${String(a % 100n).padStart(2, "0")}`;
 };
 const pretty = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 const right: React.CSSProperties = { ...cell, textAlign: "right" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
 const field: React.CSSProperties = { padding: "12px", fontSize: 16, width: "100%" };
 
 async function Content({ searchParams }: Props) {

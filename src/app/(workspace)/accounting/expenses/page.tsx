@@ -6,6 +6,8 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { getBrand } from "@/lib/brand";
+import { getActiveDivision } from "@/lib/division-context";
 import { createExpenseAction } from "@/lib/expense-actions";
 import ExpenseAllocationFields
   from "@/components/accounting/ExpenseAllocationFields";
@@ -72,6 +74,7 @@ const cell: React.CSSProperties = {
 
 async function ExpensesContent({ searchParams }: Props) {
   const user = await requireAccess("expenses");
+  const [brand, activeDivision] = await Promise.all([getBrand(user.legal_business_id), getActiveDivision(user)]);
   const businessId = user.legal_business_id;
   const { result, id } = await searchParams;
 
@@ -252,6 +255,8 @@ async function ExpensesContent({ searchParams }: Props) {
           style={{ display: "grid", gap: 18 }}
         >
           <ExpenseAllocationFields
+            groupName={brand.groupName}
+            division={activeDivision}
             branches={branches.map(branch => ({
               id: Number(branch.id),
               name: String(branch.branch_name),
@@ -311,7 +316,7 @@ async function ExpensesContent({ searchParams }: Props) {
               name="description"
               required
               maxLength={500}
-              placeholder="Example: Monthly Kapra shop rent"
+              placeholder="Example: Monthly shop rent"
               style={fieldStyle}
             />
           </label>

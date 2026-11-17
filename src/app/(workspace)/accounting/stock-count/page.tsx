@@ -7,15 +7,13 @@ import { requireAccess } from "@/lib/auth";
 import { canWriteOffStockCount } from "@/lib/access";
 import { saveStockCountAction, writeOffCountShortagesAction, acceptExtraStockAction } from "@/lib/stock-count-actions";
 import ConfirmButton from "@/components/ConfirmButton";
+import { cell, box, field } from "@/lib/ui/styles";
 
 type Props = {
   searchParams: Promise<{ location?: string; q?: string; view?: string; saved?: string; error?: string }>;
 };
 type Row = RowDataPacket & Record<string, string | number | null>;
 
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
-const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0 };
 const qty = (v: string | number | null) => String(Number(v ?? 0));
 const itemName = (r: Row) =>
   [r.product_name, r.size_label, r.color_name].filter(Boolean).join(" · ");

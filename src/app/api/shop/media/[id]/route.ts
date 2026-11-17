@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { SHOP_BUSINESS_ID } from "@/lib/shop";
+import { shopBusinessId } from "@/lib/shop";
 import { mediaSize, readMediaRange } from "@/lib/media-storage";
 
 /** Public: photos and videos of products the owner switched on for the online shop. */
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
        JOIN acct_products p ON p.id = m.product_id AND p.legal_business_id = m.legal_business_id
       WHERE m.legal_business_id = ? AND m.id = ? AND m.status = 'ACTIVE'
         AND p.status = 'ACTIVE' AND p.show_in_shop = 1`,
-    [SHOP_BUSINESS_ID, Number(id)]
+    [(await shopBusinessId()), Number(id)]
   );
   const media = rows[0];
   if (!media) return new NextResponse("Not found", { status: 404 });

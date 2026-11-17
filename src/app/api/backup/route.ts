@@ -4,6 +4,7 @@ import { Readable } from "node:stream";
 import { getSessionUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { dumpSql } from "@/lib/backup-dump";
+import { getBrand } from "@/lib/brand";
 
 /** Owner only: a full copy of the accounting data as a compressed SQL file. */
 export async function GET() {
@@ -31,7 +32,7 @@ export async function GET() {
   return new Response(Readable.toWeb(gzip) as ReadableStream, {
     headers: {
       "Content-Type": "application/gzip",
-      "Content-Disposition": `attachment; filename="abhiram-backup-${stamp}.sql.gz"`,
+      "Content-Disposition": `attachment; filename="${(await getBrand(user.legal_business_id)).fileSlug}-backup-${stamp}.sql.gz"`,
       "Cache-Control": "no-store",
     },
   });

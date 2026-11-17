@@ -6,19 +6,21 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { updateOnlineOrderAction } from "@/lib/online-order-actions";
 import { normalizePhone, whatsappLink } from "@/lib/whatsapp/core";
+import { getBrand } from "@/lib/brand";
+import { field } from "@/lib/ui/styles";
+import { inr2 as inr } from "@/lib/format";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 type Props = { searchParams: Promise<{ status?: string; saved?: string; error?: string }> };
 
 const STATUSES = ["REQUESTED", "CONFIRMED", "COMPLETED", "CANCELLED"] as const;
 const WORDS: Record<string, string> = { REQUESTED: "New", CONFIRMED: "Confirmed", COMPLETED: "Done", CANCELLED: "Cancelled" };
-const inr = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "14px 0" };
-const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0 };
 const bigBtn: React.CSSProperties = { cursor: "pointer", fontSize: 16, padding: "10px 18px" };
 
 async function Content({ searchParams }: Props) {
   const user = await requireAccess("online_orders");
+  const brand = await getBrand();
   const businessId = user.legal_business_id;
   const q = await searchParams;
   const status = (STATUSES as readonly string[]).includes(q.status ?? "") ? String(q.status) : "REQUESTED";
@@ -65,9 +67,9 @@ async function Content({ searchParams }: Props) {
         const ship = Number(o.shipping_charge);
         const msg =
           o.status === "REQUESTED"
-            ? `Hello ${o.customer_name}, thank you for your order ${o.order_no} at Abhiram Textiles. We are checking availability and shipping to ${o.country} and will confirm shortly.`
+            ? `Hello ${o.customer_name}, thank you for your order ${o.order_no} at ${brand.shopName}. We are checking availability and shipping to ${o.country} and will confirm shortly.`
             : o.status === "COMPLETED"
-            ? `Hello ${o.customer_name}, your order ${o.order_no} has been billed and is on its way. Thank you for shopping with Abhiram Textiles!`
+            ? `Hello ${o.customer_name}, your order ${o.order_no} has been billed and is on its way. Thank you for shopping with ${brand.shopName}!`
             : o.status === "CANCELLED"
             ? `Hello ${o.customer_name}, your order ${o.order_no} has been cancelled. Please message us if you have any questions.`
             : `Hello ${o.customer_name}, your order ${o.order_no} is confirmed. Items ${inr(items)}, shipping ${inr(ship)}, total ${inr(items + ship)}. Please let us know when you are ready to pay.`;
@@ -106,7 +108,7 @@ async function Content({ searchParams }: Props) {
                 <a className="btn-link btn-link-primary" style={bigBtn} href={whatsappLink(phone, msg)} target="_blank" rel="noreferrer">Reply on WhatsApp</a>
               )}
               {o.email && (
-                <a className="btn-link" style={bigBtn} href={`mailto:${o.email}?subject=${encodeURIComponent(`Your Abhiram Textiles order ${o.order_no}`)}&body=${encodeURIComponent(msg)}`}>Email</a>
+                <a className="btn-link" style={bigBtn} href={`mailto:${o.email}?subject=${encodeURIComponent(`Your ${brand.shopName} order ${o.order_no}`)}&body=${encodeURIComponent(msg)}`}>Email</a>
               )}
             </div>
 

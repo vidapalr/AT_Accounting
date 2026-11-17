@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { giveStaffAdvanceAction } from "@/lib/staff-advance-actions";
 import SubmitButton from "@/components/SubmitButton";
+import { cellTop as cell, box, fieldFull as field } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ saved?: string; error?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -13,10 +14,7 @@ type Row = RowDataPacket & Record<string, string | number | null>;
 const paise = (v: unknown) => BigInt(Math.round(Number(v ?? 0) * 100));
 const rupees = (p: bigint) => `₹${(p / 100n).toLocaleString("en-IN")}.${String(p % 100n).padStart(2, "0")}`;
 const pretty = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
-const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 const right: React.CSSProperties = { ...cell, textAlign: "right" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
-const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0, width: "100%" };
 
 async function Content({ searchParams }: Props) {
   const user = await requireAccess("salary");

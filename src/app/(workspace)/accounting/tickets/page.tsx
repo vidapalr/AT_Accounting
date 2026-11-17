@@ -8,6 +8,7 @@ import { todayInIndia } from "@/lib/reports/money";
 import { createTicketAction } from "@/lib/ticket-actions";
 import { KIND_LABEL, STATUS_LABEL, TICKET_KINDS, daysOpen, isOpenStatus, type TicketKind, type TicketStatus } from "@/lib/ticket-math";
 import SubmitButton from "@/components/SubmitButton";
+import { cellTop as cell } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ result?: string; show?: string; customer?: string }> };
 const MSG: Record<string, string> = {
@@ -17,7 +18,6 @@ const MSG: Record<string, string> = {
   failed: "The ticket could not be saved. Nothing was changed.",
   "not-ready": "Tickets need the database file 079_service_tickets. Run it, then try again.",
 };
-const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 const field: React.CSSProperties = { display: "block", width: "100%", padding: 12, fontSize: 16, marginTop: 6, border: "1px solid #cbd5e1", borderRadius: 6 };
 
 async function Content({ searchParams }: Props) {

@@ -7,6 +7,7 @@ import { getBalanceReport } from "@/lib/reports/report-data";
 import { isDate, todayInIndia, toNumber } from "@/lib/reports/money";
 import { loadAccounts, loadJournals } from "@/lib/export/ledger-data";
 import { tallyLedgersXml, tallyVoucherType, tallyVouchersXml } from "@/lib/export/tally";
+import { getBrand } from "@/lib/brand";
 
 const MONEY = "#,##0.00;[Red]-#,##0.00";
 
@@ -53,12 +54,13 @@ export async function GET(request: Request) {
   }
 
   // Excel workbook: day book, trial balance, list of accounts.
+  const brand = await getBrand(user.legal_business_id);
   const book = new ExcelJS.Workbook();
-  book.creator = "Abhiram Group Accounting";
+  book.creator = brand.appName;
   const bold = { bold: true };
 
   const day = book.addWorksheet("Day book");
-  day.addRow(["Abhiram Group"]).font = { bold: true, size: 14 };
+  day.addRow([brand.groupName]).font = { bold: true, size: 14 };
   day.addRow([`Every posted entry, ${from} to ${to}`]);
   day.addRow([]);
   day.addRow(["Date", "Entry no", "Voucher type (Tally)", "Account code", "Account", "Details", "Debit", "Credit"]).font = bold;
@@ -78,7 +80,7 @@ export async function GET(request: Request) {
 
   const { accounts } = await getBalanceReport(db, businessId, to);
   const tb = book.addWorksheet("Trial balance");
-  tb.addRow(["Abhiram Group"]).font = { bold: true, size: 14 };
+  tb.addRow([brand.groupName]).font = { bold: true, size: 14 };
   tb.addRow([`Trial balance as at ${to}`]);
   tb.addRow([]);
   tb.addRow(["Account code", "Account", "Debit", "Credit"]).font = bold;
@@ -103,7 +105,7 @@ export async function GET(request: Request) {
   return new Response(buffer as ArrayBuffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="abhiram-ledger-${from}-to-${to}.xlsx"`,
+      "Content-Disposition": `attachment; filename="${brand.fileSlug}-ledger-${from}-to-${to}.xlsx"`,
       ...noStore,
     },
   });

@@ -20,7 +20,7 @@
     "lucide-react": "^1.59.0",
     "mammoth": "^1.13.0",
     "mysql2": "^3.24.6",
-    "next": "16.4.2",
+    "next": "^16.4.6",
     "nodemailer": "^10.2.1",
     "pdfkit": "^0.17.2",
     "pizzip": "^3.3.0",
@@ -37,7 +37,7 @@
     "@types/react-dom": "^19",
     "@types/sanitize-html": "^2.16.2",
     "eslint": "^9",
-    "eslint-config-next": "16.4.2",
+    "eslint-config-next": "^16.4.6",
     "tsx": "^4.23.15",
     "typescript": "^5"
   },

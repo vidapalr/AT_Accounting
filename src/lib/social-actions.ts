@@ -68,7 +68,7 @@ export async function postToSocialAction(input: { mediaIds: number[]; caption: s
         const onDisk = row ? await mediaSize(String(row.storage_key)) : null;
         if (row && row.product_status !== "ACTIVE") problems.push(`${label}: the product is not active, so its photos are not public.`);
         else if (onDisk === null) problems.push(`${label}: the photo file is missing on the server (it may have been deleted by a redeploy). Upload it again, and set MEDIA_DIR to a folder outside the app.`);
-        else problems.push(`${label} is on the server but the address ${site} does not serve it (404). Open ${url(id)} in a browser: SHOP_PUBLIC_URL must be exactly your shop address, e.g. https://textiles.abhiraminc.com, with nothing after .com.`);
+        else problems.push(`${label} is on the server but the address ${site} does not serve it (404). Open ${url(id)} in a browser: SHOP_PUBLIC_URL must be exactly your shop address, e.g. https://shop.example.com, with nothing after the address.`);
       }
       else if (res.status !== 200) problems.push(`${label} cannot be opened from the internet (answer ${res.status}).`);
       else if (!/^(image|video)\//.test(type)) problems.push(`${label} is not served as a photo (it came back as "${type.slice(0, 40) || "unknown"}"). Check SHOP_PUBLIC_URL.`);

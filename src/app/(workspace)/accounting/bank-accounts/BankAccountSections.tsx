@@ -170,7 +170,7 @@ export default async function BankAccountSections({
         <h2>Business Bank GL Mapping</h2>
 
         <p>
-          Link each Abhiram-controlled bank account
+          Link each business-controlled bank account
           to one dedicated Bank Asset ledger account.
           Investor-owned bank accounts are excluded.
         </p>

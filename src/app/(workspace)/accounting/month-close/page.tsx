@@ -6,11 +6,11 @@ import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 import { monthCloseChecks } from "@/lib/month-close";
 import { lastFinishedMonth, monthBounds } from "@/lib/month-math";
+import { todayInIndia as today } from "@/lib/format";
 
 type Props = { searchParams: Promise<{ m?: string }> };
 
 const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "12px 0" };
-const today = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const label = (ym: string) => `${MONTHS[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
 

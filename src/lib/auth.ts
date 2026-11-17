@@ -8,8 +8,10 @@ import bcrypt from "bcryptjs";
 import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { canAccess, homePath, LOGIN_ROLES, type Feature } from "@/lib/access";
+import { currentBusinessId } from "@/lib/tenant";
+import { SESSION_COOKIE } from "@/lib/app-config";
 
-const COOKIE_NAME = "abhiram_accounting_session";
+const COOKIE_NAME = SESSION_COOKIE;
 const SESSION_HOURS = 8;
 
 interface UserRow extends RowDataPacket {
@@ -40,6 +42,7 @@ export async function verifyCredentials(
   email: string,
   password: string
 ) {
+  const businessId = await currentBusinessId();
   const [rows] = await db.execute<UserRow[]>(
     `SELECT
        u.id,
@@ -53,12 +56,12 @@ export async function verifyCredentials(
          SELECT 1
          FROM acct_user_access a
          WHERE a.user_id = u.id
-           AND a.legal_business_id = 1
+           AND a.legal_business_id = ?
            AND a.division_id IS NULL
            AND a.role IN (${LOGIN_ROLES.map((r) => `'${r}'`).join(",")})
        )
      LIMIT 1`,
-    [email.trim().toLowerCase()]
+    [email.trim().toLowerCase(), businessId]
   );
 
   const user = rows[0];
@@ -117,6 +120,7 @@ export async function getSessionUser() {
     return null;
   }
 
+  const businessId = await currentBusinessId();
   const [rows] = await db.execute<SessionUser[]>(
     `SELECT
        u.id,
@@ -134,12 +138,12 @@ export async function getSessionUser() {
      WHERE s.token_hash = ?
        AND s.expires_at > UTC_TIMESTAMP()
        AND u.status = 'ACTIVE'
-       AND a.legal_business_id = 1
+       AND a.legal_business_id = ?
        AND a.division_id IS NULL
        AND a.role IN (${LOGIN_ROLES.map((r) => `'${r}'`).join(",")})
      ORDER BY FIELD(a.role, 'GROUP_OWNER', 'ACCOUNTANT', 'DIVISION_MANAGER', 'CASHIER', 'AUDITOR', 'INVESTOR')
      LIMIT 1`,
-    [hashToken(token)]
+    [hashToken(token), businessId]
   );
 
   return rows[0] ?? null;

@@ -41,7 +41,7 @@ export async function* dumpSql(
     await conn.query("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ");
     await conn.query("START TRANSACTION WITH CONSISTENT SNAPSHOT");
 
-    yield `-- Abhiram Group Accounting backup\n-- Taken ${new Date().toISOString()}\n-- Tables: ${tables.length}\n`;
+    yield `-- Accounting backup\n-- Taken ${new Date().toISOString()}\n-- Tables: ${tables.length}\n`;
     yield `-- To restore: phpMyAdmin > choose the database > Import > choose this file. This REPLACES the data in these tables.\n\n`;
     yield `SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS = 0;\nSET UNIQUE_CHECKS = 0;\nSET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';\n\n`;
 

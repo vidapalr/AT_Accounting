@@ -9,7 +9,7 @@ export async function GET() {
   const templatePath = path.join(
     process.cwd(),
     "private_templates",
-    "Abhiram_Group_Profit_Participation_Agreement_Revised.docx"
+    "profit_participation_agreement_blank.docx"
   );
 
   try {
@@ -21,7 +21,7 @@ export async function GET() {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "Content-Disposition":
-          'attachment; filename="Abhiram_Group_Profit_Participation_Agreement_Revised.docx"',
+          'attachment; filename="profit_participation_agreement.docx"',
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
       },

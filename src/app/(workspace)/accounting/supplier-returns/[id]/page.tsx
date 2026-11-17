@@ -10,6 +10,8 @@ import PrintHeader from "@/components/PrintHeader";
 import { loadSupplierBalances } from "@/lib/supplier-ledger";
 import { parsePaise } from "@/lib/returns-math";
 import { correctSupplierCreditAction, linkReplacementAction, recordSupplierRefundAction } from "@/lib/supplier-return-actions";
+import { cell, box, field } from "@/lib/ui/styles";
+import { todayInIndia as today } from "@/lib/format";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -21,11 +23,7 @@ type Row = RowDataPacket & Record<string, string | number | null>;
 const inr = (value: string | number | null) =>
   `₹${Number(value ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const paiseText = (p: bigint) => inr(`${p / 100n}.${String(p % 100n).padStart(2, "0")}`);
-const today = () => new Date().toISOString().slice(0, 10);
 
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
-const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0 };
 
 const REASONS: Record<string, string> = {
   DAMAGED: "Damaged",

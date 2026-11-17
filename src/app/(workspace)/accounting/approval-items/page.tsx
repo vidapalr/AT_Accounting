@@ -7,6 +7,9 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { handOutItemsAction, receiveBackAction } from "@/lib/approval-actions";
 import ConfirmButton from "@/components/ConfirmButton";
+import { getBrand } from "@/lib/brand";
+import { cell, box, field } from "@/lib/ui/styles";
+import { todayInIndia as today } from "@/lib/format";
 
 type Props = {
   searchParams: Promise<{ location?: string; q?: string; saved?: string; error?: string }>;
@@ -16,16 +19,12 @@ type Row = RowDataPacket & Record<string, string | number | null>;
 
 const inr = (value: string | number | null) =>
   `₹${Number(value ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const today = () => new Date().toISOString().slice(0, 10);
 const plusDays = (days: number) => {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 };
 
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
-const field: React.CSSProperties = { padding: "10px 12px", fontSize: 16, minWidth: 0 };
 const bigBtn: React.CSSProperties = { cursor: "pointer", fontSize: 16, padding: "10px 18px" };
 
 const STATUS_WORDS: Record<string, string> = {
@@ -36,6 +35,7 @@ const STATUS_WORDS: Record<string, string> = {
 
 async function ApprovalContent({ searchParams }: Props) {
   const user = await requireAccess("approval_items");
+  const brand = await getBrand();
   const businessId = user.legal_business_id;
   const query = await searchParams;
   const locationId = Number(query.location);
@@ -135,7 +135,7 @@ async function ApprovalContent({ searchParams }: Props) {
         {groups.map((g) => {
           const names = g.items.map((i) => `${i.product_name} x ${Number(i.quantity)}`).join(", ");
           const message =
-            `Hello ${g.name}, this is Abhiram Textiles. You took ${names} from us on ${g.handed} to try at home. ` +
+            `Hello ${g.name}, this is ${brand.shopName}. You took ${names} from us on ${g.handed} to try at home. ` +
             `Please let us know if you would like to keep them, or bring them back. Thank you!`;
           const wa = g.phone ? `https://wa.me/91${g.phone.replace(/\D/g, "").slice(-10)}?text=${encodeURIComponent(message)}` : null;
           return (

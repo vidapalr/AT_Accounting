@@ -6,6 +6,7 @@ import { Readable } from "node:stream";
 
 import { getSessionUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getBrand } from "@/lib/brand";
 
 /** Owner only: a compressed copy of uploaded documents and product photos/videos (the database backup does not hold these). */
 export async function GET() {
@@ -36,7 +37,7 @@ export async function GET() {
   return new Response(Readable.toWeb(tar.stdout) as ReadableStream, {
     headers: {
       "Content-Type": "application/gzip",
-      "Content-Disposition": `attachment; filename="abhiram-files-${stamp}.tar.gz"`,
+      "Content-Disposition": `attachment; filename="${(await getBrand(user.legal_business_id)).fileSlug}-files-${stamp}.tar.gz"`,
       "Cache-Control": "no-store",
     },
   });

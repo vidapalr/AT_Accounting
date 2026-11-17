@@ -4,7 +4,8 @@ import bcrypt from "bcryptjs";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
-import { SHOP_BUSINESS_ID } from "@/lib/shop";
+import { shopBusinessId } from "@/lib/shop";
+import { getBrand } from "@/lib/brand";
 import { normalizeEmail, tooManyTries } from "@/lib/shop-account-math";
 import { sendMail } from "@/lib/mailer";
 import { resetEmail } from "@/lib/shop-mail-text";
@@ -18,7 +19,7 @@ import { shopBaseUrl } from "@/lib/shop-url";
 export async function sendResetLink(customerId: number): Promise<boolean> {
   const [rows] = await db.execute<RowDataPacket[]>(
     `SELECT full_name, email FROM acct_shop_customers WHERE id = ? AND legal_business_id = ? AND status = 'ACTIVE'`,
-    [customerId, SHOP_BUSINESS_ID]
+    [customerId, (await shopBusinessId())]
   );
   if (!rows[0]) return false;
   const token = randomBytes(32).toString("hex");
@@ -27,7 +28,7 @@ export async function sendResetLink(customerId: number): Promise<boolean> {
     `INSERT INTO acct_shop_password_resets (customer_id, token_hash, expires_at) VALUES (?, ?, ?)`,
     [customerId, tokenHash(token), sqlDate(new Date(Date.now() + 3_600_000))]
   );
-  return sendMail(String(rows[0].email), resetEmail(String(rows[0].full_name), `${shopBaseUrl()}/shop/account/reset?token=${token}`));
+  return sendMail(String(rows[0].email), resetEmail(String(rows[0].full_name), `${shopBaseUrl()}/shop/account/reset?token=${token}`, await getBrand(await shopBusinessId())));
 }
 
 /** The same quiet answer whether or not the email exists, so nobody can probe for customers. */
@@ -39,7 +40,7 @@ export async function requestReset(raw: unknown, ip: string): Promise<{ ok: bool
   }
   if (!email) return { ok: true };
   const [rows] = await db.execute<RowDataPacket[]>(
-    `SELECT id FROM acct_shop_customers WHERE legal_business_id = ? AND email = ?`, [SHOP_BUSINESS_ID, email]
+    `SELECT id FROM acct_shop_customers WHERE legal_business_id = ? AND email = ?`, [(await shopBusinessId()), email]
   );
   if (rows[0]) await sendResetLink(Number(rows[0].id)).catch((e) => console.error("Reset link failed:", e));
   return { ok: true };

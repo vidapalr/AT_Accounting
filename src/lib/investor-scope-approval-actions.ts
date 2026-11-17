@@ -7,6 +7,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
+import { CUTOVER_SCOPE } from "@/lib/legacy/cutover-records";
 
 const PAGE = "/accounting/investor-scope-amendment";
 
@@ -77,7 +78,7 @@ export async function approveDivisionScopeAmendmentAction(
              status
            FROM acct_funding_agreements
            WHERE legal_business_id = ?
-             AND id = 2
+             AND id = ${CUTOVER_SCOPE.agreementId}
            FOR UPDATE`,
           [businessId]
         );
@@ -94,8 +95,8 @@ export async function approveDivisionScopeAmendmentAction(
              requested_by
            FROM acct_agreement_amendments
            WHERE legal_business_id = ?
-             AND agreement_id = 2
-             AND id = 1
+             AND agreement_id = ${CUTOVER_SCOPE.agreementId}
+             AND id = ${CUTOVER_SCOPE.amendmentId}
            FOR UPDATE`,
           [businessId]
         );
@@ -107,13 +108,13 @@ export async function approveDivisionScopeAmendmentAction(
         !amendment ||
         agreement.status !== "ACTIVE" ||
         agreement.agreement_no !== "ATX_DNL_01" ||
-        Number(agreement.party_id) !== 2 ||
-        Number(agreement.division_id) !== 1 ||
-        Number(agreement.branch_id) !== 1 ||
+        Number(agreement.party_id) !== CUTOVER_SCOPE.partyId ||
+        Number(agreement.division_id) !== CUTOVER_SCOPE.divisionId ||
+        Number(agreement.branch_id) !== CUTOVER_SCOPE.oldBranchId ||
         agreement.funding_type !== "PROFIT_LINKED" ||
         amendment.status !== "PENDING" ||
-        Number(amendment.from_version_id) !== 2 ||
-        Number(amendment.to_version_id) !== 3
+        Number(amendment.from_version_id) !== CUTOVER_SCOPE.oldVersionId ||
+        Number(amendment.to_version_id) !== CUTOVER_SCOPE.newVersionId
       ) {
         outcome = "state-invalid";
       } else {
@@ -128,19 +129,19 @@ export async function approveDivisionScopeAmendmentAction(
                terms_json
              FROM acct_agreement_versions
              WHERE legal_business_id = ?
-               AND agreement_id = 2
-               AND id IN (2, 3)
+               AND agreement_id = ${CUTOVER_SCOPE.agreementId}
+               AND id IN (${CUTOVER_SCOPE.oldVersionId}, ${CUTOVER_SCOPE.newVersionId})
              ORDER BY id
              FOR UPDATE`,
             [businessId]
           );
 
         const oldVersion = versions.find(
-          v => Number(v.id) === 2
+          v => Number(v.id) === CUTOVER_SCOPE.oldVersionId
         );
 
         const nextVersion = versions.find(
-          v => Number(v.id) === 3
+          v => Number(v.id) === CUTOVER_SCOPE.newVersionId
         );
 
         let oldTerms: Record<string, unknown> | null = null;
@@ -168,10 +169,10 @@ export async function approveDivisionScopeAmendmentAction(
           !oldTerms ||
           !nextTerms ||
           oldTerms.funding_scope !== "BRANCH" ||
-          Number(oldTerms.branch_id) !== 1 ||
+          Number(oldTerms.branch_id) !== CUTOVER_SCOPE.oldBranchId ||
           nextTerms.funding_scope !== "DIVISION" ||
           nextTerms.branch_id !== null ||
-          Number(nextTerms.division_id) !== 1
+          Number(nextTerms.division_id) !== CUTOVER_SCOPE.divisionId
         ) {
           outcome = "terms-invalid";
         } else {
@@ -201,8 +202,8 @@ export async function approveDivisionScopeAmendmentAction(
                 `SELECT id, policy_status
                  FROM acct_agreement_funding_policies
                  WHERE legal_business_id = ?
-                   AND agreement_id = 2
-                   AND agreement_version_id = 3
+                   AND agreement_id = ${CUTOVER_SCOPE.agreementId}
+                   AND agreement_version_id = ${CUTOVER_SCOPE.newVersionId}
                  FOR UPDATE`,
                 [businessId]
               );
@@ -216,12 +217,12 @@ export async function approveDivisionScopeAmendmentAction(
               const [updatedAgreement] =
                 await conn.execute<ResultSetHeader>(
                   `UPDATE acct_funding_agreements
-                   SET division_id = 1,
+                   SET division_id = ${CUTOVER_SCOPE.divisionId},
                        branch_id = NULL
-                   WHERE id = 2
+                   WHERE id = ${CUTOVER_SCOPE.agreementId}
                      AND legal_business_id = ?
-                     AND division_id = 1
-                     AND branch_id = 1
+                     AND division_id = ${CUTOVER_SCOPE.divisionId}
+                     AND branch_id = ${CUTOVER_SCOPE.oldBranchId}
                      AND status = 'ACTIVE'`,
                   [businessId]
                 );
@@ -233,7 +234,7 @@ export async function approveDivisionScopeAmendmentAction(
               await conn.execute(
                 `UPDATE acct_agreement_versions
                  SET version_status = 'SUPERSEDED'
-                 WHERE id = 2
+                 WHERE id = ${CUTOVER_SCOPE.oldVersionId}
                    AND legal_business_id = ?
                    AND version_status = 'APPROVED'`,
                 [businessId]
@@ -244,7 +245,7 @@ export async function approveDivisionScopeAmendmentAction(
                  SET version_status = 'APPROVED',
                      approved_by = ?,
                      approved_at = CURRENT_TIMESTAMP
-                 WHERE id = 3
+                 WHERE id = ${CUTOVER_SCOPE.newVersionId}
                    AND legal_business_id = ?
                    AND version_status = 'DRAFT'`,
                 [user.id, businessId]
@@ -254,8 +255,8 @@ export async function approveDivisionScopeAmendmentAction(
                 `UPDATE acct_agreement_funding_policies
                  SET policy_status = 'CONFIRMED'
                  WHERE legal_business_id = ?
-                   AND agreement_id = 2
-                   AND agreement_version_id = 3
+                   AND agreement_id = ${CUTOVER_SCOPE.agreementId}
+                   AND agreement_version_id = ${CUTOVER_SCOPE.newVersionId}
                    AND policy_status = 'DRAFT'`,
                 [businessId]
               );
@@ -266,9 +267,9 @@ export async function approveDivisionScopeAmendmentAction(
                      reviewed_by = ?,
                      reviewed_at = CURRENT_TIMESTAMP,
                      review_notes = ?
-                 WHERE id = 1
+                 WHERE id = ${CUTOVER_SCOPE.amendmentId}
                    AND legal_business_id = ?
-                   AND agreement_id = 2
+                   AND agreement_id = ${CUTOVER_SCOPE.agreementId}
                    AND status = 'PENDING'`,
                 [
                   user.id,

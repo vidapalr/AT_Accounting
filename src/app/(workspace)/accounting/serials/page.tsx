@@ -7,10 +7,10 @@ import { setTrackingAction, addPiecesAction, backInStockAction } from "@/lib/ser
 import { MAX_PIECES_AT_ONCE } from "@/lib/serial-limits";
 import TableSearch from "@/components/TableSearch";
 import styles from "../accounting.module.css";
+import { cellTop as cell } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ saved?: string; error?: string }> };
 const input: React.CSSProperties = { padding: "10px 12px", fontSize: 16, borderRadius: 8, border: "1px solid #cbd5e1" };
-const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left", verticalAlign: "top" };
 
 export default function SerialsPage(props: Props) {
   return <Suspense fallback={<p>Loading…</p>}><Content {...props} /></Suspense>;

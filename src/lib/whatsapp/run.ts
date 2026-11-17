@@ -6,6 +6,7 @@ import { buildReport, fmtDate } from "./reports";
 import { renderPdf } from "./pdf";
 import { getProvider, type WhatsAppProvider } from "./provider";
 import { JOB_REPORTS, reportPeriod, type Job, type ReportType } from "./core";
+import { loadBrand } from "@/lib/brand";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 
@@ -56,9 +57,10 @@ export async function buildFor(db: Pool, businessId: number, sub: SubscriptionRo
     today,
     investor: sub.partyId !== null ? { partyId: sub.partyId, name: sub.name } : null,
   });
-  const pdf = await renderPdf(content, fmtDate(today));
+  const brand = await loadBrand(businessId, db);
+  const pdf = await renderPdf(content, fmtDate(today), brand);
   const slug = content.title.replace(/[^A-Za-z0-9]+/g, "_");
-  return { content, pdf, filename: `Abhiram_${slug}_${reportPeriod(sub.type, today).key}.pdf` };
+  return { content, pdf, filename: `${brand.fileSlug}_${slug}_${reportPeriod(sub.type, today).key}.pdf` };
 }
 
 /** Send (or, with send = false, only build) every due report for a job. */

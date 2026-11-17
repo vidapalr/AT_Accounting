@@ -5,12 +5,12 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { getBalanceReport } from "@/lib/reports/report-data";
+import { cell } from "@/lib/ui/styles";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 
 const T = "DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '+05:30'))";
 const box: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, margin: "0 0 16px" };
-const cell: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
 const num: React.CSSProperties = { ...cell, textAlign: "right", whiteSpace: "nowrap" };
 const muted: React.CSSProperties = { color: "#64748b", margin: "4px 0 10px" };
 

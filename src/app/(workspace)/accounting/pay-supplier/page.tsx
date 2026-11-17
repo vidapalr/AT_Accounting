@@ -10,6 +10,7 @@ import { todayInIndia } from "@/lib/reports/money";
 import { paySupplierAction } from "@/lib/supplier-pay-actions";
 import SubmitButton from "@/components/SubmitButton";
 import PaidFromPicker, { type PaidFromOption } from "@/components/PaidFromPicker";
+import { box } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ supplier?: string; result?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -20,7 +21,6 @@ const paise = (v: unknown): bigint => {
 };
 const rupees = (p: bigint) => `₹${(p / 100n).toLocaleString("en-IN")}.${String(p % 100n).padStart(2, "0")}`;
 const cell: React.CSSProperties = { padding: "10px", borderBottom: "1px solid #e2e8f0", textAlign: "left" };
-const box: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: 16, margin: "16px 0" };
 const input: React.CSSProperties = { display: "block", width: "100%", padding: 12, fontSize: 16, marginTop: 6, border: "1px solid #cbd5e1", borderRadius: 6 };
 
 const MESSAGES: Record<string, string> = {
