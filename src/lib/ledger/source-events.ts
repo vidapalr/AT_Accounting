@@ -16,11 +16,14 @@ import type {
   RowDataPacket,
 } from "mysql2/promise";
 
+import { isMissingTable } from "../db-errors.ts";
 import {
   ACCOUNT,
   parseMoney,
   formatMoney,
   salesRefundEntry,
+  customerCreditReceivedEntry,
+  customerCreditRefundEntry,
   setupCapitalisationEntry,
   salesReturnEntry,
   stockDamageEntry,
@@ -100,6 +103,8 @@ const SOURCE_ORDER: SourceType[] = [
   "ASSET_DEPRECIATION",
   "ASSET_DISPOSAL",
   "STAFF_ADVANCE",
+  "CUSTOMER_CREDIT_IN",
+  "CUSTOMER_CREDIT_REFUND",
   "OWNER_MONEY",
   "CASH_TAKEN",
   "FUNDING_RECEIPT",
@@ -343,7 +348,7 @@ export async function buildLedgerDrafts(
     add(label, () => {
       if (!sale) throw new Error("its invoice is not posted");
       if (str(p.payment_method) === "SET_OFF") return null; // posted once, as the set-off itself
-      if (str(p.payment_method) === "EXCHANGE") return null; // paid by a returned item: the return already sits in the books
+      if (str(p.payment_method) === "EXCHANGE" || str(p.payment_method) === "CREDIT") return null; // CREDIT: customer credit already sits in the books // paid by a returned item: the return already sits in the books
       if (str(p.payment_method) === "DISCOUNT") {
         return salesSettlementDiscountEntry({
           id: Number(p.id),
@@ -432,6 +437,33 @@ export async function buildLedgerDrafts(
         dims: dims(ret.division_id, ret.branch_id),
         settlement,
       });
+    });
+  }
+
+  // Customer credit: money kept for a customer beyond what they owed, and paid back later.
+  let credits: Awaited<ReturnType<typeof select>> = [];
+  try {
+    credits = await select(
+      conn,
+      `SELECT k.id, k.customer_id, k.division_id, k.entry_type, DATE_FORMAT(k.entry_date, '%Y-%m-%d') AS d,
+              k.amount, k.bank_account_id, k.cash_account_id, c.full_name
+       FROM acct_customer_credits k
+       JOIN acct_customers c ON c.legal_business_id = k.legal_business_id AND c.id = k.customer_id
+       WHERE k.legal_business_id = ? AND k.status = 'RECORDED' AND k.entry_type IN ('RECEIVED', 'REFUNDED')
+       ORDER BY k.entry_date, k.id`,
+      [businessId]
+    );
+  } catch (e) {
+    if (!isMissingTable(e)) throw e; // migration 082 not run yet: nothing to post
+  }
+  for (const k of credits) {
+    const received = str(k.entry_type) === "RECEIVED";
+    const label = `Customer credit ${str(k.id)} (${received ? "received from" : "paid back to"} ${str(k.full_name)})`;
+    add(label, () => {
+      const settlement = settle(label, null, k.bank_account_id, k.cash_account_id);
+      if (!settlement) return null;
+      const input = { id: Number(k.id), customerName: str(k.full_name), date: str(k.d), amount: str(k.amount), dims: dims(k.division_id, null), settlement };
+      return received ? customerCreditReceivedEntry(input) : customerCreditRefundEntry(input);
     });
   }
 

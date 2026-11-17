@@ -96,7 +96,7 @@ async function dailySales({ db, businessId, place, today }: BuildInput): Promise
   const [methods] = await db.execute<Row[]>(
     `SELECT p.payment_method AS method, SUM(p.amount) AS total
      FROM acct_sales_payments p JOIN acct_sales_headers h ON h.id = p.sale_id AND h.legal_business_id = p.legal_business_id
-     WHERE p.legal_business_id = ? AND p.status = 'RECORDED' AND p.payment_method NOT IN ('DISCOUNT','SET_OFF','EXCHANGE') AND h.status = 'POSTED' AND p.payment_date = ?${s.sql}
+     WHERE p.legal_business_id = ? AND p.status = 'RECORDED' AND p.payment_method NOT IN ('DISCOUNT','SET_OFF','EXCHANGE','CREDIT') AND h.status = 'POSTED' AND p.payment_date = ?${s.sql}
      GROUP BY p.payment_method ORDER BY total DESC`,
     [businessId, date, ...s.values]
   );
@@ -366,7 +366,7 @@ async function morningDigest({ db, businessId, place, today }: BuildInput): Prom
   const [coll] = await db.execute<Row[]>(
     `SELECT COALESCE(SUM(p.amount), 0) AS t
        FROM acct_sales_payments p JOIN acct_sales_headers h ON h.id = p.sale_id AND h.legal_business_id = p.legal_business_id
-      WHERE p.legal_business_id = ? AND p.status = 'RECORDED' AND p.payment_method NOT IN ('DISCOUNT','SET_OFF','EXCHANGE')
+      WHERE p.legal_business_id = ? AND p.status = 'RECORDED' AND p.payment_method NOT IN ('DISCOUNT','SET_OFF','EXCHANGE','CREDIT')
         AND h.status = 'POSTED' AND p.payment_date = ?${s.sql}`,
     [businessId, yesterday, ...s.values]
   );

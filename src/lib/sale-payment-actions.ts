@@ -8,6 +8,9 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { canGiveBillDiscount } from "@/lib/access";
+import { splitPayment } from "@/lib/customer-credit-math";
+import { lockCustomer } from "@/lib/customer-credit";
+import { isMissingTable } from "@/lib/db-errors";
 
 const METHODS = new Set(["CASH", "UPI", "BANK_TRANSFER", "CARD"]);
 
@@ -56,7 +59,7 @@ export async function receiveSalePaymentAction(form: FormData): Promise<void> {
     await conn.beginTransaction();
 
     const [sales] = await conn.execute<RowDataPacket[]>(
-      `SELECT id, division_id, status, DATE_FORMAT(invoice_date, '%Y-%m-%d') AS invoice_date,
+      `SELECT id, division_id, customer_id, status, DATE_FORMAT(invoice_date, '%Y-%m-%d') AS invoice_date,
               ROUND(grand_total * 100) AS total_paise
          FROM acct_sales_headers
         WHERE legal_business_id = ? AND id = ?
@@ -107,38 +110,58 @@ export async function receiveSalePaymentAction(form: FormData): Promise<void> {
 
       if (bankId === null && cashId === null) {
         result = "invalid-account";
-      } else if (amount > outstanding) {
+      } else if (amount > outstanding && !sale.customer_id) {
+        // Extra money can only be kept as credit for a known customer.
         result = "too-much";
       } else if (date < String(sale.invoice_date)) {
         result = "invalid-date";
       } else {
-        await conn.execute(
-          `INSERT INTO acct_sales_payments (
-             legal_business_id, division_id, sale_id, payment_date,
-             payment_method, payment_account_type, bank_account_id,
-             cash_account_id, payment_account, amount, payment_reference,
-             status, created_by
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECORDED', ?)`,
-          [
-            businessId, sale.division_id, saleId, date,
-            method, accountType, bankId, cashId, paymentAccount,
-            rupees(amount), reference || null, user.id,
-          ]
-        );
+        const split = splitPayment(amount, outstanding);
+        if (split.toBill > 0n) {
+          await conn.execute(
+            `INSERT INTO acct_sales_payments (
+               legal_business_id, division_id, sale_id, payment_date,
+               payment_method, payment_account_type, bank_account_id,
+               cash_account_id, payment_account, amount, payment_reference,
+               status, created_by
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECORDED', ?)`,
+            [
+              businessId, sale.division_id, saleId, date,
+              method, accountType, bankId, cashId, paymentAccount,
+              rupees(split.toBill), reference || null, user.id,
+            ]
+          );
+        }
+        if (split.toCredit > 0n) {
+          // The extra is kept as money we owe the customer (customer credit).
+          await lockCustomer(conn, businessId, Number(sale.customer_id));
+          await conn.execute(
+            `INSERT INTO acct_customer_credits
+               (legal_business_id, division_id, customer_id, entry_type, entry_date, amount, payment_method,
+                bank_account_id, cash_account_id, reference, source_sale_id, remarks, created_by)
+             VALUES (?, ?, ?, 'RECEIVED', ?, ?, ?, ?, ?, ?, ?, 'Paid more than the bill', ?)`,
+            [businessId, sale.division_id, Number(sale.customer_id), date, rupees(split.toCredit), method,
+             bankId, cashId, reference || null, saleId, user.id]
+          );
+        }
         await conn.commit();
-        result = "ok";
+        result = split.toCredit > 0n ? "ok-credit" : "ok";
       }
     }
-    if (result !== "ok") await conn.rollback();
+    if (result !== "ok" && result !== "ok-credit") await conn.rollback();
   } catch (error) {
     await conn.rollback().catch(() => {});
-    console.error("Receive sale payment failed:", error);
-    result = "failed";
+    if (isMissingTable(error)) {
+      result = "credit-setup";
+    } else {
+      console.error("Receive sale payment failed:", error);
+      result = "failed";
+    }
   } finally {
     conn.release();
   }
 
-  if (result === "ok") {
+  if (result === "ok" || result === "ok-credit") {
     revalidatePath(back);
     revalidatePath("/accounting/invoices");
     revalidatePath("/accounting/sales");

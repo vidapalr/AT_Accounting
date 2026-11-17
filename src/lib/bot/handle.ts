@@ -44,7 +44,7 @@ async function ownerAnswer(text: string): Promise<string> {
         WHERE legal_business_id = ? AND status = 'POSTED' AND invoice_date = ?`, [BUSINESS_ID, d]);
     const [c] = await db.execute<Row[]>(
       `SELECT COALESCE(SUM(p.amount), 0) AS t FROM acct_sales_payments p JOIN acct_sales_headers h ON h.id = p.sale_id
-        WHERE p.legal_business_id = ? AND p.status = 'RECORDED' AND p.payment_method NOT IN ('DISCOUNT','SET_OFF','EXCHANGE') AND h.status = 'POSTED' AND p.payment_date = ?`, [BUSINESS_ID, d]);
+        WHERE p.legal_business_id = ? AND p.status = 'RECORDED' AND p.payment_method NOT IN ('DISCOUNT','SET_OFF','EXCHANGE','CREDIT') AND h.status = 'POSTED' AND p.payment_date = ?`, [BUSINESS_ID, d]);
     return `Sales ${cmd.day} (${d}): ${inr(Number(r[0].total))} from ${Number(r[0].bills)} bills.\nCollected: ${inr(Number(c[0].t))}.`;
   }
 

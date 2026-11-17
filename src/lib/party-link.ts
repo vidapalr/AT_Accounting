@@ -121,7 +121,7 @@ export async function loadCustomerEntries(db: Queryable, businessId: number, cus
       WHERE p.legal_business_id = ? AND p.status = 'RECORDED' AND s.status = 'POSTED' AND s.customer_id = ?`,
     [businessId, customerId]
   );
-  const words: Record<string, string> = { SET_OFF: "set off", EXCHANGE: "exchange credit", DISCOUNT: "discount" };
+  const words: Record<string, string> = { SET_OFF: "set off", EXCHANGE: "exchange credit", CREDIT: "customer credit", DISCOUNT: "discount" };
   return [
     ...inv.map((r) => ({ date: String(r.d), kind: "INVOICE" as const, ref: String(r.invoice_no), amount: BigInt(r.paise as number | string) })),
     ...pay.map((r) => ({

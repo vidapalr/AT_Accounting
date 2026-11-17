@@ -134,6 +134,7 @@ async function InvoiceList({ searchParams }: Props) {
              WHEN pay.payment_method = 'DISCOUNT' THEN 'Discount'
              WHEN pay.payment_method = 'SET_OFF' THEN 'Set off against supplier bill'
              WHEN pay.payment_method = 'EXCHANGE' THEN 'Exchange credit'
+             WHEN pay.payment_method = 'CREDIT' THEN 'Customer credit'
              ELSE 'Not allocated'
            END
            SEPARATOR ', '

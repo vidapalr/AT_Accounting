@@ -18,6 +18,8 @@ import { requireAccess } from "@/lib/auth";
 import { invoiceProfit } from "@/lib/invoice-profit";
 import { pointsBalance } from "@/lib/rewards-data";
 import { pointsEarned, REWARDS_START_DATE } from "@/lib/rewards-math";
+import { useCreditOnSaleAction } from "@/lib/customer-credit-actions";
+import { customerCreditPaise } from "@/lib/customer-credit";
 import { receiveSalePaymentAction, giveBillDiscountAction } from "@/lib/sale-payment-actions";
 import { canGiveBillDiscount } from "@/lib/access";
 import ConfirmButton from "@/components/ConfirmButton";
@@ -38,7 +40,11 @@ const PAY_MESSAGES: Record<string, { ok: boolean; text: string }> = {
   invalid: { ok: false, text: "Check the amount, method and account." },
   "invalid-account": { ok: false, text: "That receiving account cannot be used." },
   "invalid-date": { ok: false, text: "The payment date cannot be before the invoice date." },
-  "too-much": { ok: false, text: "That is more than the amount still due." },
+  "too-much": { ok: false, text: "That is more than the amount still due. Add the customer's mobile number to this bill first, then the extra can be kept as credit we owe them." },
+  "ok-used": { ok: true, text: "The customer's credit was used on this bill." },
+  "credit-none": { ok: false, text: "This customer has no credit to use." },
+  "ok-credit": { ok: true, text: "Payment saved. The bill is settled and the extra money is kept as credit we owe this customer (see the customer's page)." },
+  "credit-setup": { ok: false, text: "Customer credit is not set up yet (database file 082_customer_credit is missing). Nothing was saved." },
   "not-posted": { ok: false, text: "Confirm the sale before taking payment." },
   "discount-ok": { ok: true, text: "Discount given. It counts as paid on this bill." },
   "discount-denied": { ok: false, text: "Only the owner or accountant can give a discount." },
@@ -223,6 +229,34 @@ async function InvoiceDetails({ params, searchParams }: Props) {
     [businessId, saleId]
   );
 
+  // Returns tied to this bill (taken back from it, or used as credit on it) and what is still owed to the customer.
+  type ReturnRow = { id: number; no: string; date: string; billNo: string; billId: number; value: number; refunded: number; used: Array<{ no: string; id: number; amount: number }>; owed: number; fromThisBill: boolean };
+  const returnRows: ReturnRow[] = [];
+  if (!isEstimate) {
+    try {
+      const [rets] = await db.execute<RowDataPacket[]>(
+        `SELECT r.id, r.return_no, DATE_FORMAT(r.return_date, '%Y-%m-%d') AS return_date, r.sale_id, h.invoice_no, r.refund_value,
+                (SELECT COALESCE(SUM(f.amount), 0) FROM acct_sales_refunds f WHERE f.return_id = r.id AND f.status = 'RECORDED') AS refunded
+           FROM acct_sales_returns r
+           JOIN acct_sales_headers h ON h.id = r.sale_id AND h.legal_business_id = r.legal_business_id
+          WHERE r.legal_business_id = ? AND r.status = 'POSTED'
+            AND (r.sale_id = ? OR r.id IN (SELECT exchange_return_id FROM acct_sales_payments
+                                            WHERE legal_business_id = ? AND sale_id = ? AND status = 'RECORDED' AND exchange_return_id IS NOT NULL))
+          ORDER BY r.id`, [businessId, saleId, businessId, saleId]);
+      for (const r of rets) {
+        const [uses] = await db.execute<RowDataPacket[]>(
+          `SELECT p.sale_id, h.invoice_no, p.amount FROM acct_sales_payments p
+             JOIN acct_sales_headers h ON h.id = p.sale_id AND h.legal_business_id = p.legal_business_id
+            WHERE p.legal_business_id = ? AND p.exchange_return_id = ? AND p.status = 'RECORDED' ORDER BY p.id`, [businessId, Number(r.id)]);
+        const used = uses.map((u) => ({ no: String(u.invoice_no), id: Number(u.sale_id), amount: Number(u.amount) }));
+        const value = Number(r.refund_value), refunded = Number(r.refunded);
+        const owed = Math.max(0, Math.round((value - refunded - used.reduce((a, u) => a + u.amount, 0)) * 100) / 100);
+        returnRows.push({ id: Number(r.id), no: String(r.return_no), date: String(r.return_date), billNo: String(r.invoice_no), billId: Number(r.sale_id), value, refunded, used, owed, fromThisBill: Number(r.sale_id) === saleId });
+      }
+    } catch { /* returns tables unavailable: show nothing */ }
+  }
+  const owedToCustomer = returnRows.reduce((a, r) => a + r.owed, 0);
+
   const collected = payments
     .filter(p => p.status === "RECORDED")
     .reduce((sum, p) => sum + Number(p.amount), 0);
@@ -283,6 +317,9 @@ async function InvoiceDetails({ params, searchParams }: Props) {
     [businessId]
   );
   const today = new Date().toISOString().slice(0, 10);
+  const creditAvailable = invoice.customer_id && outstanding > 0
+    ? Number(await customerCreditPaise(db, businessId, Number(invoice.customer_id))) / 100
+    : 0;
 
   const paymentStatus =
     invoice.status !== "POSTED"
@@ -506,7 +543,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
                 <td style={cell}>{payment.payment_date}</td>
                 <td style={cell}>{payment.payment_method === "DISCOUNT" ? "Discount given" : payment.payment_method === "SET_OFF" ? "Set off (they sell to us too)" : payment.payment_method === "EXCHANGE" ? "Exchange credit (returned items)" : payment.payment_method}</td>
                 <td style={cell}>
-                  {payment.payment_method === "DISCOUNT" || payment.payment_method === "SET_OFF" || payment.payment_method === "EXCHANGE" ? "—" : (payment.account_name || "Not allocated")}
+                  {payment.payment_method === "DISCOUNT" || payment.payment_method === "SET_OFF" || payment.payment_method === "EXCHANGE" || payment.payment_method === "CREDIT" ? "—" : (payment.account_name || "Not allocated")}
                   {payment.bank_ownership === "INVESTOR" &&
                     " (Investor account)"}
                 </td>
@@ -541,6 +578,43 @@ async function InvoiceDetails({ params, searchParams }: Props) {
           <p>₹{money(outstanding)}</p>
         </div>
       </div>
+
+      {returnRows.length > 0 && (
+        <>
+          <h2>Returns on this bill</h2>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%" }}>
+              <thead>
+                <tr>
+                  {["Return", "Date", "From bill", "Value", "Paid back", "Used on bills", "We owe the customer"].map(x => <th key={x} style={cell}>{x}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {returnRows.map(r => (
+                  <tr key={r.id}>
+                    <td style={cell}>{r.no}</td>
+                    <td style={cell}>{r.date}</td>
+                    <td style={cell}>{r.fromThisBill ? "This bill" : <Link href={`/accounting/sales/${r.billId}`}>{r.billNo}</Link>}</td>
+                    <td style={cell}>₹{money(r.value)}</td>
+                    <td style={cell}>₹{money(r.refunded)}</td>
+                    <td style={cell}>
+                      {r.used.length === 0 ? "—" : r.used.map(u => (
+                        <div key={u.id}>{u.id === saleId ? "This bill" : <Link href={`/accounting/sales/${u.id}`}>{u.no}</Link>}: ₹{money(u.amount)}</div>
+                      ))}
+                    </td>
+                    <td style={{ ...cell, fontWeight: 700, color: r.owed > 0 ? "#b45309" : undefined }}>₹{money(r.owed)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p style={{ fontWeight: 700, color: owedToCustomer > 0 ? "#b45309" : "#166534" }}>
+            {owedToCustomer > 0
+              ? `We still owe this customer ₹${money(owedToCustomer)} for these returns. It can be paid back or used on a new bill (Returns page).`
+              : "Nothing is owed to the customer for these returns."}
+          </p>
+        </>
+      )}
 
       </>
       )}
@@ -593,6 +667,16 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         </p>
       )}
 
+      {outstanding > 0 && creditAvailable > 0 && (
+        <form action={useCreditOnSaleAction} className="no-print" style={{ margin: "16px 0", padding: 14, background: "#eff6ff", border: "1px solid #93c5fd", borderRadius: 10, maxWidth: 560 }}>
+          <input type="hidden" name="sale_id" value={invoice.id} />
+          <p style={{ margin: "0 0 10px" }}>
+            This customer has <strong>₹{money(creditAvailable)}</strong> credit with us. Use ₹{money(Math.min(creditAvailable, outstanding))} of it on this bill?
+          </p>
+          <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Use customer credit</button>
+        </form>
+      )}
+
       {outstanding > 0 && (
         <section
           id="take-payment"
@@ -606,6 +690,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
           }}
         >
           <h2 style={{ marginTop: 0 }}>Take payment (₹{money(outstanding)} still due)</h2>
+          <p style={{ color: "#64748b", marginTop: 0 }}>If the customer pays more than is due, the extra is kept as credit we owe them.</p>
           {cashRows.length + bankRows.length === 0 && (
             <p role="alert" style={{ color: "#b91c1c" }}>
               No cash or bank account is set up to receive money. Add one first (Setup, then Cash accounts or Bank accounts), then come back here.

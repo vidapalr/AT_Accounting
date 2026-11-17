@@ -20,6 +20,9 @@ import PrintButton from "@/components/PrintButton";
 import { loadCustomerTimeline } from "@/lib/customer-timeline-data";
 import { KIND_LABEL } from "@/lib/customer-timeline";
 import { addCustomerNoteAction } from "@/lib/customer-note-actions";
+import { receiveCreditAction, refundCreditAction } from "@/lib/customer-credit-actions";
+import { customerCreditPaise } from "@/lib/customer-credit";
+import { isMissingTable } from "@/lib/db-errors";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -40,6 +43,12 @@ const MESSAGES: Record<string, { ok: boolean; text: string }> = {
   "bad-follow": { ok: false, text: "The follow-up day does not look right." },
   "note-not-ready": { ok: false, text: "Notes are not set up yet: run the database file 067_customer_notes." },
   merged: { ok: true, text: "Done. The two customer records are now one." },
+  "credit-received": { ok: true, text: "Money received and kept as credit we owe this customer." },
+  "credit-refunded": { ok: true, text: "Credit paid back to the customer." },
+  "credit-invalid": { ok: false, text: "Please check the amount, payment method, account and date." },
+  "credit-account": { ok: false, text: "That account cannot be used. Pick another one." },
+  "credit-too-much": { ok: false, text: "That is more than the credit we hold for this customer." },
+  "credit-setup": { ok: false, text: "Customer credit is not set up yet: run the database file 082_customer_credit." },
   "merge-denied": { ok: false, text: "Ask the owner or accountant to join these two customers." },
 };
 
@@ -127,6 +136,41 @@ async function CustomerPage({ params, searchParams }: Props) {
         )
       : null;
 
+  // Credit we hold for her, plus return value not yet paid back or used on a bill.
+  const creditHeld = Number(await customerCreditPaise(db, businessId, customerId));
+  let returnOwed = 0;
+  try {
+    const [ro] = await db.execute<RowDataPacket[]>(
+      `SELECT COALESCE(SUM(GREATEST(0, ROUND(r.refund_value * 100)
+                - COALESCE((SELECT SUM(ROUND(f.amount * 100)) FROM acct_sales_refunds f WHERE f.return_id = r.id), 0)
+                - COALESCE((SELECT SUM(ROUND(p.amount * 100)) FROM acct_sales_payments p
+                             WHERE p.exchange_return_id = r.id AND p.status = 'RECORDED'), 0))), 0) AS owed
+         FROM acct_sales_returns r
+         JOIN acct_sales_headers h ON h.id = r.sale_id
+        WHERE r.legal_business_id = ? AND h.customer_id = ? AND r.status = 'POSTED'`,
+      [businessId, customerId]
+    );
+    returnOwed = Number(ro[0]?.owed ?? 0);
+  } catch { /* return columns differ: skip */ }
+  let creditRows: RowDataPacket[] = [];
+  let bankRows: RowDataPacket[] = [];
+  let cashRows: RowDataPacket[] = [];
+  try {
+    [creditRows] = await db.execute<RowDataPacket[]>(
+      `SELECT entry_type, DATE_FORMAT(entry_date, '%Y-%m-%d') AS d, ROUND(amount * 100) AS p, remarks, applied_sale_id
+         FROM acct_customer_credits
+        WHERE legal_business_id = ? AND customer_id = ? AND status = 'RECORDED'
+        ORDER BY entry_date DESC, id DESC LIMIT 50`,
+      [businessId, customerId]
+    );
+  } catch (e) { if (!isMissingTable(e)) throw e; }
+  [bankRows] = await db.execute<RowDataPacket[]>(
+    `SELECT id, bank_name, account_number_last4 FROM acct_bank_accounts
+      WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY bank_name, id`, [businessId]);
+  [cashRows] = await db.execute<RowDataPacket[]>(
+    `SELECT id, cash_name FROM acct_cash_accounts WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY cash_name, id`, [businessId]);
+  const today = new Date().toISOString().slice(0, 10);
+  const weOweTotal = creditHeld + returnOwed;
   const msg = result ? MESSAGES[result] : undefined;
   const timeline = await loadCustomerTimeline(db, businessId, customerId, c.phone ? String(c.phone) : null);
 
@@ -210,6 +254,14 @@ async function CustomerPage({ params, searchParams }: Props) {
         )}
       </div>
 
+      {weOweTotal > 0 && (
+        <p style={{ background: "#eff6ff", border: "1px solid #93c5fd", borderRadius: 10, padding: 12, maxWidth: 640 }}>
+          <strong>We owe this customer ₹{inr(weOweTotal)}.</strong>{" "}
+          {creditHeld > 0 && <>Credit from extra payments: ₹{inr(creditHeld)}. </>}
+          {returnOwed > 0 && <>Return value not yet paid back or used: ₹{inr(returnOwed)} (see the invoice or Returns). </>}
+        </p>
+      )}
+
       <div className="no-print" style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
         <Link className="btn-link btn-link-primary" href="/accounting/sales">New sale</Link>
         {reminder && (
@@ -224,6 +276,52 @@ async function CustomerPage({ params, searchParams }: Props) {
           {c.whatsapp_opt_in ? "" : " This customer has not been marked as agreeing to WhatsApp messages."}
         </p>
       )}
+
+      <section className="no-print" style={{ margin: "18px 0", padding: 16, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }}>
+        <h2 style={{ marginTop: 0 }}>Customer credit (we owe them): ₹{inr(creditHeld)}</h2>
+        <p style={{ color: "#64748b", marginTop: 0 }}>
+          Extra money the customer paid is kept here. It can be paid back, or used on the next bill.
+        </p>
+        {[
+          { title: "Receive money on account", action: receiveCreditAction, label: "Money went into", button: "Receive money", show: true, max: undefined as number | undefined },
+          { title: "Refund credit", action: refundCreditAction, label: "Paid from", button: "Refund credit", show: creditHeld > 0, max: creditHeld },
+        ].filter(f => f.show).map(f => (
+          <form key={f.title} action={f.action} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, marginBottom: 14, alignItems: "end" }}>
+            <input type="hidden" name="customer_id" value={c.id} />
+            <strong style={{ gridColumn: "1 / -1" }}>{f.title}</strong>
+            <label>Amount ₹<input name="amount" required inputMode="decimal" defaultValue={f.max ? (f.max / 100).toFixed(2) : ""} style={{ width: "100%" }} /></label>
+            <label>How
+              <select name="method" style={{ width: "100%" }}>
+                <option value="CASH">Cash</option><option value="UPI">UPI</option>
+                <option value="BANK_TRANSFER">Bank transfer</option><option value="CARD">Card</option>
+              </select>
+            </label>
+            <label>{f.label}
+              <select name="account" required style={{ width: "100%" }}>
+                {cashRows.map(x => <option key={`c${x.id}`} value={`CASH:${x.id}`}>Cash: {x.cash_name}</option>)}
+                {bankRows.map(x => <option key={`b${x.id}`} value={`BANK:${x.id}`}>Bank: {x.bank_name} ••••{x.account_number_last4}</option>)}
+              </select>
+            </label>
+            <label>Date<input type="date" name="entry_date" required defaultValue={today} max={today} style={{ width: "100%" }} /></label>
+            <label>Reference (optional)<input name="reference" maxLength={150} style={{ width: "100%" }} /></label>
+            <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer", justifyContent: "center" }}>{f.button}</button>
+          </form>
+        ))}
+        {creditRows.length > 0 && (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead><tr>{["Date", "What", "Amount"].map(h => <th key={h} style={cell}>{h}</th>)}</tr></thead>
+            <tbody>
+              {creditRows.map((r, i) => (
+                <tr key={i}>
+                  <td style={cell}>{String(r.d)}</td>
+                  <td style={cell}>{r.entry_type === "RECEIVED" ? "Extra money received" : r.entry_type === "USED" ? "Used on a bill" : "Paid back"}{r.remarks ? ` · ${r.remarks}` : ""}</td>
+                  <td style={cell}>{r.entry_type === "RECEIVED" ? "+" : "−"}₹{inr(Number(r.p))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
 
       <h2>Bills and payments</h2>
       <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }}>

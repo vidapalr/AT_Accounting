@@ -89,6 +89,8 @@ export type SourceType =
   | "ASSET_DEPRECIATION"
   | "ASSET_DISPOSAL"
   | "STAFF_ADVANCE"
+  | "CUSTOMER_CREDIT_IN"
+  | "CUSTOMER_CREDIT_REFUND"
   | "OWNER_MONEY"
   | "CASH_TAKEN"
   | "FUNDING_RECEIPT";
@@ -291,6 +293,42 @@ export function salesReceiptEntry(receipt: {
   return makeDraft("SALES_RECEIPT", receipt.id, receipt.date, memo, [
     debit(settlementAccount(receipt.settlement), amount, lineDims(receipt.settlement, receipt.dims), memo),
     credit(ACCOUNT.RECEIVABLES, amount, receipt.dims, memo),
+  ]);
+}
+
+/** Money a customer paid beyond what they owed. Cash or bank up, and what the customer owes goes below zero (we owe them). */
+export function customerCreditReceivedEntry(c: {
+  id: number;
+  customerName: string;
+  date: string;
+  amount: string;
+  dims: Dimensions;
+  settlement: Settlement;
+}): JournalDraft {
+  if (c.settlement.kind === "OWNER") throw new Error(`Customer credit ${c.id}: owner cannot be a receiving account`);
+  const amount = parseMoney(c.amount);
+  const memo = `Customer credit received from ${c.customerName}`;
+  return makeDraft("CUSTOMER_CREDIT_IN", c.id, c.date, memo, [
+    debit(settlementAccount(c.settlement), amount, lineDims(c.settlement, c.dims), memo),
+    credit(ACCOUNT.RECEIVABLES, amount, c.dims, memo),
+  ]);
+}
+
+/** Customer credit paid back to the customer. */
+export function customerCreditRefundEntry(c: {
+  id: number;
+  customerName: string;
+  date: string;
+  amount: string;
+  dims: Dimensions;
+  settlement: Settlement;
+}): JournalDraft {
+  if (c.settlement.kind === "OWNER") throw new Error(`Customer credit ${c.id}: pay it back from a business or investor account`);
+  const amount = parseMoney(c.amount);
+  const memo = `Customer credit paid back to ${c.customerName}`;
+  return makeDraft("CUSTOMER_CREDIT_REFUND", c.id, c.date, memo, [
+    debit(ACCOUNT.RECEIVABLES, amount, c.dims, memo),
+    credit(settlementAccount(c.settlement), amount, lineDims(c.settlement, c.dims), memo),
   ]);
 }
 
