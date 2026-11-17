@@ -1209,20 +1209,51 @@ export async function updateSaleAction(
       );
       const [recordedPayments] =
         await conn.execute<RowDataPacket[]>(
-          `SELECT amount
+          `SELECT id, amount, payment_method
            FROM acct_sales_payments
            WHERE legal_business_id = ?
              AND division_id = ?
              AND sale_id = ?
              AND status = 'RECORDED'
+           ORDER BY id
            FOR UPDATE`,
           [businessId, DIVISION_ID, saleId]
         );
-      const collected = recordedPayments.reduce(
+      let collected = recordedPayments.reduce(
         (sum, payment) =>
           sum + parseAmount(String(payment.amount)),
         0n
       );
+
+      // Credit from returned items used on this bill is not money received. If the corrected
+      // total is smaller than the credit used, give the extra credit back to the return
+      // (the customer is still owed it and it can be refunded or used on another bill).
+      // Real payments are never touched.
+      if (collected > grandTotal) {
+        let excess = collected - grandTotal;
+        const exchanges = recordedPayments
+          .filter((payment) => String(payment.payment_method) === "EXCHANGE")
+          .reverse();
+        for (const payment of exchanges) {
+          if (excess <= 0n) break;
+          const amount = parseAmount(String(payment.amount));
+          if (amount <= excess) {
+            await conn.execute(
+              `UPDATE acct_sales_payments SET status = 'VOID', remarks = 'Exchange credit given back (invoice total corrected)' WHERE id = ?`,
+              [Number(payment.id)]
+            );
+            excess -= amount;
+            collected -= amount;
+          } else {
+            await conn.execute(
+              `UPDATE acct_sales_payments SET amount = ?, remarks = 'Exchange credit reduced (invoice total corrected)' WHERE id = ?`,
+              [moneyFromPaise(amount - excess), Number(payment.id)]
+            );
+            collected -= excess;
+            excess = 0n;
+          }
+        }
+      }
 
       if (collected > grandTotal) {
         result = "payments-exceed-total";
