@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { addPayChangeAction, saveStaffDatesAction } from "@/lib/staff-record-actions";
 import { cell, box, fieldBlock as field } from "@/lib/ui/styles";
+import { saveEmployeeStatutoryAction } from "@/lib/payroll-actions";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; error?: string }> };
 
@@ -49,6 +50,31 @@ async function Content({ params, searchParams }: Props) {
       {q.saved && <p role="status" style={{ color: "#166534" }}>{q.saved.slice(0, 220)}</p>}
       {q.error && <p role="alert" style={{ color: "#b91c1c" }}>{q.error.slice(0, 220)}</p>}
       {!ready && <p role="alert">Not set up yet. Ask Claude for the database file named 062_staff_record.</p>}
+
+      {"uan" in e ? (
+        <section style={box}>
+          <h2>PF, ESI and income tax</h2>
+          <form action={saveEmployeeStatutoryAction} style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+            <input type="hidden" name="employee_id" value={String(e.id)} />
+            <label>Date of birth<input type="date" name="date_of_birth" defaultValue={d(e.date_of_birth)} style={field} /></label>
+            <label>PAN<input name="pan" defaultValue={String(e.pan ?? "")} maxLength={10} style={field} /></label>
+            <label>UAN (PF number, 12 digits)<input name="uan" defaultValue={String(e.uan ?? "")} inputMode="numeric" maxLength={12} style={field} /></label>
+            <label>Name as in PF records<input name="name_as_per_uan" defaultValue={String(e.name_as_per_uan ?? "")} maxLength={150} style={field} /></label>
+            <label>ESI number<input name="esi_number" defaultValue={String(e.esi_number ?? "")} inputMode="numeric" maxLength={17} style={field} /></label>
+            <label>Income tax regime
+              <select name="tax_regime" defaultValue={String(e.tax_regime ?? "NEW")} style={field}>
+                <option value="NEW">New regime (most people)</option>
+                <option value="OLD">Old regime (has chosen it)</option>
+              </select>
+            </label>
+            <label>Old regime: yearly deductions declared (₹)<input name="old_regime_deductions" defaultValue={String(Number(e.old_regime_deductions ?? 0))} inputMode="decimal" style={field} /></label>
+            <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" name="pf_member" value="1" defaultChecked={Number(e.pf_member ?? 1) === 1} /> PF is taken</label>
+            <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" name="esi_member" value="1" defaultChecked={Number(e.esi_member ?? 1) === 1} /> ESI is taken (when wages are within the limit)</label>
+            <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" name="pt_applicable" value="1" defaultChecked={Number(e.pt_applicable ?? 1) === 1} /> Professional tax is taken</label>
+            <div><button type="submit" className="btn-link btn-link-primary">Save PF, ESI and tax details</button></div>
+          </form>
+        </section>
+      ) : null}
 
       {ready && (
         <>

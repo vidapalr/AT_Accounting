@@ -7,6 +7,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { documentPrefix } from "@/lib/doc-numbers";
 
 const PAGE = "/accounting/advances-deposits";
 
@@ -160,53 +161,8 @@ export async function createAdvanceAction(
       throw new Error("Business not found");
     }
 
-    let divisionSegment = "GP";
-    let branchSegment = "HQ";
-
-    if (divisionId !== null) {
-      const [division] = await conn.execute<RowDataPacket[]>(
-        `SELECT id FROM acct_divisions
-         WHERE legal_business_id = ? AND id = ?`,
-        [businessId, divisionId]
-      );
-
-      if (division.length !== 1) {
-        throw new Error("Division not found");
-      }
-
-      // The active division (chosen in the header).
-      if (divisionId !== 1) {
-        throw new Error("Unsupported division");
-      }
-
-      divisionSegment = "AT";
-    }
-
-    if (branchId !== null) {
-      const [branch] = await conn.execute<RowDataPacket[]>(
-        `SELECT branch_code
-         FROM acct_branches
-         WHERE legal_business_id = ?
-           AND division_id = ?
-           AND id = ?
-           AND status = 'ACTIVE'`,
-        [businessId, divisionId, branchId]
-      );
-
-      if (branch.length !== 1) {
-        throw new Error("Branch not found");
-      }
-
-      const letters = String(branch[0].branch_code)
-        .toUpperCase()
-        .replace(/[^A-Z]/g, "");
-
-      if (letters.length < 2) {
-        throw new Error("Invalid branch prefix");
-      }
-
-      branchSegment = letters.slice(0, 2);
-    }
+    // Checks the division and branch and gives the number prefix (see doc-numbers.ts).
+    const prefix = await documentPrefix(conn, { businessId, divisionId, branchId, kind: "AD" });
 
     let bankId: number | null = null;
     let cashId: number | null = null;
@@ -301,8 +257,6 @@ export async function createAdvanceAction(
       }
     }
 
-    const prefix =
-      `AB_${divisionSegment}_${branchSegment}_AD`;
 
     await conn.execute(
       `INSERT INTO acct_document_sequences (

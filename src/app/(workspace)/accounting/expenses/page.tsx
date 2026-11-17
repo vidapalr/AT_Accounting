@@ -22,19 +22,7 @@ type Props = {
   }>;
 };
 
-const categories = [
-  ["RENT", "Rent"],
-  ["ELECTRICITY", "Electricity"],
-  ["TRANSPORT", "Transport"],
-  ["PACKING", "Packing"],
-  ["SALARY", "Salary"],
-  ["MAINTENANCE", "Maintenance"],
-  ["MARKETING", "Marketing"],
-  ["INTERNET_PHONE", "Internet / Phone"],
-  ["OFFICE_SUPPLIES", "Office Supplies"],
-  ["BANK_CHARGES", "Bank Charges"],
-  ["MISCELLANEOUS", "Miscellaneous"],
-];
+const categories = EXPENSE_CATEGORIES;
 
 const messages: Record<string, string> = {
   created: "Expense saved successfully.",
@@ -501,3 +489,5 @@ export default function ExpensesPage(props: Props) {
     </Suspense>
   );
 }
+
+import { EXPENSE_CATEGORIES } from "@/lib/expense-categories";

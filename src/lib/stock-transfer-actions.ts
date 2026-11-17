@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 
 import { requireAccess } from "@/lib/auth";
 import { getActiveDivisionId } from "@/lib/division-context";
+import { documentPrefix } from "@/lib/doc-numbers";
 
 const PAGE = "/accounting/stock-transfers";
 
@@ -50,19 +51,6 @@ function money(value: string): boolean {
 
 }
 
-function toTwoLetters(value: string): string {
-
-  const letters = value.toUpperCase().replace(/[^A-Z]/g, "");
-
-  if (letters.length < 2) {
-
-    throw new Error("Branch name cannot generate a code");
-
-  }
-
-  return letters.slice(0, 2);
-
-}
 
 export async function saveStockTransferDraftAction(
 
@@ -460,13 +448,7 @@ export async function saveStockTransferDraftAction(
 
         if (savedTransferId === null) {
 
-          const branchSegment = toTwoLetters(
-
-            String(destination.branch_code)
-
-          );
-
-          const prefix = `AB_AT_${branchSegment}_TF`;
+          const prefix = await documentPrefix(conn, { businessId, divisionId: DIVISION_ID, branchId: Number(destination.branch_id), kind: "TF" });
 
           await conn.execute(
 

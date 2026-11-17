@@ -31,7 +31,7 @@ const FIELDS: Array<{ key: keyof typeof BRAND_KEYS; label: string; hint?: string
 async function Content({ searchParams }: Props) {
   const user = await requireGroupOwner();
   const q = await searchParams;
-  const saved = await businessSettings(user.legal_business_id, [...Object.values(BRAND_KEYS), "shop_nav_links", "modules_off"]);
+  const saved = await businessSettings(user.legal_business_id, [...Object.values(BRAND_KEYS), "shop_nav_links", "modules_off", "doc_business_code"]);
   const off = parseModulesOff(saved.modules_off ?? "");
 
   return (
@@ -40,6 +40,7 @@ async function Content({ searchParams }: Props) {
       <ResultNotice result={q.result} messages={{
         saved: { tone: "ok", text: "Saved. Bills, letters, the website and messages now use these details." },
         logo: { tone: "error", text: "A logo must be a picture address starting with / or https://." },
+        code: { tone: "error", text: "The letters for document numbers must be 2 to 4 letters." },
       }} />
       <form action={saveBrandAction}>
         <Section title="Name, contact and logo">
@@ -50,6 +51,11 @@ async function Content({ searchParams }: Props) {
               </Field>
             ))}
           </div>
+        </Section>
+        <Section title="Document numbers">
+          <Field label="Company letters in bill and voucher numbers" hint="2 to 4 letters, e.g. AB gives AB_..._SA_0001. Changing it starts new numbers; old numbers stay.">
+            <input name="doc_business_code" defaultValue={saved.doc_business_code ?? ""} maxLength={4} style={fieldFull} />
+          </Field>
         </Section>
         <Section title="Website quick links">
           <Field label="Links in the shop header" hint="Label|search words, separated by ; for example: Sarees|saree; Cotton sets|cotton">

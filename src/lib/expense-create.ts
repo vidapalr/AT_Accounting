@@ -2,6 +2,8 @@ import { revalidatePath } from "next/cache";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { getActiveDivisionId } from "@/lib/division-context";
+import { businessDocCode, divisionDocCode } from "@/lib/doc-numbers";
+import { EXPENSE_CATEGORY_KEYS } from "@/lib/expense-categories";
 
 const PAGE = "/accounting/expenses";
 
@@ -13,12 +15,7 @@ function redirect(url: string): never { throw new ExpenseOutcome(url); }
 
 export type ExpenseUser = { id: number; legal_business_id: number; scope_division_id?: number | null };
 
-const CATEGORIES = new Set([
-  "RENT", "ELECTRICITY", "TRANSPORT", "PACKING",
-  "SALARY", "MAINTENANCE", "MARKETING",
-  "INTERNET_PHONE", "OFFICE_SUPPLIES",
-  "BANK_CHARGES", "MISCELLANEOUS",
-]);
+const CATEGORIES = EXPENSE_CATEGORY_KEYS;
 
 function validDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -199,7 +196,7 @@ export async function createExpenseCore(
         if (divisions.length !== 1) {
           outcome = "invalid-division";
         } else {
-          divisionCode = "AT";
+          divisionCode = await divisionDocCode(conn, businessId, divisionId);
         }
       }
     }
@@ -225,7 +222,7 @@ export async function createExpenseCore(
     if (outcome === "failed") {
       // The prefix identifies the allocation scope.
       // EX identifies an expense document.
-      const prefix = `AB_${divisionCode}_${branchCode}_EX`;
+      const prefix = `${await businessDocCode(conn, businessId)}_${divisionCode}_${branchCode}_EX`;
 
       await conn.execute(
         `INSERT INTO acct_document_sequences (

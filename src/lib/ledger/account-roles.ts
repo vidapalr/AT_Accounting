@@ -47,6 +47,7 @@ const LABELS: Record<keyof typeof ACCOUNT, [string, string]> = {
 const EXPENSE_LABELS: Record<string, string> = {
   RENT: "Rent",
   SALARY: "Salaries",
+  EMPLOYER_CONTRIBUTION: "Employer PF, ESI and EDLI",
   ELECTRICITY: "Electricity",
   TRANSPORT: "Transport",
   PACKING: "Packing",

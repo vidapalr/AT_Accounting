@@ -20,6 +20,7 @@ import { canGiveBillDiscount } from "@/lib/access";
 import { nextCode } from "@/lib/codes";
 import { releaseItemsForSale } from "@/lib/approval-stock";
 import { currentTerms } from "@/lib/bill-terms";
+import { documentPrefix } from "@/lib/doc-numbers";
 
 const PAGE = "/accounting/sales";
 
@@ -542,15 +543,7 @@ export async function createSaleAction(
             estimateNo = await nextCode(conn, { table: "acct_sales_headers", column: "estimate_no", prefix: "EST-", width: 4, where: "legal_business_id = ?", params: [businessId] });
             invoiceNo = estimateNo;
           } else {
-            const branchPrefix = String(
-              branches[0].branch_code
-            ).toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
-
-            if (branchPrefix.length !== 2) {
-              throw new Error("Branch code must contain two letters");
-            }
-
-            const prefix = `AB_AT_${branchPrefix}_SA`;
+            const prefix = await documentPrefix(conn, { businessId, divisionId: DIVISION_ID, branchId, kind: "SA" });
 
             await conn.execute(
               `INSERT INTO acct_document_sequences (

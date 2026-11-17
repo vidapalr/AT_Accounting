@@ -69,6 +69,7 @@ export const MIGRATION_MARKERS: Marker[] = [
   { file: "079_service_tickets", table: "acct_service_tickets" },
   { file: "080_budgets", table: "acct_budgets" },
   { file: "081_approval_requests", table: "acct_approval_requests" },
+  { file: "088_payroll", table: "acct_payslips" },
   { file: "086_business_payment_account", table: "acct_sales_payments", column: "payment_account", enumValue: "BUSINESS" },
   { file: "085_account_map", table: "acct_account_map" },
   { file: "084_letter_templates", table: "acct_letter_templates" },

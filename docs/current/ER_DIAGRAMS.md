@@ -314,6 +314,9 @@ erDiagram
   acct_budgets
   acct_letter_templates
   acct_account_map
+  acct_pay_components
+  acct_payslips
+  acct_statutory_remittances
   acct_branches |o..o{ acct_advances : "legal_business_id,division_id,branch_id"
   acct_legal_businesses |o..o{ acct_advances : "legal_business_id"
   acct_app_users |o..o{ acct_advances : "created_by"
@@ -357,6 +360,9 @@ erDiagram
   acct_whatsapp_recipients |o..o{ acct_whatsapp_subscriptions : "recipient_id"
   acct_legal_businesses |o..o{ acct_letter_templates : "legal_business_id"
   acct_legal_businesses |o..o{ acct_account_map : "legal_business_id"
+  acct_legal_businesses |o..o{ acct_pay_components : "legal_business_id"
+  acct_legal_businesses |o..o{ acct_payslips : "legal_business_id"
+  acct_legal_businesses |o..o{ acct_statutory_remittances : "legal_business_id"
 ```
 
 ## Foreign-key evidence
@@ -540,6 +546,9 @@ erDiagram
 | acct_business_hosts | legal_business_id | acct_legal_businesses | id | [migrations/083_business_hosts_and_brand.sql](../../migrations/083_business_hosts_and_brand.sql) |
 | acct_letter_templates | legal_business_id | acct_legal_businesses | id | [migrations/084_letter_templates.sql](../../migrations/084_letter_templates.sql) |
 | acct_account_map | legal_business_id | acct_legal_businesses | id | [migrations/085_account_map.sql](../../migrations/085_account_map.sql) |
+| acct_pay_components | legal_business_id | acct_legal_businesses | id | [migrations/088_payroll.sql](../../migrations/088_payroll.sql) |
+| acct_payslips | legal_business_id | acct_legal_businesses | id | [migrations/088_payroll.sql](../../migrations/088_payroll.sql) |
+| acct_statutory_remittances | legal_business_id | acct_legal_businesses | id | [migrations/088_payroll.sql](../../migrations/088_payroll.sql) |
 
 ## Logical relationships requiring application enforcement
 

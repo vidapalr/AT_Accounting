@@ -12,6 +12,7 @@ import { loadLetterTemplate } from "@/lib/letter-templates";
 import { getBrand } from "@/lib/brand";
 import { fieldBlock as field } from "@/lib/ui/styles";
 import { todayInIndia as today } from "@/lib/format";
+import PayslipView, { PAYSLIP_SELECT } from "@/components/PayslipView";
 
 type SP = { type?: string; title?: string; notice?: string; probation?: string; hours?: string; off?: string; leaves?: string; month?: string; new_salary?: string; effective?: string; reason?: string };
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<SP> };
@@ -62,11 +63,16 @@ async function Content({ params, searchParams }: Props) {
   };
 
   let slip: RowDataPacket | null = null;
+  let fullSlip: RowDataPacket | null = null;
   if (type === "payslip") {
     const [s] = await db.execute<RowDataPacket[]>(
       `SELECT amount, advance_deducted, DATE_FORMAT(paid_on, '%d-%m-%Y') AS p FROM acct_salary_payments
         WHERE legal_business_id = ? AND employee_id = ? AND salary_month = ?`, [businessId, Number(id), month]);
     slip = s[0] ?? null;
+    try {
+      const [full] = await db.query<RowDataPacket[]>(`${PAYSLIP_SELECT} WHERE p.legal_business_id = ? AND p.employee_id = ? AND p.salary_month = ?`, [businessId, Number(id), month]);
+      fullSlip = full[0] ?? null;
+    } catch { /* before migration 088: the short pay slip below */ }
   }
   const letter = type === "payslip" ? null : renderLetter(await loadLetterTemplate(businessId, type), ctx);
   const [yy, mm] = month.split("-");
@@ -126,6 +132,8 @@ async function Content({ params, searchParams }: Props) {
               <p style={{ marginTop: 28 }}>I accept the above terms.<br /><br />_____________________________ &nbsp;&nbsp; Date: ______________<br />{title ? `${title} ` : ""}{ctx.name}</p>
             )}
           </>
+        ) : fullSlip ? (
+          <PayslipView p={fullSlip} />
         ) : (
           <>
             <h2 style={{ textAlign: "center", margin: "18px 0" }}>PAY SLIP: {MONTHS[Number(mm) - 1]} {yy}</h2>

@@ -201,7 +201,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Access: GROUP_OWNER (navigation default)
 - Purpose: Name, logo, phone and words printed on bills and the website; parts of the app in use
 - Static headings: Dynamic or delegated
-- Named form controls (including imported UI): `shop_nav_links`
+- Named form controls (including imported UI): `doc_business_code`, `shop_nav_links`
 - Direct guard calls: requireGroupOwner()
 - Direct action imports: `@/lib/brand-actions`
 - Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_sessions`, `acct_user_access`
@@ -636,7 +636,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("reports")
 - Direct action imports: `@/lib/posting-retry-actions`
-- Referenced tables (dependency closure): `acct_account_map`, `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_approval_items`, `acct_approval_requests`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_auditor_adjustments`, `acct_bank_accounts`, `acct_bank_statement_lines`, `acct_bot_answers`, `acct_branches`, `acct_budgets`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_cash_note_log`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customer_messages`, `acct_customer_notes`, `acct_customers`, `acct_deals`, `acct_divisions`, `acct_document_log`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_instagram_posts`, `acct_invoice_shares`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_leads`, `acct_legal_businesses`, `acct_login_attempts`, `acct_offers`, `acct_online_orders`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_accounts`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_posting_failures`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_orders`, `acct_purchase_payments`, `acct_reel_tracks`, `acct_sale_rewards`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_selling_prices`, `acct_serials`, `acct_service_tickets`, `acct_sessions`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_shop_password_resets`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_stock_movements`, `acct_stock_reporters`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`, `acct_user_totp`, `acct_vouchers`, `acct_wa_broadcasts`, `acct_wa_status_log`, `acct_whatsapp_recipients`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_approval_items`, `acct_approval_requests`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_auditor_adjustments`, `acct_bank_accounts`, `acct_bank_statement_lines`, `acct_bot_answers`, `acct_branches`, `acct_budgets`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_cash_note_log`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customer_messages`, `acct_customer_notes`, `acct_customers`, `acct_deals`, `acct_divisions`, `acct_document_log`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_instagram_posts`, `acct_invoice_shares`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_leads`, `acct_legal_businesses`, `acct_letter_templates`, `acct_login_attempts`, `acct_offers`, `acct_online_orders`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_accounts`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_payslips`, `acct_posting_failures`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_orders`, `acct_purchase_payments`, `acct_reel_tracks`, `acct_sale_rewards`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_selling_prices`, `acct_serials`, `acct_service_tickets`, `acct_sessions`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_shop_password_resets`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_stock_movements`, `acct_stock_reporters`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`, `acct_user_totp`, `acct_vouchers`, `acct_wa_broadcasts`, `acct_wa_status_log`, `acct_whatsapp_recipients`
 
 ## Earlier funding entries
 
@@ -926,6 +926,66 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Direct action imports: `@/lib/supplier-pay-actions`
 - Referenced tables (dependency closure): `acct_app_users`, `acct_approval_requests`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_expense_payments`, `acct_expenses`, `acct_funding_agreements`, `acct_funding_parties`, `acct_inventory_locations`, `acct_legal_businesses`, `acct_opening_balance_batches`, `acct_owner_accounts`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sessions`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`
 
+## Statutory dues and returns
+
+- Route: `/accounting/payroll/dues`
+- Source: [src/app/(workspace)/accounting/payroll/dues/page.tsx](../../src/app/(workspace)/accounting/payroll/dues/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT
+- Purpose: PF, ESI, professional tax and TDS owed to the government; files to upload; tax certificates
+- Static headings: Dynamic or delegated
+- Named form controls (including imported UI): `account`, `challan_no`, `how`, `month`, `paid_on`, `statute`
+- Direct guard calls: requireAccess("salary")
+- Direct action imports: `@/lib/payroll-actions`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_legal_businesses`, `acct_pay_components`, `acct_payslips`, `acct_salary_payments`, `acct_sessions`, `acct_staff_advance_recoveries`, `acct_staff_advances`, `acct_statutory_remittances`, `acct_user_access`
+
+## Tax deducted each quarter
+
+- Route: `/accounting/payroll/form130`
+- Source: [src/app/(workspace)/accounting/payroll/form130/page.tsx](../../src/app/(workspace)/accounting/payroll/form130/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT
+- Purpose: Tax deducted each quarter
+- Static headings: Tax deducted each quarter
+- Named form controls (including imported UI): None detected statically
+- Direct guard calls: requireAccess("salary")
+- Direct action imports: None
+- Referenced tables (dependency closure): `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_legal_businesses`, `acct_pay_components`, `acct_payslips`, `acct_salary_payments`, `acct_sessions`, `acct_staff_advance_recoveries`, `acct_staff_advances`, `acct_statutory_remittances`, `acct_user_access`
+
+## Payroll (pay the month)
+
+- Route: `/accounting/payroll`
+- Source: [src/app/(workspace)/accounting/payroll/page.tsx](../../src/app/(workspace)/accounting/payroll/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT
+- Purpose: Work out pay with PF, ESI, professional tax and income tax, then pay
+- Static headings: Dynamic or delegated
+- Named form controls (including imported UI): `account`, `advance`, `how`, `month`, `paid_days`, `payslip_id`
+- Direct guard calls: requireAccess("salary")
+- Direct action imports: `@/lib/payroll-actions`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_legal_businesses`, `acct_pay_components`, `acct_payslips`, `acct_salary_payments`, `acct_sessions`, `acct_staff_advance_recoveries`, `acct_staff_advances`, `acct_statutory_remittances`, `acct_user_access`
+
+## /accounting/payroll/payslip/[id]
+
+- Route: `/accounting/payroll/payslip/[id]`
+- Source: [src/app/(workspace)/accounting/payroll/payslip/[id]/page.tsx](../../src/app/(workspace)/accounting/payroll/payslip/[id]/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT
+- Purpose: See page source and linked modules for redirect or dynamic content.
+- Static headings: Dynamic or delegated
+- Named form controls (including imported UI): None detected statically
+- Direct guard calls: requireAccess("salary")
+- Direct action imports: None
+- Referenced tables (dependency closure): `acct_app_users`, `acct_business_hosts`, `acct_business_settings`, `acct_employees`, `acct_legal_businesses`, `acct_payslips`, `acct_sessions`, `acct_user_access`
+
+## Payroll settings
+
+- Route: `/accounting/payroll/settings`
+- Source: [src/app/(workspace)/accounting/payroll/settings/page.tsx](../../src/app/(workspace)/accounting/payroll/settings/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT
+- Purpose: Switch PF, ESI, professional tax and TDS on; how a salary is split
+- Static headings: Dynamic or delegated
+- Named form controls (including imported UI): `active`, `code`, `esi_wage`, `name`, `payroll_pt_slabs`, `payroll_pt_state`, `payroll_tan`, `percent`, `pf_wage`
+- Direct guard calls: requireAccess("salary")
+- Direct action imports: `@/lib/payroll-actions`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_legal_businesses`, `acct_pay_components`, `acct_payslips`, `acct_salary_payments`, `acct_sessions`, `acct_staff_advance_recoveries`, `acct_staff_advances`, `acct_statutory_remittances`, `acct_user_access`
+
 ## Months and years
 
 - Route: `/accounting/periods`
@@ -1140,31 +1200,31 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): `effective`, `hours`, `leaves`, `month`, `new_salary`, `notice`, `off`, `probation`, `reason`, `title`, `type`
 - Direct guard calls: requireAccess("salary")
 - Direct action imports: None
-- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_employees`, `acct_legal_businesses`, `acct_letter_templates`, `acct_salary_payments`, `acct_sessions`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_employees`, `acct_legal_businesses`, `acct_letter_templates`, `acct_payslips`, `acct_salary_payments`, `acct_sessions`, `acct_user_access`
 
 ## Change the pay
 
 - Route: `/accounting/salaries/[id]`
 - Source: [src/app/(workspace)/accounting/salaries/[id]/page.tsx](../../src/app/(workspace)/accounting/salaries/[id]/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT
-- Purpose: Change the pay; Joined, notice and leaving; Pay changes; Salary paid
-- Static headings: Change the pay; Joined, notice and leaving; Pay changes; Salary paid
-- Named form controls (including imported UI): `effective_from`, `employee_id`, `joined_on`, `left_on`, `monthly_salary`, `note`, `notice_given_on`
+- Purpose: Change the pay; Joined, notice and leaving; PF, ESI and income tax; Pay changes; Salary paid
+- Static headings: Change the pay; Joined, notice and leaving; PF, ESI and income tax; Pay changes; Salary paid
+- Named form controls (including imported UI): `date_of_birth`, `effective_from`, `employee_id`, `esi_member`, `esi_number`, `joined_on`, `left_on`, `monthly_salary`, `name_as_per_uan`, `note`, `notice_given_on`, `old_regime_deductions`, `pan`, `pf_member`, `pt_applicable`, `tax_regime`, `uan`
 - Direct guard calls: requireAccess("salary")
-- Direct action imports: `@/lib/staff-record-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_employee_pay_history`, `acct_employees`, `acct_legal_businesses`, `acct_salary_payments`, `acct_sessions`, `acct_user_access`
+- Direct action imports: `@/lib/staff-record-actions`, `@/lib/payroll-actions`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_legal_businesses`, `acct_pay_components`, `acct_payslips`, `acct_salary_payments`, `acct_sessions`, `acct_staff_advance_recoveries`, `acct_staff_advances`, `acct_statutory_remittances`, `acct_user_access`
 
-## Salaries and staff records
+## Staff records
 
 - Route: `/accounting/salaries`
 - Source: [src/app/(workspace)/accounting/salaries/page.tsx](../../src/app/(workspace)/accounting/salaries/page.tsx)
 - Access: GROUP_OWNER, ACCOUNTANT
-- Purpose: Pay the staff each month, staff records, letters and pay slips
+- Purpose: People, salaries, joining and leaving, letters
 - Static headings: Add a person; Salaries
-- Named form controls (including imported UI): `account`, `amount`, `branch_id`, `deduct`, `employee_id`, `full_name`, `how`, `job_title`, `joined_on`, `month`, `monthly_salary`, `note`, `phone`, `what`
+- Named form controls (including imported UI): `branch_id`, `employee_id`, `full_name`, `job_title`, `joined_on`, `month`, `monthly_salary`, `phone`, `what`
 - Direct guard calls: requireAccess("salary")
 - Direct action imports: `@/lib/salary-actions`
-- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_document_sequences`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_legal_businesses`, `acct_salary_payments`, `acct_sessions`, `acct_staff_advance_recoveries`, `acct_staff_advances`, `acct_user_access`
+- Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_employee_pay_history`, `acct_employees`, `acct_legal_businesses`, `acct_salary_payments`, `acct_sessions`, `acct_staff_advance_recoveries`, `acct_staff_advances`, `acct_user_access`
 
 ## Sales and purchase report
 

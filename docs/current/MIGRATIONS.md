@@ -89,4 +89,7 @@ For a new empty database, the documented baseline is the base dump through 040, 
 | [migrations/083_business_hosts_and_brand.sql](../../migrations/083_business_hosts_and_brand.sql) | business hosts and brand | acct_business_hosts, acct_business_settings, acct_legal_businesses |
 | [migrations/084_letter_templates.sql](../../migrations/084_letter_templates.sql) | letter templates | acct_legal_businesses, acct_letter_templates |
 | [migrations/085_account_map.sql](../../migrations/085_account_map.sql) | account map | acct_account_map, acct_legal_businesses |
+| [migrations/086_business_payment_account.sql](../../migrations/086_business_payment_account.sql) | business payment account | acct_sales_payments |
+| [migrations/087_document_number_codes.sql](../../migrations/087_document_number_codes.sql) | document number codes | acct_business_settings, acct_divisions, acct_legal_businesses |
+| [migrations/088_payroll.sql](../../migrations/088_payroll.sql) | payroll | acct_business_settings, acct_chart_of_accounts, acct_employees, acct_expenses, acct_legal_businesses, acct_pay_components, acct_payslips, acct_statutory_remittances |
 

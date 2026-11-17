@@ -54,6 +54,7 @@ export const ACCOUNT = {
 export const EXPENSE_ACCOUNT_BY_CATEGORY: Record<string, string> = {
   RENT: "6000",
   SALARY: "6010",
+  EMPLOYER_CONTRIBUTION: "6015",
   ELECTRICITY: "6020",
   TRANSPORT: "6030",
   PACKING: "6035",

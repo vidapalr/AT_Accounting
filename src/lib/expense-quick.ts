@@ -1,6 +1,7 @@
 import "server-only";
 import type { PoolConnection } from "mysql2/promise";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
+import { DocNumberError, documentPrefix } from "@/lib/doc-numbers";
 
 export class QuickExpenseError extends Error {}
 
@@ -26,12 +27,6 @@ export type QuickExpense = {
   };
 };
 
-const letters2 = (value: string) => {
-  const l = value.toUpperCase().replace(/[^A-Z]/g, "");
-  if (l.length < 2) throw new QuickExpenseError("The branch code is not usable for numbering.");
-  return l.slice(0, 2);
-};
-
 /**
  * Saves a confirmed expense and the payment that settled it, in one go, the same way
  * the full Expenses screen does. Call inside a transaction. Returns the new expense.
@@ -39,19 +34,17 @@ const letters2 = (value: string) => {
 export async function recordQuickExpense(conn: PoolConnection, e: QuickExpense): Promise<{ id: number; expenseNo: string }> {
   const level = e.branchId ? "BRANCH" : e.divisionId ? "DIVISION" : "GROUP";
 
-  let divisionCode = "GP";
-  let branchCode = "HQ";
-  if (level !== "GROUP") {
-    divisionCode = "AT";
-    if (level === "BRANCH") {
-      const [branches] = await conn.execute<RowDataPacket[]>(
-        `SELECT branch_code FROM acct_branches
-         WHERE legal_business_id = ? AND division_id = ? AND id = ? AND status = 'ACTIVE'`,
-        [e.businessId, e.divisionId, e.branchId]
-      );
-      if (branches.length !== 1) throw new QuickExpenseError("That branch is not available.");
-      branchCode = letters2(String(branches[0].branch_code));
-    }
+  let prefix: string;
+  try {
+    prefix = await documentPrefix(conn, {
+      businessId: e.businessId,
+      divisionId: level === "GROUP" ? null : e.divisionId,
+      branchId: level === "BRANCH" ? e.branchId : null,
+      kind: "EX",
+    });
+  } catch (error) {
+    if (error instanceof DocNumberError) throw new QuickExpenseError(error.message);
+    throw error;
   }
 
   // The account paying must exist, be active and belong to this place.
@@ -77,7 +70,6 @@ export async function recordQuickExpense(conn: PoolConnection, e: QuickExpense):
     bankId = e.pay.accountId;
   }
 
-  const prefix = `AB_${divisionCode}_${branchCode}_EX`;
   await conn.execute(
     `INSERT INTO acct_document_sequences (legal_business_id, document_type, code_prefix, last_number)
      VALUES (?, 'EXPENSE', ?, 0) ON DUPLICATE KEY UPDATE id = id`,
@@ -113,16 +105,41 @@ export async function recordQuickExpense(conn: PoolConnection, e: QuickExpense):
   );
   const paid = e.payAmount ?? e.amount;
   if (Number(paid) > 0) {
-    await conn.execute(
-      `INSERT INTO acct_expense_payments
-         (legal_business_id, division_id, expense_id, payment_date, payment_method, payment_source,
-          bank_account_id, cash_account_id, amount, payment_reference, status, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECORDED', ?)`,
-      [
-        e.businessId, e.divisionId, saved.insertId, e.date, e.pay.method, e.pay.source,
-        bankId, cashId, paid, e.pay.reference || null, e.userId,
-      ]
-    );
+    await recordExpensePayment(conn, {
+      businessId: e.businessId, divisionId: e.divisionId, expenseId: saved.insertId, date: e.date,
+      method: e.pay.method, source: e.pay.source, bankId, cashId, amount: paid, reference: e.pay.reference, userId: e.userId,
+    });
   }
   return { id: saved.insertId, expenseNo };
+}
+
+export type ExpensePayment = {
+  businessId: number;
+  divisionId: number | null;
+  expenseId: number;
+  date: string;
+  method: string;
+  source: "BUSINESS_CASH" | "BUSINESS_BANK";
+  bankId: number | null;
+  cashId: number | null;
+  /** Plain rupees, two decimals at most. */
+  amount: string;
+  reference?: string;
+  remarks?: string;
+  userId: number;
+};
+
+/** One payment against an expense (it reaches the books as EXPENSE_PAYMENT). Call inside a transaction. */
+export async function recordExpensePayment(conn: PoolConnection, p: ExpensePayment): Promise<number> {
+  const [r] = await conn.execute<ResultSetHeader>(
+    `INSERT INTO acct_expense_payments
+       (legal_business_id, division_id, expense_id, payment_date, payment_method, payment_source,
+        bank_account_id, cash_account_id, amount, payment_reference, remarks, status, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECORDED', ?)`,
+    [
+      p.businessId, p.divisionId, p.expenseId, p.date, p.method, p.source,
+      p.bankId, p.cashId, p.amount, p.reference || null, p.remarks || null, p.userId,
+    ]
+  );
+  return r.insertId;
 }

@@ -166,6 +166,7 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/security", "salary"],
   ["/accounting/staff-advances", "salary"],
   ["/accounting/letter-templates", "salary"],
+  ["/accounting/payroll", "salary"],
   ["/accounting/both-sides", "both_sides"],
   ["/accounting/my-investment", "investor_view"],
   ["/accounting/stock-count", "stock_count"],

@@ -21,6 +21,9 @@ export async function saveBrandAction(form: FormData): Promise<void> {
     values[key] = v;
   }
   values.shop_nav_links = String(form.get("shop_nav_links") ?? "").trim().slice(0, 255);
+  const code = String(form.get("doc_business_code") ?? "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
+  if (code && code.length < 2) redirect(`${PAGE}?result=code`);
+  values.doc_business_code = code;
   values.modules_off = OPTIONAL_MODULES.filter((m) => form.get(`module_${m.key}`) !== "1").map((m) => m.key).join(",");
   await saveBusinessSettings(user.legal_business_id, values, user.id);
   revalidatePath("/", "layout");

@@ -4,11 +4,13 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { prettyPhone } from "@/lib/customer-phone";
-import { addEmployeeAction, paySalaryAction, updateEmployeeAction } from "@/lib/salary-actions";
+import { addEmployeeAction, updateEmployeeAction } from "@/lib/salary-actions";
+import Link from "next/link";
 import SubmitButton from "@/components/SubmitButton";
 import ConfirmButton from "@/components/ConfirmButton";
 import { cellTop as cell, box, fieldFull as field } from "@/lib/ui/styles";
 import { getBrand } from "@/lib/brand";
+import { todayInIndia } from "@/lib/format";
 
 type Props = { searchParams: Promise<{ month?: string; saved?: string; error?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -29,7 +31,7 @@ async function SalariesContent({ searchParams }: Props) {
   const brand = await getBrand();
   const businessId = user.legal_business_id;
   const query = await searchParams;
-  const nowMonth = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 7);
+  const nowMonth = todayInIndia().slice(0, 7);
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(query.month ?? "") ? String(query.month) : nowMonth;
 
   const [people] = await db.execute<Row[]>(
@@ -58,16 +60,6 @@ async function SalariesContent({ searchParams }: Props) {
     for (const person of people) if (inForce.has(Number(person.id))) person.monthly_salary = inForce.get(Number(person.id));
   } catch { /* migration 062 not run yet: the saved salary is used */ }
 
-  const [cash] = await db.execute<Row[]>(
-    `SELECT id, cash_name FROM acct_cash_accounts WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY cash_name`,
-    [businessId]
-  );
-  const [banks] = await db.execute<Row[]>(
-    `SELECT id, bank_name, account_number_last4 FROM acct_bank_accounts
-     WHERE legal_business_id = ? AND ownership_type = 'BUSINESS' AND status = 'ACTIVE'
-       AND verification_status = 'VERIFIED' AND can_send = 1 ORDER BY bank_name`,
-    [businessId]
-  );
   const [branches] = await db.execute<Row[]>(
     `SELECT id, branch_name FROM acct_branches WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY branch_name`,
     [businessId]
@@ -118,33 +110,7 @@ async function SalariesContent({ searchParams }: Props) {
               </div>
 
               {p.paid_amount === null && !left && (
-                <form action={paySalaryAction} style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", alignItems: "end" }}>
-                  <input type="hidden" name="month" value={month} />
-                  <input type="hidden" name="employee_id" value={String(p.id)} />
-                  <label>Pay (₹)<input name="amount" inputMode="decimal" defaultValue={String(Number(p.monthly_salary))} required style={field} /></label>
-                  <label>From
-                    <select name="account" required defaultValue="" style={field}>
-                      <option value="" disabled>Choose…</option>
-                      {cash.map((c) => <option key={`c${c.id}`} value={`CASH:${c.id}`}>Cash: {c.cash_name}</option>)}
-                      {banks.map((b) => <option key={`b${b.id}`} value={`BANK:${b.id}`}>Bank: {b.bank_name}{b.account_number_last4 ? ` ••${b.account_number_last4}` : ""}</option>)}
-                    </select>
-                  </label>
-                  <label>How
-                    <select name="how" required defaultValue="CASH" style={field}>
-                      <option value="CASH">Cash</option>
-                      <option value="UPI">UPI</option>
-                      <option value="BANK_TRANSFER">Bank transfer</option>
-                      <option value="CHEQUE">Cheque</option>
-                    </select>
-                  </label>
-                  {Number(p.advance_left) > 0 && (
-                    <label>Advance to take off (₹) · they owe {inr(p.advance_left)}
-                      <input name="deduct" inputMode="decimal" defaultValue={String(Math.min(Number(p.advance_left), Number(p.monthly_salary), Number(p.instalment ?? p.advance_left)))} style={field} />
-                    </label>
-                  )}
-                  <label>Note (leaves, bonus…)<input name="note" maxLength={300} style={field} /></label>
-                  <SubmitButton label="Pay" question={`Pay ${p.full_name} for ${monthLabel(month)}? This is saved as an expense.`} />
-                </form>
+                <Link href={`/accounting/payroll?month=${month}`} className="btn-link btn-link-primary">Pay on the Payroll page</Link>
               )}
               <a href={`/accounting/salaries/${p.id}`} className="btn-link">Staff record</a>
               {slip && <a href={slip} target="_blank" rel="noreferrer" className="btn-link">Send pay slip on WhatsApp</a>}

@@ -192,6 +192,26 @@ Local dependencies: None
 
 Direct table references: None
 
+## src/components/PayFromFields.tsx
+
+[src/components/PayFromFields.tsx](../../src/components/PayFromFields.tsx) · 27 lines
+
+Exports: `PayFromFields`
+
+Local dependencies: [src/lib/ui/styles.ts](../../src/lib/ui/styles.ts), [src/lib/payment-accounts.ts](../../src/lib/payment-accounts.ts)
+
+Direct table references: None
+
+## src/components/PayslipView.tsx
+
+[src/components/PayslipView.tsx](../../src/components/PayslipView.tsx) · 65 lines
+
+Exports: `PayslipView`, `PAYSLIP_SELECT`
+
+Local dependencies: [src/lib/brand.ts](../../src/lib/brand.ts)
+
+Direct table references: acct_employees, acct_payslips
+
 ## src/components/PrintButton.tsx
 
 [src/components/PrintButton.tsx](../../src/components/PrintButton.tsx) · 10 lines
@@ -324,7 +344,7 @@ Direct table references: None
 
 ## src/components/accounting/InventoryReportClient.tsx
 
-[src/components/accounting/InventoryReportClient.tsx](../../src/components/accounting/InventoryReportClient.tsx) · 297 lines
+[src/components/accounting/InventoryReportClient.tsx](../../src/components/accounting/InventoryReportClient.tsx) · 299 lines
 
 Exports: `InventoryRow`, `TransitItem`, `InventoryReportClient`
 
@@ -334,11 +354,11 @@ Direct table references: None
 
 ## src/components/accounting/LocationInventoryReport.tsx
 
-[src/components/accounting/LocationInventoryReport.tsx](../../src/components/accounting/LocationInventoryReport.tsx) · 142 lines
+[src/components/accounting/LocationInventoryReport.tsx](../../src/components/accounting/LocationInventoryReport.tsx) · 144 lines
 
 Exports: `LocationInventoryReport`
 
-Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/components/accounting/InventoryReportClient.tsx](../../src/components/accounting/InventoryReportClient.tsx)
+Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/components/accounting/InventoryReportClient.tsx](../../src/components/accounting/InventoryReportClient.tsx), [src/lib/brand.ts](../../src/lib/brand.ts)
 
 Direct table references: acct_branches, acct_inventory_locations, acct_product_variants, acct_products, acct_stock_movements, acct_stock_transfer_lines, acct_stock_transfers
 
@@ -514,7 +534,7 @@ Direct table references: None
 
 ## src/lib/access.ts
 
-[src/lib/access.ts](../../src/lib/access.ts) · 218 lines
+[src/lib/access.ts](../../src/lib/access.ts) · 219 lines
 
 Exports: `Role`, `canApproveFreeStock`, `canWriteOffStockCount`, `CASHIER_SPENDING_LIMIT`, `canMergeCustomers`, `LOGIN_ROLES`, `ASSIGNABLE_ROLES`, `ROLE_LABELS`, `ROLE_SUMMARY`, `Feature`, `canAccess`, `featureForPath`, `canOpenPath`, `homePath`, `canRedoCashClosing`, `canGiveBillDiscount`
 
@@ -554,13 +574,13 @@ Direct table references: acct_accounting_periods, acct_audit_events, acct_legal_
 
 ## src/lib/advance-actions.ts
 
-[src/lib/advance-actions.ts](../../src/lib/advance-actions.ts) · 436 lines
+[src/lib/advance-actions.ts](../../src/lib/advance-actions.ts) · 390 lines
 
 Exports: `createAdvanceAction`
 
-Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../../src/lib/auth.ts)
+Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/lib/doc-numbers.ts](../../src/lib/doc-numbers.ts)
 
-Direct table references: acct_advance_transactions, acct_advances, acct_bank_accounts, acct_branches, acct_cash_accounts, acct_divisions, acct_document_sequences, acct_funding_parties, acct_legal_businesses
+Direct table references: acct_advance_transactions, acct_advances, acct_bank_accounts, acct_cash_accounts, acct_document_sequences, acct_funding_parties, acct_legal_businesses
 
 ## src/lib/agreement-activation-actions.ts
 
@@ -974,7 +994,7 @@ Direct table references: acct_branches, acct_divisions, acct_funding_agreements
 
 ## src/lib/brand-actions.ts
 
-[src/lib/brand-actions.ts](../../src/lib/brand-actions.ts) · 29 lines
+[src/lib/brand-actions.ts](../../src/lib/brand-actions.ts) · 32 lines
 
 Exports: `saveBrandAction`
 
@@ -1372,6 +1392,16 @@ Local dependencies: [src/lib/auth.ts](../../src/lib/auth.ts), [src/lib/division-
 
 Direct table references: None
 
+## src/lib/doc-numbers.ts
+
+[src/lib/doc-numbers.ts](../../src/lib/doc-numbers.ts) · 82 lines
+
+Exports: `DocNumberError`, `twoLetters`, `cleanCode`, `businessDocCode`, `divisionDocCode`, `branchDocCode`, `documentPrefix`
+
+Local dependencies: None
+
+Direct table references: acct_branches, acct_business_settings, acct_divisions, acct_legal_businesses
+
 ## src/lib/document-actions.ts
 
 [src/lib/document-actions.ts](../../src/lib/document-actions.ts) · 118 lines
@@ -1472,13 +1502,23 @@ Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../.
 
 Direct table references: acct_audit_events, acct_branches, acct_expense_payments, acct_expenses, acct_journal_entries, acct_journal_reversals
 
+## src/lib/expense-categories.ts
+
+[src/lib/expense-categories.ts](../../src/lib/expense-categories.ts) · 18 lines
+
+Exports: `EXPENSE_CATEGORIES`, `EXPENSE_CATEGORY_KEYS`
+
+Local dependencies: None
+
+Direct table references: None
+
 ## src/lib/expense-create.ts
 
-[src/lib/expense-create.ts](../../src/lib/expense-create.ts) · 451 lines
+[src/lib/expense-create.ts](../../src/lib/expense-create.ts) · 448 lines
 
 Exports: `ExpenseOutcome`, `ExpenseUser`, `createExpenseCore`
 
-Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/division-context.ts](../../src/lib/division-context.ts)
+Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/division-context.ts](../../src/lib/division-context.ts), [src/lib/doc-numbers.ts](../../src/lib/doc-numbers.ts), [src/lib/expense-categories.ts](../../src/lib/expense-categories.ts)
 
 Direct table references: acct_bank_accounts, acct_branches, acct_cash_accounts, acct_divisions, acct_document_sequences, acct_expense_payments, acct_expenses, acct_funding_parties, acct_legal_businesses
 
@@ -1504,13 +1544,13 @@ Direct table references: acct_bank_accounts, acct_cash_accounts, acct_expense_pa
 
 ## src/lib/expense-quick.ts
 
-[src/lib/expense-quick.ts](../../src/lib/expense-quick.ts) · 129 lines
+[src/lib/expense-quick.ts](../../src/lib/expense-quick.ts) · 146 lines
 
-Exports: `QuickExpenseError`, `QuickExpense`, `recordQuickExpense`
+Exports: `QuickExpenseError`, `QuickExpense`, `recordQuickExpense`, `ExpensePayment`, `recordExpensePayment`
 
-Local dependencies: None
+Local dependencies: [src/lib/doc-numbers.ts](../../src/lib/doc-numbers.ts)
 
-Direct table references: acct_bank_accounts, acct_branches, acct_cash_accounts, acct_document_sequences, acct_expense_payments, acct_expenses
+Direct table references: acct_bank_accounts, acct_cash_accounts, acct_document_sequences, acct_expense_payments, acct_expenses
 
 ## src/lib/export/ledger-data.ts
 
@@ -1944,7 +1984,7 @@ Direct table references: acct_account_map
 
 ## src/lib/ledger/account-roles.ts
 
-[src/lib/ledger/account-roles.ts](../../src/lib/ledger/account-roles.ts) · 122 lines
+[src/lib/ledger/account-roles.ts](../../src/lib/ledger/account-roles.ts) · 123 lines
 
 Exports: `AccountRole`, `ACCOUNT_ROLES`, `CodeMap`, `buildCodeMap`, `mappingProblems`, `mapDraftCodes`, `standardCoder`
 
@@ -1974,7 +2014,7 @@ Direct table references: acct_accounting_periods, acct_audit_events, acct_financ
 
 ## src/lib/ledger/posting-rules.ts
 
-[src/lib/ledger/posting-rules.ts](../../src/lib/ledger/posting-rules.ts) · 854 lines
+[src/lib/ledger/posting-rules.ts](../../src/lib/ledger/posting-rules.ts) · 855 lines
 
 Exports: `ACCOUNT`, `EXPENSE_ACCOUNT_BY_CATEGORY`, `SourceType`, `Dimensions`, `Settlement`, `DraftLine`, `JournalDraft`, `parseMoney`, `formatMoney`, `expenseAccountForCategory`, `saleInvoiceEntry`, `salesReceiptEntry`, `customerCreditReceivedEntry`, `customerCreditRefundEntry`, `salesSettlementDiscountEntry`, `staffAdvanceEntry`, `ownerMoneyEntry`, `cashTakenEntry`, `fundingReceiptEntry`, `fixedAssetPurchaseEntry`, `assetDepreciationEntry`, `assetDisposalEntry`, `partySetoffEntry`, `auditorAdjustmentEntry`, `purchaseReceiptEntry`, `purchasePaymentEntry`, `expenseEntry`, `setupCapitalisationEntry`, `expensePaymentEntry`, `depositPaidEntry`, `depositRefundEntry`, `salesReturnEntry`, `salesRefundEntry`, `stockFindEntry`, `stockDamageEntry`, `supplierReturnEntry`, `supplierRefundEntry`, `freeStockEntry`, `openingBalanceEntry`, `TrialBalanceRow`, `trialBalance`
 
@@ -2114,13 +2154,13 @@ Direct table references: None
 
 ## src/lib/migration-check.ts
 
-[src/lib/migration-check.ts](../../src/lib/migration-check.ts) · 102 lines
+[src/lib/migration-check.ts](../../src/lib/migration-check.ts) · 110 lines
 
 Exports: `MIGRATION_MARKERS`, `missingMigrations`
 
 Local dependencies: None
 
-Direct table references: acct_approval_items, acct_approval_requests, acct_auditor_adjustments, acct_bank_statement_lines, acct_bot_answers, acct_budgets, acct_business_settings, acct_cash_closings, acct_cash_note_log, acct_customer_credits, acct_customer_messages, acct_customer_notes, acct_customers, acct_deals, acct_document_log, acct_employee_pay_history, acct_employees, acct_expenses, acct_fixed_assets, acct_funding_transactions, acct_instagram_posts, acct_invoice_shares, acct_leads, acct_login_attempts, acct_offers, acct_online_orders, acct_owner_accounts, acct_owner_money, acct_party_setoffs, acct_posting_failures, acct_product_media, acct_product_variants, acct_products, acct_purchase_lines, acct_purchase_orders, acct_purchase_payments, acct_reel_tracks, acct_sale_rewards, acct_sales_headers, acct_sales_payments, acct_sales_returns, acct_selling_prices, acct_serials, acct_service_tickets, acct_shop_customers, acct_shop_email_verifications, acct_shop_password_resets, acct_staff_advances, acct_stock_finds, acct_stock_movements, acct_stock_reporters, acct_supplier_returns, acct_user_access, acct_user_totp, acct_vouchers, acct_wa_broadcasts, acct_wa_status_log, acct_whatsapp_recipients
+Direct table references: acct_account_map, acct_approval_items, acct_approval_requests, acct_auditor_adjustments, acct_bank_statement_lines, acct_bot_answers, acct_budgets, acct_business_hosts, acct_business_settings, acct_cash_closings, acct_cash_note_log, acct_customer_credits, acct_customer_messages, acct_customer_notes, acct_customers, acct_deals, acct_document_log, acct_employee_pay_history, acct_employees, acct_expenses, acct_fixed_assets, acct_funding_transactions, acct_instagram_posts, acct_invoice_shares, acct_leads, acct_letter_templates, acct_login_attempts, acct_offers, acct_online_orders, acct_owner_accounts, acct_owner_money, acct_party_setoffs, acct_payslips, acct_posting_failures, acct_product_media, acct_product_variants, acct_products, acct_purchase_lines, acct_purchase_orders, acct_purchase_payments, acct_reel_tracks, acct_sale_rewards, acct_sales_headers, acct_sales_payments, acct_sales_returns, acct_selling_prices, acct_serials, acct_service_tickets, acct_shop_customers, acct_shop_email_verifications, acct_shop_password_resets, acct_staff_advances, acct_stock_finds, acct_stock_movements, acct_stock_reporters, acct_supplier_returns, acct_user_access, acct_user_totp, acct_vouchers, acct_wa_broadcasts, acct_wa_status_log, acct_whatsapp_recipients
 
 ## src/lib/month-close.ts
 
@@ -2144,7 +2184,7 @@ Direct table references: None
 
 ## src/lib/navigation.ts
 
-[src/lib/navigation.ts](../../src/lib/navigation.ts) · 299 lines
+[src/lib/navigation.ts](../../src/lib/navigation.ts) · 302 lines
 
 Exports: `NavItem`, `NavModule`, `NavSection`, `OPTIONAL_MODULES`, `NAVIGATION`, `parseModulesOff`, `menuFor`, `activeHref`
 
@@ -2341,6 +2381,66 @@ Exports: `NamedBill`, `loadCustomerBills`, `loadSupplierBills`, `LinkedPerson`, 
 Local dependencies: [src/lib/supplier-ledger.ts](../../src/lib/supplier-ledger.ts), [src/lib/setoff-math.ts](../../src/lib/setoff-math.ts)
 
 Direct table references: acct_customers, acct_purchase_headers, acct_purchase_lines, acct_purchase_payments, acct_sales_headers, acct_sales_payments, acct_suppliers
+
+## src/lib/payment-accounts.ts
+
+[src/lib/payment-accounts.ts](../../src/lib/payment-accounts.ts) · 26 lines
+
+Exports: `PaymentAccount`, `paymentAccounts`
+
+Local dependencies: [src/lib/db.ts](../../src/lib/db.ts)
+
+Direct table references: acct_bank_accounts, acct_cash_accounts
+
+## src/lib/payroll-actions.ts
+
+[src/lib/payroll-actions.ts](../../src/lib/payroll-actions.ts) · 373 lines
+
+Exports: `preparePayrollAction`, `updatePayslipAction`, `removePayslipDraftAction`, `payPayslipsAction`, `remitStatutoryAction`, `savePayrollSettingsAction`, `savePayComponentsAction`, `saveEmployeeStatutoryAction`
+
+Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/lib/expense-quick.ts](../../src/lib/expense-quick.ts), [src/lib/staff-advance-recovery.ts](../../src/lib/staff-advance-recovery.ts), [src/lib/business-settings.ts](../../src/lib/business-settings.ts), [src/lib/format.ts](../../src/lib/format.ts), [src/lib/payroll/data.ts](../../src/lib/payroll/data.ts), [src/lib/payroll/rules.ts](../../src/lib/payroll/rules.ts)
+
+Direct table references: acct_audit_events, acct_employees, acct_pay_components, acct_payslips, acct_salary_payments, acct_statutory_remittances
+
+## src/lib/payroll/data.ts
+
+[src/lib/payroll/data.ts](../../src/lib/payroll/data.ts) · 210 lines
+
+Exports: `toPaise`, `rupeesText`, `PAYROLL_KEYS`, `loadPayrollSettings`, `loadComponents`, `salaryInForce`, `yearToDate`, `EmployeeForPay`, `buildPayslip`, `advanceOwed`, `payslipColumns`, `saveDraftPayslip`
+
+Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/db-errors.ts](../../src/lib/db-errors.ts), [src/lib/payroll/engine.ts](../../src/lib/payroll/engine.ts), [src/lib/payroll/rules.ts](../../src/lib/payroll/rules.ts), [src/lib/staff-advance-recovery.ts](../../src/lib/staff-advance-recovery.ts)
+
+Direct table references: acct_business_settings, acct_employee_pay_history, acct_pay_components, acct_payslips, acct_salary_payments, acct_staff_advance_recoveries, acct_staff_advances
+
+## src/lib/payroll/engine.ts
+
+[src/lib/payroll/engine.ts](../../src/lib/payroll/engine.ts) · 242 lines
+
+Exports: `PayrollSettings`, `DEFAULT_SETTINGS`, `PayComponent`, `PayslipInput`, `EarningLine`, `Payslip`, `roundRupee`, `ceilRupee`, `daysIn`, `fyStartOf`, `monthsLeftInFy`, `pfCeiling`, `splitSalary`, `slabTax`, `annualTax`, `ptFor`, `computePayslip`, `defaultPaidDays`, `ageAt`
+
+Local dependencies: [src/lib/payroll/rules.ts](../../src/lib/payroll/rules.ts)
+
+Direct table references: None
+
+## src/lib/payroll/files.ts
+
+[src/lib/payroll/files.ts](../../src/lib/payroll/files.ts) · 112 lines
+
+Exports: `PayslipRow`, `FileResult`, `pfEcr`, `esiSheet`, `ptRegister`, `salaryTdsDetails`, `payrollRegister`
+
+Local dependencies: None
+
+Direct table references: None
+
+## src/lib/payroll/rules.ts
+
+[src/lib/payroll/rules.ts](../../src/lib/payroll/rules.ts) · 116 lines
+
+Exports: `R`, `PfRule`, `PF_CEILINGS`, `PF_DEFAULTS`, `ESI_DEFAULTS`, `Slab`, `TaxRegimeRule`, `TaxYearRule`, `TAX_YEARS`, `taxYearRule`, `PtSlab`, `PT_PRESETS`, `parsePtSlabs`, `formatPtSlabs`
+
+Local dependencies: None
+
+Direct table references: acct_business_settings
 
 ## src/lib/period-math.ts
 
@@ -2744,13 +2844,13 @@ Direct table references: None
 
 ## src/lib/salary-actions.ts
 
-[src/lib/salary-actions.ts](../../src/lib/salary-actions.ts) · 223 lines
+[src/lib/salary-actions.ts](../../src/lib/salary-actions.ts) · 105 lines
 
-Exports: `addEmployeeAction`, `updateEmployeeAction`, `paySalaryAction`
+Exports: `addEmployeeAction`, `updateEmployeeAction`
 
-Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/lib/customer-phone.ts](../../src/lib/customer-phone.ts), [src/lib/expense-quick.ts](../../src/lib/expense-quick.ts), [src/lib/setoff-math.ts](../../src/lib/setoff-math.ts)
+Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/lib/customer-phone.ts](../../src/lib/customer-phone.ts)
 
-Direct table references: acct_audit_events, acct_branches, acct_employee_pay_history, acct_employees, acct_expense_payments, acct_salary_payments, acct_staff_advance_recoveries, acct_staff_advances
+Direct table references: acct_audit_events, acct_branches, acct_employee_pay_history, acct_employees
 
 ## src/lib/sale-payment-actions.ts
 
@@ -2764,11 +2864,11 @@ Direct table references: acct_audit_events, acct_bank_accounts, acct_cash_accoun
 
 ## src/lib/sales-actions.ts
 
-[src/lib/sales-actions.ts](../../src/lib/sales-actions.ts) · 1724 lines
+[src/lib/sales-actions.ts](../../src/lib/sales-actions.ts) · 1717 lines
 
 Exports: `createSaleAction`, `updateSaleAction`, `voidEstimateAction`, `setInvoiceAddressAction`
 
-Local dependencies: [src/lib/cash-notes.ts](../../src/lib/cash-notes.ts), [src/lib/rewards-data.ts](../../src/lib/rewards-data.ts), [src/lib/selling-price-data.ts](../../src/lib/selling-price-data.ts), [src/lib/return-credit.ts](../../src/lib/return-credit.ts), [src/lib/scope.ts](../../src/lib/scope.ts), [src/lib/customers.ts](../../src/lib/customers.ts), [src/lib/customer-phone.ts](../../src/lib/customer-phone.ts), [src/lib/db.ts](../../src/lib/db.ts), [src/lib/division-context.ts](../../src/lib/division-context.ts), [src/lib/ledger/reverse-in-tx.ts](../../src/lib/ledger/reverse-in-tx.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/lib/access.ts](../../src/lib/access.ts), [src/lib/codes.ts](../../src/lib/codes.ts), [src/lib/approval-stock.ts](../../src/lib/approval-stock.ts), [src/lib/bill-terms.ts](../../src/lib/bill-terms.ts)
+Local dependencies: [src/lib/cash-notes.ts](../../src/lib/cash-notes.ts), [src/lib/rewards-data.ts](../../src/lib/rewards-data.ts), [src/lib/selling-price-data.ts](../../src/lib/selling-price-data.ts), [src/lib/return-credit.ts](../../src/lib/return-credit.ts), [src/lib/scope.ts](../../src/lib/scope.ts), [src/lib/customers.ts](../../src/lib/customers.ts), [src/lib/customer-phone.ts](../../src/lib/customer-phone.ts), [src/lib/db.ts](../../src/lib/db.ts), [src/lib/division-context.ts](../../src/lib/division-context.ts), [src/lib/ledger/reverse-in-tx.ts](../../src/lib/ledger/reverse-in-tx.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/lib/access.ts](../../src/lib/access.ts), [src/lib/codes.ts](../../src/lib/codes.ts), [src/lib/approval-stock.ts](../../src/lib/approval-stock.ts), [src/lib/bill-terms.ts](../../src/lib/bill-terms.ts), [src/lib/doc-numbers.ts](../../src/lib/doc-numbers.ts)
 
 Direct table references: acct_approval_items, acct_audit_events, acct_bank_accounts, acct_branches, acct_cash_accounts, acct_cash_note_log, acct_customers, acct_document_sequences, acct_inventory_locations, acct_journal_entries, acct_legal_businesses, acct_online_orders, acct_product_variants, acct_products, acct_sales_headers, acct_sales_lines, acct_sales_payments, acct_serials, acct_stock_drafts, acct_stock_movements, acct_stock_transfer_lines, acct_stock_transfers
 
@@ -3062,6 +3162,16 @@ Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../.
 
 Direct table references: acct_audit_events, acct_bank_accounts, acct_cash_accounts, acct_employees, acct_staff_advances
 
+## src/lib/staff-advance-recovery.ts
+
+[src/lib/staff-advance-recovery.ts](../../src/lib/staff-advance-recovery.ts) · 41 lines
+
+Exports: `openAdvances`, `takeBackAdvance`
+
+Local dependencies: [src/lib/expense-quick.ts](../../src/lib/expense-quick.ts), [src/lib/setoff-math.ts](../../src/lib/setoff-math.ts)
+
+Direct table references: acct_staff_advance_recoveries, acct_staff_advances
+
 ## src/lib/staff-letters.ts
 
 [src/lib/staff-letters.ts](../../src/lib/staff-letters.ts) · 292 lines
@@ -3154,11 +3264,11 @@ Direct table references: acct_inventory_locations, acct_stock_drafts, acct_stock
 
 ## src/lib/stock-transfer-actions.ts
 
-[src/lib/stock-transfer-actions.ts](../../src/lib/stock-transfer-actions.ts) · 1633 lines
+[src/lib/stock-transfer-actions.ts](../../src/lib/stock-transfer-actions.ts) · 1615 lines
 
 Exports: `saveStockTransferDraftAction`, `dispatchStockTransferAction`, `receiveStockTransferAction`
 
-Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/lib/division-context.ts](../../src/lib/division-context.ts)
+Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/lib/division-context.ts](../../src/lib/division-context.ts), [src/lib/doc-numbers.ts](../../src/lib/doc-numbers.ts)
 
 Direct table references: acct_branches, acct_document_sequences, acct_inventory_locations, acct_legal_businesses, acct_product_variants, acct_products, acct_stock_movements, acct_stock_transfer_lines, acct_stock_transfers
 

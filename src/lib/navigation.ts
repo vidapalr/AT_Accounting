@@ -177,9 +177,12 @@ export const NAVIGATION: NavSection[] = [
     icon: "people",
     module: "hr",
     items: [
-      { label: "Salaries and staff records", href: "/accounting/salaries", hint: "Pay the staff each month, staff records, letters and pay slips" },
+      { label: "Payroll (pay the month)", href: "/accounting/payroll", hint: "Work out pay with PF, ESI, professional tax and income tax, then pay" },
+      { label: "Statutory dues and returns", href: "/accounting/payroll/dues", hint: "PF, ESI, professional tax and TDS owed to the government; files to upload; tax certificates" },
+      { label: "Staff records", href: "/accounting/salaries", hint: "People, salaries, joining and leaving, letters" },
       { label: "Staff advances", href: "/accounting/staff-advances", hint: "Money given to staff before payday, taken off their salary" },
       { label: "Letter templates", href: "/accounting/letter-templates", hint: "Wording of offer, joining, salary and leaving letters" },
+      { label: "Payroll settings", href: "/accounting/payroll/settings", hint: "Switch PF, ESI, professional tax and TDS on; how a salary is split" },
     ],
   },
   {

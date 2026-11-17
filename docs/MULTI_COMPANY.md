@@ -24,3 +24,4 @@ Scheduled jobs (automatic posting, WhatsApp reports) run for every company in tu
 - The SQL backup downloads the whole database; a per-company export is needed before hosting unrelated companies together.
 - Country code 91, Indian time and rupees are assumed throughout.
 - Product attributes are size, colour and fabric; other trades need custom attribute sets.
+- There is no starter chart of accounts for a brand-new company yet; it must be loaded before posting.
