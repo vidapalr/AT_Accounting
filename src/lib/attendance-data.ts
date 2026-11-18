@@ -128,3 +128,15 @@ export async function loadRegister(businessId: number, month: string): Promise<{
   }
   return { ready: true, rows };
 }
+
+/** The last WhatsApp message the company received (for the register's diagnostic line), or null. */
+export async function lastIncomingMessage(businessId: number): Promise<{ when: string; phone: string; type: string; text: string } | null> {
+  const [rows] = await db.query<Row[]>(
+    `SELECT setting_value FROM acct_business_settings WHERE legal_business_id = ? AND setting_key = 'wa_last_incoming'`,
+    [businessId]
+  ).catch(() => [[] as Row[]]);
+  const v = rows[0]?.setting_value ? String(rows[0].setting_value) : "";
+  const parts = v.split("|");
+  if (parts.length < 3) return null;
+  return { when: parts[0], phone: parts[1], type: parts[2], text: parts.slice(3).join("|") };
+}
