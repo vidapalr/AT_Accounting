@@ -7,7 +7,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import { formatMoney, type JournalDraft } from "./posting-rules.ts";
 import { APP_POSTED_SOURCES } from "./reversible-sources.ts";
 import { buildLedgerDrafts, type Queryable } from "./source-events.ts";
-import { journalSignature, type SignatureLine } from "./journal-signature.ts";
+import { journalMatchesSource, type SignatureLine } from "./journal-signature.ts";
 
 export type SyncStatus = {
   /** Records with no journal yet. */
@@ -32,6 +32,7 @@ export async function getSyncStatus(conn: Queryable, businessId: number): Promis
 
   const [rows] = await (conn as { query: (s: string, v: unknown[]) => Promise<[Row[], unknown]> }).query(
     `SELECT j.id, j.journal_no, j.source_type, j.source_id,
+            DATE_FORMAT(j.entry_date, '%Y-%m-%d') AS entry_date,
             a.account_code, l.debit, l.credit, l.division_id, l.branch_id
      FROM acct_journal_entries j
      JOIN acct_journal_lines l ON l.journal_entry_id = j.id AND l.legal_business_id = j.legal_business_id
@@ -43,10 +44,16 @@ export async function getSyncStatus(conn: Queryable, businessId: number): Promis
     [businessId, ...OUR_SOURCES]
   );
 
-  const posted = new Map<string, { journalNo: string; lines: SignatureLine[] }>();
+  const posted = new Map<string, {
+    journalNo: string; entryDate: string; journalIds: Set<number>; lines: SignatureLine[];
+  }>();
   for (const r of rows) {
     const key = keyOf(String(r.source_type), Number(r.source_id));
-    const entry = posted.get(key) ?? { journalNo: String(r.journal_no), lines: [] };
+    const entry = posted.get(key) ?? {
+      journalNo: String(r.journal_no), entryDate: String(r.entry_date),
+      journalIds: new Set<number>(), lines: [],
+    };
+    entry.journalIds.add(Number(r.id));
     entry.lines.push({
       code: String(r.account_code), debit: String(r.debit), credit: String(r.credit),
       divisionId: r.division_id == null ? null : Number(r.division_id),
@@ -69,14 +76,18 @@ export async function getSyncStatus(conn: Queryable, businessId: number): Promis
       status.pending.push(draft);
       continue;
     }
-    // Compare only the non-zero side of each line.
-    const want = journalSignature(
-      draft.lines.map((l) => ({
+    // Date, financial lines and their division/branch scopes must all agree.
+    const want = {
+      entryDate: draft.entryDate,
+      lines: draft.lines.map((l) => ({
         code: l.accountCode, debit: formatMoney(l.debit), credit: formatMoney(l.credit),
         divisionId: l.divisionId, branchId: l.branchId,
-      }))
-    );
-    if (want !== journalSignature(existing.lines)) {
+      })),
+    };
+    if (existing.journalIds.size > 1) {
+      status.problems.push(`${existing.journalIds.size} active posted journals for ${key}; investigate duplicate posting`);
+    }
+    if (!journalMatchesSource(want, existing)) {
       status.changedAfterPosting.push(`${existing.journalNo}: ${draft.description}`);
     }
   }

@@ -17,3 +17,12 @@ export function journalSignature(lines: SignatureLine[]): string {
     line.branchId,
   ])).sort().join(";");
 }
+
+/** Both financial-period date and line allocations must match the source. */
+export function journalMatchesSource(
+  expected: { entryDate: string; lines: SignatureLine[] },
+  posted: { entryDate: string; lines: SignatureLine[] },
+): boolean {
+  return expected.entryDate === posted.entryDate &&
+    journalSignature(expected.lines) === journalSignature(posted.lines);
+}
