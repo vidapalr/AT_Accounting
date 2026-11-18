@@ -5,6 +5,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import PieChart from "@/components/PieChart";
 
 type ReportRow = RowDataPacket & {
   variant_id: number;
@@ -20,6 +21,13 @@ type ReportRow = RowDataPacket & {
   remaining_stock: string;
   remaining_stock_amount: string;
 };
+
+/** Adds up the sizes and colours of each product for the charts. */
+function byProduct(rows: ReportRow[], pick: (r: ReportRow) => number) {
+  const m = new Map<string, number>();
+  for (const r of rows) m.set(r.product_name, (m.get(r.product_name) ?? 0) + pick(r));
+  return [...m].map(([label, value]) => ({ label, value }));
+}
 
 function money(value: string | number): string {
   return Number(value).toLocaleString("en-IN", {
@@ -217,6 +225,11 @@ async function ProductProfitabilityContent() {
       margin: "0 auto",
     }}>
       <h1>Product Profitability & Stock Report</h1>
+      <section aria-label="Charts" style={{ display: "grid", gap: 24, gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", margin: "12px 0 24px" }}>
+        <PieChart title="Sales by product" parts={byProduct(rows, (r) => Number(r.sold_amount))} />
+        <PieChart title="Gross margin by product" parts={byProduct(rows, (r) => (r.cost_of_goods_sold == null ? 0 : Number(r.sold_amount) - Number(r.cost_of_goods_sold)))} />
+        <PieChart title="Stock value by product" parts={byProduct(rows, (r) => Number(r.remaining_stock_amount))} />
+      </section>
 
       <p>
         Product-wise sales,
