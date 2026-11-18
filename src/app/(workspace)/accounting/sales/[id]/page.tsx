@@ -2,12 +2,13 @@
 import { Suspense } from "react";
 import DocumentHeader from "@/components/DocumentHeader";
 import BillTerms from "@/components/BillTerms";
-import { termsForSale } from "@/lib/bill-terms";
+import { estimateTerms, termsForSale } from "@/lib/bill-terms";
 import { getShopSettings } from "@/lib/shop";
 import { getBrand } from "@/lib/brand";
 import { setInvoiceAddressAction, voidEstimateAction } from "@/lib/sales-actions";
 import BillWatermark from "@/components/BillWatermark";
 import GstInvoiceBlock from "@/components/GstInvoiceBlock";
+import BillQrCodes from "@/components/BillQrCodes";
 import { loadInvoiceGst } from "@/lib/gst/data";
 import { toNumber } from "@/lib/reports/money";
 import LoggedPrintButton from "@/components/LoggedPrintButton";
@@ -631,7 +632,8 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         <p>Remarks: {invoice.remarks}</p>
       )}
 
-      <BillTerms text={await termsForSale(db, businessId, Number(invoice.id))} />
+      <BillTerms text={await termsForSale(db, businessId, Number(invoice.id))} extra={isEstimate ? await estimateTerms(db, businessId) : ""} />
+      <BillQrCodes brand={brand} />
 
       {payResult && PAY_MESSAGES[payResult] && (
         <p

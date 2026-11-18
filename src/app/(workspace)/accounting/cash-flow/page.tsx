@@ -3,8 +3,9 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import PieChart from "@/components/PieChart";
 import { loadCashFlow } from "@/lib/reports/cash-flow-data";
-import { inr, isDate, todayInIndia } from "@/lib/reports/money";
+import { inr, isDate, toNumber, todayInIndia } from "@/lib/reports/money";
 import { cell } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ from?: string; to?: string }> };
@@ -27,6 +28,9 @@ async function CashFlowContent({ searchParams }: Props) {
   const to = isDate(query.to) ? query.to : today;
   const flow = await loadCashFlow(db, businessId, from, to);
   const placesTotal = flow.places.reduce((s, p) => s + p.paise, 0n);
+  const lines = flow.sections.flatMap((s) => s.lines);
+  const moneyIn = lines.filter((l) => l.paise > 0n).map((l) => ({ label: l.label, value: toNumber(l.paise) }));
+  const moneyOut = lines.filter((l) => l.paise < 0n).map((l) => ({ label: l.label, value: toNumber(-l.paise) }));
 
   return (
     <main style={{ padding: 24, maxWidth: 820 }}>
@@ -59,6 +63,12 @@ async function CashFlowContent({ searchParams }: Props) {
           <tr><th style={cell}>Money at the end ({to})</th><th style={num}>{money(flow.closingPaise)}</th></tr>
         </tbody>
       </table>
+
+      <section aria-label="Charts" style={{ display: "grid", gap: 24, gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", margin: "24px 0" }}>
+        <PieChart title="Money that came in" parts={moneyIn} />
+        <PieChart title="Money that went out" parts={moneyOut} />
+        <PieChart title={`Where the money is now (${to})`} parts={flow.places.map((p) => ({ label: p.name, value: toNumber(p.paise) }))} />
+      </section>
 
       <h2 style={{ marginTop: 24 }}>Where it is now</h2>
       <table style={{ borderCollapse: "collapse", width: "100%" }}>

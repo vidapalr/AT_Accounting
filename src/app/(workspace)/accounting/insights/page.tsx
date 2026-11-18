@@ -7,6 +7,9 @@ import { requireAccess } from "@/lib/auth";
 import { getBalanceReport } from "@/lib/reports/report-data";
 import { cell } from "@/lib/ui/styles";
 import { ACCOUNT } from "@/lib/ledger/posting-rules";
+import BarChart from "@/components/BarChart";
+import PieChart from "@/components/PieChart";
+import { salesInsights } from "@/lib/reports/breakdowns";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 
@@ -37,12 +40,23 @@ function Table({ heads, rows, empty }: { heads: string[]; rows: React.ReactNode[
   );
 }
 
-async function Content() {
+const PERIODS = [
+  { days: 30, label: "Last 30 days" },
+  { days: 90, label: "Last 3 months" },
+  { days: 365, label: "Last 12 months" },
+];
+
+async function Content({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
   const user = await requireAccess("reports");
   const businessId = user.legal_business_id;
+  const sp = await searchParams;
 
   const [[dates]] = await db.execute<Row[]>(`SELECT ${T} AS today`);
   const today = day(dates.today);
+  const period = PERIODS.find((p) => String(p.days) === sp.days) ?? PERIODS[0];
+  const start = new Date(`${today}T00:00:00Z`);
+  start.setUTCDate(start.getUTCDate() - period.days + 1);
+  const si = await salesInsights(db, businessId, start.toISOString().slice(0, 10), today);
 
   const [[wk]] = await db.execute<Row[]>(
     `SELECT COALESCE(SUM(CASE WHEN invoice_date > ${T} - INTERVAL 7 DAY THEN grand_total END), 0) AS this_week,
@@ -150,7 +164,39 @@ async function Content() {
       </p>
 
       <section style={box}>
-        <h2 style={{ marginTop: 0 }}>Sales</h2>
+        <h2 style={{ marginTop: 0 }}>Sales and products</h2>
+        <nav aria-label="Period" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+          {PERIODS.map((p) => (
+            <Link key={p.days} href={`/accounting/insights?days=${p.days}`} className={p.days === period.days ? "btn-link btn-link-primary" : "btn-link"} aria-current={p.days === period.days ? "page" : undefined}>{p.label}</Link>
+          ))}
+        </nav>
+        <p style={{ fontSize: 18 }}>
+          {period.label}: <strong>{rs(si.amount)}</strong> from {si.bills} bills · average bill <strong>{rs(si.average)}</strong> · {si.customers} named {si.customers === 1 ? "customer" : "customers"}.
+        </p>
+        <div style={{ display: "grid", gap: 24, gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", margin: "12px 0" }}>
+          <PieChart title="Sales by kind of product" parts={si.byCategory} note="Without GST." />
+          <PieChart title="New and returning customers" parts={si.customerMix} money={false} note="Named customers with a bill in the period. Returning = bought before this period too." />
+          <PieChart title="Pieces sold by size" parts={si.bySize} money={false} />
+          <PieChart title="Pieces sold by colour" parts={si.byColour} money={false} />
+        </div>
+        <div style={{ display: "grid", gap: 24, gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
+          <BarChart title="Sales by day of the week" points={si.byWeekday} />
+          <BarChart title="Sales by time of day (when the bill was made)" points={si.byHour} />
+        </div>
+        <h3>Top 10 products</h3>
+        <Table heads={["Product", "Pieces", "Sales (without GST)", "Margin", "Margin %"]} empty="No sales in this period."
+          rows={si.top.map((r) => [r.name, q(r.qty), rs(r.amount), rs(r.margin), r.amount ? `${Math.round((r.margin / r.amount) * 100)}%` : "-"])} />
+        <h3>Lowest margin</h3>
+        <p style={muted}>Products that earn the least on each rupee sold. Check their price or what you pay for them.</p>
+        <Table heads={["Product", "Sales", "Margin", "Margin %"]} empty="No sales in this period."
+          rows={si.lowMargin.map((r) => [r.name, rs(r.amount), rs(r.margin), r.amount ? `${Math.round((r.margin / r.amount) * 100)}%` : "-"])} />
+        <h3>In stock but not sold in this period</h3>
+        <Table heads={["Product", "In stock", "Cost tied up"]} empty="Every product in stock sold at least once in this period."
+          rows={si.notSelling.map((r) => [r.name, q(r.onhand), rs(r.value)])} />
+      </section>
+
+      <section style={box}>
+        <h2 style={{ marginTop: 0 }}>This week</h2>
         <p style={{ fontSize: 18 }}>
           Last 7 days: <strong>{rs(thisWeek)}</strong> from {Number(wk.bills_this)} bills.
           {" "}Week before: {rs(lastWeek)} from {Number(wk.bills_last)} bills.
@@ -202,6 +248,6 @@ async function Content() {
   );
 }
 
-export default function InsightsPage() {
-  return <Suspense fallback={<p>Loading…</p>}><Content /></Suspense>;
+export default function InsightsPage(props: { searchParams: Promise<{ days?: string }> }) {
+  return <Suspense fallback={<p>Loading…</p>}><Content {...props} /></Suspense>;
 }

@@ -11,6 +11,9 @@ import { getSyncStatus } from "@/lib/ledger/sync-status";
 import { getBalanceReport, getProfitReport } from "@/lib/reports/report-data";
 import { inr, isDate, percent, todayInIndia } from "@/lib/reports/money";
 import PrintButton from "@/components/PrintButton";
+import PieChart from "@/components/PieChart";
+import { expensesByAccount, paymentsByMethod } from "@/lib/reports/breakdowns";
+import { toNumber } from "@/lib/reports/money";
 
 type Props = {
   searchParams: Promise<{ from?: string; to?: string; posted?: string; error?: string }>;
@@ -53,6 +56,9 @@ async function ReportsContent({ searchParams }: Props) {
   const tbDebit = totals.reduce((s, t) => s + t.debit, 0n);
   const tbCredit = totals.reduce((s, t) => s + t.credit, 0n);
 
+  const [expenseSplit, paySplit] = await Promise.all([expensesByAccount(db, businessId, from, to), paymentsByMethod(db, businessId, from, to)]);
+  const branchSales = scopes.filter((s) => s.scope === "BRANCH").map((s) => ({ label: s.label, value: toNumber(s.figures.sales - s.figures.discounts) }));
+  const owns = sheet.assets.map((a) => ({ label: accountName.get(a.code) ?? a.code, value: toNumber(a.amount) }));
   const scopeLabel = (s: (typeof scopes)[number]) =>
     s.depth === 2 ? `\u00A0\u00A0${s.label}` : s.label;
 
@@ -122,6 +128,13 @@ async function ReportsContent({ searchParams }: Props) {
         <PrintButton />
         <a href={`/api/reports/export?from=${from}&to=${to}`}>Download Excel</a>
       </form>
+
+      <section aria-label="Charts" style={{ display: "grid", gap: 24, gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", margin: "8px 0 24px" }}>
+        <PieChart title="Sales by branch" parts={branchSales} note="Sales after discounts, without GST." />
+        <PieChart title="Running expenses by kind" parts={expenseSplit} />
+        <PieChart title="How customers paid" parts={paySplit} note="Money received on bills in the period." />
+        <PieChart title={`What the business owns (${to})`} parts={owns} />
+      </section>
 
       <h2>Profit — {from} to {to}</h2>
       <div style={{ overflowX: "auto" }}>

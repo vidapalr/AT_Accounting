@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 import { cleanTerms, DEFAULT_TERMS } from "@/lib/bill-terms-text";
+import { saveBusinessSettings } from "@/lib/business-settings";
 
 const PAGE = "/accounting/bill-terms";
 
@@ -21,6 +22,7 @@ export async function saveBillTermsAction(form: FormData) {
   } catch {
     redirect(`${PAGE}?error=${encodeURIComponent("Not set up yet: run the database file 066_bill_terms first.")}`);
   }
+  await saveBusinessSettings(owner.legal_business_id, { bill_terms_estimate: reset ? "" : cleanTerms(String(form.get("estimate_body") ?? "")) }, owner.id);
   revalidatePath(PAGE);
   redirect(`${PAGE}?saved=${encodeURIComponent(reset ? "Terms put back to the standard two." : "Terms saved. They print on every new bill.")}`);
 }

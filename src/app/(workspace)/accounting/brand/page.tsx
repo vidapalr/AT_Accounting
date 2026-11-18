@@ -22,6 +22,10 @@ const FIELDS: Array<{ key: keyof typeof BRAND_KEYS; label: string; hint?: string
   { key: "ownerPhone", label: "Owner's phone on invoices", hint: "Printed on invoices and estimates only" },
   { key: "email", label: "Email" },
   { key: "websites", label: "Website addresses" },
+  { key: "mapLink", label: "Map link to the shop", hint: "Google Maps > Share > Copy link (starts with https://). Printed as a QR code on bills" },
+  { key: "instagram", label: "Instagram page", hint: "e.g. https://instagram.com/yourshop (QR code on bills)" },
+  { key: "facebook", label: "Facebook page", hint: "e.g. https://facebook.com/yourshop (QR code on bills)" },
+  { key: "youtube", label: "YouTube channel", hint: "e.g. https://youtube.com/@yourshop (QR code on bills)" },
   { key: "appName", label: "Name of this app", hint: "Top bar, exports, authenticator app" },
   { key: "logoSmall", label: "Small logo", hint: "Address of the picture, e.g. /brand/logo-192.png" },
   { key: "logoLarge", label: "Large logo", hint: "e.g. /brand/logo-512.png" },
@@ -40,6 +44,7 @@ async function Content({ searchParams }: Props) {
       <ResultNotice result={q.result} messages={{
         saved: { tone: "ok", text: "Saved. Bills, letters, the website and messages now use these details." },
         logo: { tone: "error", text: "A logo must be a picture address starting with / or https://." },
+        link: { tone: "error", text: "Map, Instagram, Facebook and YouTube links must start with https://." },
         code: { tone: "error", text: "The letters for document numbers must be 2 to 4 letters." },
       }} />
       <form action={saveBrandAction}>

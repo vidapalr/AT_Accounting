@@ -18,6 +18,7 @@ export async function saveBrandAction(form: FormData): Promise<void> {
   for (const [field, key] of Object.entries(BRAND_KEYS)) {
     const v = String(form.get(key) ?? "").replace(/\s+/g, " ").trim().slice(0, 255);
     if (field.startsWith("logo") && v && !LOGO.test(v)) redirect(`${PAGE}?result=logo`);
+    if (["mapLink", "instagram", "facebook", "youtube"].includes(field) && v && !/^https:\/\/[^\s"'<>]+$/.test(v)) redirect(`${PAGE}?result=link`);
     values[key] = v;
   }
   values.shop_nav_links = String(form.get("shop_nav_links") ?? "").trim().slice(0, 255);

@@ -309,6 +309,9 @@ export async function savePayrollSettingsAction(form: FormData): Promise<void> {
     payroll_pt_state: state,
     payroll_pt_slabs: slabs,
     payroll_tan: tan,
+    payroll_ctc_bonus: flag("payroll_ctc_bonus"),
+    payroll_ctc_gratuity: flag("payroll_ctc_gratuity"),
+    payroll_bonus_wage_cap: /^\d{1,6}$/.test(text(form, "payroll_bonus_wage_cap")) ? text(form, "payroll_bonus_wage_cap") : "7000",
   }, user.id);
   revalidatePath(SETTINGS);
   go(SETTINGS, { saved: "Payroll settings saved. They apply to payslips worked out from now on." });
@@ -369,4 +372,34 @@ export async function saveEmployeeStatutoryAction(form: FormData): Promise<void>
   );
   revalidatePath(page);
   go(page, { saved: "PF, ESI and tax details saved." });
+}
+
+/** Kind of work (full time, part time, daily wage), the daily wage and the WhatsApp number used for attendance. */
+export async function saveEmploymentAction(form: FormData): Promise<void> {
+  const user = await requireAccess("salary");
+  const id = Number(text(form, "employee_id"));
+  const page = `/accounting/salaries/${id}`;
+  const type = ["FULL_TIME", "PART_TIME", "DAILY_WAGE"].includes(text(form, "employment_type")) ? text(form, "employment_type") : "FULL_TIME";
+  const wage = text(form, "daily_wage").replaceAll(",", "");
+  const wa = text(form, "whatsapp_number").replace(/\D/g, "").slice(-10);
+  if (type === "DAILY_WAGE" && !/^\d{1,7}(\.\d{1,2})?$/.test(wage)) go(page, { error: "Write the daily wage in rupees, e.g. 600." });
+  if (wage && !/^\d{1,7}(\.\d{1,2})?$/.test(wage)) go(page, { error: "The daily wage must be an amount in rupees." });
+  if (wa && wa.length !== 10) go(page, { error: "Write the 10-digit WhatsApp number." });
+  try {
+    if (wa) {
+      const [clash] = await db.query<Row[]>(
+        `SELECT full_name FROM acct_employees WHERE legal_business_id = ? AND whatsapp_number = ? AND id <> ? AND status = 'ACTIVE' LIMIT 1`,
+        [user.legal_business_id, wa, id]
+      );
+      if (clash.length) go(page, { error: `That WhatsApp number is already saved for ${clash[0].full_name}.` });
+    }
+    await db.query(`UPDATE acct_employees SET employment_type = ?, daily_wage = ?, whatsapp_number = ? WHERE legal_business_id = ? AND id = ?`, [
+      type, wage || null, wa || null, user.legal_business_id, id,
+    ]);
+  } catch (error) {
+    if (isRedirect(error)) throw error;
+    go(page, { error: "Run migration 091 in phpMyAdmin first." });
+  }
+  revalidatePath(page);
+  go(page, { saved: "Type of work saved." });
 }

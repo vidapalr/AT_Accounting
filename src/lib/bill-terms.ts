@@ -25,3 +25,14 @@ export async function termsForSale(q: Q, businessId: number, saleId: number): Pr
   } catch { /* column not there yet */ }
   return currentTerms(q, businessId);
 }
+
+/** Extra lines printed only on estimates (e.g. how long the prices hold), after the bill terms. */
+export async function estimateTerms(q: Q, businessId: number): Promise<string> {
+  try {
+    const [r] = await q.execute<RowDataPacket[]>(
+      `SELECT setting_value FROM acct_business_settings WHERE legal_business_id = ? AND setting_key = 'bill_terms_estimate'`, [businessId]);
+    return String(r[0]?.setting_value ?? "").trim();
+  } catch {
+    return "";
+  }
+}
