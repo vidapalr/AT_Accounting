@@ -28,6 +28,7 @@ Static source inventory. A named guard is evidence of a call, not proof of compl
 | `/api/gst/export` | GET | [src/app/api/gst/export/route.ts](../../src/app/api/gst/export/route.ts) | getSessionUser( |  |
 | `/api/ledger/auto-post` | GET, POST | [src/app/api/ledger/auto-post/route.ts](../../src/app/api/ledger/auto-post/route.ts) | authorised( |  |
 | `/api/payroll/file` | GET | [src/app/api/payroll/file/route.ts](../../src/app/api/payroll/file/route.ts) | getSessionUser( | acct_employees, acct_payslips |
+| `/api/payroll/run` | GET, POST | [src/app/api/payroll/run/route.ts](../../src/app/api/payroll/run/route.ts) | authorised( | acct_business_settings |
 | `/api/reports/export` | GET | [src/app/api/reports/export/route.ts](../../src/app/api/reports/export/route.ts) | getSessionUser( |  |
 | `/api/shop/account/forgot` | POST | [src/app/api/shop/account/forgot/route.ts](../../src/app/api/shop/account/forgot/route.ts) | Inspect source |  |
 | `/api/shop/account/login` | POST | [src/app/api/shop/account/login/route.ts](../../src/app/api/shop/account/login/route.ts) | Inspect source |  |
@@ -38,6 +39,7 @@ Static source inventory. A named guard is evidence of a call, not proof of compl
 | `/api/shop/cart` | POST | [src/app/api/shop/cart/route.ts](../../src/app/api/shop/cart/route.ts) | Inspect source |  |
 | `/api/shop/media/[id]` | GET | [src/app/api/shop/media/[id]/route.ts](../../src/app/api/shop/media/[id]/route.ts) | Inspect source | acct_product_media, acct_products |
 | `/api/shop/order` | POST | [src/app/api/shop/order/route.ts](../../src/app/api/shop/order/route.ts) | getShopCustomer( |  |
+| `/api/staff-papers/[id]` | GET | [src/app/api/staff-papers/[id]/route.ts](../../src/app/api/staff-papers/[id]/route.ts) | getCurrentUser( | acct_employee_documents |
 | `/api/tax/document/[id]` | GET | [src/app/api/tax/document/[id]/route.ts](../../src/app/api/tax/document/[id]/route.ts) | getSessionUser( | acct_tax_documents |
 | `/api/tax/pack` | GET | [src/app/api/tax/pack/route.ts](../../src/app/api/tax/pack/route.ts) | getSessionUser( |  |
 | `/api/whatsapp/preview` | GET | [src/app/api/whatsapp/preview/route.ts](../../src/app/api/whatsapp/preview/route.ts) | getSessionUser( | acct_whatsapp_recipients, acct_whatsapp_subscriptions |

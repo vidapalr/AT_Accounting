@@ -7,21 +7,17 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import PrintButton from "@/components/PrintButton";
 import Letterhead from "@/components/Letterhead";
-import { DEFAULT_TERMS, LETTER_TYPES, renderLetter, type LetterType, type Terms } from "@/lib/staff-letters";
-import { loadComponents, loadCtcOptions, loadPayrollSettings, toPaise } from "@/lib/payroll/data";
-import { ctcFromGross } from "@/lib/payroll/ctc";
-import { loadLetterTemplate } from "@/lib/letter-templates";
+import { LETTER_TYPES } from "@/lib/staff-letters";
+import { loadStaffLetter } from "@/lib/staff-letter-data";
 import { getBrand } from "@/lib/brand";
+import { keepLetterAction, keepPayslipAction } from "@/lib/staff-paper-actions";
 import { fieldBlock as field } from "@/lib/ui/styles";
-import { todayInIndia as today } from "@/lib/format";
 import PayslipView, { PAYSLIP_SELECT } from "@/components/PayslipView";
 
-type SP = { type?: string; title?: string; notice?: string; probation?: string; hours?: string; off?: string; leaves?: string; month?: string; new_salary?: string; effective?: string; reason?: string };
+type SP = { saved?: string; error?: string; type?: string; title?: string; notice?: string; probation?: string; hours?: string; off?: string; leaves?: string; month?: string; new_salary?: string; effective?: string; reason?: string };
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<SP> };
 
-const dmy = (v: unknown) => (v ? new Date(v as string).toLocaleDateString("en-GB").replaceAll("/", "-") : "");
 const inr = (v: unknown) => Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const clean = (v: string | undefined, max: number, fallback: string) => (v ?? "").trim().slice(0, max) || fallback;
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 async function Content({ params, searchParams }: Props) {
@@ -30,53 +26,11 @@ async function Content({ params, searchParams }: Props) {
   const q = await searchParams;
   if (!/^[1-9]\d{0,9}$/.test(id)) notFound();
   const businessId = user.legal_business_id;
+  const loaded = await loadStaffLetter(businessId, Number(id), q);
+  if (!loaded) notFound();
+  const { type, ctx, address, month } = loaded;
+  const { terms, title } = ctx;
   const brand = await getBrand(businessId);
-
-  const [emp] = await db.execute<RowDataPacket[]>(
-    `SELECT * FROM acct_employees WHERE legal_business_id = ? AND id = ?`, [businessId, Number(id)]);
-  const e = emp[0];
-  if (!e) notFound();
-
-  const defaultType: LetterType =
-    e.employment_type === "DAILY_WAGE" ? "daily_wage_engagement"
-      : e.employment_type === "HOURLY" ? "hourly_engagement"
-        : e.employment_type === "PART_TIME" ? "part_time_appointment" : "appointment";
-  const type: LetterType = LETTER_TYPES.some((t) => t.key === q.type) ? (q.type as LetterType) : defaultType;
-  const terms: Terms = {
-    noticeDays: clean(q.notice, 3, DEFAULT_TERMS.noticeDays).replace(/\D/g, "") || DEFAULT_TERMS.noticeDays,
-    probationDays: clean(q.probation, 3, DEFAULT_TERMS.probationDays).replace(/\D/g, "") || "0",
-    hours: clean(q.hours, 60, DEFAULT_TERMS.hours),
-    weeklyOff: clean(q.off, 60, DEFAULT_TERMS.weeklyOff),
-    leaves: clean(q.leaves, 3, DEFAULT_TERMS.leaves).replace(/\D/g, "") || "0",
-  };
-  const title = ["Mr.", "Ms.", "Mrs."].includes(q.title ?? "") ? String(q.title) : "";
-  const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(q.month ?? "") ? String(q.month) : today().slice(0, 7);
-
-  const [branch] = await db.execute<RowDataPacket[]>(
-    `SELECT address_line1, address_line2, city, state, postal_code FROM acct_branches
-      WHERE legal_business_id = ? AND id = ? LIMIT 1`, [businessId, Number(e.branch_id ?? 0)]);
-  const b = branch[0];
-  const address = [b?.address_line1, b?.address_line2, b?.city, b?.state, b?.postal_code].filter(Boolean).join(", ") || brand.place;
-
-  const ctx = {
-    title, name: String(e.full_name), jobTitle: String(e.job_title ?? ""),
-    salary: inr(e.monthly_salary), joinedOn: dmy(e.joined_on), noticeGivenOn: dmy(e.notice_given_on),
-    leftOn: dmy(e.left_on), letterDate: dmy(today()), place: String(b?.city ?? brand.place), terms,
-    employer: brand.shopName !== brand.groupName ? `${brand.groupName} (${brand.shopName})` : brand.groupName,
-    newSalary: /^\d{1,9}(\.\d{1,2})?$/.test(q.new_salary ?? "") ? inr(q.new_salary) : "",
-    effectiveFrom: /^\d{4}-\d{2}-\d{2}$/.test(q.effective ?? "") ? dmy(q.effective) : "",
-    reason: clean(q.reason, 300, ""),
-    employmentType: (["PART_TIME", "DAILY_WAGE", "HOURLY"].includes(String(e.employment_type)) ? String(e.employment_type) : "FULL_TIME") as "FULL_TIME" | "PART_TIME" | "DAILY_WAGE" | "HOURLY",
-    dailyWage: e.daily_wage == null ? "" : inr(e.daily_wage),
-    hourlyRate: e.hourly_rate == null ? "" : inr(e.hourly_rate),
-    ctc: await (async () => {
-      if (["DAILY_WAGE", "HOURLY"].includes(String(e.employment_type ?? "FULL_TIME"))) return "";
-      const month = today().slice(0, 7);
-      const [settings, components, options] = await Promise.all([loadPayrollSettings(businessId), loadComponents(businessId), loadCtcOptions(businessId)]);
-      const c = ctcFromGross({ monthlyGross: toPaise(e.monthly_salary ?? 0), components, settings, options, month });
-      return inr(Number(c.annual.ctc) / 100);
-    })(),
-  };
 
   let slip: RowDataPacket | null = null;
   let fullSlip: RowDataPacket | null = null;
@@ -90,7 +44,7 @@ async function Content({ params, searchParams }: Props) {
       fullSlip = full[0] ?? null;
     } catch { /* before migration 088: the short pay slip below */ }
   }
-  const letter = type === "payslip" ? null : renderLetter(await loadLetterTemplate(businessId, type), ctx);
+  const letter = loaded.letter;
   const [yy, mm] = month.split("-");
 
   return (
@@ -99,6 +53,8 @@ async function Content({ params, searchParams }: Props) {
       <div className="no-print">
         <Link className="btn-link" href={`/accounting/salaries/${id}`}>← {ctx.name}</Link>
         <h1>Letters for {ctx.name}</h1>
+        {q.saved ? <p role="status" style={{ color: "#166534" }}>{q.saved}</p> : null}
+        {q.error ? <p role="alert" style={{ color: "#b91c1c" }}>{q.error}</p> : null}
         <form method="get" style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", margin: "12px 0" }}>
           <label>Which paper
             <select name="type" defaultValue={type} style={field}>
@@ -124,8 +80,25 @@ async function Content({ params, searchParams }: Props) {
             <PrintButton label="Print" />
           </div>
         </form>
+        {type === "payslip" ? (
+          <form action={keepPayslipAction} style={{ margin: "8px 0" }}>
+            <input type="hidden" name="employee_id" value={String(id)} />
+            <input type="hidden" name="month" value={month} />
+            <button type="submit" className="btn-link" style={{ cursor: "pointer" }}>Keep this pay slip in {ctx.name}&apos;s folder</button>
+          </form>
+        ) : (
+          <form action={keepLetterAction} style={{ margin: "8px 0" }}>
+            <input type="hidden" name="employee_id" value={String(id)} />
+            {([["type", type], ["title", title], ["notice", terms.noticeDays], ["probation", terms.probationDays], ["hours", terms.hours],
+               ["off", terms.weeklyOff], ["leaves", terms.leaves], ["month", month], ["new_salary", q.new_salary ?? ""],
+               ["effective", q.effective ?? ""], ["reason", ctx.reason]] as Array<[string, string]>).map(([n, v]) => (
+              <input key={n} type="hidden" name={n} value={v} />
+            ))}
+            <button type="submit" className="btn-link" style={{ cursor: "pointer" }}>Keep this letter in {ctx.name}&apos;s folder</button>
+          </form>
+        )}
         <p style={{ color: "#64748b", fontSize: 13 }}>
-          The wording of each letter can be changed on <Link href="/accounting/letter-templates">Letter templates</Link>. Check the terms above, press Show the paper, read it, then Print. Anything in [square brackets] is missing from the staff record: fill it on the person&apos;s Staff record page first.
+          The wording of each letter can be changed on <Link href="/accounting/letter-templates">Letter templates</Link>. Check the terms above, press Show the paper, read it, then Print. Keeping it in the folder saves a PDF under the person&apos;s <Link href={`/accounting/salaries/${id}`}>staff record</Link>. Anything in [square brackets] is missing from the staff record: fill it on the person&apos;s Staff record page first.
         </p>
       </div>
 

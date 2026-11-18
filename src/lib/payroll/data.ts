@@ -8,7 +8,7 @@ import { ageAt, computePayslip, daysIn, defaultPaidDays, DEFAULT_SETTINGS, fySta
 import { ESI_DEFAULTS, PF_DEFAULTS, PT_PRESETS, parsePtSlabs } from "./rules";
 import { openAdvances } from "@/lib/staff-advance-recovery";
 import { monthHours, monthMarks, type DayStatus } from "@/lib/attendance";
-import { DEFAULT_CTC_OPTIONS, paidDaysFromAttendance, type CtcOptions, type EmploymentType } from "./ctc";
+import { DEFAULT_CTC_OPTIONS, DEFAULT_NORMAL_MONTH, paidDaysFromAttendance, type CtcOptions, type EmploymentType } from "./ctc";
 
 type Q = Pool | PoolConnection;
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -28,6 +28,7 @@ export const PAYROLL_KEYS = [
   "payroll_pf_employee_bps", "payroll_pf_employer_bps",
   "payroll_esi_enabled", "payroll_pt_enabled", "payroll_pt_state", "payroll_pt_slabs", "payroll_tds_enabled",
   "payroll_tan", "payroll_ctc_bonus", "payroll_ctc_gratuity", "payroll_bonus_wage_cap",
+  "payroll_ctc_days", "payroll_ctc_hours",
 ] as const;
 
 const bps = (v: string | undefined, fallback: number) => {
@@ -231,6 +232,64 @@ export async function loadCtcOptions(businessId: number, conn: Q = db): Promise<
   const s = Object.fromEntries(rows.map((r) => [String(r.setting_key), String(r.setting_value ?? "")]));
   const cap = Number(s.payroll_bonus_wage_cap);
   return { ...DEFAULT_CTC_OPTIONS, bonus: s.payroll_ctc_bonus === "1", gratuity: s.payroll_ctc_gratuity === "1", bonusWageCap: Number.isFinite(cap) && cap > 0 ? BigInt(Math.round(cap * 100)) : DEFAULT_CTC_OPTIONS.bonusWageCap };
+}
+
+/** Everyone who should get a payslip for a month: still working, or left during or after it. */
+export async function employeesForPay(businessId: number, month: string, conn: Q = db, onlyId?: number): Promise<EmployeeForPay[]> {
+  const [rows] = await conn.query<Row[]>(
+    `SELECT * FROM acct_employees
+      WHERE legal_business_id = ? ${onlyId ? "AND id = ?" : ""}
+        AND (status = 'ACTIVE' OR (left_on IS NOT NULL AND left_on >= ?))
+        AND (joined_on IS NULL OR joined_on <= LAST_DAY(?))
+      ORDER BY full_name`,
+    onlyId ? [businessId, onlyId, `${month}-01`, `${month}-01`] : [businessId, `${month}-01`, `${month}-01`]
+  );
+  return rows as EmployeeForPay[];
+}
+
+/**
+ * Works out (or refreshes) draft payslips for a month from the attendance register. A payslip that is
+ * already paid is never touched, and days or an advance someone corrected on a draft are kept.
+ * Used by the Payroll screen and by the monthly job that runs on its own.
+ */
+export async function preparePayslips(businessId: number, month: string, userId: number, conn: Q = db): Promise<number> {
+  const settings = await loadPayrollSettings(businessId, conn);
+  const components = await loadComponents(businessId, conn);
+  const [done] = await conn.query<Row[]>(
+    `SELECT employee_id, status, paid_days, advance_deducted FROM acct_payslips WHERE legal_business_id = ? AND salary_month = ?`,
+    [businessId, month]
+  );
+  const existing = new Map(done.map((d) => [Number(d.employee_id), d]));
+  const [paidOld] = await conn.query<Row[]>(
+    `SELECT employee_id FROM acct_salary_payments WHERE legal_business_id = ? AND salary_month = ?`,
+    [businessId, month]
+  );
+  const paidBefore = new Set(paidOld.map((r) => Number(r.employee_id)));
+  let count = 0;
+  for (const e of await employeesForPay(businessId, month, conn)) {
+    const prev = existing.get(Number(e.id));
+    if (prev?.status === "PAID" || (paidBefore.has(Number(e.id)) && !prev)) continue;
+    const { input, slip } = await buildPayslip(conn, businessId, e, month, {
+      settings, components,
+      ...(prev ? { paidDays: Number(prev.paid_days), advance: toPaise(prev.advance_deducted) } : {}),
+    });
+    await saveDraftPayslip(conn, businessId, Number(e.id), month, input, slip, userId);
+    count++;
+  }
+  return count;
+}
+
+/** The normal month (working days and hours a day) used to show a cost to company for wage staff. */
+export async function loadNormalMonth(businessId: number, conn: Q = db): Promise<{ daysAMonth: number; hoursADay: number }> {
+  const [rows] = await conn.query<Row[]>(
+    `SELECT setting_key, setting_value FROM acct_business_settings WHERE legal_business_id = ? AND setting_key IN ('payroll_ctc_days', 'payroll_ctc_hours')`,
+    [businessId]
+  );
+  const s = Object.fromEntries(rows.map((r) => [String(r.setting_key), Number(r.setting_value)]));
+  return {
+    daysAMonth: s.payroll_ctc_days > 0 && s.payroll_ctc_days <= 31 ? s.payroll_ctc_days : DEFAULT_NORMAL_MONTH.daysAMonth,
+    hoursADay: s.payroll_ctc_hours > 0 && s.payroll_ctc_hours <= 16 ? s.payroll_ctc_hours : DEFAULT_NORMAL_MONTH.hoursADay,
+  };
 }
 
 /** What is still owed on advances (for capping the amount taken back when paying). */

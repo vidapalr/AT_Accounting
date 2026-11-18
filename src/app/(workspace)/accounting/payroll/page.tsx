@@ -42,6 +42,15 @@ async function Content({ searchParams }: Props) {
     throw error;
   }
   const settings = await loadPayrollSettings(biz);
+  // When the monthly job last worked pay slips out on its own: "<time>|<month>|<count>".
+  const [runRows] = await db.query<Row[]>(
+    `SELECT setting_value FROM acct_business_settings WHERE legal_business_id = ? AND setting_key = 'payroll_last_run'`,
+    [biz]
+  ).catch(() => [[] as Row[]]);
+  const runParts = String(runRows[0]?.setting_value ?? "").split("|");
+  const lastRun = runParts.length === 3 && /^\d{4}-\d{2}$/.test(runParts[1])
+    ? { on: new Date(runParts[0]).toLocaleDateString("en-GB").replaceAll("/", "-"), month: runParts[1], count: Number(runParts[2]) || 0 }
+    : null;
   const accounts = await paymentAccounts(biz);
   const drafts = slips.filter((s) => s.status === "DRAFT");
   const sum = (k: string) => slips.reduce((t, s) => t + Number(s[k] ?? 0), 0);
@@ -63,6 +72,13 @@ async function Content({ searchParams }: Props) {
         PF {on(settings.pf.enabled)} · ESI {on(settings.esi.enabled)} · Professional tax {on(settings.pt.enabled)} · Income tax (TDS) {on(settings.tds.enabled)} ·{" "}
         <Link href="/accounting/payroll/settings">Payroll settings</Link> · <Link href={`/accounting/payroll/dues?month=${month}`}>Statutory dues and returns</Link>
       </p>
+
+      {lastRun ? (
+        <p style={muted}>
+          The monthly job last worked out pay slips for {label(lastRun.month)} on {lastRun.on} ({lastRun.count} pay slip{lastRun.count === 1 ? "" : "s"}), from the{" "}
+          <Link href="/accounting/attendance">attendance register</Link>. Nothing is paid until someone presses Pay below.
+        </p>
+      ) : null}
 
       <form action={preparePayrollAction} style={{ margin: "12px 0" }}>
         <input type="hidden" name="month" value={month} />

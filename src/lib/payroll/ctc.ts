@@ -96,6 +96,24 @@ export const EMPLOYMENT_TYPES: Array<{ key: EmploymentType; label: string }> = [
  *  - monthly staff (full and part time): days in the month less days marked absent (unpaid).
  * Days with no mark are not cut for monthly staff (weekly off, holiday, not yet marked).
  */
+/**
+ * What a person's pay would be in a normal month, so a cost to company can be shown for every type of
+ * work. Monthly staff: their salary. Daily wage: wage x working days. By the hour: rate x hours a day x
+ * working days. The working days and hours a day come from Payroll settings (26 days, 8 hours by default).
+ */
+export function monthlyGrossFor(
+  type: EmploymentType,
+  pay: { monthlySalary: bigint; dailyWage: bigint; hourlyRate: bigint },
+  normal: { daysAMonth: number; hoursADay: number } = DEFAULT_NORMAL_MONTH
+): bigint {
+  if (type === "DAILY_WAGE") return pay.dailyWage * BigInt(Math.round(normal.daysAMonth));
+  if (type === "HOURLY") return (pay.hourlyRate * BigInt(Math.round(normal.daysAMonth * normal.hoursADay * 10))) / 10n;
+  return pay.monthlySalary;
+}
+
+/** The normal month used to show a cost to company for wage and hourly staff. */
+export const DEFAULT_NORMAL_MONTH = { daysAMonth: 26, hoursADay: 8 };
+
 export function paidDaysFromAttendance(type: EmploymentType, daysInMonth: number, marks: { present: number; half: number; absent: number }): number {
   if (type === "HOURLY") return daysInMonth;
   if (type === "DAILY_WAGE") return Math.min(daysInMonth, marks.present + marks.half / 2);

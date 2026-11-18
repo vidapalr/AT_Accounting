@@ -2,7 +2,7 @@
 
 Source-derived: base schema (through migration 040), followed by migrations 041–078. These are exact CREATE/ALTER definitions, not a database introspection or a flattened final schema. Read later ALTER statements to determine a column’s latest type/default and indexes. DML backfills, triggers and seed records remain in the linked SQL sources. No migrations were executed. The base dump identifies MariaDB 11.8.9; MySQL compatibility must not be assumed.
 
-Tables with CREATE definitions: **156**. Explicit foreign-key declarations extracted: **190**.
+Tables with CREATE definitions: **157**. Explicit foreign-key declarations extracted: **191**.
 
 ## acct_account_map
 
@@ -1643,6 +1643,36 @@ ALTER TABLE `acct_document_sequences`
   ADD CONSTRAINT `fk_document_sequence_business` FOREIGN KEY (`legal_business_id`) REFERENCES `acct_legal_businesses` (`id`);
 ```
 
+## acct_employee_documents
+
+Definition: [migrations/093_staff_folder_and_papers.sql](../../migrations/093_staff_folder_and_papers.sql) (line 14)
+
+```sql
+CREATE TABLE IF NOT EXISTS acct_employee_documents (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  legal_business_id BIGINT UNSIGNED NOT NULL,
+  employee_id BIGINT UNSIGNED NOT NULL,
+  folder ENUM('PERSONAL','OFFICIAL') NOT NULL DEFAULT 'PERSONAL',
+  kind ENUM('AADHAAR','PAN','PHOTO','ADDRESS_PROOF','BANK_PROOF','QUALIFICATION','OTHER_PERSONAL',
+            'OFFER_LETTER','APPOINTMENT_LETTER','ENGAGEMENT_LETTER','CONFIRMATION_LETTER','INCREMENT_LETTER',
+            'WARNING_LETTER','RESIGNATION','RELIEVING_LETTER','EXPERIENCE_LETTER','PAYSLIP','AGREEMENT','OTHER_OFFICIAL')
+       NOT NULL DEFAULT 'OTHER_PERSONAL',
+  label VARCHAR(150) NULL,
+  storage_key VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(100) NOT NULL,
+  size_bytes INT UNSIGNED NOT NULL DEFAULT 0,
+  /** For a payslip or a letter: the month or date it belongs to, so the folder reads in order. */
+  belongs_to VARCHAR(10) NULL,
+  status ENUM('ACTIVE','REMOVED') NOT NULL DEFAULT 'ACTIVE',
+  uploaded_by BIGINT UNSIGNED NULL,
+  uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_employee_document_key (storage_key),
+  KEY idx_employee_documents (legal_business_id, employee_id, folder, kind),
+  CONSTRAINT fk_employee_documents_business FOREIGN KEY (legal_business_id) REFERENCES acct_legal_businesses (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
 ## acct_employee_pay_history
 
 Definition: [migrations/062_staff_record.sql](../../migrations/062_staff_record.sql) (line 8)
@@ -1799,6 +1829,12 @@ Change: [migrations/092_hourly_workers.sql](../../migrations/092_hourly_workers.
 
 ```sql
 ALTER TABLE acct_employees ADD COLUMN IF NOT EXISTS hourly_rate DECIMAL(12,2) NULL;
+```
+
+Change: [migrations/093_staff_folder_and_papers.sql](../../migrations/093_staff_folder_and_papers.sql)
+
+```sql
+ALTER TABLE acct_employees ADD COLUMN IF NOT EXISTS aadhaar_last4 CHAR(4) NULL;
 ```
 
 ## acct_expense_payments

@@ -10,7 +10,7 @@ import { QuickExpenseError, recordExpensePayment, recordQuickExpense } from "@/l
 import { takeBackAdvance } from "@/lib/staff-advance-recovery";
 import { saveBusinessSettings } from "@/lib/business-settings";
 import { todayInIndia } from "@/lib/format";
-import { advanceOwed, buildPayslip, loadComponents, loadPayrollSettings, payslipColumns, rupeesText, saveDraftPayslip, toPaise, type EmployeeForPay } from "@/lib/payroll/data";
+import { advanceOwed, buildPayslip, employeesForPay, preparePayslips, loadComponents, loadPayrollSettings, payslipColumns, rupeesText, saveDraftPayslip, toPaise, type EmployeeForPay } from "@/lib/payroll/data";
 import { parsePtSlabs, PT_PRESETS } from "@/lib/payroll/rules";
 
 const RUN = "/accounting/payroll";
@@ -24,48 +24,12 @@ const go = (page: string, params: Record<string, string>): never => redirect(`${
 const isRedirect = (e: unknown) => !!e && typeof e === "object" && "digest" in e && String((e as { digest: unknown }).digest).startsWith("NEXT_REDIRECT");
 const monthLabel = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
 
-async function employeesFor(businessId: number, month: string, onlyId?: number): Promise<EmployeeForPay[]> {
-  const [rows] = await db.query<Row[]>(
-    `SELECT * FROM acct_employees
-      WHERE legal_business_id = ? ${onlyId ? "AND id = ?" : ""}
-        AND (status = 'ACTIVE' OR (left_on IS NOT NULL AND left_on >= ?))
-        AND (joined_on IS NULL OR joined_on <= LAST_DAY(?))
-      ORDER BY full_name`,
-    onlyId ? [businessId, onlyId, `${month}-01`, `${month}-01`] : [businessId, `${month}-01`, `${month}-01`]
-  );
-  return rows as EmployeeForPay[];
-}
-
 /** Work out (or refresh) the payslips of everyone for a month. Paid ones are never changed. */
 export async function preparePayrollAction(form: FormData): Promise<void> {
   const user = await requireAccess("salary");
   const month = text(form, "month");
   if (!isMonth(month)) redirect(RUN);
-  const biz = user.legal_business_id;
-  const settings = await loadPayrollSettings(biz);
-  const components = await loadComponents(biz);
-  const [done] = await db.query<Row[]>(
-    `SELECT employee_id, status, paid_days, advance_deducted FROM acct_payslips WHERE legal_business_id = ? AND salary_month = ?`,
-    [biz, month]
-  );
-  const existing = new Map(done.map((d) => [Number(d.employee_id), d]));
-  const [paidOld] = await db.query<Row[]>(
-    `SELECT employee_id FROM acct_salary_payments WHERE legal_business_id = ? AND salary_month = ?`,
-    [biz, month]
-  );
-  const paidBefore = new Set(paidOld.map((r) => Number(r.employee_id)));
-  let count = 0;
-  for (const e of await employeesFor(biz, month)) {
-    const prev = existing.get(Number(e.id));
-    if (prev?.status === "PAID" || (paidBefore.has(Number(e.id)) && !prev)) continue;
-    const { input, slip } = await buildPayslip(db, biz, e, month, {
-      settings, components,
-      // Keep the days and advance someone already corrected on a draft.
-      ...(prev ? { paidDays: Number(prev.paid_days), advance: toPaise(prev.advance_deducted) } : {}),
-    });
-    await saveDraftPayslip(db, biz, Number(e.id), month, input, slip, user.id);
-    count++;
-  }
+  const count = await preparePayslips(user.legal_business_id, month, user.id);
   revalidatePath(RUN);
   go(RUN, { month, saved: `${count} payslip${count === 1 ? "" : "s"} worked out for ${monthLabel(month)}. Check the days, then pay.` });
 }
@@ -83,7 +47,7 @@ export async function updatePayslipAction(form: FormData): Promise<void> {
   if (!/^\d{1,9}(\.\d{1,2})?$/.test(advanceText)) go(RUN, { month, error: "Type the advance to take back in rupees, or 0." });
   const [rows] = await db.query<Row[]>(`SELECT employee_id, status FROM acct_payslips WHERE legal_business_id = ? AND id = ?`, [biz, id]);
   if (!rows[0] || rows[0].status !== "DRAFT") go(RUN, { month, error: "That payslip is already paid or no longer exists." });
-  const [e] = await employeesFor(biz, month, Number(rows[0].employee_id));
+  const [e] = await employeesForPay(biz, month, db, Number(rows[0].employee_id));
   if (!e) go(RUN, { month, error: "That person is not on the list for this month." });
   const { input, slip } = await buildPayslip(db, biz, e, month, { paidDays: days, advance: toPaise(advanceText) });
   await saveDraftPayslip(db, biz, Number(e.id), month, input, slip, user.id);
@@ -312,6 +276,8 @@ export async function savePayrollSettingsAction(form: FormData): Promise<void> {
     payroll_ctc_bonus: flag("payroll_ctc_bonus"),
     payroll_ctc_gratuity: flag("payroll_ctc_gratuity"),
     payroll_bonus_wage_cap: /^\d{1,6}$/.test(text(form, "payroll_bonus_wage_cap")) ? text(form, "payroll_bonus_wage_cap") : "7000",
+    payroll_ctc_days: Number(text(form, "payroll_ctc_days")) > 0 && Number(text(form, "payroll_ctc_days")) <= 31 ? String(Number(text(form, "payroll_ctc_days"))) : "26",
+    payroll_ctc_hours: Number(text(form, "payroll_ctc_hours")) > 0 && Number(text(form, "payroll_ctc_hours")) <= 16 ? String(Number(text(form, "payroll_ctc_hours"))) : "8",
   }, user.id);
   revalidatePath(SETTINGS);
   go(SETTINGS, { saved: "Payroll settings saved. They apply to payslips worked out from now on." });
