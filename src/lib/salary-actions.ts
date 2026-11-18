@@ -92,7 +92,9 @@ export async function addEmployeeAction(formData: FormData) {
     [user.legal_business_id, user.id, saved.insertId, JSON.stringify({ salary, type, wage: wage || null, rate: rate || null })]
   );
   revalidatePath(PAGE);
-  go(month, "saved", `${name} added.`);
+  // Straight to the person's record: the cost to company is worked out there, and it says which
+  // papers to take (Aadhaar, PAN) and which letter to make.
+  redirect(`${PAGE}/${saved.insertId}?saved=${encodeURIComponent(`${name} added. Take their Aadhaar and PAN, and make the letter.`)}`);
 }
 
 /** Change a salary (from the next payment) or mark the person as having left. */

@@ -31,6 +31,8 @@ Compare the resulting schema with the [DDL history](DATABASE_DICTIONARY.md), the
 | SQL | DB variables above and a compatible MariaDB server |
 | Bank account encryption | `BANK_ENCRYPTION_KEY` and `BANK_FINGERPRINT_KEY`, each a 32-byte hex key; preserve keys securely across deployments/restores |
 | Portal password encryption | `SECRETS_ENCRYPTION_KEY` (32-byte hex). Falls back to `BANK_ENCRYPTION_KEY` when not set. Never change it after passwords are saved, or they can no longer be opened |
+| Monthly payroll job | `CRON_SECRET` (16+ characters). Schedule `GET /api/payroll/run?secret=<CRON_SECRET>` on the 1st of every month: it works out draft pay slips for the month just finished from the attendance register, for every company. Nothing is paid automatically |
+| Staff papers | Kept under `PRIVATE_DIR/staff/<company>/<person>/`. Include this folder in the uploaded-file backup; SQL alone does not preserve it |
 | AI assistant (answers only) | `ANTHROPIC_API_KEY` switches on Reports > Ask about your business; `AI_MODEL` optional (default `claude-sonnet-5-5`). Without a key the page explains how to switch it on |
 | Product media | `MEDIA_DIR`; use persistent storage outside the replaced application release folder |
 | Private documents | `PRIVATE_DIR` (outside the release folder); falls back to `<process.cwd()>/private_uploads` |

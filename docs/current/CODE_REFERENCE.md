@@ -1574,9 +1574,9 @@ Direct table references: acct_document_log
 
 ## src/lib/document-storage.ts
 
-[src/lib/document-storage.ts](../../src/lib/document-storage.ts) · 108 lines
+[src/lib/document-storage.ts](../../src/lib/document-storage.ts) · 143 lines
 
-Exports: `MAX_DOCUMENT_SIZE`, `AllowedDocumentType`, `detectDocumentType`, `savePrivateDocument`, `readPrivateDocument`, `deletePrivateDocument`
+Exports: `MAX_DOCUMENT_SIZE`, `AllowedDocumentType`, `detectDocumentType`, `savePrivateDocument`, `readPrivateDocument`, `deletePrivateDocument`, `staffFolderPath`, `saveStaffFile`, `readStaffFile`, `deleteStaffFile`
 
 Local dependencies: [src/lib/private-root.ts](../../src/lib/private-root.ts)
 
@@ -2334,13 +2334,13 @@ Direct table references: None
 
 ## src/lib/migration-check.ts
 
-[src/lib/migration-check.ts](../../src/lib/migration-check.ts) · 118 lines
+[src/lib/migration-check.ts](../../src/lib/migration-check.ts) · 119 lines
 
 Exports: `MIGRATION_MARKERS`, `missingMigrations`
 
 Local dependencies: None
 
-Direct table references: acct_account_map, acct_approval_items, acct_approval_requests, acct_attendance, acct_auditor_adjustments, acct_bank_statement_lines, acct_bot_answers, acct_budgets, acct_business_hosts, acct_business_settings, acct_cash_closings, acct_cash_note_log, acct_customer_credits, acct_customer_messages, acct_customer_notes, acct_customers, acct_deals, acct_document_log, acct_employee_pay_history, acct_employees, acct_expenses, acct_fixed_assets, acct_funding_transactions, acct_gst_payments, acct_instagram_posts, acct_invoice_shares, acct_leads, acct_letter_templates, acct_login_attempts, acct_offers, acct_online_orders, acct_owner_accounts, acct_owner_money, acct_party_setoffs, acct_payslips, acct_posting_failures, acct_product_media, acct_product_variants, acct_products, acct_purchase_lines, acct_purchase_orders, acct_purchase_payments, acct_reel_tracks, acct_sale_rewards, acct_sales_headers, acct_sales_payments, acct_sales_returns, acct_selling_prices, acct_serials, acct_service_tickets, acct_shop_customers, acct_shop_email_verifications, acct_shop_password_resets, acct_staff_advances, acct_statutory_logins, acct_stock_finds, acct_stock_movements, acct_stock_reporters, acct_supplier_returns, acct_suppliers, acct_tax_challans, acct_user_access, acct_user_totp, acct_vouchers, acct_wa_broadcasts, acct_wa_status_log, acct_whatsapp_recipients
+Direct table references: acct_account_map, acct_approval_items, acct_approval_requests, acct_attendance, acct_auditor_adjustments, acct_bank_statement_lines, acct_bot_answers, acct_budgets, acct_business_hosts, acct_business_settings, acct_cash_closings, acct_cash_note_log, acct_customer_credits, acct_customer_messages, acct_customer_notes, acct_customers, acct_deals, acct_document_log, acct_employee_documents, acct_employee_pay_history, acct_employees, acct_expenses, acct_fixed_assets, acct_funding_transactions, acct_gst_payments, acct_instagram_posts, acct_invoice_shares, acct_leads, acct_letter_templates, acct_login_attempts, acct_offers, acct_online_orders, acct_owner_accounts, acct_owner_money, acct_party_setoffs, acct_payslips, acct_posting_failures, acct_product_media, acct_product_variants, acct_products, acct_purchase_lines, acct_purchase_orders, acct_purchase_payments, acct_reel_tracks, acct_sale_rewards, acct_sales_headers, acct_sales_payments, acct_sales_returns, acct_selling_prices, acct_serials, acct_service_tickets, acct_shop_customers, acct_shop_email_verifications, acct_shop_password_resets, acct_staff_advances, acct_statutory_logins, acct_stock_finds, acct_stock_movements, acct_stock_reporters, acct_supplier_returns, acct_suppliers, acct_tax_challans, acct_user_access, acct_user_totp, acct_vouchers, acct_wa_broadcasts, acct_wa_status_log, acct_whatsapp_recipients
 
 ## src/lib/month-close.ts
 
@@ -2532,6 +2532,16 @@ Local dependencies: None
 
 Direct table references: None
 
+## src/lib/paper-pdf.ts
+
+[src/lib/paper-pdf.ts](../../src/lib/paper-pdf.ts) · 66 lines
+
+Exports: `PaperPdf`, `paperToPdf`
+
+Local dependencies: None
+
+Direct table references: None
+
 ## src/lib/participation-reconciliation.ts
 
 [src/lib/participation-reconciliation.ts](../../src/lib/participation-reconciliation.ts) · 362 lines
@@ -2574,7 +2584,7 @@ Direct table references: acct_bank_accounts, acct_cash_accounts
 
 ## src/lib/payroll-actions.ts
 
-[src/lib/payroll-actions.ts](../../src/lib/payroll-actions.ts) · 410 lines
+[src/lib/payroll-actions.ts](../../src/lib/payroll-actions.ts) · 376 lines
 
 Exports: `preparePayrollAction`, `updatePayslipAction`, `removePayslipDraftAction`, `payPayslipsAction`, `remitStatutoryAction`, `savePayrollSettingsAction`, `savePayComponentsAction`, `saveEmployeeStatutoryAction`, `saveEmploymentAction`
 
@@ -2584,9 +2594,9 @@ Direct table references: acct_audit_events, acct_employees, acct_pay_components,
 
 ## src/lib/payroll/ctc.ts
 
-[src/lib/payroll/ctc.ts](../../src/lib/payroll/ctc.ts) · 104 lines
+[src/lib/payroll/ctc.ts](../../src/lib/payroll/ctc.ts) · 122 lines
 
-Exports: `CtcOptions`, `DEFAULT_CTC_OPTIONS`, `Ctc`, `ctcFromGross`, `grossFromCtc`, `EmploymentType`, `EMPLOYMENT_TYPES`, `paidDaysFromAttendance`
+Exports: `CtcOptions`, `DEFAULT_CTC_OPTIONS`, `Ctc`, `ctcFromGross`, `grossFromCtc`, `EmploymentType`, `EMPLOYMENT_TYPES`, `monthlyGrossFor`, `DEFAULT_NORMAL_MONTH`, `paidDaysFromAttendance`
 
 Local dependencies: [src/lib/payroll/engine.ts](../../src/lib/payroll/engine.ts)
 
@@ -2594,13 +2604,13 @@ Direct table references: None
 
 ## src/lib/payroll/data.ts
 
-[src/lib/payroll/data.ts](../../src/lib/payroll/data.ts) · 270 lines
+[src/lib/payroll/data.ts](../../src/lib/payroll/data.ts) · 329 lines
 
-Exports: `toPaise`, `rupeesText`, `PAYROLL_KEYS`, `loadPayrollSettings`, `loadComponents`, `salaryInForce`, `yearToDate`, `EmployeeForPay`, `buildPayslip`, `attendanceHours`, `attendanceMarks`, `loadCtcOptions`, `advanceOwed`, `payslipColumns`, `saveDraftPayslip`
+Exports: `toPaise`, `rupeesText`, `PAYROLL_KEYS`, `loadPayrollSettings`, `loadComponents`, `salaryInForce`, `yearToDate`, `EmployeeForPay`, `buildPayslip`, `attendanceHours`, `attendanceMarks`, `loadCtcOptions`, `employeesForPay`, `preparePayslips`, `loadNormalMonth`, `advanceOwed`, `payslipColumns`, `saveDraftPayslip`
 
 Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/db-errors.ts](../../src/lib/db-errors.ts), [src/lib/payroll/engine.ts](../../src/lib/payroll/engine.ts), [src/lib/payroll/rules.ts](../../src/lib/payroll/rules.ts), [src/lib/staff-advance-recovery.ts](../../src/lib/staff-advance-recovery.ts), [src/lib/attendance.ts](../../src/lib/attendance.ts), [src/lib/payroll/ctc.ts](../../src/lib/payroll/ctc.ts)
 
-Direct table references: acct_attendance, acct_business_settings, acct_employee_pay_history, acct_pay_components, acct_payslips, acct_salary_payments, acct_staff_advance_recoveries, acct_staff_advances
+Direct table references: acct_attendance, acct_business_settings, acct_employee_pay_history, acct_employees, acct_pay_components, acct_payslips, acct_salary_payments, acct_staff_advance_recoveries, acct_staff_advances
 
 ## src/lib/payroll/engine.ts
 
@@ -3074,7 +3084,7 @@ Direct table references: None
 
 ## src/lib/salary-actions.ts
 
-[src/lib/salary-actions.ts](../../src/lib/salary-actions.ts) · 143 lines
+[src/lib/salary-actions.ts](../../src/lib/salary-actions.ts) · 139 lines
 
 Exports: `addEmployeeAction`, `updateEmployeeAction`
 
@@ -3412,6 +3422,16 @@ Local dependencies: [src/lib/expense-quick.ts](../../src/lib/expense-quick.ts), 
 
 Direct table references: acct_staff_advance_recoveries, acct_staff_advances
 
+## src/lib/staff-letter-data.ts
+
+[src/lib/staff-letter-data.ts](../../src/lib/staff-letter-data.ts) · 121 lines
+
+Exports: `LetterQuery`, `typeOfWork`, `defaultLetterType`, `ctcForEmployee`, `StaffLetter`, `loadStaffLetter`
+
+Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/brand.ts](../../src/lib/brand.ts), [src/lib/letter-templates.ts](../../src/lib/letter-templates.ts), [src/lib/payroll/ctc.ts](../../src/lib/payroll/ctc.ts), [src/lib/payroll/data.ts](../../src/lib/payroll/data.ts), [src/lib/staff-letters.ts](../../src/lib/staff-letters.ts), [src/lib/format.ts](../../src/lib/format.ts)
+
+Direct table references: acct_branches, acct_employees
+
 ## src/lib/staff-letters.ts
 
 [src/lib/staff-letters.ts](../../src/lib/staff-letters.ts) · 370 lines
@@ -3421,6 +3441,26 @@ Exports: `LetterType`, `TemplateLetterType`, `LETTER_TYPES`, `Terms`, `DEFAULT_T
 Local dependencies: None
 
 Direct table references: acct_letter_templates
+
+## src/lib/staff-paper-actions.ts
+
+[src/lib/staff-paper-actions.ts](../../src/lib/staff-paper-actions.ts) · 221 lines
+
+Exports: `addStaffPaperAction`, `removeStaffPaperAction`, `saveAadhaarAction`, `keepLetterAction`, `keepPayslipAction`
+
+Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/lib/db-errors.ts](../../src/lib/db-errors.ts), [src/lib/document-storage.ts](../../src/lib/document-storage.ts), [src/lib/staff-papers.ts](../../src/lib/staff-papers.ts), [src/lib/staff-letter-data.ts](../../src/lib/staff-letter-data.ts), [src/lib/paper-pdf.ts](../../src/lib/paper-pdf.ts), [src/lib/brand.ts](../../src/lib/brand.ts)
+
+Direct table references: acct_employee_documents, acct_employees, acct_payslips
+
+## src/lib/staff-papers.ts
+
+[src/lib/staff-papers.ts](../../src/lib/staff-papers.ts) · 63 lines
+
+Exports: `PaperFolder`, `PaperKind`, `PAPER_KINDS`, `isPaperKind`, `paperLabel`, `folderOf`, `letterKindFor`, `missingPapers`, `aadhaarLast4`
+
+Local dependencies: None
+
+Direct table references: None
 
 ## src/lib/staff-record-actions.ts
 

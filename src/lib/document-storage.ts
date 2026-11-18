@@ -105,3 +105,38 @@ export async function deletePrivateDocument(
 
   await unlink(path.join(STORAGE_DIR, storageKey));
 }
+
+/**
+ * A folder of files for one member of staff, kept outside the app folder:
+ *   PRIVATE_DIR/staff/<company id>/<person id>/<name>.pdf|jpg|png
+ * The storage key is the path under PRIVATE_DIR, so the file can be found again.
+ */
+const STAFF_KEY = /^staff\/[1-9]\d*\/[1-9]\d*\/[0-9a-f-]{36}\.(pdf|jpg|png)$/;
+
+export function staffFolderPath(businessId: number, employeeId: number): string {
+  return path.join(STORAGE_DIR, "staff", String(businessId), String(employeeId));
+}
+
+export async function saveStaffFile(
+  businessId: number,
+  employeeId: number,
+  buffer: Buffer,
+  mimeType: AllowedDocumentType
+): Promise<string> {
+  const folder = staffFolderPath(businessId, employeeId);
+  await mkdir(folder, { recursive: true, mode: 0o700 });
+  const extension = mimeType === "application/pdf" ? "pdf" : mimeType === "image/jpeg" ? "jpg" : "png";
+  const name = `${randomUUID()}.${extension}`;
+  await writeFile(path.join(folder, name), buffer, { flag: "wx", mode: 0o600 });
+  return `staff/${businessId}/${employeeId}/${name}`;
+}
+
+export async function readStaffFile(storageKey: string): Promise<Buffer> {
+  if (!STAFF_KEY.test(storageKey)) throw new Error("Invalid storage key.");
+  return readFile(path.join(STORAGE_DIR, storageKey));
+}
+
+export async function deleteStaffFile(storageKey: string): Promise<void> {
+  if (!STAFF_KEY.test(storageKey)) throw new Error("Invalid storage key.");
+  await unlink(path.join(STORAGE_DIR, storageKey));
+}

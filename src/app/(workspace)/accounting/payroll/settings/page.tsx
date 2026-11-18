@@ -75,7 +75,7 @@ async function Content({ searchParams }: Props) {
           </div>
         </Section>
         <Section title="Cost to company (CTC)">
-          <p style={muted}>CTC = 12 months of gross salary + the business&apos;s PF and ESI share + the items ticked below. It is shown on each staff record and in offer letters.</p>
+          <p style={muted}>CTC = 12 months of gross salary + the business&apos;s PF and ESI share + the items ticked below. It is shown on every staff record, whatever way the person is paid, and in offer letters.</p>
           <div style={{ display: "grid", gap: 12 }}>
             {tick("payroll_ctc_bonus", "Include statutory bonus (8.33% of basic, for pay up to ₹21,000 a month)", s.payroll_ctc_bonus === "1")}
             {tick("payroll_ctc_gratuity", "Include gratuity provision (4.81% of basic)", s.payroll_ctc_gratuity === "1", "Gratuity is payable after 5 years of service (1 year for fixed-term staff under the labour codes).")}
@@ -83,6 +83,12 @@ async function Content({ searchParams }: Props) {
           <div style={formGrid}>
             <Field label="Basic counted for bonus, per month (₹)" hint="₹7,000, or the state minimum wage if that is higher.">
               <input name="payroll_bonus_wage_cap" defaultValue={s.payroll_bonus_wage_cap ?? "7000"} inputMode="numeric" disabled={!owner} style={fieldFull} />
+            </Field>
+            <Field label="Working days in a normal month" hint="Used to show a cost to company for daily-wage and hourly staff.">
+              <input name="payroll_ctc_days" defaultValue={s.payroll_ctc_days ?? "26"} inputMode="numeric" disabled={!owner} style={fieldFull} />
+            </Field>
+            <Field label="Working hours in a day" hint="Used to show a cost to company for hourly staff.">
+              <input name="payroll_ctc_hours" defaultValue={s.payroll_ctc_hours ?? "8"} inputMode="numeric" disabled={!owner} style={fieldFull} />
             </Field>
           </div>
         </Section>
