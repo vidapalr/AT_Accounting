@@ -329,6 +329,7 @@ erDiagram
   acct_gst_payments
   acct_attendance
   acct_employee_documents
+  acct_attendance_unmatched
   acct_branches |o..o{ acct_advances : "legal_business_id,division_id,branch_id"
   acct_legal_businesses |o..o{ acct_advances : "legal_business_id"
   acct_app_users |o..o{ acct_advances : "created_by"
@@ -384,6 +385,7 @@ erDiagram
   acct_legal_businesses |o..o{ acct_gst_payments : "legal_business_id"
   acct_legal_businesses |o..o{ acct_attendance : "legal_business_id"
   acct_legal_businesses |o..o{ acct_employee_documents : "legal_business_id"
+  acct_legal_businesses |o..o{ acct_attendance_unmatched : "legal_business_id"
 ```
 
 ## Foreign-key evidence
@@ -581,6 +583,7 @@ erDiagram
 | acct_statutory_logins | legal_business_id | acct_legal_businesses | id | [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql) |
 | acct_statutory_login_views | legal_business_id | acct_legal_businesses | id | [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql) |
 | acct_employee_documents | legal_business_id | acct_legal_businesses | id | [migrations/093_staff_folder_and_papers.sql](../../migrations/093_staff_folder_and_papers.sql) |
+| acct_attendance_unmatched | legal_business_id | acct_legal_businesses | id | [migrations/094_attendance_unmatched.sql](../../migrations/094_attendance_unmatched.sql) |
 
 ## Logical relationships requiring application enforcement
 

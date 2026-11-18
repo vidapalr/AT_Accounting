@@ -864,13 +864,13 @@ Direct table references: acct_attendance, acct_employees
 
 ## src/lib/attendance-data.ts
 
-[src/lib/attendance-data.ts](../../src/lib/attendance-data.ts) · 93 lines
+[src/lib/attendance-data.ts](../../src/lib/attendance-data.ts) · 131 lines
 
-Exports: `recordWhatsAppPunch`, `RegisterRow`, `loadRegister`
+Exports: `recordWhatsAppPunch`, `RegisterRow`, `unmatchedPunches`, `loadRegister`
 
 Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/db-errors.ts](../../src/lib/db-errors.ts), [src/lib/attendance.ts](../../src/lib/attendance.ts)
 
-Direct table references: acct_attendance, acct_employees
+Direct table references: acct_attendance, acct_attendance_unmatched, acct_employees
 
 ## src/lib/attendance.ts
 
@@ -2334,13 +2334,13 @@ Direct table references: None
 
 ## src/lib/migration-check.ts
 
-[src/lib/migration-check.ts](../../src/lib/migration-check.ts) · 119 lines
+[src/lib/migration-check.ts](../../src/lib/migration-check.ts) · 120 lines
 
 Exports: `MIGRATION_MARKERS`, `missingMigrations`
 
 Local dependencies: None
 
-Direct table references: acct_account_map, acct_approval_items, acct_approval_requests, acct_attendance, acct_auditor_adjustments, acct_bank_statement_lines, acct_bot_answers, acct_budgets, acct_business_hosts, acct_business_settings, acct_cash_closings, acct_cash_note_log, acct_customer_credits, acct_customer_messages, acct_customer_notes, acct_customers, acct_deals, acct_document_log, acct_employee_documents, acct_employee_pay_history, acct_employees, acct_expenses, acct_fixed_assets, acct_funding_transactions, acct_gst_payments, acct_instagram_posts, acct_invoice_shares, acct_leads, acct_letter_templates, acct_login_attempts, acct_offers, acct_online_orders, acct_owner_accounts, acct_owner_money, acct_party_setoffs, acct_payslips, acct_posting_failures, acct_product_media, acct_product_variants, acct_products, acct_purchase_lines, acct_purchase_orders, acct_purchase_payments, acct_reel_tracks, acct_sale_rewards, acct_sales_headers, acct_sales_payments, acct_sales_returns, acct_selling_prices, acct_serials, acct_service_tickets, acct_shop_customers, acct_shop_email_verifications, acct_shop_password_resets, acct_staff_advances, acct_statutory_logins, acct_stock_finds, acct_stock_movements, acct_stock_reporters, acct_supplier_returns, acct_suppliers, acct_tax_challans, acct_user_access, acct_user_totp, acct_vouchers, acct_wa_broadcasts, acct_wa_status_log, acct_whatsapp_recipients
+Direct table references: acct_account_map, acct_approval_items, acct_approval_requests, acct_attendance, acct_attendance_unmatched, acct_auditor_adjustments, acct_bank_statement_lines, acct_bot_answers, acct_budgets, acct_business_hosts, acct_business_settings, acct_cash_closings, acct_cash_note_log, acct_customer_credits, acct_customer_messages, acct_customer_notes, acct_customers, acct_deals, acct_document_log, acct_employee_documents, acct_employee_pay_history, acct_employees, acct_expenses, acct_fixed_assets, acct_funding_transactions, acct_gst_payments, acct_instagram_posts, acct_invoice_shares, acct_leads, acct_letter_templates, acct_login_attempts, acct_offers, acct_online_orders, acct_owner_accounts, acct_owner_money, acct_party_setoffs, acct_payslips, acct_posting_failures, acct_product_media, acct_product_variants, acct_products, acct_purchase_lines, acct_purchase_orders, acct_purchase_payments, acct_reel_tracks, acct_sale_rewards, acct_sales_headers, acct_sales_payments, acct_sales_returns, acct_selling_prices, acct_serials, acct_service_tickets, acct_shop_customers, acct_shop_email_verifications, acct_shop_password_resets, acct_staff_advances, acct_statutory_logins, acct_stock_finds, acct_stock_movements, acct_stock_reporters, acct_supplier_returns, acct_suppliers, acct_tax_challans, acct_user_access, acct_user_totp, acct_vouchers, acct_wa_broadcasts, acct_wa_status_log, acct_whatsapp_recipients
 
 ## src/lib/month-close.ts
 
