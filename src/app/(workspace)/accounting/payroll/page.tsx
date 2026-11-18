@@ -17,6 +17,7 @@ import { cellTopCompact as cell, field, formGrid, muted } from "@/lib/ui/styles"
 type Props = { searchParams: Promise<{ month?: string; saved?: string; error?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
 
+const WORK_WORDS: Record<string, string> = { PART_TIME: "part time", DAILY_WAGE: "daily wage", HOURLY: "paid by the hour" };
 const inr = (v: unknown) => `₹${Number(v ?? 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const shift = (m: string, d: number) => { const x = new Date(`${m}-01T00:00:00Z`); x.setUTCMonth(x.getUTCMonth() + d); return x.toISOString().slice(0, 7); };
 const label = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -31,7 +32,7 @@ async function Content({ searchParams }: Props) {
   let slips: Row[] = [];
   try {
     [slips] = await db.query<Row[]>(
-      `SELECT p.*, e.full_name, e.job_title
+      `SELECT p.*, e.full_name, e.job_title, e.employment_type
          FROM acct_payslips p JOIN acct_employees e ON e.id = p.employee_id AND e.legal_business_id = p.legal_business_id
         WHERE p.legal_business_id = ? AND p.salary_month = ? ORDER BY p.status DESC, e.full_name`,
       [biz, month]
@@ -89,7 +90,7 @@ async function Content({ searchParams }: Props) {
                   return (
                     <tr key={String(s.id)}>
                       <td style={cell}>{draft ? <input type="checkbox" name="payslip_id" value={String(s.id)} form="pay-form" defaultChecked aria-label={`Pay ${s.full_name}`} /> : <span style={{ color: "#15803d" }}>Paid</span>}</td>
-                      <td style={cell}>{String(s.full_name)}<div style={muted}>{String(s.job_title ?? "")}{notes.length ? ` · ${notes.join(" ")}` : ""}</div></td>
+                      <td style={cell}>{String(s.full_name)}<div style={muted}>{[String(s.job_title ?? ""), WORK_WORDS[String(s.employment_type ?? "")] ?? ""].filter(Boolean).join(" · ")}{notes.length ? ` · ${notes.join(" ")}` : ""}</div></td>
                       <td style={cell}>
                         {draft ? <input name="paid_days" form={`upd-${s.id}`} defaultValue={String(Number(s.paid_days))} inputMode="decimal" style={{ ...field, width: 70 }} aria-label="Days paid" /> : Number(s.paid_days)}
                         <span style={muted}> / {Number(s.days_in_month)}</span>

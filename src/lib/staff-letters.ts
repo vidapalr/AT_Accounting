@@ -16,6 +16,7 @@ export type LetterType =
   | "appointment"
   | "part_time_appointment"
   | "daily_wage_engagement"
+  | "hourly_engagement"
   | "confirmation"
   | "increment"
   | "salary_certificate"
@@ -32,6 +33,7 @@ export const LETTER_TYPES: Array<{ key: LetterType; label: string }> = [
   { key: "appointment", label: "Appointment (joining) letter: full time" },
   { key: "part_time_appointment", label: "Appointment letter: part time" },
   { key: "daily_wage_engagement", label: "Engagement letter: daily wage" },
+  { key: "hourly_engagement", label: "Engagement letter: paid by the hour" },
   { key: "confirmation", label: "Confirmation after probation" },
   { key: "increment", label: "Salary increase letter" },
   { key: "salary_certificate", label: "Salary certificate" },
@@ -73,9 +75,10 @@ export type LetterContext = {
   employer: string;
   terms: Terms;
   /** Full time, part time or daily wage (changes the pay line in the terms). */
-  employmentType?: "FULL_TIME" | "PART_TIME" | "DAILY_WAGE";
+  employmentType?: "FULL_TIME" | "PART_TIME" | "DAILY_WAGE" | "HOURLY";
   /** Daily wage, formatted (daily-wage staff). */
   dailyWage?: string;
+  hourlyRate?: string;
   /** Cost to company a year, formatted (full time). */
   ctc?: string;
   /** Only some letters use these. */
@@ -180,6 +183,21 @@ export const DEFAULT_TEMPLATES: Record<TemplateLetterType, LetterTemplate> = {
       "Please sign and return a copy of this letter to confirm that you accept these terms.",
     ].join("\n\n"),
   },
+  hourly_engagement: {
+    heading: "ENGAGEMENT LETTER (PAID BY THE HOUR)",
+    needsAcceptance: true,
+    body: [
+      "Dear {{person}},",
+      "We are pleased to engage you as {{job_title}} at {{employer}}, {{place}}, on an hourly basis, from {{joined_on}}.",
+      "The terms of your engagement are:",
+      [
+        "{{terms}}",
+        "- You are paid for the hours actually worked. There is no pay for hours not worked.",
+        "- You will follow the instructions of the management and the rules of the shop, and account for any money or goods in your care.",
+      ].join("\n"),
+      "Please sign and return a copy of this letter to confirm that you accept these terms.",
+    ].join("\n\n"),
+  },
   confirmation: {
     heading: "CONFIRMATION OF EMPLOYMENT",
     needsAcceptance: false,
@@ -260,16 +278,17 @@ function probationWords(days: string): string {
 }
 
 function payLine(c: LetterContext): string {
+  if (c.employmentType === "HOURLY") return `Rate of pay: ₹${c.hourlyRate || "[hourly rate]"} for each hour worked, counted from the IN and OUT times in the attendance register, paid monthly`;
   if (c.employmentType === "DAILY_WAGE") return `Daily wage: ₹${c.dailyWage || "[daily wage]"} for each day you are present, as marked in the attendance register, paid monthly`;
   if (c.employmentType === "PART_TIME") return `Monthly salary: ₹${c.salary} for part-time work; days absent without leave are not paid`;
   return `Monthly salary: ₹${c.salary}${c.ctc ? ` (cost to company ₹${c.ctc} a year, including the company's PF and ESI share where they apply)` : ""}`;
 }
 
-const TYPE_WORDS = { FULL_TIME: "full time", PART_TIME: "part time", DAILY_WAGE: "daily wage" } as const;
+const TYPE_WORDS = { FULL_TIME: "full time", PART_TIME: "part time", DAILY_WAGE: "daily wage", HOURLY: "paid by the hour" } as const;
 
 function termLines(c: LetterContext): string[] {
   const t = c.terms;
-  if (c.employmentType === "DAILY_WAGE") {
+  if (c.employmentType === "DAILY_WAGE" || c.employmentType === "HOURLY") {
     return [payLine(c), `Working hours: ${t.hours}`, "Attendance: send IN when you arrive and OUT when you leave on the company WhatsApp, or sign the register", `Either side may end this engagement with ${t.noticeDays === "0" ? "one day's" : `${t.noticeDays} days'`} notice`];
   }
   return [
@@ -292,6 +311,7 @@ export function letterValues(c: LetterContext): Record<string, string> {
     place: c.place,
     salary: c.salary ? `₹${c.salary}` : "",
     daily_wage: c.dailyWage ? `₹${c.dailyWage}` : "",
+    hourly_rate: c.hourlyRate ? `₹${c.hourlyRate}` : "",
     ctc: c.ctc ? `₹${c.ctc}` : "",
     employment_type: TYPE_WORDS[c.employmentType ?? "FULL_TIME"],
     joined_on: c.joinedOn,

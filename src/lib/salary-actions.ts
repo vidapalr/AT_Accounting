@@ -7,6 +7,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { normalizePhone } from "@/lib/customer-phone";
+import { isMissingColumn } from "@/lib/db-errors";
 
 const PAGE = "/accounting/salaries";
 const todayIso = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
@@ -24,13 +25,22 @@ export async function addEmployeeAction(formData: FormData) {
   const month = isMonth(text("month")) ? text("month") : todayIso().slice(0, 7);
   const name = text("full_name");
   const title = text("job_title").slice(0, 100);
-  const salary = text("monthly_salary").replaceAll(",", "");
+  const type = ["FULL_TIME", "PART_TIME", "DAILY_WAGE", "HOURLY"].includes(text("employment_type")) ? text("employment_type") : "FULL_TIME";
+  const monthly = type === "FULL_TIME" || type === "PART_TIME";
+  const wage = text("daily_wage").replaceAll(",", "");
+  const rate = text("hourly_rate").replaceAll(",", "");
+  // Daily-wage and hourly people have no monthly salary: their pay comes from the wage and the attendance register.
+  const salary = monthly ? text("monthly_salary").replaceAll(",", "") : "0";
+  const wa = text("whatsapp_number").replace(/\D/g, "").slice(-10);
   const phoneRaw = text("phone");
   const phone = phoneRaw ? normalizePhone(phoneRaw) : null;
   const branchId = Number(text("branch_id")) || null;
   const joined = /^\d{4}-\d{2}-\d{2}$/.test(text("joined_on")) ? text("joined_on") : null;
   if (name.length < 2 || name.length > 150) go(month, "error", "Write the person's name.");
-  if (!money.test(salary) || Number(salary) <= 0) go(month, "error", "Type the monthly salary in rupees.");
+  if (monthly && (!money.test(salary) || Number(salary) <= 0)) go(month, "error", "Type the monthly salary in rupees.");
+  if (type === "DAILY_WAGE" && (!money.test(wage) || Number(wage) <= 0)) go(month, "error", "Type the wage for one day in rupees.");
+  if (type === "HOURLY" && (!money.test(rate) || Number(rate) <= 0)) go(month, "error", "Type the rate for one hour in rupees.");
+  if (wa && wa.length !== 10) go(month, "error", "The WhatsApp number must be 10 digits.");
   if (phoneRaw && phone === null) go(month, "error", "That mobile number does not look right (10 digits).");
 
   let divisionId: number | null = null;
@@ -42,22 +52,44 @@ export async function addEmployeeAction(formData: FormData) {
     if (b.length !== 1) go(month, "error", "Choose a branch from the list.");
     divisionId = Number(b[0].division_id);
   }
-  const [saved] = await db.execute<ResultSetHeader>(
-    `INSERT INTO acct_employees (legal_business_id, division_id, branch_id, full_name, phone, job_title, monthly_salary, joined_on, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [user.legal_business_id, divisionId, branchId, name, phone, title || null, salary, joined, user.id]
-  );
+  if (wa) {
+    const [clash] = await db.query<RowDataPacket[]>(
+      `SELECT full_name FROM acct_employees WHERE legal_business_id = ? AND whatsapp_number = ? AND status = 'ACTIVE' LIMIT 1`,
+      [user.legal_business_id, wa]
+    ).catch(() => [[] as RowDataPacket[]]);
+    if (clash.length) go(month, "error", `That WhatsApp number is already saved for ${clash[0].full_name}.`);
+  }
+  const base = [user.legal_business_id, divisionId, branchId, name, phone, title || null, salary, joined, user.id];
+  let saved: ResultSetHeader;
   try {
-    await db.execute(
-      `INSERT INTO acct_employee_pay_history (legal_business_id, employee_id, effective_from, monthly_salary, note, changed_by)
-       VALUES (?, ?, ?, ?, 'Starting salary', ?)`,
-      [user.legal_business_id, saved.insertId, joined ?? todayIso(), salary, user.id]
+    [saved] = await db.execute<ResultSetHeader>(
+      `INSERT INTO acct_employees (legal_business_id, division_id, branch_id, full_name, phone, job_title, monthly_salary, joined_on, created_by,
+                                   employment_type, daily_wage, hourly_rate, whatsapp_number)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [...base, type, wage || null, rate || null, wa || null]
     );
-  } catch { /* migration 062 not run yet */ }
+  } catch (error) {
+    if (!isMissingColumn(error)) throw error;
+    if (!monthly) go(month, "error", "Run migrations 091 and 092 in phpMyAdmin to add daily-wage and hourly staff.");
+    [saved] = await db.execute<ResultSetHeader>(
+      `INSERT INTO acct_employees (legal_business_id, division_id, branch_id, full_name, phone, job_title, monthly_salary, joined_on, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      base
+    );
+  }
+  if (monthly) {
+    try {
+      await db.execute(
+        `INSERT INTO acct_employee_pay_history (legal_business_id, employee_id, effective_from, monthly_salary, note, changed_by)
+         VALUES (?, ?, ?, ?, 'Starting salary', ?)`,
+        [user.legal_business_id, saved.insertId, joined ?? todayIso(), salary, user.id]
+      );
+    } catch { /* migration 062 not run yet */ }
+  }
   await db.execute(
     `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
      VALUES (?, ?, 'EMPLOYEE_ADDED', 'EMPLOYEE', ?, ?)`,
-    [user.legal_business_id, user.id, saved.insertId, JSON.stringify({ salary })]
+    [user.legal_business_id, user.id, saved.insertId, JSON.stringify({ salary, type, wage: wage || null, rate: rate || null })]
   );
   revalidatePath(PAGE);
   go(month, "saved", `${name} added.`);

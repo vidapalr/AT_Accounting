@@ -9,7 +9,8 @@ import { addPayChangeAction, saveStaffDatesAction } from "@/lib/staff-record-act
 import { cell, box, fieldBlock as field } from "@/lib/ui/styles";
 import { saveEmployeeStatutoryAction, saveEmploymentAction } from "@/lib/payroll-actions";
 import { loadComponents, loadCtcOptions, loadPayrollSettings } from "@/lib/payroll/data";
-import { ctcFromGross, EMPLOYMENT_TYPES, grossFromCtc, type Ctc } from "@/lib/payroll/ctc";
+import { ctcFromGross, grossFromCtc, type Ctc } from "@/lib/payroll/ctc";
+import EmploymentPayFields from "@/components/EmploymentPayFields";
 import { ageAt } from "@/lib/payroll/engine";
 import { inr as inrP, parseRupees } from "@/lib/reports/money";
 import { todayInIndia } from "@/lib/format";
@@ -83,26 +84,30 @@ async function Content({ params, searchParams }: Props) {
         {typeKnown ? (
           <form action={saveEmploymentAction} style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
             <input type="hidden" name="employee_id" value={String(e.id)} />
-            <label>Type of work
-              <select name="employment_type" defaultValue={String(e.employment_type ?? "FULL_TIME")} style={field}>
-                {EMPLOYMENT_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-              </select>
-            </label>
-            <label>Daily wage (₹, daily-wage staff)<input name="daily_wage" defaultValue={e.daily_wage == null ? "" : String(Number(e.daily_wage))} inputMode="decimal" style={field} /></label>
+            <EmploymentPayFields
+              type={String(e.employment_type ?? "FULL_TIME")}
+              dailyWage={e.daily_wage == null ? "" : String(Number(e.daily_wage))}
+              hourlyRate={e.hourly_rate == null ? "" : String(Number(e.hourly_rate))}
+            />
             <label>WhatsApp number for attendance<input name="whatsapp_number" defaultValue={String(e.whatsapp_number ?? "")} inputMode="numeric" maxLength={14} style={field} /></label>
             <p style={{ gridColumn: "1 / -1", color: "#64748b", margin: 0 }}>
-              The person sends <strong>IN</strong> when they arrive and <strong>OUT</strong> when they leave, from this number to the shop&apos;s WhatsApp. Daily wage is paid for days present; monthly staff are cut only for days marked absent.{" "}
+              The person sends <strong>IN</strong> when they arrive and <strong>OUT</strong> when they leave, from this number to the shop&apos;s WhatsApp.{" "}
               <Link href="/accounting/attendance">Attendance register</Link>
             </p>
             <div><button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Save type of work</button></div>
           </form>
-        ) : <p role="alert">Run migration 091 in phpMyAdmin to set the type of work and attendance.</p>}
+        ) : <p role="alert">Run migrations 091 and 092 in phpMyAdmin to set the type of work and attendance.</p>}
       </section>
 
       <section style={box}>
         <h2>Salary and cost to company (CTC)</h2>
         {String(e.employment_type ?? "") === "DAILY_WAGE" ? (
           <p>Daily wage {e.daily_wage == null ? "not set" : inr(e.daily_wage)}: about {e.daily_wage == null ? "—" : inr(Number(e.daily_wage) * 26)} for 26 working days in a month. Pay each month = daily wage × days present.</p>
+        ) : String(e.employment_type ?? "") === "HOURLY" ? (
+          <p>
+            {e.hourly_rate == null ? "Rate for one hour not set" : `${inr(e.hourly_rate)} an hour`}: about {e.hourly_rate == null ? "—" : inr(Number(e.hourly_rate) * 8 * 26)} for 8 hours a day over 26 days.
+            Pay each month = rate × hours worked, from the IN and OUT times in the <Link href="/accounting/attendance">attendance register</Link>.
+          </p>
         ) : <CtcTable c={ctcNow} />}
         <p style={{ color: "#64748b" }}>
           How CTC is worked out: 12 months of gross salary, plus the business&apos;s PF and ESI share (only when switched on in <Link href="/accounting/payroll/settings">Payroll settings</Link>), plus bonus and gratuity when ticked there. The salary is split into Basic, HRA and other parts as set in Payroll settings.

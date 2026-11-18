@@ -4,7 +4,9 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { prettyPhone } from "@/lib/customer-phone";
+import { isMissingColumn } from "@/lib/db-errors";
 import { addEmployeeAction, updateEmployeeAction } from "@/lib/salary-actions";
+import EmploymentPayFields from "@/components/EmploymentPayFields";
 import Link from "next/link";
 import SubmitButton from "@/components/SubmitButton";
 import ConfirmButton from "@/components/ConfirmButton";
@@ -34,8 +36,8 @@ async function SalariesContent({ searchParams }: Props) {
   const nowMonth = todayInIndia().slice(0, 7);
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(query.month ?? "") ? String(query.month) : nowMonth;
 
-  const [people] = await db.execute<Row[]>(
-    `SELECT e.id, e.full_name, e.phone, e.job_title, e.monthly_salary, e.status,
+  const listSql = (extra: string) =>
+    `SELECT e.id, e.full_name, e.phone, e.job_title, e.monthly_salary, e.status,${extra}
             s.amount AS paid_amount, s.advance_deducted, DATE_FORMAT(s.paid_on, '%d %b') AS paid_on,
             COALESCE((SELECT SUM(a.amount) FROM acct_staff_advances a WHERE a.employee_id = e.id AND a.legal_business_id = e.legal_business_id), 0)
               - COALESCE((SELECT SUM(r.amount) FROM acct_staff_advance_recoveries r WHERE r.employee_id = e.id), 0) AS advance_left,
@@ -45,9 +47,14 @@ async function SalariesContent({ searchParams }: Props) {
        LEFT JOIN acct_salary_payments s
          ON s.employee_id = e.id AND s.legal_business_id = e.legal_business_id AND s.salary_month = ?
       WHERE e.legal_business_id = ? AND (e.status = 'ACTIVE' OR s.id IS NOT NULL)
-      ORDER BY e.status, e.full_name`,
-    [month, businessId]
-  );
+      ORDER BY e.status, e.full_name`;
+  let people: Row[] = [];
+  try {
+    [people] = await db.execute<Row[]>(listSql(" e.employment_type, e.daily_wage, e.hourly_rate,"), [month, businessId]);
+  } catch (error) {
+    if (!isMissingColumn(error)) throw error;
+    [people] = await db.execute<Row[]>(listSql(""), [month, businessId]);
+  }
   // The salary in force for the month shown (pay changes can start on a later date).
   try {
     const [hist] = await db.execute<Row[]>(
@@ -66,7 +73,14 @@ async function SalariesContent({ searchParams }: Props) {
   );
 
   const active = people.filter((p) => p.status === "ACTIVE");
-  const payable = active.reduce((s, p) => s + Number(p.monthly_salary), 0);
+  const monthlyStaff = (p: Row) => !["DAILY_WAGE", "HOURLY"].includes(String(p.employment_type ?? "FULL_TIME"));
+  const payLabel = (p: Row) =>
+    String(p.employment_type) === "DAILY_WAGE"
+      ? `${p.daily_wage == null ? "Daily wage not set" : `${inr(p.daily_wage)} a day`}`
+      : String(p.employment_type) === "HOURLY"
+        ? `${p.hourly_rate == null ? "Hourly rate not set" : `${inr(p.hourly_rate)} an hour`}`
+        : `Salary ${inr(p.monthly_salary)}`;
+  const payable = active.filter(monthlyStaff).reduce((s, p) => s + Number(p.monthly_salary), 0);
   const paid = people.reduce((s, p) => s + Number(p.paid_amount ?? 0), 0);
   const waiting = active.filter((p) => p.paid_amount === null).length;
 
@@ -104,7 +118,7 @@ async function SalariesContent({ searchParams }: Props) {
                   {p.paid_amount !== null ? (
                     <><strong style={{ color: "#166534" }}>✓ Paid {inr(p.paid_amount)}</strong>{Number(p.advance_deducted) > 0 && <><br /><span style={{ fontSize: 14 }}>{inr(p.advance_deducted)} taken off an advance</span></>}<br /><span style={{ color: "#64748b", fontSize: 14 }}>on {p.paid_on}</span></>
                   ) : (
-                    <>Salary {inr(p.monthly_salary)}</>
+                    <>{payLabel(p)}</>
                   )}
                 </span>
               </div>
@@ -117,14 +131,18 @@ async function SalariesContent({ searchParams }: Props) {
 
               {!left && (
                 <details>
-                  <summary style={{ cursor: "pointer", color: "#64748b" }}>Change salary or mark as left</summary>
-                  <form action={updateEmployeeAction} style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "8px 0" }}>
-                    <input type="hidden" name="month" value={month} />
-                    <input type="hidden" name="employee_id" value={String(p.id)} />
-                    <input type="hidden" name="what" value="SALARY" />
-                    <input name="monthly_salary" inputMode="decimal" defaultValue={String(Number(p.monthly_salary))} style={{ ...field, width: 140 }} aria-label="New monthly salary" />
-                    <SubmitButton label="Save new salary" className="btn-link" />
-                  </form>
+                  <summary style={{ cursor: "pointer", color: "#64748b" }}>Change pay or mark as left</summary>
+                  {monthlyStaff(p) ? (
+                    <form action={updateEmployeeAction} style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "8px 0" }}>
+                      <input type="hidden" name="month" value={month} />
+                      <input type="hidden" name="employee_id" value={String(p.id)} />
+                      <input type="hidden" name="what" value="SALARY" />
+                      <input name="monthly_salary" inputMode="decimal" defaultValue={String(Number(p.monthly_salary))} style={{ ...field, width: 140 }} aria-label="New monthly salary" />
+                      <SubmitButton label="Save new salary" className="btn-link" />
+                    </form>
+                  ) : (
+                    <p style={{ margin: "8px 0" }}><a href={`/accounting/salaries/${p.id}`} className="btn-link">Change the wage on the staff record</a></p>
+                  )}
                   <form action={updateEmployeeAction}>
                     <input type="hidden" name="month" value={month} />
                     <input type="hidden" name="employee_id" value={String(p.id)} />
@@ -144,8 +162,9 @@ async function SalariesContent({ searchParams }: Props) {
         <form action={addEmployeeAction} style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
           <input type="hidden" name="month" value={month} />
           <label>Name<input name="full_name" required maxLength={150} style={field} /></label>
-          <label>Monthly salary (₹)<input name="monthly_salary" inputMode="decimal" required style={field} /></label>
+          <EmploymentPayFields showSalary />
           <label>Mobile (for pay slips)<input name="phone" inputMode="tel" style={field} /></label>
+          <label>WhatsApp number for attendance (optional)<input name="whatsapp_number" inputMode="numeric" maxLength={14} style={field} /></label>
           <label>Job (optional)<input name="job_title" maxLength={100} style={field} /></label>
           <label>Branch
             <select name="branch_id" defaultValue={branches.length === 1 ? String(branches[0].id) : ""} style={field}>

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { ctcFromGross, grossFromCtc, DEFAULT_CTC_OPTIONS, paidDaysFromAttendance } from "../src/lib/payroll/ctc.ts";
 import { DEFAULT_SETTINGS } from "../src/lib/payroll/engine.ts";
 import { R } from "../src/lib/payroll/rules.ts";
-import { parseAttendanceMessage, indiaDateTime, applyPunch, hoursWorked, monthMarks, punchReply } from "../src/lib/attendance.ts";
+import { parseAttendanceMessage, indiaDateTime, applyPunch, hoursWorked, monthHours, monthMarks, punchReply } from "../src/lib/attendance.ts";
 import { pieSlices, OTHER_COLOUR, PIE_COLOURS } from "../src/lib/reports/pie.ts";
 import { daysToRenewal, isRegistrationKind } from "../src/lib/registrations.ts";
 import { billLinks, brandFrom } from "../src/lib/brand-core.ts";
@@ -48,6 +48,18 @@ test("paid days by type of work", () => {
   assert.equal(paidDaysFromAttendance("DAILY_WAGE", 30, { present: 20, half: 3, absent: 2 }), 21.5);
   assert.equal(paidDaysFromAttendance("PART_TIME", 30, { present: 20, half: 2, absent: 3 }), 26);
   assert.equal(paidDaysFromAttendance("FULL_TIME", 30, { present: 0, half: 0, absent: 0 }), 30);
+  // Paid by the hour: the pay is already the rate times the hours, so the month is not cut by days.
+  assert.equal(paidDaysFromAttendance("HOURLY", 30, { present: 12, half: 0, absent: 8 }), 30);
+});
+
+test("hours worked in a month add up", () => {
+  assert.equal(monthHours([
+    { inTime: "09:00:00", outTime: "17:30:00" },
+    { inTime: "10:00:00", outTime: "13:00:00" },
+    { inTime: "09:00:00", outTime: null },
+    { inTime: null, outTime: null },
+  ]), 11.5);
+  assert.equal(monthHours([]), 0);
 });
 
 test("WhatsApp IN / OUT words", () => {
@@ -98,11 +110,14 @@ test("bill QR links keep only https addresses, in order", () => {
   assert.deepEqual(billLinks(brand).map((l) => l.label), ["Find the shop", "Instagram"]);
 });
 
-test("letters for part time and daily wage staff", () => {
+test("letters for part time, daily wage and hourly staff", () => {
   const ctx = { title: "Ms.", name: "Asha", jobTitle: "Helper", salary: "8,000", joinedOn: "01-11-2026", noticeGivenOn: "", leftOn: "", letterDate: "03-11-2026", place: "Hyderabad", employer: "Test Co", terms: DEFAULT_TERMS };
   const pt = JSON.stringify(buildLetter("part_time_appointment", { ...ctx, employmentType: "PART_TIME" }));
   assert.match(pt, /8,000/);
   const dw = JSON.stringify(buildLetter("daily_wage_engagement", { ...ctx, employmentType: "DAILY_WAGE", dailyWage: "500" }));
   assert.match(dw, /500/);
   assert.match(dw, /day/i);
+  const hr = JSON.stringify(buildLetter("hourly_engagement", { ...ctx, employmentType: "HOURLY", hourlyRate: "80" }));
+  assert.match(hr, /80/);
+  assert.match(hr, /hour/i);
 });

@@ -379,11 +379,15 @@ export async function saveEmploymentAction(form: FormData): Promise<void> {
   const user = await requireAccess("salary");
   const id = Number(text(form, "employee_id"));
   const page = `/accounting/salaries/${id}`;
-  const type = ["FULL_TIME", "PART_TIME", "DAILY_WAGE"].includes(text(form, "employment_type")) ? text(form, "employment_type") : "FULL_TIME";
+  const type = ["FULL_TIME", "PART_TIME", "DAILY_WAGE", "HOURLY"].includes(text(form, "employment_type")) ? text(form, "employment_type") : "FULL_TIME";
   const wage = text(form, "daily_wage").replaceAll(",", "");
+  const rate = text(form, "hourly_rate").replaceAll(",", "");
   const wa = text(form, "whatsapp_number").replace(/\D/g, "").slice(-10);
-  if (type === "DAILY_WAGE" && !/^\d{1,7}(\.\d{1,2})?$/.test(wage)) go(page, { error: "Write the daily wage in rupees, e.g. 600." });
-  if (wage && !/^\d{1,7}(\.\d{1,2})?$/.test(wage)) go(page, { error: "The daily wage must be an amount in rupees." });
+  const amount = /^\d{1,7}(\.\d{1,2})?$/;
+  if (type === "DAILY_WAGE" && !amount.test(wage)) go(page, { error: "Write the daily wage in rupees, e.g. 600." });
+  if (type === "HOURLY" && !amount.test(rate)) go(page, { error: "Write the rate for one hour in rupees, e.g. 80." });
+  if (wage && !amount.test(wage)) go(page, { error: "The daily wage must be an amount in rupees." });
+  if (rate && !amount.test(rate)) go(page, { error: "The hourly rate must be an amount in rupees." });
   if (wa && wa.length !== 10) go(page, { error: "Write the 10-digit WhatsApp number." });
   try {
     if (wa) {
@@ -393,12 +397,12 @@ export async function saveEmploymentAction(form: FormData): Promise<void> {
       );
       if (clash.length) go(page, { error: `That WhatsApp number is already saved for ${clash[0].full_name}.` });
     }
-    await db.query(`UPDATE acct_employees SET employment_type = ?, daily_wage = ?, whatsapp_number = ? WHERE legal_business_id = ? AND id = ?`, [
-      type, wage || null, wa || null, user.legal_business_id, id,
+    await db.query(`UPDATE acct_employees SET employment_type = ?, daily_wage = ?, hourly_rate = ?, whatsapp_number = ? WHERE legal_business_id = ? AND id = ?`, [
+      type, wage || null, rate || null, wa || null, user.legal_business_id, id,
     ]);
   } catch (error) {
     if (isRedirect(error)) throw error;
-    go(page, { error: "Run migration 091 in phpMyAdmin first." });
+    go(page, { error: "Run migrations 091 and 092 in phpMyAdmin first." });
   }
   revalidatePath(page);
   go(page, { saved: "Type of work saved." });

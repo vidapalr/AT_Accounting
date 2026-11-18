@@ -95,4 +95,5 @@ For a new empty database, the documented baseline is the base dump through 040, 
 | [migrations/089_tax_and_year_end.sql](../../migrations/089_tax_and_year_end.sql) | tax and year end | acct_customers, acct_legal_businesses, acct_loan_year_figures, acct_loans, acct_suppliers, acct_tax_challans, acct_tax_documents, acct_tax_statement_lines |
 | [migrations/090_gst.sql](../../migrations/090_gst.sql) | gst | acct_business_settings, acct_chart_of_accounts, acct_expenses, acct_gst_payments, acct_legal_businesses, acct_products, acct_purchase_headers, acct_sales_headers, acct_sales_returns, acct_supplier_returns, acct_suppliers |
 | [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql) | staff attendance statutory | acct_attendance, acct_employees, acct_legal_businesses, acct_statutory_login_views, acct_statutory_logins |
+| [migrations/092_hourly_workers.sql](../../migrations/092_hourly_workers.sql) | hourly workers | acct_employees |
 
