@@ -76,6 +76,8 @@ export const MIGRATION_MARKERS: Marker[] = [
   { file: "090_gst", table: "acct_products", column: "gst_rate_high" },
   { file: "091_staff_attendance_statutory", table: "acct_attendance" },
   { file: "091_staff_attendance_statutory", table: "acct_statutory_logins" },
+  { file: "092_hourly_workers", table: "acct_employees", column: "hourly_rate" },
+  { file: "092_hourly_workers", table: "acct_employees", column: "employment_type", enumValue: "HOURLY" },
   { file: "086_business_payment_account", table: "acct_sales_payments", column: "payment_account", enumValue: "BUSINESS" },
   { file: "085_account_map", table: "acct_account_map" },
   { file: "084_letter_templates", table: "acct_letter_templates" },

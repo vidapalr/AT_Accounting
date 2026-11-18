@@ -1788,6 +1788,19 @@ Change: [migrations/091_staff_attendance_statutory.sql](../../migrations/091_sta
 ALTER TABLE acct_employees ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(15) NULL;
 ```
 
+Change: [migrations/092_hourly_workers.sql](../../migrations/092_hourly_workers.sql)
+
+```sql
+ALTER TABLE acct_employees
+  MODIFY COLUMN employment_type ENUM('FULL_TIME','PART_TIME','DAILY_WAGE','HOURLY') NOT NULL DEFAULT 'FULL_TIME';
+```
+
+Change: [migrations/092_hourly_workers.sql](../../migrations/092_hourly_workers.sql)
+
+```sql
+ALTER TABLE acct_employees ADD COLUMN IF NOT EXISTS hourly_rate DECIMAL(12,2) NULL;
+```
+
 ## acct_expense_payments
 
 Definition: [db/base_schema_2026-10-28.sql](../../db/base_schema_2026-10-28.sql) (line 675)

@@ -81,20 +81,23 @@ export function grossFromCtc(input: Omit<Parameters<typeof ctcFromGross>[0], "mo
   return ctcFromGross({ ...input, monthlyGross: lo * 100n });
 }
 
-export type EmploymentType = "FULL_TIME" | "PART_TIME" | "DAILY_WAGE";
+export type EmploymentType = "FULL_TIME" | "PART_TIME" | "DAILY_WAGE" | "HOURLY";
 export const EMPLOYMENT_TYPES: Array<{ key: EmploymentType; label: string }> = [
   { key: "FULL_TIME", label: "Full time (monthly salary)" },
   { key: "PART_TIME", label: "Part time (monthly amount, absent days cut)" },
   { key: "DAILY_WAGE", label: "Daily wage (paid for days present)" },
+  { key: "HOURLY", label: "Paid by the hour (rate x hours worked)" },
 ];
 
 /**
  * Days paid in a month from the attendance register:
  *  - daily wage: days present (a half day counts half);
+ *  - paid by the hour: the whole month, because the pay is already the rate times the hours worked;
  *  - monthly staff (full and part time): days in the month less days marked absent (unpaid).
  * Days with no mark are not cut for monthly staff (weekly off, holiday, not yet marked).
  */
 export function paidDaysFromAttendance(type: EmploymentType, daysInMonth: number, marks: { present: number; half: number; absent: number }): number {
+  if (type === "HOURLY") return daysInMonth;
   if (type === "DAILY_WAGE") return Math.min(daysInMonth, marks.present + marks.half / 2);
   return Math.max(0, daysInMonth - marks.absent - marks.half / 2);
 }

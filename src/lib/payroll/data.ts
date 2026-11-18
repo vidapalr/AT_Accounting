@@ -7,7 +7,7 @@ import { isMissingTable } from "@/lib/db-errors";
 import { ageAt, computePayslip, daysIn, defaultPaidDays, DEFAULT_SETTINGS, fyStartOf, type PayComponent, type PayrollSettings, type Payslip, type PayslipInput } from "./engine";
 import { ESI_DEFAULTS, PF_DEFAULTS, PT_PRESETS, parsePtSlabs } from "./rules";
 import { openAdvances } from "@/lib/staff-advance-recovery";
-import { monthMarks, type DayStatus } from "@/lib/attendance";
+import { monthHours, monthMarks, type DayStatus } from "@/lib/attendance";
 import { DEFAULT_CTC_OPTIONS, paidDaysFromAttendance, type CtcOptions, type EmploymentType } from "./ctc";
 
 type Q = Pool | PoolConnection;
@@ -142,9 +142,16 @@ export async function buildPayslip(
   const settings = opts.settings ?? (await loadPayrollSettings(businessId, conn));
   const components = opts.components ?? (await loadComponents(businessId, conn));
   const iso = (v: unknown) => (v ? new Date(v as string).toISOString().slice(0, 10) : null);
-  const type = (["PART_TIME", "DAILY_WAGE"].includes(String(e.employment_type)) ? String(e.employment_type) : "FULL_TIME") as EmploymentType;
+  const type = (["PART_TIME", "DAILY_WAGE", "HOURLY"].includes(String(e.employment_type)) ? String(e.employment_type) : "FULL_TIME") as EmploymentType;
   // Daily wage: a month's pay is the day rate for every day of the month, earned for the days present.
-  const monthlySalary = type === "DAILY_WAGE" ? toPaise(e.daily_wage ?? 0) * BigInt(daysIn(month)) : await salaryInForce(conn, businessId, Number(e.id), month, e.monthly_salary);
+  // Paid by the hour: the month's pay is the rate times the hours in the attendance register, earned in full.
+  const hours = type === "HOURLY" ? await attendanceHours(conn, businessId, Number(e.id), month) : 0;
+  const monthlySalary =
+    type === "DAILY_WAGE"
+      ? toPaise(e.daily_wage ?? 0) * BigInt(daysIn(month))
+      : type === "HOURLY"
+        ? (toPaise(e.hourly_rate ?? 0) * BigInt(Math.round(hours * 10))) / 10n
+        : await salaryInForce(conn, businessId, Number(e.id), month, e.monthly_salary);
   const marks = await attendanceMarks(conn, businessId, Number(e.id), month);
   const ytd = await yearToDate(conn, businessId, Number(e.id), month);
   let advance = opts.advance;
@@ -182,6 +189,21 @@ export async function buildPayslip(
     esiCarriedOver: await esiCarriedOver(conn, businessId, Number(e.id), month),
   };
   return { input, slip: computePayslip(input, settings) };
+}
+
+/** Hours worked in a month from the IN and OUT times in the register (0 before migration 091). */
+export async function attendanceHours(conn: Q, businessId: number, employeeId: number, month: string): Promise<number> {
+  try {
+    const [rows] = await conn.query<Row[]>(
+      `SELECT in_time, out_time FROM acct_attendance
+        WHERE legal_business_id = ? AND employee_id = ? AND work_date BETWEEN ? AND LAST_DAY(?)`,
+      [businessId, employeeId, `${month}-01`, `${month}-01`]
+    );
+    return monthHours(rows.map((r) => ({ inTime: r.in_time == null ? null : String(r.in_time), outTime: r.out_time == null ? null : String(r.out_time) })));
+  } catch (error) {
+    if (isMissingTable(error)) return 0;
+    throw error;
+  }
 }
 
 /** Counts of marked days for a person and month, or null when nothing is marked (or before migration 091). */

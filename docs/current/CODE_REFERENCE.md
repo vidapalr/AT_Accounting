@@ -122,6 +122,16 @@ Local dependencies: [src/lib/brand.ts](../../src/lib/brand.ts), [src/lib/reports
 
 Direct table references: None
 
+## src/components/EmploymentPayFields.tsx
+
+[src/components/EmploymentPayFields.tsx](../../src/components/EmploymentPayFields.tsx) · 48 lines
+
+Exports: `EmploymentPayFields`
+
+Local dependencies: [src/lib/payroll/ctc.ts](../../src/lib/payroll/ctc.ts), [src/lib/ui/styles.ts](../../src/lib/ui/styles.ts)
+
+Direct table references: None
+
 ## src/components/FormLock.tsx
 
 [src/components/FormLock.tsx](../../src/components/FormLock.tsx) · 48 lines
@@ -864,9 +874,9 @@ Direct table references: acct_attendance, acct_employees
 
 ## src/lib/attendance.ts
 
-[src/lib/attendance.ts](../../src/lib/attendance.ts) · 78 lines
+[src/lib/attendance.ts](../../src/lib/attendance.ts) · 84 lines
 
-Exports: `Punch`, `DayStatus`, `DAY_STATUSES`, `parseAttendanceMessage`, `indiaDateTime`, `DayRecord`, `applyPunch`, `hoursWorked`, `monthMarks`, `punchReply`
+Exports: `Punch`, `DayStatus`, `DAY_STATUSES`, `parseAttendanceMessage`, `indiaDateTime`, `DayRecord`, `applyPunch`, `hoursWorked`, `monthHours`, `monthMarks`, `punchReply`
 
 Local dependencies: None
 
@@ -2324,7 +2334,7 @@ Direct table references: None
 
 ## src/lib/migration-check.ts
 
-[src/lib/migration-check.ts](../../src/lib/migration-check.ts) · 116 lines
+[src/lib/migration-check.ts](../../src/lib/migration-check.ts) · 118 lines
 
 Exports: `MIGRATION_MARKERS`, `missingMigrations`
 
@@ -2564,7 +2574,7 @@ Direct table references: acct_bank_accounts, acct_cash_accounts
 
 ## src/lib/payroll-actions.ts
 
-[src/lib/payroll-actions.ts](../../src/lib/payroll-actions.ts) · 406 lines
+[src/lib/payroll-actions.ts](../../src/lib/payroll-actions.ts) · 410 lines
 
 Exports: `preparePayrollAction`, `updatePayslipAction`, `removePayslipDraftAction`, `payPayslipsAction`, `remitStatutoryAction`, `savePayrollSettingsAction`, `savePayComponentsAction`, `saveEmployeeStatutoryAction`, `saveEmploymentAction`
 
@@ -2574,7 +2584,7 @@ Direct table references: acct_audit_events, acct_employees, acct_pay_components,
 
 ## src/lib/payroll/ctc.ts
 
-[src/lib/payroll/ctc.ts](../../src/lib/payroll/ctc.ts) · 101 lines
+[src/lib/payroll/ctc.ts](../../src/lib/payroll/ctc.ts) · 104 lines
 
 Exports: `CtcOptions`, `DEFAULT_CTC_OPTIONS`, `Ctc`, `ctcFromGross`, `grossFromCtc`, `EmploymentType`, `EMPLOYMENT_TYPES`, `paidDaysFromAttendance`
 
@@ -2584,9 +2594,9 @@ Direct table references: None
 
 ## src/lib/payroll/data.ts
 
-[src/lib/payroll/data.ts](../../src/lib/payroll/data.ts) · 248 lines
+[src/lib/payroll/data.ts](../../src/lib/payroll/data.ts) · 270 lines
 
-Exports: `toPaise`, `rupeesText`, `PAYROLL_KEYS`, `loadPayrollSettings`, `loadComponents`, `salaryInForce`, `yearToDate`, `EmployeeForPay`, `buildPayslip`, `attendanceMarks`, `loadCtcOptions`, `advanceOwed`, `payslipColumns`, `saveDraftPayslip`
+Exports: `toPaise`, `rupeesText`, `PAYROLL_KEYS`, `loadPayrollSettings`, `loadComponents`, `salaryInForce`, `yearToDate`, `EmployeeForPay`, `buildPayslip`, `attendanceHours`, `attendanceMarks`, `loadCtcOptions`, `advanceOwed`, `payslipColumns`, `saveDraftPayslip`
 
 Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/db-errors.ts](../../src/lib/db-errors.ts), [src/lib/payroll/engine.ts](../../src/lib/payroll/engine.ts), [src/lib/payroll/rules.ts](../../src/lib/payroll/rules.ts), [src/lib/staff-advance-recovery.ts](../../src/lib/staff-advance-recovery.ts), [src/lib/attendance.ts](../../src/lib/attendance.ts), [src/lib/payroll/ctc.ts](../../src/lib/payroll/ctc.ts)
 
@@ -3064,11 +3074,11 @@ Direct table references: None
 
 ## src/lib/salary-actions.ts
 
-[src/lib/salary-actions.ts](../../src/lib/salary-actions.ts) · 105 lines
+[src/lib/salary-actions.ts](../../src/lib/salary-actions.ts) · 143 lines
 
 Exports: `addEmployeeAction`, `updateEmployeeAction`
 
-Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/lib/customer-phone.ts](../../src/lib/customer-phone.ts)
+Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/lib/customer-phone.ts](../../src/lib/customer-phone.ts), [src/lib/db-errors.ts](../../src/lib/db-errors.ts)
 
 Direct table references: acct_audit_events, acct_branches, acct_employee_pay_history, acct_employees
 
@@ -3404,7 +3414,7 @@ Direct table references: acct_staff_advance_recoveries, acct_staff_advances
 
 ## src/lib/staff-letters.ts
 
-[src/lib/staff-letters.ts](../../src/lib/staff-letters.ts) · 350 lines
+[src/lib/staff-letters.ts](../../src/lib/staff-letters.ts) · 370 lines
 
 Exports: `LetterType`, `TemplateLetterType`, `LETTER_TYPES`, `Terms`, `DEFAULT_TERMS`, `LetterContext`, `LetterTemplate`, `LetterBlock`, `Letter`, `LETTER_FIELDS`, `DEFAULT_TEMPLATES`, `leaveWords`, `letterValues`, `renderLetter`, `buildLetter`, `PaySlip`
 

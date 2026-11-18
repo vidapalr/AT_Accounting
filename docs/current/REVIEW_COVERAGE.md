@@ -96,6 +96,7 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [migrations/089_tax_and_year_end.sql](../../migrations/089_tax_and_year_end.sql) | 111 | Indexed; comprehensive manual review pending |
 | [migrations/090_gst.sql](../../migrations/090_gst.sql) | 102 | Indexed; comprehensive manual review pending |
 | [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql) | 64 | Indexed; comprehensive manual review pending |
+| [migrations/092_hourly_workers.sql](../../migrations/092_hourly_workers.sql) | 13 | Indexed; comprehensive manual review pending |
 | [scripts/add-funding-receipt-account.sql](../../scripts/add-funding-receipt-account.sql) | 6 | Indexed; comprehensive manual review pending |
 | [scripts/add-investor-bank-opening-balances.sql](../../scripts/add-investor-bank-opening-balances.sql) | 12 | Indexed; comprehensive manual review pending |
 | [scripts/add-sales-payment-account.sql](../../scripts/add-sales-payment-account.sql) | 8 | Indexed; comprehensive manual review pending |
@@ -113,7 +114,7 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [src/app/(workspace)/accounting/approval-items/page.tsx](../../src/app/(workspace)/accounting/approval-items/page.tsx) | 314 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/approvals/page.tsx](../../src/app/(workspace)/accounting/approvals/page.tsx) | 119 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/assistant/page.tsx](../../src/app/(workspace)/accounting/assistant/page.tsx) | 35 | Indexed; comprehensive manual review pending |
-| [src/app/(workspace)/accounting/attendance/page.tsx](../../src/app/(workspace)/accounting/attendance/page.tsx) | 157 | Indexed; comprehensive manual review pending |
+| [src/app/(workspace)/accounting/attendance/page.tsx](../../src/app/(workspace)/accounting/attendance/page.tsx) | 158 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/audit/changes/page.tsx](../../src/app/(workspace)/accounting/audit/changes/page.tsx) | 118 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/audit/export/page.tsx](../../src/app/(workspace)/accounting/audit/export/page.tsx) | 66 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/audit/ledger/page.tsx](../../src/app/(workspace)/accounting/audit/ledger/page.tsx) | 143 | Indexed; comprehensive manual review pending |
@@ -190,7 +191,7 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [src/app/(workspace)/accounting/pay-supplier/page.tsx](../../src/app/(workspace)/accounting/pay-supplier/page.tsx) | 192 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/payroll/dues/page.tsx](../../src/app/(workspace)/accounting/payroll/dues/page.tsx) | 156 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/payroll/form130/page.tsx](../../src/app/(workspace)/accounting/payroll/form130/page.tsx) | 120 | Indexed; comprehensive manual review pending |
-| [src/app/(workspace)/accounting/payroll/page.tsx](../../src/app/(workspace)/accounting/payroll/page.tsx) | 163 | Indexed; comprehensive manual review pending |
+| [src/app/(workspace)/accounting/payroll/page.tsx](../../src/app/(workspace)/accounting/payroll/page.tsx) | 164 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/payroll/payslip/[id]/page.tsx](../../src/app/(workspace)/accounting/payroll/payslip/[id]/page.tsx) | 40 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/payroll/settings/page.tsx](../../src/app/(workspace)/accounting/payroll/settings/page.tsx) | 119 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/periods/page.tsx](../../src/app/(workspace)/accounting/periods/page.tsx) | 452 | Indexed; comprehensive manual review pending |
@@ -215,9 +216,9 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [src/app/(workspace)/accounting/registrations/page.tsx](../../src/app/(workspace)/accounting/registrations/page.tsx) | 125 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/reports/page.tsx](../../src/app/(workspace)/accounting/reports/page.tsx) | 218 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/returns/page.tsx](../../src/app/(workspace)/accounting/returns/page.tsx) | 494 | Indexed; comprehensive manual review pending |
-| [src/app/(workspace)/accounting/salaries/[id]/letters/page.tsx](../../src/app/(workspace)/accounting/salaries/[id]/letters/page.tsx) | 180 | Indexed; comprehensive manual review pending |
-| [src/app/(workspace)/accounting/salaries/[id]/page.tsx](../../src/app/(workspace)/accounting/salaries/[id]/page.tsx) | 208 | Indexed; comprehensive manual review pending |
-| [src/app/(workspace)/accounting/salaries/page.tsx](../../src/app/(workspace)/accounting/salaries/page.tsx) | 171 | Indexed; comprehensive manual review pending |
+| [src/app/(workspace)/accounting/salaries/[id]/letters/page.tsx](../../src/app/(workspace)/accounting/salaries/[id]/letters/page.tsx) | 184 | Indexed; comprehensive manual review pending |
+| [src/app/(workspace)/accounting/salaries/[id]/page.tsx](../../src/app/(workspace)/accounting/salaries/[id]/page.tsx) | 213 | Indexed; comprehensive manual review pending |
+| [src/app/(workspace)/accounting/salaries/page.tsx](../../src/app/(workspace)/accounting/salaries/page.tsx) | 190 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/sales-purchase-report/page.tsx](../../src/app/(workspace)/accounting/sales-purchase-report/page.tsx) | 1429 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/sales-purchase-report/sales-purchase-report.module.css](../../src/app/(workspace)/accounting/sales-purchase-report/sales-purchase-report.module.css) | 259 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/sales/[id]/page.tsx](../../src/app/(workspace)/accounting/sales/[id]/page.tsx) | 815 | Indexed; comprehensive manual review pending |
@@ -344,6 +345,7 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [src/components/DivisionChecklist.tsx](../../src/components/DivisionChecklist.tsx) | 71 | Indexed; comprehensive manual review pending |
 | [src/components/DivisionSwitcher.tsx](../../src/components/DivisionSwitcher.tsx) | 34 | Indexed; comprehensive manual review pending |
 | [src/components/DocumentHeader.tsx](../../src/components/DocumentHeader.tsx) | 50 | Indexed; comprehensive manual review pending |
+| [src/components/EmploymentPayFields.tsx](../../src/components/EmploymentPayFields.tsx) | 48 | Indexed; comprehensive manual review pending |
 | [src/components/FormLock.tsx](../../src/components/FormLock.tsx) | 48 | Indexed; comprehensive manual review pending |
 | [src/components/GstInvoiceBlock.tsx](../../src/components/GstInvoiceBlock.tsx) | 55 | Indexed; comprehensive manual review pending |
 | [src/components/HeaderSearch.tsx](../../src/components/HeaderSearch.tsx) | 71 | Indexed; comprehensive manual review pending |
@@ -421,7 +423,7 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [src/lib/asset-math.ts](../../src/lib/asset-math.ts) | 51 | Indexed; comprehensive manual review pending |
 | [src/lib/attendance-actions.ts](../../src/lib/attendance-actions.ts) | 76 | Indexed; comprehensive manual review pending |
 | [src/lib/attendance-data.ts](../../src/lib/attendance-data.ts) | 93 | Indexed; comprehensive manual review pending |
-| [src/lib/attendance.ts](../../src/lib/attendance.ts) | 78 | Indexed; comprehensive manual review pending |
+| [src/lib/attendance.ts](../../src/lib/attendance.ts) | 84 | Indexed; comprehensive manual review pending |
 | [src/lib/auditor-adjustment-actions.ts](../../src/lib/auditor-adjustment-actions.ts) | 100 | Indexed; comprehensive manual review pending |
 | [src/lib/auth.ts](../../src/lib/auth.ts) | 204 | Indexed; comprehensive manual review pending |
 | [src/lib/backup-dump.ts](../../src/lib/backup-dump.ts) | 95 | Indexed; comprehensive manual review pending |
@@ -567,7 +569,7 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [src/lib/login-guard.ts](../../src/lib/login-guard.ts) | 53 | Indexed; comprehensive manual review pending |
 | [src/lib/mailer.ts](../../src/lib/mailer.ts) | 32 | Indexed; comprehensive manual review pending |
 | [src/lib/media-storage.ts](../../src/lib/media-storage.ts) | 103 | Indexed; comprehensive manual review pending |
-| [src/lib/migration-check.ts](../../src/lib/migration-check.ts) | 116 | Indexed; comprehensive manual review pending |
+| [src/lib/migration-check.ts](../../src/lib/migration-check.ts) | 118 | Indexed; comprehensive manual review pending |
 | [src/lib/month-close.ts](../../src/lib/month-close.ts) | 122 | Indexed; comprehensive manual review pending |
 | [src/lib/month-math.ts](../../src/lib/month-math.ts) | 14 | Indexed; comprehensive manual review pending |
 | [src/lib/navigation.ts](../../src/lib/navigation.ts) | 307 | Indexed; comprehensive manual review pending |
@@ -591,9 +593,9 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [src/lib/party-actions.ts](../../src/lib/party-actions.ts) | 243 | Indexed; comprehensive manual review pending |
 | [src/lib/party-link.ts](../../src/lib/party-link.ts) | 134 | Indexed; comprehensive manual review pending |
 | [src/lib/payment-accounts.ts](../../src/lib/payment-accounts.ts) | 26 | Indexed; comprehensive manual review pending |
-| [src/lib/payroll-actions.ts](../../src/lib/payroll-actions.ts) | 406 | Indexed; comprehensive manual review pending |
-| [src/lib/payroll/ctc.ts](../../src/lib/payroll/ctc.ts) | 101 | Indexed; comprehensive manual review pending |
-| [src/lib/payroll/data.ts](../../src/lib/payroll/data.ts) | 248 | Indexed; comprehensive manual review pending |
+| [src/lib/payroll-actions.ts](../../src/lib/payroll-actions.ts) | 410 | Indexed; comprehensive manual review pending |
+| [src/lib/payroll/ctc.ts](../../src/lib/payroll/ctc.ts) | 104 | Indexed; comprehensive manual review pending |
+| [src/lib/payroll/data.ts](../../src/lib/payroll/data.ts) | 270 | Indexed; comprehensive manual review pending |
 | [src/lib/payroll/engine.ts](../../src/lib/payroll/engine.ts) | 242 | Indexed; comprehensive manual review pending |
 | [src/lib/payroll/files.ts](../../src/lib/payroll/files.ts) | 112 | Indexed; comprehensive manual review pending |
 | [src/lib/payroll/rules.ts](../../src/lib/payroll/rules.ts) | 119 | Indexed; comprehensive manual review pending |
@@ -641,7 +643,7 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [src/lib/rewards-actions.ts](../../src/lib/rewards-actions.ts) | 122 | Indexed; comprehensive manual review pending |
 | [src/lib/rewards-data.ts](../../src/lib/rewards-data.ts) | 127 | Indexed; comprehensive manual review pending |
 | [src/lib/rewards-math.ts](../../src/lib/rewards-math.ts) | 53 | Indexed; comprehensive manual review pending |
-| [src/lib/salary-actions.ts](../../src/lib/salary-actions.ts) | 105 | Indexed; comprehensive manual review pending |
+| [src/lib/salary-actions.ts](../../src/lib/salary-actions.ts) | 143 | Indexed; comprehensive manual review pending |
 | [src/lib/sale-payment-actions.ts](../../src/lib/sale-payment-actions.ts) | 243 | Indexed; comprehensive manual review pending |
 | [src/lib/sales-actions.ts](../../src/lib/sales-actions.ts) | 1739 | Indexed; comprehensive manual review pending |
 | [src/lib/same-origin.ts](../../src/lib/same-origin.ts) | 19 | Indexed; comprehensive manual review pending |
@@ -675,7 +677,7 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [src/lib/social-actions.ts](../../src/lib/social-actions.ts) | 135 | Indexed; comprehensive manual review pending |
 | [src/lib/staff-advance-actions.ts](../../src/lib/staff-advance-actions.ts) | 96 | Indexed; comprehensive manual review pending |
 | [src/lib/staff-advance-recovery.ts](../../src/lib/staff-advance-recovery.ts) | 41 | Indexed; comprehensive manual review pending |
-| [src/lib/staff-letters.ts](../../src/lib/staff-letters.ts) | 350 | Indexed; comprehensive manual review pending |
+| [src/lib/staff-letters.ts](../../src/lib/staff-letters.ts) | 370 | Indexed; comprehensive manual review pending |
 | [src/lib/staff-record-actions.ts](../../src/lib/staff-record-actions.ts) | 84 | Indexed; comprehensive manual review pending |
 | [src/lib/stock-count-actions.ts](../../src/lib/stock-count-actions.ts) | 270 | Indexed; comprehensive manual review pending |
 | [src/lib/stock-count-math.ts](../../src/lib/stock-count-math.ts) | 22 | Indexed; comprehensive manual review pending |
@@ -786,7 +788,7 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [tests/shop-order-math.test.mjs](../../tests/shop-order-math.test.mjs) | 32 | Indexed; comprehensive manual review pending |
 | [tests/social-publish.test.mjs](../../tests/social-publish.test.mjs) | 57 | Indexed; comprehensive manual review pending |
 | [tests/staff-letters.test.mjs](../../tests/staff-letters.test.mjs) | 46 | Indexed; comprehensive manual review pending |
-| [tests/staff-pay-attendance.test.mjs](../../tests/staff-pay-attendance.test.mjs) | 109 | Indexed; comprehensive manual review pending |
+| [tests/staff-pay-attendance.test.mjs](../../tests/staff-pay-attendance.test.mjs) | 124 | Indexed; comprehensive manual review pending |
 | [tests/stock-count-math.test.mjs](../../tests/stock-count-math.test.mjs) | 26 | Indexed; comprehensive manual review pending |
 | [tests/stock-message.test.mjs](../../tests/stock-message.test.mjs) | 35 | Indexed; comprehensive manual review pending |
 | [tests/stock-tieout.test.mjs](../../tests/stock-tieout.test.mjs) | 49 | Indexed; comprehensive manual review pending |

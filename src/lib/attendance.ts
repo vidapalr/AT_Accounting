@@ -57,6 +57,12 @@ export function hoursWorked(inTime: string | null, outTime: string | null): numb
   return m > 0 ? Math.round(m / 6) / 10 : null;
 }
 
+/** Hours worked in a month, added up from the IN and OUT times, to one decimal. */
+export function monthHours(days: Array<{ inTime: string | null; outTime: string | null }>): number {
+  const total = days.reduce((t, d) => t + (hoursWorked(d.inTime, d.outTime) ?? 0), 0);
+  return Math.round(total * 10) / 10;
+}
+
 /** Count of each kind of day in a month (for pay and the register). */
 export function monthMarks(days: Array<{ status: DayStatus | null }>): { present: number; half: number; absent: number; leave: number; off: number } {
   const c = { present: 0, half: 0, absent: 0, leave: 0, off: 0 };

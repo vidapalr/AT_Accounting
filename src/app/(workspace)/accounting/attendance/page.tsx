@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { requireAccess } from "@/lib/auth";
 import { todayInIndia } from "@/lib/format";
-import { DAY_STATUSES, hoursWorked, monthMarks } from "@/lib/attendance";
+import { DAY_STATUSES, hoursWorked, monthHours, monthMarks } from "@/lib/attendance";
 import { loadRegister } from "@/lib/attendance-data";
 import { markAttendanceAction, markWeeklyOffAction } from "@/lib/attendance-actions";
 import { paidDaysFromAttendance, type EmploymentType } from "@/lib/payroll/ctc";
@@ -69,7 +69,7 @@ async function Content({ searchParams }: Props) {
                 <tr>
                   <th style={{ ...cell, position: "sticky", left: 0, background: "#fff" }}>Person</th>
                   {dates.map((d) => <th key={d} style={{ ...cell, padding: 4, textAlign: "center" }}>{Number(d.slice(8))}</th>)}
-                  <th style={cell}>Present</th><th style={cell}>Absent</th><th style={cell}>Days paid</th>
+                  <th style={cell}>Present</th><th style={cell}>Absent</th><th style={cell}>Hours</th><th style={cell}>Days paid</th>
                 </tr>
               </thead>
               <tbody>
@@ -80,7 +80,7 @@ async function Content({ searchParams }: Props) {
                     <tr key={r.id}>
                       <td style={{ ...cell, position: "sticky", left: 0, background: "#fff", whiteSpace: "nowrap" }}>
                         <Link href={`/accounting/salaries/${r.id}`}>{r.name}</Link>
-                        <div style={muted}>{r.type === "DAILY_WAGE" ? "Daily wage" : r.type === "PART_TIME" ? "Part time" : "Full time"}</div>
+                        <div style={muted}>{r.type === "DAILY_WAGE" ? "Daily wage" : r.type === "HOURLY" ? "Paid by the hour" : r.type === "PART_TIME" ? "Part time" : "Full time"}</div>
                       </td>
                       {dates.map((d) => {
                         const day = r.days.get(d);
@@ -93,7 +93,8 @@ async function Content({ searchParams }: Props) {
                       })}
                       <td style={cell}>{marks.present + marks.half / 2}</td>
                       <td style={cell}>{marks.absent}</td>
-                      <td style={cell}>{paid ?? "—"}</td>
+                      <td style={cell}>{r.days.size ? monthHours([...r.days.values()]) : "—"}</td>
+                      <td style={cell}>{r.type === "HOURLY" ? "paid by the hour" : paid ?? "—"}</td>
                     </tr>
                   );
                 })}
@@ -102,7 +103,7 @@ async function Content({ searchParams }: Props) {
           </div>
         )}
         <p style={muted}>
-          {DAY_STATUSES.map((s) => `${s.short} = ${s.label}`).join(" · ")}. Days paid: daily wage = days present; monthly staff = days in the month less days marked absent (unmarked days are not cut). Payroll uses these days.
+          {DAY_STATUSES.map((s) => `${s.short} = ${s.label}`).join(" · ")}. Days paid: daily wage = days present; monthly staff = days in the month less days marked absent (unmarked days are not cut). People paid by the hour are paid for the hours in this table. Payroll uses these figures.
         </p>
       </Section>
 

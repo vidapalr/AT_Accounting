@@ -173,7 +173,7 @@ export function computePayslip(input: PayslipInput, settings: PayrollSettings): 
   const lowWage = paid > 0 && esiWageEarned / BigInt(paid) <= settings.esi.lowDailyWage;
   const empEsi = esiOn && !lowWage ? ceilRupee(pct(esiWageEarned, settings.esi.employeeRateBps)) : 0n;
   const erEsi = esiOn ? ceilRupee(pct(esiWageEarned, settings.esi.employerRateBps)) : 0n;
-  if (esiOn && lowWage) notes.push("Daily wage is at or below the ESI low-wage limit: no employee ESI share.");
+  if (esiOn && lowWage) notes.push("Average pay for a day is at or below the ESI low-wage limit: no employee ESI share.");
 
   // ---- Professional tax
   const pt = settings.pt.enabled && input.person.ptApplicable && gross > 0n ? ptFor(gross, input.month, settings.pt.slabs) : 0n;

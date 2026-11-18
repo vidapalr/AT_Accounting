@@ -1257,7 +1257,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Access: GROUP_OWNER, ACCOUNTANT
 - Purpose: Change the pay; Joined, notice and leaving; PF, ESI and income tax; Pay changes; Salary and cost to company (CTC); Salary paid; Type of work and attendance
 - Static headings: Change the pay; Joined, notice and leaving; PF, ESI and income tax; Pay changes; Salary and cost to company (CTC); Salary paid; Type of work and attendance
-- Named form controls (including imported UI): `ctc`, `daily_wage`, `date_of_birth`, `effective_from`, `employee_id`, `employment_type`, `esi_member`, `esi_number`, `joined_on`, `left_on`, `monthly_salary`, `name_as_per_uan`, `note`, `notice_given_on`, `old_regime_deductions`, `pan`, `pf_member`, `pt_applicable`, `tax_regime`, `uan`, `whatsapp_number`
+- Named form controls (including imported UI): `ctc`, `daily_wage`, `date_of_birth`, `effective_from`, `employee_id`, `employment_type`, `esi_member`, `esi_number`, `hourly_rate`, `joined_on`, `left_on`, `monthly_salary`, `name_as_per_uan`, `note`, `notice_given_on`, `old_regime_deductions`, `pan`, `pf_member`, `pt_applicable`, `tax_regime`, `uan`, `whatsapp_number`
 - Direct guard calls: requireAccess("salary")
 - Direct action imports: `@/lib/staff-record-actions`, `@/lib/payroll-actions`
 - Referenced tables (dependency closure): `acct_app_users`, `acct_attendance`, `acct_audit_events`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_divisions`, `acct_document_sequences`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_legal_businesses`, `acct_pay_components`, `acct_payslips`, `acct_salary_payments`, `acct_sessions`, `acct_staff_advance_recoveries`, `acct_staff_advances`, `acct_statutory_remittances`, `acct_user_access`
@@ -1269,7 +1269,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Access: GROUP_OWNER, ACCOUNTANT
 - Purpose: People, salaries, joining and leaving, letters
 - Static headings: Add a person; Salaries
-- Named form controls (including imported UI): `branch_id`, `employee_id`, `full_name`, `job_title`, `joined_on`, `month`, `monthly_salary`, `phone`, `what`
+- Named form controls (including imported UI): `branch_id`, `daily_wage`, `employee_id`, `employment_type`, `full_name`, `hourly_rate`, `job_title`, `joined_on`, `month`, `monthly_salary`, `phone`, `what`, `whatsapp_number`
 - Direct guard calls: requireAccess("salary")
 - Direct action imports: `@/lib/salary-actions`
 - Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_employee_pay_history`, `acct_employees`, `acct_legal_businesses`, `acct_salary_payments`, `acct_sessions`, `acct_staff_advance_recoveries`, `acct_staff_advances`, `acct_user_access`

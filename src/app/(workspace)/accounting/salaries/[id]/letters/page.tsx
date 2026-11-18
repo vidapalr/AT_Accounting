@@ -37,7 +37,10 @@ async function Content({ params, searchParams }: Props) {
   const e = emp[0];
   if (!e) notFound();
 
-  const defaultType: LetterType = e.employment_type === "DAILY_WAGE" ? "daily_wage_engagement" : e.employment_type === "PART_TIME" ? "part_time_appointment" : "appointment";
+  const defaultType: LetterType =
+    e.employment_type === "DAILY_WAGE" ? "daily_wage_engagement"
+      : e.employment_type === "HOURLY" ? "hourly_engagement"
+        : e.employment_type === "PART_TIME" ? "part_time_appointment" : "appointment";
   const type: LetterType = LETTER_TYPES.some((t) => t.key === q.type) ? (q.type as LetterType) : defaultType;
   const terms: Terms = {
     noticeDays: clean(q.notice, 3, DEFAULT_TERMS.noticeDays).replace(/\D/g, "") || DEFAULT_TERMS.noticeDays,
@@ -63,10 +66,11 @@ async function Content({ params, searchParams }: Props) {
     newSalary: /^\d{1,9}(\.\d{1,2})?$/.test(q.new_salary ?? "") ? inr(q.new_salary) : "",
     effectiveFrom: /^\d{4}-\d{2}-\d{2}$/.test(q.effective ?? "") ? dmy(q.effective) : "",
     reason: clean(q.reason, 300, ""),
-    employmentType: (["PART_TIME", "DAILY_WAGE"].includes(String(e.employment_type)) ? String(e.employment_type) : "FULL_TIME") as "FULL_TIME" | "PART_TIME" | "DAILY_WAGE",
+    employmentType: (["PART_TIME", "DAILY_WAGE", "HOURLY"].includes(String(e.employment_type)) ? String(e.employment_type) : "FULL_TIME") as "FULL_TIME" | "PART_TIME" | "DAILY_WAGE" | "HOURLY",
     dailyWage: e.daily_wage == null ? "" : inr(e.daily_wage),
+    hourlyRate: e.hourly_rate == null ? "" : inr(e.hourly_rate),
     ctc: await (async () => {
-      if (String(e.employment_type ?? "FULL_TIME") === "DAILY_WAGE") return "";
+      if (["DAILY_WAGE", "HOURLY"].includes(String(e.employment_type ?? "FULL_TIME"))) return "";
       const month = today().slice(0, 7);
       const [settings, components, options] = await Promise.all([loadPayrollSettings(businessId), loadComponents(businessId), loadCtcOptions(businessId)]);
       const c = ctcFromGross({ monthlyGross: toPaise(e.monthly_salary ?? 0), components, settings, options, month });
