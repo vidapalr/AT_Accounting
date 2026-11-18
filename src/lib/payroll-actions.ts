@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
+import { isMissingColumn } from "@/lib/db-errors";
 import { requireAccess, requireGroupOwner } from "@/lib/auth";
 import { QuickExpenseError, recordExpensePayment, recordQuickExpense } from "@/lib/expense-quick";
 import { takeBackAdvance } from "@/lib/staff-advance-recovery";
@@ -363,12 +364,24 @@ export async function saveEmploymentAction(form: FormData): Promise<void> {
       );
       if (clash.length) go(page, { error: `That WhatsApp number is already saved for ${clash[0].full_name}.` });
     }
-    await db.query(`UPDATE acct_employees SET employment_type = ?, daily_wage = ?, hourly_rate = ?, whatsapp_number = ? WHERE legal_business_id = ? AND id = ?`, [
-      type, wage || null, rate || null, wa || null, user.legal_business_id, id,
-    ]);
+    try {
+      await db.query(`UPDATE acct_employees SET employment_type = ?, daily_wage = ?, hourly_rate = ?, whatsapp_number = ? WHERE legal_business_id = ? AND id = ?`, [
+        type, wage || null, rate || null, wa || null, user.legal_business_id, id,
+      ]);
+    } catch (error) {
+      // Migration 092 (hourly_rate) not run yet: still save the type of work, daily wage and the
+      // WhatsApp number (migration 091), so attendance keeps working on a part-migrated database.
+      if (!isMissingColumn(error)) throw error;
+      const t = type === "HOURLY" ? "DAILY_WAGE" : type;
+      await db.query(`UPDATE acct_employees SET employment_type = ?, daily_wage = ?, whatsapp_number = ? WHERE legal_business_id = ? AND id = ?`, [
+        t, wage || null, wa || null, user.legal_business_id, id,
+      ]);
+      revalidatePath(page);
+      go(page, { saved: `Saved. ${wa ? "Attendance will work now. " : ""}To add hourly pay as well, run migration 092 in phpMyAdmin.` });
+    }
   } catch (error) {
     if (isRedirect(error)) throw error;
-    go(page, { error: "Run migrations 091 and 092 in phpMyAdmin first." });
+    go(page, { error: "Run migration 091 in phpMyAdmin first." });
   }
   revalidatePath(page);
   go(page, { saved: "Type of work saved." });
