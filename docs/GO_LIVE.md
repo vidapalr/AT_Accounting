@@ -2,7 +2,7 @@
 
 Do the steps in this order. Hosting rebuilds automatically after `git push origin main`.
 
-> Owner confirmed on 18 Nov 2026 that everything up to and including migration 089_tax_and_year_end is live. Only files after 089 are pending.
+> Owner confirmed on 18 Nov 2026 that everything up to and including migration 090_gst is live. Only files after 090 are pending.
 
 ## 1. Database (phpMyAdmin, on the LIVE database)
 Paste each file in the SQL tab, in this order. All are safe to run again if unsure.
