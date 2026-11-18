@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
-import { currentTerms } from "@/lib/bill-terms";
+import { currentTerms, estimateTerms } from "@/lib/bill-terms";
 import { termsLines } from "@/lib/bill-terms-text";
 import { saveBillTermsAction } from "@/lib/bill-terms-actions";
 import BillTerms from "@/components/BillTerms";
@@ -18,6 +18,7 @@ async function Content({ searchParams }: Props) {
   const user = await requireGroupOwner();
   const q = await searchParams;
   const body = await currentTerms(db, user.legal_business_id);
+  const estimateBody = await estimateTerms(db, user.legal_business_id);
   return (
     <main className={styles.page}>
       <h1>Bill terms and conditions</h1>
@@ -28,6 +29,9 @@ async function Content({ searchParams }: Props) {
         <label>One term on each line (no need to type numbers; up to 12 lines)
           <textarea name="body" rows={8} defaultValue={body} maxLength={3000} style={{ width: "100%", fontSize: 16, padding: 10 }} />
         </label>
+        <label>Extra lines only on estimates (optional), e.g. &quot;Prices in this estimate hold for 7 days.&quot;
+          <textarea name="estimate_body" rows={3} defaultValue={estimateBody} maxLength={1000} style={{ width: "100%", fontSize: 16, padding: 10 }} />
+        </label>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button type="submit" style={{ padding: "12px 20px", fontSize: 16 }}>Save terms</button>
           <button type="submit" name="reset" value="1" style={{ padding: "12px 20px", fontSize: 16 }}>Put back the standard two</button>
@@ -35,6 +39,7 @@ async function Content({ searchParams }: Props) {
       </form>
       <h2>How it prints</h2>
       <div style={{ maxWidth: 640, border: "1px dashed #cbd5e1", padding: 12 }}><BillTerms text={body} /></div>
+      {estimateBody ? <><h3>On estimates</h3><div style={{ maxWidth: 640, border: "1px dashed #cbd5e1", padding: 12 }}><BillTerms text={body} extra={estimateBody} /></div></> : null}
       <p style={{ color: "#64748b" }}>{termsLines(body).length} terms.</p>
       <RewardsGuide open />
     </main>

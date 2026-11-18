@@ -27,6 +27,11 @@ export type Brand = {
   logoPrint: string;
   /** Title of the staff app, e.g. "Acme Group Accounting". */
   appName: string;
+  /** Map link to the shop (Google Maps share link), printed as a QR code on bills. */
+  mapLink: string;
+  instagram: string;
+  facebook: string;
+  youtube: string;
   /** Short safe word for file names, e.g. "acme". */
   fileSlug: string;
 };
@@ -48,6 +53,10 @@ export const BRAND_KEYS: Record<Exclude<keyof Brand, "fileSlug">, string> = {
   logoLarge: "brand_logo_large",
   logoPrint: "brand_logo_print",
   appName: "brand_app_name",
+  mapLink: "brand_map_link",
+  instagram: "brand_instagram",
+  facebook: "brand_facebook",
+  youtube: "brand_youtube",
 };
 
 export const DEFAULT_LOGOS = {
@@ -55,6 +64,17 @@ export const DEFAULT_LOGOS = {
   large: "/brand/logo-512.png",
   print: "/brand/logo-print.png",
 };
+
+/** Links printed as QR codes on bills: only full https addresses, in a fixed order. */
+export function billLinks(brand: Brand): Array<{ label: string; url: string }> {
+  const ok = (u: string) => /^https:\/\/[^\s"'<>]+$/.test(u);
+  return [
+    { label: "Find the shop", url: brand.mapLink },
+    { label: "Instagram", url: brand.instagram },
+    { label: "Facebook", url: brand.facebook },
+    { label: "YouTube", url: brand.youtube },
+  ].filter((l) => ok(l.url));
+}
 
 export function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30) || "business";
@@ -84,6 +104,10 @@ export function brandFrom(
     logoLarge: get("logoLarge") || DEFAULT_LOGOS.large,
     logoPrint: get("logoPrint") || DEFAULT_LOGOS.print,
     appName: get("appName") || `${groupName} Accounting`,
+    mapLink: get("mapLink"),
+    instagram: get("instagram"),
+    facebook: get("facebook"),
+    youtube: get("youtube"),
     fileSlug: slugify(shopName),
   };
 }

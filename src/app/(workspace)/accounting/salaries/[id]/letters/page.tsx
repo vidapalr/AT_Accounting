@@ -8,6 +8,8 @@ import { requireAccess } from "@/lib/auth";
 import PrintButton from "@/components/PrintButton";
 import Letterhead from "@/components/Letterhead";
 import { DEFAULT_TERMS, LETTER_TYPES, renderLetter, type LetterType, type Terms } from "@/lib/staff-letters";
+import { loadComponents, loadCtcOptions, loadPayrollSettings, toPaise } from "@/lib/payroll/data";
+import { ctcFromGross } from "@/lib/payroll/ctc";
 import { loadLetterTemplate } from "@/lib/letter-templates";
 import { getBrand } from "@/lib/brand";
 import { fieldBlock as field } from "@/lib/ui/styles";
@@ -35,7 +37,8 @@ async function Content({ params, searchParams }: Props) {
   const e = emp[0];
   if (!e) notFound();
 
-  const type: LetterType = LETTER_TYPES.some((t) => t.key === q.type) ? (q.type as LetterType) : "appointment";
+  const defaultType: LetterType = e.employment_type === "DAILY_WAGE" ? "daily_wage_engagement" : e.employment_type === "PART_TIME" ? "part_time_appointment" : "appointment";
+  const type: LetterType = LETTER_TYPES.some((t) => t.key === q.type) ? (q.type as LetterType) : defaultType;
   const terms: Terms = {
     noticeDays: clean(q.notice, 3, DEFAULT_TERMS.noticeDays).replace(/\D/g, "") || DEFAULT_TERMS.noticeDays,
     probationDays: clean(q.probation, 3, DEFAULT_TERMS.probationDays).replace(/\D/g, "") || "0",
@@ -60,6 +63,15 @@ async function Content({ params, searchParams }: Props) {
     newSalary: /^\d{1,9}(\.\d{1,2})?$/.test(q.new_salary ?? "") ? inr(q.new_salary) : "",
     effectiveFrom: /^\d{4}-\d{2}-\d{2}$/.test(q.effective ?? "") ? dmy(q.effective) : "",
     reason: clean(q.reason, 300, ""),
+    employmentType: (["PART_TIME", "DAILY_WAGE"].includes(String(e.employment_type)) ? String(e.employment_type) : "FULL_TIME") as "FULL_TIME" | "PART_TIME" | "DAILY_WAGE",
+    dailyWage: e.daily_wage == null ? "" : inr(e.daily_wage),
+    ctc: await (async () => {
+      if (String(e.employment_type ?? "FULL_TIME") === "DAILY_WAGE") return "";
+      const month = today().slice(0, 7);
+      const [settings, components, options] = await Promise.all([loadPayrollSettings(businessId), loadComponents(businessId), loadCtcOptions(businessId)]);
+      const c = ctcFromGross({ monthlyGross: toPaise(e.monthly_salary ?? 0), components, settings, options, month });
+      return inr(Number(c.annual.ctc) / 100);
+    })(),
   };
 
   let slip: RowDataPacket | null = null;

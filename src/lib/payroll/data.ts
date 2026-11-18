@@ -7,6 +7,8 @@ import { isMissingTable } from "@/lib/db-errors";
 import { ageAt, computePayslip, daysIn, defaultPaidDays, DEFAULT_SETTINGS, fyStartOf, type PayComponent, type PayrollSettings, type Payslip, type PayslipInput } from "./engine";
 import { ESI_DEFAULTS, PF_DEFAULTS, PT_PRESETS, parsePtSlabs } from "./rules";
 import { openAdvances } from "@/lib/staff-advance-recovery";
+import { monthMarks, type DayStatus } from "@/lib/attendance";
+import { DEFAULT_CTC_OPTIONS, paidDaysFromAttendance, type CtcOptions, type EmploymentType } from "./ctc";
 
 type Q = Pool | PoolConnection;
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -25,7 +27,7 @@ export const PAYROLL_KEYS = [
   "payroll_pf_enabled", "payroll_pf_full_wages", "payroll_pf_fifty_rule",
   "payroll_pf_employee_bps", "payroll_pf_employer_bps",
   "payroll_esi_enabled", "payroll_pt_enabled", "payroll_pt_state", "payroll_pt_slabs", "payroll_tds_enabled",
-  "payroll_tan",
+  "payroll_tan", "payroll_ctc_bonus", "payroll_ctc_gratuity", "payroll_bonus_wage_cap",
 ] as const;
 
 const bps = (v: string | undefined, fallback: number) => {
@@ -140,7 +142,10 @@ export async function buildPayslip(
   const settings = opts.settings ?? (await loadPayrollSettings(businessId, conn));
   const components = opts.components ?? (await loadComponents(businessId, conn));
   const iso = (v: unknown) => (v ? new Date(v as string).toISOString().slice(0, 10) : null);
-  const monthlySalary = await salaryInForce(conn, businessId, Number(e.id), month, e.monthly_salary);
+  const type = (["PART_TIME", "DAILY_WAGE"].includes(String(e.employment_type)) ? String(e.employment_type) : "FULL_TIME") as EmploymentType;
+  // Daily wage: a month's pay is the day rate for every day of the month, earned for the days present.
+  const monthlySalary = type === "DAILY_WAGE" ? toPaise(e.daily_wage ?? 0) * BigInt(daysIn(month)) : await salaryInForce(conn, businessId, Number(e.id), month, e.monthly_salary);
+  const marks = await attendanceMarks(conn, businessId, Number(e.id), month);
   const ytd = await yearToDate(conn, businessId, Number(e.id), month);
   let advance = opts.advance;
   if (advance === undefined) {
@@ -157,7 +162,13 @@ export async function buildPayslip(
     monthlySalary,
     components,
     daysInMonth: daysIn(month),
-    paidDays: opts.paidDays ?? defaultPaidDays(month, iso(e.joined_on), iso(e.left_on)),
+    paidDays:
+      opts.paidDays ??
+      (marks
+        ? Math.min(defaultPaidDays(month, iso(e.joined_on), iso(e.left_on)), paidDaysFromAttendance(type, daysIn(month), marks))
+        : type === "DAILY_WAGE"
+          ? 0
+          : defaultPaidDays(month, iso(e.joined_on), iso(e.left_on))),
     person: {
       pfMember: Number(e.pf_member ?? 1) === 1,
       esiMember: Number(e.esi_member ?? 1) === 1,
@@ -171,6 +182,33 @@ export async function buildPayslip(
     esiCarriedOver: await esiCarriedOver(conn, businessId, Number(e.id), month),
   };
   return { input, slip: computePayslip(input, settings) };
+}
+
+/** Counts of marked days for a person and month, or null when nothing is marked (or before migration 091). */
+export async function attendanceMarks(conn: Q, businessId: number, employeeId: number, month: string): Promise<{ present: number; half: number; absent: number } | null> {
+  try {
+    const [rows] = await conn.query<Row[]>(
+      `SELECT status FROM acct_attendance WHERE legal_business_id = ? AND employee_id = ? AND work_date BETWEEN ? AND LAST_DAY(?)`,
+      [businessId, employeeId, `${month}-01`, `${month}-01`]
+    );
+    if (rows.length === 0) return null;
+    const m = monthMarks(rows.map((r) => ({ status: (r.status as DayStatus) ?? null })));
+    return { present: m.present, half: m.half, absent: m.absent };
+  } catch (error) {
+    if (isMissingTable(error)) return null;
+    throw error;
+  }
+}
+
+/** CTC options from payroll settings. */
+export async function loadCtcOptions(businessId: number, conn: Q = db): Promise<CtcOptions> {
+  const [rows] = await conn.query<Row[]>(
+    `SELECT setting_key, setting_value FROM acct_business_settings WHERE legal_business_id = ? AND setting_key IN ('payroll_ctc_bonus', 'payroll_ctc_gratuity', 'payroll_bonus_wage_cap')`,
+    [businessId]
+  );
+  const s = Object.fromEntries(rows.map((r) => [String(r.setting_key), String(r.setting_value ?? "")]));
+  const cap = Number(s.payroll_bonus_wage_cap);
+  return { ...DEFAULT_CTC_OPTIONS, bonus: s.payroll_ctc_bonus === "1", gratuity: s.payroll_ctc_gratuity === "1", bonusWageCap: Number.isFinite(cap) && cap > 0 ? BigInt(Math.round(cap * 100)) : DEFAULT_CTC_OPTIONS.bonusWageCap };
 }
 
 /** What is still owed on advances (for capping the amount taken back when paying). */

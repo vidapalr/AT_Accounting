@@ -74,6 +74,18 @@ async function Content({ searchParams }: Props) {
             </Field>
           </div>
         </Section>
+        <Section title="Cost to company (CTC)">
+          <p style={muted}>CTC = 12 months of gross salary + the business&apos;s PF and ESI share + the items ticked below. It is shown on each staff record and in offer letters.</p>
+          <div style={{ display: "grid", gap: 12 }}>
+            {tick("payroll_ctc_bonus", "Include statutory bonus (8.33% of basic, for pay up to ₹21,000 a month)", s.payroll_ctc_bonus === "1")}
+            {tick("payroll_ctc_gratuity", "Include gratuity provision (4.81% of basic)", s.payroll_ctc_gratuity === "1", "Gratuity is payable after 5 years of service (1 year for fixed-term staff under the labour codes).")}
+          </div>
+          <div style={formGrid}>
+            <Field label="Basic counted for bonus, per month (₹)" hint="₹7,000, or the state minimum wage if that is higher.">
+              <input name="payroll_bonus_wage_cap" defaultValue={s.payroll_bonus_wage_cap ?? "7000"} inputMode="numeric" disabled={!owner} style={fieldFull} />
+            </Field>
+          </div>
+        </Section>
         {owner ? <SubmitButton label="Save deductions" /> : null}
       </form>
 

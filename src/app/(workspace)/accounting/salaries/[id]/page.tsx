@@ -7,9 +7,14 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { addPayChangeAction, saveStaffDatesAction } from "@/lib/staff-record-actions";
 import { cell, box, fieldBlock as field } from "@/lib/ui/styles";
-import { saveEmployeeStatutoryAction } from "@/lib/payroll-actions";
+import { saveEmployeeStatutoryAction, saveEmploymentAction } from "@/lib/payroll-actions";
+import { loadComponents, loadCtcOptions, loadPayrollSettings } from "@/lib/payroll/data";
+import { ctcFromGross, EMPLOYMENT_TYPES, grossFromCtc, type Ctc } from "@/lib/payroll/ctc";
+import { ageAt } from "@/lib/payroll/engine";
+import { inr as inrP, parseRupees } from "@/lib/reports/money";
+import { todayInIndia } from "@/lib/format";
 
-type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; error?: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; error?: string; ctc?: string }> };
 
 const inr = (v: unknown) => `₹${Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -41,6 +46,28 @@ async function Content({ params, searchParams }: Props) {
        FROM acct_salary_payments WHERE legal_business_id = ? AND employee_id = ? ORDER BY salary_month DESC LIMIT 24`,
     [businessId, Number(id)]).catch(() => [[] as RowDataPacket[]]);
 
+  // Cost to company of the current salary, and (when asked) the salary that fits a yearly CTC.
+  const month = todayInIndia().slice(0, 7);
+  const [settings, components, ctcOptions] = await Promise.all([loadPayrollSettings(businessId), loadComponents(businessId), loadCtcOptions(businessId)]);
+  const age = ageAt(month, e.date_of_birth ? new Date(e.date_of_birth as string).toISOString().slice(0, 10) : null);
+  const ctcNow = ctcFromGross({ monthlyGross: parseRupees(String(e.monthly_salary ?? "0")) ?? 0n, components, settings, options: ctcOptions, month, age });
+  const askedCtc = q.ctc ? parseRupees(q.ctc) : null;
+  const fit = askedCtc && askedCtc > 0n ? grossFromCtc({ annualCtc: askedCtc, components, settings, options: ctcOptions, month, age }) : null;
+  const typeKnown = "employment_type" in e;
+  const CtcTable = ({ c }: { c: Ctc }) => (
+    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <tbody>
+        <tr><td style={cell}>Monthly gross salary (Basic {inrP(c.basic)} + other parts)</td><td style={{ ...cell, textAlign: "right" }}>{inrP(c.monthlyGross)}</td></tr>
+        <tr><td style={cell}>Business&apos;s PF share each month (PF, pension, EDLI, admin)</td><td style={{ ...cell, textAlign: "right" }}>{inrP(c.employerMonthly.pf)}</td></tr>
+        <tr><td style={cell}>Business&apos;s ESI share each month</td><td style={{ ...cell, textAlign: "right" }}>{inrP(c.employerMonthly.esi)}</td></tr>
+        <tr><td style={cell}>Statutory bonus for the year</td><td style={{ ...cell, textAlign: "right" }}>{inrP(c.annual.bonus)}</td></tr>
+        <tr><td style={cell}>Gratuity provision for the year</td><td style={{ ...cell, textAlign: "right" }}>{inrP(c.annual.gratuity)}</td></tr>
+        <tr style={{ fontWeight: 700 }}><td style={cell}>Cost to company (CTC) a year</td><td style={{ ...cell, textAlign: "right" }}>{inrP(c.annual.ctc)}</td></tr>
+        <tr><td style={cell}>Take-home each month before income tax (gross less the person&apos;s PF, ESI and professional tax)</td><td style={{ ...cell, textAlign: "right" }}>{inrP(c.takeHomeMonthly)}</td></tr>
+      </tbody>
+    </table>
+  );
+
   return (
     <main style={{ padding: 24, maxWidth: 820 }}>
       <Link className="btn-link" href="/accounting/salaries">← Salaries</Link>
@@ -50,6 +77,48 @@ async function Content({ params, searchParams }: Props) {
       {q.saved && <p role="status" style={{ color: "#166534" }}>{q.saved.slice(0, 220)}</p>}
       {q.error && <p role="alert" style={{ color: "#b91c1c" }}>{q.error.slice(0, 220)}</p>}
       {!ready && <p role="alert">Not set up yet. Ask Claude for the database file named 062_staff_record.</p>}
+
+      <section style={box}>
+        <h2>Type of work and attendance</h2>
+        {typeKnown ? (
+          <form action={saveEmploymentAction} style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+            <input type="hidden" name="employee_id" value={String(e.id)} />
+            <label>Type of work
+              <select name="employment_type" defaultValue={String(e.employment_type ?? "FULL_TIME")} style={field}>
+                {EMPLOYMENT_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+              </select>
+            </label>
+            <label>Daily wage (₹, daily-wage staff)<input name="daily_wage" defaultValue={e.daily_wage == null ? "" : String(Number(e.daily_wage))} inputMode="decimal" style={field} /></label>
+            <label>WhatsApp number for attendance<input name="whatsapp_number" defaultValue={String(e.whatsapp_number ?? "")} inputMode="numeric" maxLength={14} style={field} /></label>
+            <p style={{ gridColumn: "1 / -1", color: "#64748b", margin: 0 }}>
+              The person sends <strong>IN</strong> when they arrive and <strong>OUT</strong> when they leave, from this number to the shop&apos;s WhatsApp. Daily wage is paid for days present; monthly staff are cut only for days marked absent.{" "}
+              <Link href="/accounting/attendance">Attendance register</Link>
+            </p>
+            <div><button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Save type of work</button></div>
+          </form>
+        ) : <p role="alert">Run migration 091 in phpMyAdmin to set the type of work and attendance.</p>}
+      </section>
+
+      <section style={box}>
+        <h2>Salary and cost to company (CTC)</h2>
+        {String(e.employment_type ?? "") === "DAILY_WAGE" ? (
+          <p>Daily wage {e.daily_wage == null ? "not set" : inr(e.daily_wage)}: about {e.daily_wage == null ? "—" : inr(Number(e.daily_wage) * 26)} for 26 working days in a month. Pay each month = daily wage × days present.</p>
+        ) : <CtcTable c={ctcNow} />}
+        <p style={{ color: "#64748b" }}>
+          How CTC is worked out: 12 months of gross salary, plus the business&apos;s PF and ESI share (only when switched on in <Link href="/accounting/payroll/settings">Payroll settings</Link>), plus bonus and gratuity when ticked there. The salary is split into Basic, HRA and other parts as set in Payroll settings.
+        </p>
+        <form method="get" style={{ display: "flex", gap: 8, alignItems: "end", flexWrap: "wrap" }}>
+          <label>Offering a yearly CTC? Type it (₹)<input name="ctc" defaultValue={q.ctc ?? ""} inputMode="decimal" style={field} /></label>
+          <button type="submit" className="btn-link" style={{ cursor: "pointer" }}>Work out the monthly salary</button>
+        </form>
+        {fit ? (
+          <>
+            <h3>For a CTC of {inrP(askedCtc ?? 0n)} a year</h3>
+            <CtcTable c={fit} />
+            <p style={{ color: "#64748b" }}>To use it, add a pay change below with the monthly gross {inrP(fit.monthlyGross)}.</p>
+          </>
+        ) : null}
+      </section>
 
       {"uan" in e ? (
         <section style={box}>

@@ -14,6 +14,8 @@
 export type LetterType =
   | "offer"
   | "appointment"
+  | "part_time_appointment"
+  | "daily_wage_engagement"
   | "confirmation"
   | "increment"
   | "salary_certificate"
@@ -27,7 +29,9 @@ export type TemplateLetterType = Exclude<LetterType, "payslip">;
 
 export const LETTER_TYPES: Array<{ key: LetterType; label: string }> = [
   { key: "offer", label: "Offer letter" },
-  { key: "appointment", label: "Appointment (joining) letter" },
+  { key: "appointment", label: "Appointment (joining) letter: full time" },
+  { key: "part_time_appointment", label: "Appointment letter: part time" },
+  { key: "daily_wage_engagement", label: "Engagement letter: daily wage" },
   { key: "confirmation", label: "Confirmation after probation" },
   { key: "increment", label: "Salary increase letter" },
   { key: "salary_certificate", label: "Salary certificate" },
@@ -68,6 +72,12 @@ export type LetterContext = {
   /** How the employer is named in letters, e.g. "Acme Group (Acme Textiles)". */
   employer: string;
   terms: Terms;
+  /** Full time, part time or daily wage (changes the pay line in the terms). */
+  employmentType?: "FULL_TIME" | "PART_TIME" | "DAILY_WAGE";
+  /** Daily wage, formatted (daily-wage staff). */
+  dailyWage?: string;
+  /** Cost to company a year, formatted (full time). */
+  ctc?: string;
   /** Only some letters use these. */
   newSalary?: string;
   effectiveFrom?: string;
@@ -92,6 +102,9 @@ export const LETTER_FIELDS: Array<{ key: string; label: string; help: string }> 
   { key: "employer", label: "company", help: "Company name as set in the brand settings" },
   { key: "place", label: "town", help: "Town of the person's branch" },
   { key: "salary", label: "salary", help: "Monthly salary, e.g. ₹12,000.00" },
+  { key: "daily_wage", label: "daily wage", help: "Daily wage (daily-wage staff)" },
+  { key: "ctc", label: "CTC", help: "Cost to company a year (see the staff record)" },
+  { key: "employment_type", label: "type of work", help: "Full time, part time or daily wage" },
   { key: "joined_on", label: "joining date", help: "Date of joining" },
   { key: "notice_given_on", label: "notice date", help: "Date notice was given" },
   { key: "left_on", label: "last working day", help: "Last working day" },
@@ -132,6 +145,37 @@ export const DEFAULT_TEMPLATES: Record<TemplateLetterType, LetterTemplate> = {
         "- You will keep the business information, prices, customer details and accounts of the company private, during your employment and after you leave.",
         "- Any money, goods or property of the company in your care must be accounted for and handed back when you leave.",
         "- Any advance given to you will be recovered as agreed, and any balance will be settled when you leave.",
+      ].join("\n"),
+      "Please sign and return a copy of this letter to confirm that you accept these terms.",
+    ].join("\n\n"),
+  },
+  part_time_appointment: {
+    heading: "APPOINTMENT LETTER (PART TIME)",
+    needsAcceptance: true,
+    body: [
+      "Dear {{person}},",
+      "We are pleased to appoint you as {{job_title}} at {{employer}}, {{place}}, on a part-time basis, with effect from {{joined_on}}.",
+      "Your terms of employment are:",
+      [
+        "{{terms}}",
+        "- Your working days and hours may be changed by the management with notice to suit the needs of the shop.",
+        "- You will keep the business information, prices and customer details of the company private, during your employment and after you leave.",
+        "- Any money, goods or property of the company in your care must be accounted for and handed back when you leave.",
+      ].join("\n"),
+      "Please sign and return a copy of this letter to confirm that you accept these terms.",
+    ].join("\n\n"),
+  },
+  daily_wage_engagement: {
+    heading: "ENGAGEMENT LETTER (DAILY WAGE)",
+    needsAcceptance: true,
+    body: [
+      "Dear {{person}},",
+      "We are pleased to engage you as {{job_title}} at {{employer}}, {{place}}, on a daily-wage basis, from {{joined_on}}.",
+      "The terms of your engagement are:",
+      [
+        "{{terms}}",
+        "- Wages are paid for the days actually worked. There is no pay for days not worked.",
+        "- You will follow the instructions of the management and the rules of the shop, and account for any money or goods in your care.",
       ].join("\n"),
       "Please sign and return a copy of this letter to confirm that you accept these terms.",
     ].join("\n\n"),
@@ -215,10 +259,21 @@ function probationWords(days: string): string {
   return Number(days) > 0 ? `${days} days from the date of joining (can be changed by mutual agreement)` : "None";
 }
 
+function payLine(c: LetterContext): string {
+  if (c.employmentType === "DAILY_WAGE") return `Daily wage: ₹${c.dailyWage || "[daily wage]"} for each day you are present, as marked in the attendance register, paid monthly`;
+  if (c.employmentType === "PART_TIME") return `Monthly salary: ₹${c.salary} for part-time work; days absent without leave are not paid`;
+  return `Monthly salary: ₹${c.salary}${c.ctc ? ` (cost to company ₹${c.ctc} a year, including the company's PF and ESI share where they apply)` : ""}`;
+}
+
+const TYPE_WORDS = { FULL_TIME: "full time", PART_TIME: "part time", DAILY_WAGE: "daily wage" } as const;
+
 function termLines(c: LetterContext): string[] {
   const t = c.terms;
+  if (c.employmentType === "DAILY_WAGE") {
+    return [payLine(c), `Working hours: ${t.hours}`, "Attendance: send IN when you arrive and OUT when you leave on the company WhatsApp, or sign the register", `Either side may end this engagement with ${t.noticeDays === "0" ? "one day's" : `${t.noticeDays} days'`} notice`];
+  }
   return [
-    `Monthly salary: ₹${c.salary}`,
+    payLine(c),
     `Probation: ${probationWords(t.probationDays)}`,
     `Working hours: ${t.hours}`,
     `Weekly off: ${t.weeklyOff}`,
@@ -236,6 +291,9 @@ export function letterValues(c: LetterContext): Record<string, string> {
     employer: c.employer,
     place: c.place,
     salary: c.salary ? `₹${c.salary}` : "",
+    daily_wage: c.dailyWage ? `₹${c.dailyWage}` : "",
+    ctc: c.ctc ? `₹${c.ctc}` : "",
+    employment_type: TYPE_WORDS[c.employmentType ?? "FULL_TIME"],
     joined_on: c.joinedOn,
     notice_given_on: c.noticeGivenOn,
     left_on: c.leftOn,

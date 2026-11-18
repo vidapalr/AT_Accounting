@@ -11,8 +11,9 @@ import { loadBrand } from "@/lib/brand";
 import BillWatermark from "@/components/BillWatermark";
 import BillTerms from "@/components/BillTerms";
 import GstInvoiceBlock from "@/components/GstInvoiceBlock";
+import BillQrCodes from "@/components/BillQrCodes";
 import { loadInvoiceGst } from "@/lib/gst/data";
-import { termsForSale } from "@/lib/bill-terms";
+import { estimateTerms, termsForSale } from "@/lib/bill-terms";
 import { normalizePhone } from "@/lib/whatsapp/core";
 import { inr2 as inr } from "@/lib/format";
 
@@ -95,7 +96,8 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
       {!isEstimate && <p style={{ textAlign: "right", margin: 0 }}>Paid {inr(paidAmt)}</p>}
       {!isEstimate && <p style={{ textAlign: "right", margin: 0 }}>{due > 0 ? <>Balance due <strong>{inr(due)}</strong></> : <strong>Paid in full. Thank you!</strong>}</p>}
       <GstInvoiceBlock gst={gst} />
-      <BillTerms text={await termsForSale(db, Number(h.legal_business_id), Number(h.id))} />
+      <BillTerms text={await termsForSale(db, Number(h.legal_business_id), Number(h.id))} extra={isEstimate ? await estimateTerms(db, Number(h.legal_business_id)) : ""} />
+      <BillQrCodes brand={brand} />
       <p style={{ marginTop: 28, fontSize: 18, textAlign: "center", color: "var(--indigo)" }}><strong>{isEstimate ? `Thank you for visiting ${brand.shopName}!` : `Thanks for shopping with ${brand.shopName}!`}</strong></p>
       <p className={styles.muted} style={{ textAlign: "center" }}>
         If anything looks wrong, message us{phone ? <> on <a href={`https://wa.me/${phone.replace(/\D/g, "")}`}>WhatsApp {whatsapp}</a></> : " on WhatsApp"}.
