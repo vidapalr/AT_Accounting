@@ -4,7 +4,7 @@ import Link from "next/link";
 import { requireAccess } from "@/lib/auth";
 import { todayInIndia } from "@/lib/format";
 import { DAY_STATUSES, hoursWorked, monthHours, monthMarks } from "@/lib/attendance";
-import { loadRegister } from "@/lib/attendance-data";
+import { loadRegister, unmatchedPunches } from "@/lib/attendance-data";
 import { markAttendanceAction, markWeeklyOffAction } from "@/lib/attendance-actions";
 import { paidDaysFromAttendance, type EmploymentType } from "@/lib/payroll/ctc";
 import SubmitButton from "@/components/SubmitButton";
@@ -25,6 +25,8 @@ async function Content({ searchParams }: Props) {
   const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const dates = Array.from({ length: days }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`);
   const { ready, rows } = await loadRegister(user.legal_business_id, month);
+  const strays = await unmatchedPunches(user.legal_business_id);
+  const noNumber = rows.filter((r) => !r.whatsapp);
   const todayRows = rows.map((r) => ({ r, d: r.days.get(today) })).filter((x) => x.d);
 
   return (
@@ -39,6 +41,24 @@ async function Content({ searchParams }: Props) {
         <Field label="Month"><input type="month" name="month" defaultValue={month} style={fieldFull} /></Field>
         <button type="submit" className="btn-link" style={{ cursor: "pointer" }}>Show</button>
       </form>
+
+      {strays.length ? (
+        <Section title="IN or OUT from a number nobody has">
+          <table style={{ borderCollapse: "collapse" }}>
+            <thead><tr><th style={cell}>Number</th><th style={cell}>Said</th><th style={cell}>When</th></tr></thead>
+            <tbody>
+              {strays.map((x, i) => (
+                <tr key={i}><td style={cell}>{x.phone}</td><td style={cell}>{x.word}</td><td style={cell}>{x.date} {x.time}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          <p style={muted}>
+            These messages were not marked because no staff record has that number. Open the person under{" "}
+            <Link href="/accounting/salaries">Staff records</Link>, put the number in <strong>WhatsApp number for attendance</strong>, press{" "}
+            <strong>Save type of work</strong>, and ask them to send IN again. The message itself cannot be marked later; mark that day by hand below.
+          </p>
+        </Section>
+      ) : null}
 
       {month === today.slice(0, 7) ? (
         <Section title={`Today (${today})`}>
@@ -104,6 +124,10 @@ async function Content({ searchParams }: Props) {
         )}
         <p style={muted}>
           {DAY_STATUSES.map((s) => `${s.short} = ${s.label}`).join(" · ")}. Days paid: daily wage = days present; monthly staff = days in the month less days marked absent (unmarked days are not cut). People paid by the hour are paid for the hours in this table. Payroll uses these figures.
+        </p>
+        <p style={muted}>
+          IN and OUT on WhatsApp work for: {rows.filter((r) => r.whatsapp).map((r) => `${r.name} (${r.whatsapp})`).join(", ") || "nobody yet"}.
+          {noNumber.length ? ` No number saved yet for ${noNumber.map((r) => r.name).join(", ")} — open the person under Staff records and save it.` : ""}
         </p>
       </Section>
 

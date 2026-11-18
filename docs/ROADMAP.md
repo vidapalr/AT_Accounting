@@ -382,3 +382,9 @@ Not yet: e-invoice (IRN) and e-way bill, GSTR-2B matching, ITC on stock held on 
 - **Letters and pay slips into the folder** with one press: the letter is built again on the server from the same choices and written as a PDF with pdfkit (`src/lib/paper-pdf.ts`, built-in fonts only, so money reads "Rs."). Nothing from the browser is trusted.
 - **Monthly pay slips on their own**: `/api/payroll/run?secret=<CRON_SECRET>` works out draft pay slips for the month just finished, for every company, from the attendance register (`preparePayslips` in `src/lib/payroll/data.ts`, shared with the Payroll screen). Nothing is paid and nothing posts until someone presses Pay; the Payroll screen shows when the job last ran.
 - **PF, ESI and professional tax now show the company's own state** on each staff record: on or off, the company's registration number from Registrations and portal logins, and a warning when PF or ESI is on but that person has no UAN or ESI number yet.
+
+## Attendance: IN/OUT that matches nobody (18 Nov 2026; migration 094)
+Reported live: a daily-wage person sent IN twice and nothing appeared in the register, because at that moment no staff record held her WhatsApp number; the message fell through to the shop chatbot and nothing anywhere said so.
+- `recordWhatsAppPunch` now also matches the person's own mobile (`acct_employees.phone`) when no WhatsApp number is saved, so a number typed in only one of the two boxes still works. An exact WhatsApp-number match always wins.
+- When no one matches, the message is kept in `acct_attendance_unmatched` (number, IN or OUT, India date and time).
+- Staff > Attendance register shows "IN or OUT from a number nobody has" with those messages and what to do, and a line naming everyone who can send IN and OUT and everyone with no number saved.

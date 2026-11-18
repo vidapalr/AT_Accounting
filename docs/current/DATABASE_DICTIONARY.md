@@ -2,7 +2,7 @@
 
 Source-derived: base schema (through migration 040), followed by migrations 041–078. These are exact CREATE/ALTER definitions, not a database introspection or a flattened final schema. Read later ALTER statements to determine a column’s latest type/default and indexes. DML backfills, triggers and seed records remain in the linked SQL sources. No migrations were executed. The base dump identifies MariaDB 11.8.9; MySQL compatibility must not be assumed.
 
-Tables with CREATE definitions: **157**. Explicit foreign-key declarations extracted: **191**.
+Tables with CREATE definitions: **158**. Explicit foreign-key declarations extracted: **192**.
 
 ## acct_account_map
 
@@ -578,6 +578,27 @@ CREATE TABLE IF NOT EXISTS acct_attendance (
   UNIQUE KEY uq_attendance_day (legal_business_id, employee_id, work_date),
   KEY idx_attendance_month (legal_business_id, work_date),
   CONSTRAINT fk_attendance_business FOREIGN KEY (legal_business_id) REFERENCES acct_legal_businesses (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+## acct_attendance_unmatched
+
+Definition: [migrations/094_attendance_unmatched.sql](../../migrations/094_attendance_unmatched.sql) (line 7)
+
+```sql
+CREATE TABLE IF NOT EXISTS acct_attendance_unmatched (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  legal_business_id BIGINT UNSIGNED NOT NULL,
+  /** Last 10 digits of the number the message came from. */
+  phone VARCHAR(15) NOT NULL,
+  word ENUM('IN','OUT') NOT NULL,
+  /** India date and time of the message. */
+  work_date DATE NOT NULL,
+  at_time TIME NOT NULL,
+  received_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_attendance_unmatched (legal_business_id, work_date, phone),
+  CONSTRAINT fk_attendance_unmatched_business FOREIGN KEY (legal_business_id) REFERENCES acct_legal_businesses (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 

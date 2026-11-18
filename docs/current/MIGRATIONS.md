@@ -97,4 +97,5 @@ For a new empty database, the documented baseline is the base dump through 040, 
 | [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql) | staff attendance statutory | acct_attendance, acct_employees, acct_legal_businesses, acct_statutory_login_views, acct_statutory_logins |
 | [migrations/092_hourly_workers.sql](../../migrations/092_hourly_workers.sql) | hourly workers | acct_employees |
 | [migrations/093_staff_folder_and_papers.sql](../../migrations/093_staff_folder_and_papers.sql) | staff folder and papers | acct_employee_documents, acct_employees, acct_legal_businesses |
+| [migrations/094_attendance_unmatched.sql](../../migrations/094_attendance_unmatched.sql) | attendance unmatched | acct_attendance_unmatched, acct_legal_businesses |
 

@@ -98,6 +98,7 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql) | 64 | Indexed; comprehensive manual review pending |
 | [migrations/092_hourly_workers.sql](../../migrations/092_hourly_workers.sql) | 13 | Indexed; comprehensive manual review pending |
 | [migrations/093_staff_folder_and_papers.sql](../../migrations/093_staff_folder_and_papers.sql) | 37 | Indexed; comprehensive manual review pending |
+| [migrations/094_attendance_unmatched.sql](../../migrations/094_attendance_unmatched.sql) | 21 | Indexed; comprehensive manual review pending |
 | [scripts/add-funding-receipt-account.sql](../../scripts/add-funding-receipt-account.sql) | 6 | Indexed; comprehensive manual review pending |
 | [scripts/add-investor-bank-opening-balances.sql](../../scripts/add-investor-bank-opening-balances.sql) | 12 | Indexed; comprehensive manual review pending |
 | [scripts/add-sales-payment-account.sql](../../scripts/add-sales-payment-account.sql) | 8 | Indexed; comprehensive manual review pending |
@@ -115,7 +116,7 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [src/app/(workspace)/accounting/approval-items/page.tsx](../../src/app/(workspace)/accounting/approval-items/page.tsx) | 314 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/approvals/page.tsx](../../src/app/(workspace)/accounting/approvals/page.tsx) | 119 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/assistant/page.tsx](../../src/app/(workspace)/accounting/assistant/page.tsx) | 35 | Indexed; comprehensive manual review pending |
-| [src/app/(workspace)/accounting/attendance/page.tsx](../../src/app/(workspace)/accounting/attendance/page.tsx) | 158 | Indexed; comprehensive manual review pending |
+| [src/app/(workspace)/accounting/attendance/page.tsx](../../src/app/(workspace)/accounting/attendance/page.tsx) | 182 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/audit/changes/page.tsx](../../src/app/(workspace)/accounting/audit/changes/page.tsx) | 118 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/audit/export/page.tsx](../../src/app/(workspace)/accounting/audit/export/page.tsx) | 66 | Indexed; comprehensive manual review pending |
 | [src/app/(workspace)/accounting/audit/ledger/page.tsx](../../src/app/(workspace)/accounting/audit/ledger/page.tsx) | 143 | Indexed; comprehensive manual review pending |
@@ -425,7 +426,7 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [src/lib/asset-actions.ts](../../src/lib/asset-actions.ts) | 211 | Indexed; comprehensive manual review pending |
 | [src/lib/asset-math.ts](../../src/lib/asset-math.ts) | 51 | Indexed; comprehensive manual review pending |
 | [src/lib/attendance-actions.ts](../../src/lib/attendance-actions.ts) | 76 | Indexed; comprehensive manual review pending |
-| [src/lib/attendance-data.ts](../../src/lib/attendance-data.ts) | 93 | Indexed; comprehensive manual review pending |
+| [src/lib/attendance-data.ts](../../src/lib/attendance-data.ts) | 131 | Indexed; comprehensive manual review pending |
 | [src/lib/attendance.ts](../../src/lib/attendance.ts) | 84 | Indexed; comprehensive manual review pending |
 | [src/lib/auditor-adjustment-actions.ts](../../src/lib/auditor-adjustment-actions.ts) | 100 | Indexed; comprehensive manual review pending |
 | [src/lib/auth.ts](../../src/lib/auth.ts) | 204 | Indexed; comprehensive manual review pending |
@@ -572,7 +573,7 @@ Every source/test/script/SQL/CSS file below was read by the static inventory gen
 | [src/lib/login-guard.ts](../../src/lib/login-guard.ts) | 53 | Indexed; comprehensive manual review pending |
 | [src/lib/mailer.ts](../../src/lib/mailer.ts) | 32 | Indexed; comprehensive manual review pending |
 | [src/lib/media-storage.ts](../../src/lib/media-storage.ts) | 103 | Indexed; comprehensive manual review pending |
-| [src/lib/migration-check.ts](../../src/lib/migration-check.ts) | 119 | Indexed; comprehensive manual review pending |
+| [src/lib/migration-check.ts](../../src/lib/migration-check.ts) | 120 | Indexed; comprehensive manual review pending |
 | [src/lib/month-close.ts](../../src/lib/month-close.ts) | 122 | Indexed; comprehensive manual review pending |
 | [src/lib/month-math.ts](../../src/lib/month-math.ts) | 14 | Indexed; comprehensive manual review pending |
 | [src/lib/navigation.ts](../../src/lib/navigation.ts) | 307 | Indexed; comprehensive manual review pending |
