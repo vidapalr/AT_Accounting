@@ -8,6 +8,7 @@ import { sendWhatsAppText } from "@/lib/bot/send";
 import { optWord } from "@/lib/broadcast-math";
 import { businessIdForWhatsAppNumber, currentBusinessId } from "@/lib/tenant";
 import { loadBrand } from "@/lib/brand";
+import { recordWhatsAppPunch } from "@/lib/attendance-data";
 
 /**
  * Where WhatsApp (Meta Cloud API) delivers messages that employees send to the
@@ -45,7 +46,7 @@ type Incoming = {
       value?: {
         metadata?: { phone_number_id?: string };
         contacts?: Array<{ wa_id?: string; profile?: { name?: string } }>;
-        messages?: Array<{ id?: string; from?: string; type?: string; text?: { body?: string } }>;
+        messages?: Array<{ id?: string; from?: string; type?: string; timestamp?: string; text?: { body?: string } }>;
         message_echoes?: Array<{ to?: string }>;
         statuses?: Array<{ id?: string; status?: string; errors?: Array<{ code?: number; title?: string; message?: string }> }>;
       };
@@ -89,6 +90,12 @@ export async function POST(request: NextRequest) {
           const word = optWord(text);
           if (word) {
             await handleOptWord(BUSINESS_ID, message.from, word);
+            continue;
+          }
+          // Staff attendance: IN / OUT from the WhatsApp number saved on the staff record.
+          const punchReply = await recordWhatsAppPunch(BUSINESS_ID, message.from, text, message.timestamp ? Number(message.timestamp) : null);
+          if (punchReply) {
+            await sendWhatsAppText(message.from, punchReply).catch((e) => console.error("Attendance reply failed:", e));
             continue;
           }
           const reporter = text ? await findReporterByPhone(db, BUSINESS_ID, message.from) : null;
