@@ -4,7 +4,7 @@ import Link from "next/link";
 import { requireAccess } from "@/lib/auth";
 import { todayInIndia } from "@/lib/format";
 import { DAY_STATUSES, hoursWorked, monthHours, monthMarks } from "@/lib/attendance";
-import { loadRegister, unmatchedPunches } from "@/lib/attendance-data";
+import { lastIncomingMessage, loadRegister, unmatchedPunches } from "@/lib/attendance-data";
 import { markAttendanceAction, markWeeklyOffAction } from "@/lib/attendance-actions";
 import { paidDaysFromAttendance, type EmploymentType } from "@/lib/payroll/ctc";
 import SubmitButton from "@/components/SubmitButton";
@@ -26,6 +26,7 @@ async function Content({ searchParams }: Props) {
   const dates = Array.from({ length: days }, (_, i) => `${month}-${String(i + 1).padStart(2, "0")}`);
   const { ready, rows } = await loadRegister(user.legal_business_id, month);
   const strays = await unmatchedPunches(user.legal_business_id);
+  const lastMsg = await lastIncomingMessage(user.legal_business_id);
   const noNumber = rows.filter((r) => !r.whatsapp);
   const todayRows = rows.map((r) => ({ r, d: r.days.get(today) })).filter((x) => x.d);
 
@@ -41,6 +42,13 @@ async function Content({ searchParams }: Props) {
         <Field label="Month"><input type="month" name="month" defaultValue={month} style={fieldFull} /></Field>
         <button type="submit" className="btn-link" style={{ cursor: "pointer" }}>Show</button>
       </form>
+
+      {lastMsg ? (
+        <p style={muted}>
+          Last WhatsApp message received: <strong>{lastMsg.when}</strong> from <strong>{lastMsg.phone}</strong>, kind &ldquo;{lastMsg.type}&rdquo;, words &ldquo;{lastMsg.text || "(none — a photo, voice note or tap)"}&rdquo;.
+          {lastMsg.type !== "text" ? " This was not a plain typed message, so IN or OUT in it may not be read — ask staff to type the word IN (or OUT) and send it." : ""}
+        </p>
+      ) : null}
 
       {strays.length ? (
         <Section title="IN or OUT from a number nobody has">

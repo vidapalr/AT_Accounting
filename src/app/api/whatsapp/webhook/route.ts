@@ -46,7 +46,15 @@ type Incoming = {
       value?: {
         metadata?: { phone_number_id?: string };
         contacts?: Array<{ wa_id?: string; profile?: { name?: string } }>;
-        messages?: Array<{ id?: string; from?: string; type?: string; timestamp?: string; text?: { body?: string } }>;
+        messages?: Array<{
+          id?: string;
+          from?: string;
+          type?: string;
+          timestamp?: string;
+          text?: { body?: string };
+          button?: { text?: string; payload?: string };
+          interactive?: { type?: string; button_reply?: { id?: string; title?: string }; list_reply?: { id?: string; title?: string } };
+        }>;
         message_echoes?: Array<{ to?: string }>;
         statuses?: Array<{ id?: string; status?: string; errors?: Array<{ code?: number; title?: string; message?: string }> }>;
       };
@@ -84,7 +92,18 @@ export async function POST(request: NextRequest) {
       }
       for (const message of change.value?.messages ?? []) {
         if (!message.from) continue;
-        const text = message.type === "text" ? (message.text?.body ?? null) : null;
+        // Read the words whether the person typed them or tapped a quick-reply/list option, so IN and
+        // OUT are recognised in every case. A photo or voice note still has no text.
+        const text =
+          message.type === "text"
+            ? (message.text?.body ?? null)
+            : message.type === "button"
+              ? (message.button?.text ?? message.button?.payload ?? null)
+              : message.type === "interactive"
+                ? (message.interactive?.button_reply?.title ?? message.interactive?.list_reply?.title ?? null)
+                : null;
+        // Keep the last message received, so the Attendance register can show what actually arrived.
+        await noteLastIncoming(BUSINESS_ID, message.from, message.type ?? "?", text).catch(() => {});
         try {
           // STOP / START about offer messages work even when the bot is off.
           const word = optWord(text);
@@ -122,6 +141,22 @@ export async function POST(request: NextRequest) {
   return new NextResponse("ok", { status: 200 });
 }
 
+
+/**
+ * Remember the last message a company received: who from, what kind, and the words in it. Shown on the
+ * Attendance register so the owner can see exactly what a staff member's IN or OUT arrived as. Kept in
+ * the settings table, so no database change is needed.
+ */
+async function noteLastIncoming(businessId: number, from: string, type: string, text: string | null) {
+  const phone = from.replace(/\D/g, "").slice(-10);
+  const when = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 16).replace("T", " ");
+  const value = `${when}|${phone}|${type}|${(text ?? "").slice(0, 60)}`;
+  await db.execute(
+    `INSERT INTO acct_business_settings (legal_business_id, setting_key, setting_value, updated_by)
+     VALUES (?, 'wa_last_incoming', ?, NULL) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+    [businessId, value]
+  );
+}
 
 const RANK = ["sent", "delivered", "read", "failed"];
 
