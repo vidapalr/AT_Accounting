@@ -7,6 +7,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import { formatMoney, type JournalDraft } from "./posting-rules.ts";
 import { APP_POSTED_SOURCES } from "./reversible-sources.ts";
 import { buildLedgerDrafts, type Queryable } from "./source-events.ts";
+import { journalSignature, type SignatureLine } from "./journal-signature.ts";
 
 export type SyncStatus = {
   /** Records with no journal yet. */
@@ -25,16 +26,13 @@ const OUR_SOURCES: readonly string[] = APP_POSTED_SOURCES;
 type Row = RowDataPacket & Record<string, unknown>;
 
 const keyOf = (type: string, id: number) => `${type}#${id}`;
-const signature = (lines: { code: string; debit: string; credit: string }[]) =>
-  lines.map((l) => `${l.code}|${l.debit}|${l.credit}`).sort().join(";");
-
 export async function getSyncStatus(conn: Queryable, businessId: number): Promise<SyncStatus> {
   const built = await buildLedgerDrafts(conn, businessId);
   const drafts = built.drafts.filter((d) => d.sourceType !== "OPENING_BALANCE");
 
   const [rows] = await (conn as { query: (s: string, v: unknown[]) => Promise<[Row[], unknown]> }).query(
     `SELECT j.id, j.journal_no, j.source_type, j.source_id,
-            a.account_code, l.debit, l.credit
+            a.account_code, l.debit, l.credit, l.division_id, l.branch_id
      FROM acct_journal_entries j
      JOIN acct_journal_lines l ON l.journal_entry_id = j.id AND l.legal_business_id = j.legal_business_id
      JOIN acct_chart_of_accounts a ON a.id = l.account_id AND a.legal_business_id = l.legal_business_id
@@ -45,11 +43,15 @@ export async function getSyncStatus(conn: Queryable, businessId: number): Promis
     [businessId, ...OUR_SOURCES]
   );
 
-  const posted = new Map<string, { journalNo: string; lines: { code: string; debit: string; credit: string }[] }>();
+  const posted = new Map<string, { journalNo: string; lines: SignatureLine[] }>();
   for (const r of rows) {
     const key = keyOf(String(r.source_type), Number(r.source_id));
     const entry = posted.get(key) ?? { journalNo: String(r.journal_no), lines: [] };
-    entry.lines.push({ code: String(r.account_code), debit: String(r.debit), credit: String(r.credit) });
+    entry.lines.push({
+      code: String(r.account_code), debit: String(r.debit), credit: String(r.credit),
+      divisionId: r.division_id == null ? null : Number(r.division_id),
+      branchId: r.branch_id == null ? null : Number(r.branch_id),
+    });
     posted.set(key, entry);
   }
 
@@ -68,12 +70,13 @@ export async function getSyncStatus(conn: Queryable, businessId: number): Promis
       continue;
     }
     // Compare only the non-zero side of each line.
-    const want = signature(
+    const want = journalSignature(
       draft.lines.map((l) => ({
         code: l.accountCode, debit: formatMoney(l.debit), credit: formatMoney(l.credit),
+        divisionId: l.divisionId, branchId: l.branchId,
       }))
     );
-    if (want !== signature(existing.lines)) {
+    if (want !== journalSignature(existing.lines)) {
       status.changedAfterPosting.push(`${existing.journalNo}: ${draft.description}`);
     }
   }
