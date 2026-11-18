@@ -184,6 +184,7 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/fixed-assets", "expenses"],
   ["/accounting/advances-deposits", "expenses"],
   ["/accounting/tax", "tax"],
+  ["/accounting/gst", "tax"],
 ];
 
 export function featureForPath(path: string): Feature | null {

@@ -41,6 +41,7 @@ import {
   ownerMoneyEntry,
   cashTakenEntry,
   fundingReceiptEntry,
+  gstPaymentEntry,
   assetDepreciationEntry,
   assetDisposalEntry,
   staffAdvanceEntry,
@@ -110,6 +111,7 @@ const SOURCE_ORDER: SourceType[] = [
   "OWNER_MONEY",
   "CASH_TAKEN",
   "FUNDING_RECEIPT",
+  "GST_PAYMENT",
 ];
 
 const str = (v: unknown): string => String(v ?? "");
@@ -120,6 +122,21 @@ async function select(conn: Queryable, sql: string, values: unknown[] = []) {
   const [rows] = await (conn as Pool).query<Row[]>(sql, values);
   return rows;
 }
+
+/** Rows from columns or tables a later migration adds (GST, 090): none until it is run. */
+async function selectOptional(conn: Queryable, sql: string, values: unknown[] = []): Promise<Row[]> {
+  try {
+    return await select(conn, sql, values);
+  } catch (error) {
+    const e = error as { errno?: number } | null;
+    if (e && (e.errno === 1054 || e.errno === 1146)) return [];
+    throw error;
+  }
+}
+
+/** GST columns of a row as the strings the posting rules take. */
+const gstOf = (r: Row | undefined, prefix = "", suffix = "") =>
+  r ? { cgst: str(r[`${prefix}cgst${suffix}`] ?? "0"), sgst: str(r[`${prefix}sgst${suffix}`] ?? "0"), igst: str(r[`${prefix}igst${suffix}`] ?? "0") } : undefined;
 
 export async function loadChart(
   conn: Queryable,
@@ -297,6 +314,7 @@ export async function buildLedgerDrafts(
             s.division_id, s.branch_id, s.subtotal, s.discount_amount,
             s.grand_total, s.shipping_charge,
             COALESCE(SUM(l.total_cost), 0) AS cogs,
+            COALESCE(SUM(l.cgst_amount), 0) AS cgst, COALESCE(SUM(l.sgst_amount), 0) AS sgst, COALESCE(SUM(l.igst_amount), 0) AS igst,
             COUNT(l.id) AS line_count,
             COUNT(l.total_cost) AS costed_lines
      FROM acct_sales_headers s
@@ -310,6 +328,10 @@ export async function buildLedgerDrafts(
     [businessId]
   );
 
+  const saleShipTax = new Map(
+    (await selectOptional(conn, `SELECT id, shipping_cgst, shipping_sgst, shipping_igst FROM acct_sales_headers WHERE legal_business_id = ? AND status = 'POSTED' AND gst_applied = 1`, [businessId]))
+      .map((r) => [Number(r.id), r])
+  );
   const saleById = new Map<number, Row>();
   for (const s of sales) {
     saleById.set(Number(s.id), s);
@@ -327,6 +349,8 @@ export async function buildLedgerDrafts(
         grandTotal: str(s.grand_total),
         shipping: str(s.shipping_charge),
         costOfGoodsSold: str(s.cogs),
+        goodsTax: gstOf(s),
+        shippingTax: gstOf(saleShipTax.get(Number(s.id)), "shipping_"),
       });
     });
   }
@@ -393,6 +417,10 @@ export async function buildLedgerDrafts(
     [businessId]
   );
 
+  const returnTax = new Map(
+    (await selectOptional(conn, `SELECT id, cgst_amount AS cgst, sgst_amount AS sgst, igst_amount AS igst, delivery_tax FROM acct_sales_returns WHERE legal_business_id = ? AND status = 'POSTED'`, [businessId]))
+      .map((r) => [Number(r.id), r])
+  );
   const returnById = new Map<number, Row>();
   for (const r of returns) {
     returnById.set(Number(r.id), r);
@@ -408,6 +436,8 @@ export async function buildLedgerDrafts(
         deliveryValue: str(r.delivery_value),
         restockCost: str(r.restock_cost),
         damagedCost: str(r.damaged_cost),
+        tax: gstOf(returnTax.get(Number(r.id))),
+        deliveryTax: returnTax.get(Number(r.id)) ? str(returnTax.get(Number(r.id))!.delivery_tax) : "0",
       })
     );
   }
@@ -508,7 +538,10 @@ export async function buildLedgerDrafts(
     conn,
     `SELECT h.id, h.purchase_no, h.division_id,
             DATE_FORMAT(COALESCE(h.received_date, h.invoice_date), '%Y-%m-%d') AS d,
-            COALESCE(SUM(l.line_amount), 0) AS total
+            COALESCE(SUM(l.line_amount), 0) AS total,
+            COALESCE(SUM(CASE WHEN l.itc_eligible = 1 THEN l.cgst_amount ELSE 0 END), 0) AS cgst,
+            COALESCE(SUM(CASE WHEN l.itc_eligible = 1 THEN l.sgst_amount ELSE 0 END), 0) AS sgst,
+            COALESCE(SUM(CASE WHEN l.itc_eligible = 1 THEN l.igst_amount ELSE 0 END), 0) AS igst
      FROM acct_purchase_headers h
      LEFT JOIN acct_purchase_lines l
        ON l.legal_business_id = h.legal_business_id AND l.purchase_id = h.id
@@ -528,6 +561,7 @@ export async function buildLedgerDrafts(
         date: str(h.d),
         dims: dims(h.division_id, null),
         total: str(h.total),
+        credit: gstOf(h),
       })
     );
   }
@@ -712,6 +746,27 @@ export async function buildLedgerDrafts(
     });
   }
 
+  // ------------------------------------------------- GST paid (090)
+  const gstPayments = await selectOptional(
+    conn,
+    `SELECT id, payment_no, DATE_FORMAT(paid_on, '%Y-%m-%d') AS d, settled_cgst, settled_sgst, settled_igst,
+            itc_cgst, itc_sgst, itc_igst, rcm_cash, composition_tax, interest_fee, cash_total, paid_from, bank_account_id, cash_account_id
+       FROM acct_gst_payments WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY paid_on, id`,
+    [businessId]
+  );
+  for (const g of gstPayments) {
+    const label = `GST paid ${str(g.payment_no)}`;
+    add(label, () => {
+      const settlement = settle(label, str(g.paid_from) === "CASH" ? "BUSINESS_CASH" : "BUSINESS_BANK", g.bank_account_id, g.cash_account_id);
+      if (!settlement) return null;
+      return gstPaymentEntry({
+        id: Number(g.id), paymentNo: str(g.payment_no), date: str(g.d), dims: dims(null, null),
+        settled: gstOf(g, "settled_")!, credit: gstOf(g, "itc_")!, rcmCash: str(g.rcm_cash), compositionTax: str(g.composition_tax),
+        interestFee: str(g.interest_fee), cashTotal: str(g.cash_total), settlement,
+      });
+    });
+  }
+
   // ------------------------------------------- cash taken away at closing
   const takenRows = await select(
     conn,
@@ -806,8 +861,16 @@ export async function buildLedgerDrafts(
     [businessId]
   );
 
+  const expenseGst = new Map(
+    (await selectOptional(conn, `SELECT id, gst_mode, cgst_amount AS cgst, sgst_amount AS sgst, igst_amount AS igst FROM acct_expenses WHERE legal_business_id = ? AND status = 'CONFIRMED' AND gst_mode <> 'NONE'`, [businessId]))
+      .map((r) => [Number(r.id), r])
+  );
   const expenseById = new Map<number, Row>();
   for (const e of expenses) {
+    const eg = expenseGst.get(Number(e.id));
+    const gst = eg ? { mode: str(eg.gst_mode) as "ITC" | "RCM", amounts: gstOf(eg)! } : undefined;
+    // With GST claimed back, the cost (and a set-up asset) is the bill less that GST.
+    const netAmount = gst?.mode === "ITC" ? formatMoney(parseMoney(str(e.amount)) - parseMoney(gst.amounts.cgst) - parseMoney(gst.amounts.sgst) - parseMoney(gst.amounts.igst)) : str(e.amount);
     expenseById.set(Number(e.id), e);
     add(`Expense ${str(e.expense_no)}`, () =>
       expenseEntry({
@@ -819,6 +882,7 @@ export async function buildLedgerDrafts(
         amount: str(e.amount),
         dims: dims(e.division_id, e.branch_id),
         isSetupCost: Number(e.is_setup_cost) === 1,
+        gst,
       })
     );
     if (Number(e.is_setup_cost) === 1) {
@@ -827,7 +891,7 @@ export async function buildLedgerDrafts(
           id: Number(e.id),
           expenseNo: str(e.expense_no),
           date: str(e.d),
-          amount: str(e.amount),
+          amount: netAmount,
           dims: dims(e.division_id, e.branch_id),
         })
       );
@@ -929,6 +993,10 @@ export async function buildLedgerDrafts(
     [businessId]
   );
 
+  const supplierReturnCredit = new Map(
+    (await selectOptional(conn, `SELECT id, itc_cgst AS cgst, itc_sgst AS sgst, itc_igst AS igst FROM acct_supplier_returns WHERE legal_business_id = ? AND status = 'POSTED'`, [businessId]))
+      .map((r) => [Number(r.id), r])
+  );
   const supplierReturnById = new Map<number, Row>();
   for (const r of supplierReturns) {
     supplierReturnById.set(Number(r.id), r);
@@ -940,6 +1008,7 @@ export async function buildLedgerDrafts(
         dims: dims(r.division_id, null),
         costValue: str(r.cost_value),
         agreedValue: str(r.agreed_value),
+        credit: gstOf(supplierReturnCredit.get(Number(r.id))),
       })
     );
   }

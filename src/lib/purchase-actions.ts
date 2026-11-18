@@ -11,6 +11,10 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { getActiveDivisionId } from "@/lib/division-context";
 import { autoReverseForEdit } from "@/lib/ledger/reverse-in-tx";
+import { applyPurchaseGst, netCost, purchaseLineCredits } from "@/lib/gst/data";
+import { unitCost4 } from "@/lib/gst/engine";
+import { isMissingColumn } from "@/lib/db-errors";
+import { parseRupees, toPaise } from "@/lib/reports/money";
 
 const PAGE = "/accounting/purchases";
 const MAX_LINE_COUNT = 100;
@@ -178,6 +182,9 @@ async function savePurchaseDraft(
   const invoiceDate = field(form, "invoice_date");
   const remarks = field(form, "remarks");
   const lines = parseLines(form);
+  const billTaxText = field(form, "bill_tax_total");
+  const billTax = billTaxText === "" ? null : parseRupees(billTaxText);
+  if (billTaxText !== "" && (billTax === null || billTax < 0n)) go("invalid", purchaseId ?? undefined);
 
   if (
     supplierId === null ||
@@ -453,6 +460,7 @@ async function savePurchaseDraft(
                 );
                 await saveLot(conn, lineInsert.insertId, line.lot);
               }
+              await savePurchaseGst(conn, businessId, savedPurchaseId, billTax);
 
               await conn.execute(
                 `INSERT INTO acct_audit_events
@@ -540,6 +548,28 @@ async function savePurchaseDraft(
  * The old journal entry is reversed automatically, stock is corrected with new stock records (the old ones stay
  * in the history), and the purchase is posted again with the new values.
  */
+/** Unit cost and total a received line went into stock at (without any input credit). */
+function oldCost(l: RowDataPacket): [string, string] {
+  const credit = BigInt(String(l.credit_paise ?? 0));
+  if (credit === 0n) return [String(l.unit_cost), String(l.line_amount)];
+  const net = toPaise(String(l.line_amount)) - credit;
+  return [unitCost4(net, BigInt(Math.round(Number(l.quantity) * 1000))), `${net / 100n}.${String(net % 100n).padStart(2, "0")}`];
+}
+
+/** Save the GST typed from the supplier's bill and work out the GST on its lines. */
+async function savePurchaseGst(conn: PoolConnection, businessId: number, purchaseId: number, billTax: bigint | null): Promise<void> {
+  await conn
+    .execute(`UPDATE acct_purchase_headers SET bill_tax_total = ? WHERE id = ? AND legal_business_id = ?`, [
+      billTax === null ? null : `${billTax / 100n}.${String(billTax % 100n).padStart(2, "0")}`,
+      purchaseId,
+      businessId,
+    ])
+    .catch((e) => {
+      if (!isMissingColumn(e)) throw e;
+    });
+  await applyPurchaseGst(conn, businessId, purchaseId);
+}
+
 export async function editReceivedPurchaseAction(form: FormData): Promise<void> {
   const user = await requireAccess("purchases");
   const DIVISION_ID = await getActiveDivisionId(user);
@@ -552,6 +582,9 @@ export async function editReceivedPurchaseAction(form: FormData): Promise<void> 
   const invoiceDate = field(form, "invoice_date");
   const remarks = field(form, "remarks");
   const lines = parseLines(form);
+  const billTaxText = field(form, "bill_tax_total");
+  const billTax = billTaxText === "" ? null : parseRupees(billTaxText);
+  if (billTaxText !== "" && (billTax === null || billTax < 0n)) go("invalid", purchaseId ?? undefined);
 
   if (
     purchaseId === null || supplierId === null || locationId === null || !validDate(invoiceDate) ||
@@ -590,7 +623,8 @@ export async function editReceivedPurchaseAction(form: FormData): Promise<void> 
       );
       const [oldLines] = await conn.execute<RowDataPacket[]>(
         `SELECT id, variant_id, CAST(quantity AS CHAR) AS quantity, CAST(unit_cost AS CHAR) AS unit_cost,
-                CAST(line_amount AS CHAR) AS line_amount
+                CAST(line_amount AS CHAR) AS line_amount,
+                CASE WHEN itc_eligible = 1 THEN ROUND((cgst_amount + sgst_amount + igst_amount) * 100) ELSE 0 END AS credit_paise
            FROM acct_purchase_lines WHERE purchase_id = ? AND legal_business_id = ? AND division_id = ?
           ORDER BY line_no FOR UPDATE`,
         [purchaseId, businessId, DIVISION_ID]
@@ -693,7 +727,7 @@ export async function editReceivedPurchaseAction(form: FormData): Promise<void> 
                       source_type, source_id, source_line_id, quantity_change, unit_cost, total_cost, remarks, created_by)
                    VALUES (?, ?, ?, ?, ?, 'PURCHASE_RETURN', 'PURCHASE_EDIT', ?, ?, ?, ?, ?, 'Purchase edited: old quantity taken out', ?)`,
                   [businessId, DIVISION_ID, locationId, l.variant_id, received, purchaseId, l.id,
-                   "-" + String(l.quantity), l.unit_cost, l.line_amount, user.id]
+                   "-" + String(l.quantity), ...oldCost(l), user.id]
                 );
               }
 
@@ -707,6 +741,7 @@ export async function editReceivedPurchaseAction(form: FormData): Promise<void> 
                 [purchaseId, businessId, DIVISION_ID]
               );
 
+              const insertedIds: number[] = [];
               for (const [index, l] of lines.entries()) {
                 const [inserted] = await conn.execute<ResultSetHeader>(
                   `INSERT INTO acct_purchase_lines
@@ -715,13 +750,24 @@ export async function editReceivedPurchaseAction(form: FormData): Promise<void> 
                   [businessId, DIVISION_ID, purchaseId, index + 1, l.variantId, l.quantity, l.unitCost, l.lineAmount]
                 );
                 await saveLot(conn, inserted.insertId, l.lot);
+                insertedIds.push(inserted.insertId);
+              }
+              // GST on the changed bill, then the new quantities go into stock without the input credit.
+              await savePurchaseGst(conn, businessId, purchaseId, billTax);
+              const credits = await purchaseLineCredits(conn, businessId, insertedIds);
+              for (const [index, l] of lines.entries()) {
+                const lineId = insertedIds[index];
+                const c = credits.get(lineId);
+                const net = c ? netCost(c.amount, c.credit) : toPaise(l.lineAmount);
+                const qtyMilli = BigInt(Math.round(Number(l.quantity) * 1000));
+                const hasCredit = !!c && net !== c.amount;
                 await conn.execute(
                   `INSERT INTO acct_stock_movements
                      (legal_business_id, division_id, location_id, variant_id, movement_date, movement_type,
                       source_type, source_id, source_line_id, quantity_change, unit_cost, total_cost, remarks, created_by)
                    VALUES (?, ?, ?, ?, ?, 'PURCHASE_RECEIPT', 'PURCHASE_EDIT', ?, ?, ?, ?, ?, 'Purchase edited: new quantity', ?)`,
-                  [businessId, DIVISION_ID, locationId, l.variantId, received, purchaseId, inserted.insertId,
-                   l.quantity, l.unitCost, l.lineAmount, user.id]
+                  [businessId, DIVISION_ID, locationId, l.variantId, received, purchaseId, lineId,
+                   l.quantity, hasCredit ? unitCost4(net, qtyMilli) : l.unitCost, hasCredit ? `${net / 100n}.${String(net % 100n).padStart(2, "0")}` : l.lineAmount, user.id]
                 );
               }
 

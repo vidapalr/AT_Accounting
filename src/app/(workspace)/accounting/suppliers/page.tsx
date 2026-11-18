@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
-import { createSupplierAction } from "@/lib/supplier-actions";
+import { createSupplierAction, saveSupplierGstAction } from "@/lib/supplier-actions";
 
 type Props = {
   searchParams: Promise<{ result?: string }>;
@@ -62,6 +62,7 @@ const messages: Record<string, string> = {
   invalid: "Check supplier details, GSTIN and payment terms.",
   "business-not-found": "Legal business was not found.",
   failed: "Unable to save supplier. Check server logs.",
+  "gst-saved": "Supplier GST details saved. New purchases from this supplier follow them.",
 };
 
 async function SupplierContent({ searchParams }: Props) {
@@ -88,6 +89,13 @@ async function SupplierContent({ searchParams }: Props) {
      ORDER BY supplier_name, id`,
     [user.legal_business_id]
   );
+  const composition = new Set<number>();
+  try {
+    const [c] = await db.execute<RowDataPacket[]>(`SELECT id FROM acct_suppliers WHERE legal_business_id = ? AND gst_composition = 1`, [user.legal_business_id]);
+    for (const r of c) composition.add(Number(r.id));
+  } catch {
+    // migration 090 not run yet
+  }
 
   return (
     <main style={{
@@ -345,7 +353,14 @@ async function SupplierContent({ searchParams }: Props) {
                   </td>
 
                   <td style={cellStyle}>
-                    {supplier.gstin ?? "—"}
+                    <form action={saveSupplierGstAction} style={{ display: "grid", gap: 4 }}>
+                      <input type="hidden" name="supplier_id" value={supplier.id} />
+                      <input name="gstin" defaultValue={supplier.gstin ?? ""} maxLength={15} placeholder="No GSTIN" aria-label={`GSTIN of ${supplier.supplier_name}`} style={{ padding: 6, width: 160, textTransform: "uppercase" }} />
+                      <label style={{ fontSize: 13 }}>
+                        <input type="checkbox" name="gst_composition" value="1" defaultChecked={composition.has(Number(supplier.id))} /> Composition dealer
+                      </label>
+                      <button type="submit" className="btn-link" style={{ cursor: "pointer" }}>Save GST</button>
+                    </form>
                   </td>
 
                   <td style={cellStyle}>

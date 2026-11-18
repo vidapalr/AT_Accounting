@@ -82,6 +82,8 @@ type InitialInvoice = {
   customerName: string;
   customerPhone: string;
   customerAddress?: string;
+  buyerGstin?: string;
+  placeOfSupply?: string;
   isEstimate?: boolean;
   estimateNo?: string;
   invoiceDiscount: string;
@@ -137,6 +139,8 @@ type Props = {
   initialInvoice?: InitialInvoice;
   /** A new estimate (quote): no payment, saved with its own EST number. */
   estimateMode?: boolean;
+  /** Set when the business charges GST: asks for a business buyer's GSTIN and the state goods go to. */
+  gst?: { homeState: string; states: Array<{ code: string; name: string }> };
 };
 
 const inputStyle: React.CSSProperties = {
@@ -184,6 +188,7 @@ export default function SalesBillingForm({
   initialInvoice,
   prefill,
   estimateMode = false,
+  gst,
 }: Props) {
   const [custPhone, setCustPhone] = useState(initialInvoice?.customerPhone ?? prefill?.customerPhone ?? "");
   const [custName, setCustName] = useState(initialInvoice?.customerName ?? prefill?.customerName ?? "");
@@ -507,6 +512,29 @@ export default function SalesBillingForm({
             onChange={e => setCustAddress(e.target.value)}
           />
         </label>
+
+        {gst ? (
+          <div className={styles.grid2} style={{ marginBottom: 12 }}>
+            <label className={styles.field}>
+              Customer&apos;s GSTIN (only for a business that wants a GST bill)
+              <input
+                name="buyer_gstin"
+                maxLength={15}
+                placeholder="Leave empty for an ordinary customer"
+                defaultValue={initialInvoice?.buyerGstin ?? ""}
+                style={{ textTransform: "uppercase" }}
+              />
+            </label>
+            <label className={styles.field}>
+              Goods go to which state?
+              <select name="place_of_supply" defaultValue={initialInvoice?.placeOfSupply || gst.homeState} style={{ padding: 10, fontSize: 16 }}>
+                {gst.states.map(st => (
+                  <option key={st.code} value={st.code}>{st.name}{st.code === gst.homeState ? " (this shop)" : ""}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : null}
 
         <label className={styles.field}>
           Customer type

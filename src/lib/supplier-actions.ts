@@ -7,6 +7,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { nextCode } from "@/lib/codes";
 import { requireAccess } from "@/lib/auth";
+import { isMissingColumn } from "@/lib/db-errors";
 
 const PAGE = "/accounting/suppliers";
 
@@ -197,4 +198,22 @@ export async function createSupplierAction(
   }
 
   redirect(`${PAGE}?result=${result}`);
+}
+
+/** A supplier's GST details: GSTIN (empty = not registered) and whether they are on the composition scheme. */
+export async function saveSupplierGstAction(form: FormData): Promise<void> {
+  const user = await requireAccess("purchases");
+  const id = Number(get(form, "supplier_id"));
+  const gstin = get(form, "gstin").toUpperCase();
+  if (!Number.isSafeInteger(id) || id <= 0 || (gstin !== "" && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstin))) {
+    redirect(`${PAGE}?result=invalid`);
+  }
+  await db.execute(`UPDATE acct_suppliers SET gstin = ? WHERE legal_business_id = ? AND id = ?`, [gstin || null, user.legal_business_id, id]);
+  await db
+    .execute(`UPDATE acct_suppliers SET gst_composition = ? WHERE legal_business_id = ? AND id = ?`, [form.get("gst_composition") === "1" ? 1 : 0, user.legal_business_id, id])
+    .catch((e) => {
+      if (!isMissingColumn(e)) throw e;
+    });
+  revalidatePath(PAGE);
+  redirect(`${PAGE}?result=gst-saved`);
 }

@@ -42,6 +42,15 @@ const LABELS: Record<keyof typeof ACCOUNT, [string, string]> = {
   DISPOSAL_LOSS: ["Loss or gain on selling assets", "Expenses"],
   INVESTOR_RETURN_COST: ["Returns paid to investors (cost)", "Expenses"],
   SETUP_COSTS: ["Set-up costs (expense)", "Expenses"],
+  GST_INPUT_CGST: ["GST input credit - CGST", "Assets"],
+  GST_INPUT_SGST: ["GST input credit - SGST", "Assets"],
+  GST_INPUT_IGST: ["GST input credit - IGST", "Assets"],
+  GST_OUTPUT_CGST: ["GST on sales - CGST", "Liabilities"],
+  GST_OUTPUT_SGST: ["GST on sales - SGST", "Liabilities"],
+  GST_OUTPUT_IGST: ["GST on sales - IGST", "Liabilities"],
+  GST_RCM_PAYABLE: ["GST to pay on reverse charge", "Liabilities"],
+  GST_COMPOSITION: ["Composition GST", "Expenses"],
+  GST_INTEREST_FEES: ["GST interest and late fee", "Expenses"],
 };
 
 const EXPENSE_LABELS: Record<string, string> = {

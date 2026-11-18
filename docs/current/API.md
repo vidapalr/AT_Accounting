@@ -25,6 +25,7 @@ Static source inventory. A named guard is evidence of a call, not proof of compl
 | `/api/documents/[id]/preview` | GET | [src/app/api/documents/[id]/preview/route.ts](../../src/app/api/documents/[id]/preview/route.ts) | requireGroupOwner( | acct_business_documents |
 | `/api/documents/[id]` | GET | [src/app/api/documents/[id]/route.ts](../../src/app/api/documents/[id]/route.ts) | getCurrentUser( |  |
 | `/api/documents` | POST | [src/app/api/documents/route.ts](../../src/app/api/documents/route.ts) | getCurrentUser( | acct_audit_events, acct_business_documents, acct_divisions |
+| `/api/gst/export` | GET | [src/app/api/gst/export/route.ts](../../src/app/api/gst/export/route.ts) | getSessionUser( |  |
 | `/api/ledger/auto-post` | GET, POST | [src/app/api/ledger/auto-post/route.ts](../../src/app/api/ledger/auto-post/route.ts) | authorised( |  |
 | `/api/payroll/file` | GET | [src/app/api/payroll/file/route.ts](../../src/app/api/payroll/file/route.ts) | getSessionUser( | acct_employees, acct_payslips |
 | `/api/reports/export` | GET | [src/app/api/reports/export/route.ts](../../src/app/api/reports/export/route.ts) | getSessionUser( |  |

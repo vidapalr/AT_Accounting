@@ -6,6 +6,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { loadGstConfig, schemeOn } from "@/lib/gst/data";
 import { getBrand } from "@/lib/brand";
 import { getActiveDivision } from "@/lib/division-context";
 import { createExpenseAction } from "@/lib/expense-actions";
@@ -26,6 +27,7 @@ const categories = EXPENSE_CATEGORIES;
 
 const messages: Record<string, string> = {
   created: "Expense saved successfully.",
+  "invalid-gst": "Please check the GST boxes: claiming GST back needs the seller's 15-character GSTIN, and the rate must be a number.",
   invalid: "Please check the expense details. The name of the person or shop paid is needed.",
   "choose-branch": "Pick the branch this cost belongs to. Every cost is booked to a branch.",
   "invalid-amount": "Enter a valid amount greater than zero.",
@@ -168,6 +170,7 @@ async function ExpensesContent({ searchParams }: Props) {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
+  const gstOn = schemeOn(await loadGstConfig(db, businessId), today) === "REGULAR";
 
   return (
     <main style={{
@@ -318,6 +321,28 @@ async function ExpensesContent({ searchParams }: Props) {
               style={fieldStyle}
             />
           </label>
+
+          {gstOn ? (
+            <fieldset style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 12, display: "grid", gap: 10 }}>
+              <legend>GST on this bill</legend>
+              <label>
+                GST
+                <select name="gst_mode" defaultValue="NONE" style={fieldStyle}>
+                  <option value="NONE">No GST on this bill (or GST that cannot be claimed)</option>
+                  <option value="ITC">The bill shows GST and the seller has a GSTIN (claim it back)</option>
+                  <option value="RCM">We pay the GST ourselves (reverse charge: rent from an unregistered owner, goods transport, lawyer)</option>
+                </select>
+              </label>
+              <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+                <label>Seller&apos;s GSTIN<input name="vendor_gstin" maxLength={15} style={fieldStyle} placeholder="Needed to claim GST back" /></label>
+                <label>GST rate (%)<input name="gst_rate" inputMode="decimal" defaultValue="18" style={fieldStyle} /></label>
+                <label>GST amount on the bill (₹, optional)<input name="gst_amount" inputMode="decimal" style={fieldStyle} placeholder="Worked out if empty" /></label>
+              </div>
+              <span style={{ color: "#64748b", fontSize: 13 }}>
+                The expense amount is the bill total. GST that is claimed back is not a cost; reverse-charge GST is paid with the monthly GST and claimed back in the same return.
+              </span>
+            </fieldset>
+          ) : null}
 
           <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <input type="checkbox" name="is_setup_cost" value="1" style={{ width: 22, height: 22 }} />

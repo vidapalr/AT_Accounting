@@ -10,6 +10,8 @@ import { getShopSettings } from "@/lib/shop";
 import { loadBrand } from "@/lib/brand";
 import BillWatermark from "@/components/BillWatermark";
 import BillTerms from "@/components/BillTerms";
+import GstInvoiceBlock from "@/components/GstInvoiceBlock";
+import { loadInvoiceGst } from "@/lib/gst/data";
 import { termsForSale } from "@/lib/bill-terms";
 import { normalizePhone } from "@/lib/whatsapp/core";
 import { inr2 as inr } from "@/lib/format";
@@ -53,6 +55,7 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
   const total = Number(h.grand_total);
   const paidAmt = Number(paid[0]?.paid ?? 0);
   const due = Math.max(0, total - paidAmt);
+  const gst = isEstimate ? null : await loadInvoiceGst(db, Number(h.legal_business_id), Number(h.id));
 
   return (
     <div style={{ maxWidth: 640, margin: "10px auto", position: "relative", zIndex: 1 }}>
@@ -66,7 +69,7 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
         </div>
       </div>
       <p className={styles.muted} style={{ margin: "0 0 4px" }}>{address}{phone ? <> · <a href={`tel:${phone}`}>{whatsapp}</a></> : null}</p>
-      <p style={{ margin: "0 0 4px" }}><strong>{isEstimate ? "Estimate" : "Bill"} {String(isEstimate ? h.estimate_no ?? h.invoice_no : h.invoice_no)}</strong> · {String(h.d)}</p>
+      <p style={{ margin: "0 0 4px" }}><strong>{isEstimate ? "Estimate" : gst?.kind === "TAX_INVOICE" ? "Tax invoice" : gst?.kind === "BILL_OF_SUPPLY" ? "Bill of supply" : "Bill"} {String(isEstimate ? h.estimate_no ?? h.invoice_no : h.invoice_no)}</strong> · {String(h.d)}</p>
       {(h.customer_name || h.customer_address) && (
         <p style={{ margin: "0 0 12px" }}>
           {h.customer_name ? <strong>{String(h.customer_name)}</strong> : null}
@@ -91,6 +94,7 @@ async function Content({ params }: { params: Promise<{ token: string }> }) {
       <p style={{ textAlign: "right", margin: "14px 0 0" }}>Total <strong style={{ fontSize: 20 }}>{inr(total)}</strong></p>
       {!isEstimate && <p style={{ textAlign: "right", margin: 0 }}>Paid {inr(paidAmt)}</p>}
       {!isEstimate && <p style={{ textAlign: "right", margin: 0 }}>{due > 0 ? <>Balance due <strong>{inr(due)}</strong></> : <strong>Paid in full. Thank you!</strong>}</p>}
+      <GstInvoiceBlock gst={gst} />
       <BillTerms text={await termsForSale(db, Number(h.legal_business_id), Number(h.id))} />
       <p style={{ marginTop: 28, fontSize: 18, textAlign: "center", color: "var(--indigo)" }}><strong>{isEstimate ? `Thank you for visiting ${brand.shopName}!` : `Thanks for shopping with ${brand.shopName}!`}</strong></p>
       <p className={styles.muted} style={{ textAlign: "center" }}>

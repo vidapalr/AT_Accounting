@@ -215,6 +215,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Months and years", href: "/accounting/periods", hint: "Open and close accounting months" },
       { label: "Year end", href: "/accounting/year-end", hint: "Start the new year and close the old one" },
       { label: "Income tax and year-end pack", href: "/accounting/tax", hint: "Advance tax, tax statement, loans, depreciation and one download for your accountant" },
+      { label: "GST returns and payments", href: "/accounting/gst", hint: "Monthly GST figures (GSTR-1, GSTR-3B or composition), input credit and the GST paid" },
       { label: "Auditor adjustments", href: "/accounting/auditor-adjustments", hint: "Record a change your auditor asked for, as its own dated entry" },
       { label: "Download for the auditor", href: "/accounting/audit/export", hint: "Excel and Tally files of the books" },
       { label: "Change history", href: "/accounting/audit/changes", hint: "Who did what, and when" },

@@ -135,6 +135,13 @@ async function main() {
          JOIN acct_purchase_headers h ON h.id=p.purchase_id AND h.legal_business_id=p.legal_business_id
         WHERE p.legal_business_id=? AND p.status='VERIFIED' AND h.status='POSTED'`
     );
+    // Goods sent back reduce what is owed; money the supplier then pays back settles that credit.
+    const supplierReturned = await one(
+      `SELECT COALESCE(SUM(agreed_value),0) FROM acct_supplier_returns WHERE legal_business_id=? AND status='POSTED'`
+    ).catch(() => 0n);
+    const supplierRefunded = await one(
+      `SELECT COALESCE(SUM(amount),0) FROM acct_supplier_refunds WHERE legal_business_id=? AND status='RECORDED'`
+    ).catch(() => 0n);
     const setupTotal = await one(
       `SELECT COALESCE(SUM(amount),0) FROM acct_expenses WHERE legal_business_id=? AND status='CONFIRMED' AND is_setup_cost=1`
     );
@@ -179,20 +186,47 @@ async function main() {
         WHERE legal_business_id=? AND movement_type NOT IN ('TRANSFER_OUT','TRANSFER_IN')`
     );
 
+    // GST (migration 090): tax inside sales and given back on returns is not income; GST claimed back on expenses is not a cost.
+    const optional = async (sql: string): Promise<bigint> => {
+      try {
+        return await signed(sql);
+      } catch {
+        return 0n; // columns not there before migration 090
+      }
+    };
+    const outputGst =
+      (await optional(
+        `SELECT COALESCE(SUM(l.cgst_amount + l.sgst_amount + l.igst_amount),0) FROM acct_sales_lines l
+           JOIN acct_sales_headers s ON s.id=l.sale_id AND s.legal_business_id=l.legal_business_id
+          WHERE l.legal_business_id=? AND s.status='POSTED'`
+      )) +
+      (await optional(
+        `SELECT COALESCE(SUM(shipping_cgst + shipping_sgst + shipping_igst),0) FROM acct_sales_headers WHERE legal_business_id=? AND status='POSTED'`
+      )) -
+      (await optional(
+        `SELECT COALESCE(SUM(cgst_amount + sgst_amount + igst_amount),0) FROM acct_sales_returns WHERE legal_business_id=? AND status='POSTED'`
+      ));
+    const expenseItc = await optional(
+      `SELECT COALESCE(SUM(cgst_amount + sgst_amount + igst_amount),0) FROM acct_expenses WHERE legal_business_id=? AND status='CONFIRMED' AND gst_mode='ITC' AND is_setup_cost=0`
+    );
+    const setupItc = await optional(
+      `SELECT COALESCE(SUM(cgst_amount + sgst_amount + igst_amount),0) FROM acct_expenses WHERE legal_business_id=? AND status='CONFIRMED' AND gst_mode='ITC' AND is_setup_cost=1`
+    );
+
     const openingInventory = 0n; // stock was entered through purchases, not opening balances
     const checks: [string, bigint, bigint][] = [
       ["Trial balance: debits = credits", td, tc],
       ["Receivables (1100) = invoiced - received - returns + refunds", bal("1100"), salesTotal - salesPaid - returnsValue + refundsPaid],
-      ["Payables (2000) = bought - paid", -bal("2000"), purchasesTotal - purchasesPaid],
+      ["Payables (2000) = bought - paid - sent back + refunded", -bal("2000"), purchasesTotal - purchasesPaid - supplierReturned + supplierRefunded],
       ["Accrued expenses (2200) = expenses - paid", -bal("2200"), expensesTotal - expensesPaid],
-      ["Set-up costs asset (1320) = set-up expenses", bal("1320"), setupTotal],
+      ["Set-up costs asset (1320) = set-up expenses", bal("1320"), setupTotal - setupItc],
       ["Inventory (1200) = stock ledger value", bal("1200"), stockValue + openingInventory],
       ["COGS (5000) = cost on invoice lines - returned cost", bal("5000"), cogs - returnedCost],
       ["Damaged stock (5150) = damaged returns + shop damages", bal("5150"), damagedReturnCost + damagesCost],
       [
         "Net profit = (sales - discounts) - COGS - expenses",
         -(sumPrefix("4") + sumPrefix("5") + sumPrefix("6")),
-        (salesTotal - returnsValue) - (cogs - returnedCost) - (damagedReturnCost + damagesCost) - (expensesTotal - setupTotal),
+        (salesTotal - returnsValue - outputGst) - (cogs - returnedCost) - (damagedReturnCost + damagesCost) - (expensesTotal - setupTotal - expenseItc),
       ],
       [
         "Assets = liabilities + capital + profit",

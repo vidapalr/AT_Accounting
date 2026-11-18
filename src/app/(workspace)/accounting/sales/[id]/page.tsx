@@ -7,6 +7,9 @@ import { getShopSettings } from "@/lib/shop";
 import { getBrand } from "@/lib/brand";
 import { setInvoiceAddressAction, voidEstimateAction } from "@/lib/sales-actions";
 import BillWatermark from "@/components/BillWatermark";
+import GstInvoiceBlock from "@/components/GstInvoiceBlock";
+import { loadInvoiceGst } from "@/lib/gst/data";
+import { toNumber } from "@/lib/reports/money";
 import LoggedPrintButton from "@/components/LoggedPrintButton";
 import { printCount } from "@/lib/document-register";
 import Link from "next/link";
@@ -122,7 +125,8 @@ async function InvoiceDetails({ params, searchParams }: Props) {
 
   const invoice = headers[0];
   const isEstimate = Number(invoice.is_estimate) === 1 && invoice.status !== "POSTED";
-  const docWord = isEstimate ? "Estimate" : "Invoice";
+  const gst = isEstimate ? null : await loadInvoiceGst(db, businessId, Number(invoice.id));
+  const docWord = isEstimate ? "Estimate" : gst?.kind === "TAX_INVOICE" ? "Tax invoice" : gst?.kind === "BILL_OF_SUPPLY" ? "Bill of supply" : "Invoice";
   const docNo = isEstimate ? String(invoice.estimate_no ?? invoice.invoice_no) : String(invoice.invoice_no);
   const shop = await getShopSettings(businessId);
   const printedBefore = await printCount(businessId, isEstimate ? "ESTIMATE" : "INVOICE", Number(invoice.id));
@@ -296,6 +300,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
           .filter(p => p.status === "RECORDED" && p.payment_method === "DISCOUNT")
           .reduce((sum, p) => sum + Number(p.amount), 0),
         lineCosts: items.map(i => i.total_cost),
+        goodsTax: gst ? toNumber(gst.goodsTax) : 0,
       })
     : null;
   const outstanding =
@@ -505,6 +510,8 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         {Number(invoice.shipping_charge) > 0 && <p>Delivery: ₹{money(invoice.shipping_charge)}</p>}
         <h2>{isEstimate ? "Estimate Total" : "Invoice Total"}: ₹{money(total)}</h2>
       </section>
+
+      <GstInvoiceBlock gst={gst} />
 
       {pointsLine && <p style={{ textAlign: "right", color: "#475569" }}>{pointsLine}</p>}
 

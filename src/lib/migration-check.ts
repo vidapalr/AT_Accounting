@@ -72,6 +72,8 @@ export const MIGRATION_MARKERS: Marker[] = [
   { file: "088_payroll", table: "acct_payslips" },
   { file: "089_tax_and_year_end", table: "acct_tax_challans" },
   { file: "089_tax_and_year_end", table: "acct_suppliers", column: "pan" },
+  { file: "090_gst", table: "acct_gst_payments" },
+  { file: "090_gst", table: "acct_products", column: "gst_rate_high" },
   { file: "086_business_payment_account", table: "acct_sales_payments", column: "payment_account", enumValue: "BUSINESS" },
   { file: "085_account_map", table: "acct_account_map" },
   { file: "084_letter_templates", table: "acct_letter_templates" },

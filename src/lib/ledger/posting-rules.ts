@@ -49,6 +49,15 @@ export const ACCOUNT = {
   ACCUMULATED_DEPRECIATION: "1510",
   DEPRECIATION: "6100",
   DISPOSAL_LOSS: "6110",
+  GST_INPUT_CGST: "1410",
+  GST_INPUT_SGST: "1411",
+  GST_INPUT_IGST: "1412",
+  GST_OUTPUT_CGST: "2310",
+  GST_OUTPUT_SGST: "2311",
+  GST_OUTPUT_IGST: "2312",
+  GST_RCM_PAYABLE: "2315",
+  GST_COMPOSITION: "6130",
+  GST_INTEREST_FEES: "6140",
 } as const;
 
 export const EXPENSE_ACCOUNT_BY_CATEGORY: Record<string, string> = {
@@ -94,12 +103,24 @@ export type SourceType =
   | "CUSTOMER_CREDIT_REFUND"
   | "OWNER_MONEY"
   | "CASH_TAKEN"
-  | "FUNDING_RECEIPT";
+  | "FUNDING_RECEIPT"
+  | "GST_PAYMENT";
 
 export type Dimensions = {
   divisionId: number | null;
   branchId: number | null;
 };
+
+/** GST amounts as DECIMAL strings (zero or absent when GST does not apply). */
+export type GstAmounts = { cgst: string; sgst: string; igst: string };
+
+function gstPaise(t: GstAmounts | undefined): { cgst: bigint; sgst: bigint; igst: bigint; total: bigint } {
+  if (!t) return { cgst: 0n, sgst: 0n, igst: 0n, total: 0n };
+  const cgst = parseMoney(t.cgst || "0");
+  const sgst = parseMoney(t.sgst || "0");
+  const igst = parseMoney(t.igst || "0");
+  return { cgst, sgst, igst, total: cgst + sgst + igst };
+}
 
 /** Where money came from, or went to. */
 export type Settlement =
@@ -251,8 +272,13 @@ export function saleInvoiceEntry(sale: {
   costOfGoodsSold: string;
   /** Delivery charged on the bill (optional). */
   shipping?: string;
+  /** GST inside the goods (prices include GST) and inside the delivery charge. */
+  goodsTax?: GstAmounts;
+  shippingTax?: GstAmounts;
 }): JournalDraft {
   const subtotal = parseMoney(sale.subtotal);
+  const gt = gstPaise(sale.goodsTax);
+  const st = gstPaise(sale.shippingTax);
   const shipping = parseMoney(sale.shipping ?? "0");
   const discount = parseMoney(sale.discount);
   const grandTotal = parseMoney(sale.grandTotal);
@@ -270,8 +296,11 @@ export function saleInvoiceEntry(sale: {
   return makeDraft("SALES_INVOICE", sale.id, sale.date, memo, [
     debit(ACCOUNT.RECEIVABLES, grandTotal, sale.dims, memo),
     debit(ACCOUNT.SALES_DISCOUNTS, discount, sale.dims, memo),
-    credit(ACCOUNT.SALES, subtotal, sale.dims, memo),
-    credit(ACCOUNT.DELIVERY_INCOME, shipping, sale.dims, `${memo} delivery`),
+    credit(ACCOUNT.SALES, subtotal - gt.total, sale.dims, memo),
+    credit(ACCOUNT.DELIVERY_INCOME, shipping - st.total, sale.dims, `${memo} delivery`),
+    credit(ACCOUNT.GST_OUTPUT_CGST, gt.cgst + st.cgst, sale.dims, `${memo} GST`),
+    credit(ACCOUNT.GST_OUTPUT_SGST, gt.sgst + st.sgst, sale.dims, `${memo} GST`),
+    credit(ACCOUNT.GST_OUTPUT_IGST, gt.igst + st.igst, sale.dims, `${memo} GST`),
     debit(ACCOUNT.COGS, cogs, sale.dims, `${memo} cost of goods`),
     credit(ACCOUNT.INVENTORY, cogs, sale.dims, `${memo} cost of goods`),
   ]);
@@ -516,12 +545,18 @@ export function purchaseReceiptEntry(purchase: {
   date: string;
   dims: Dimensions;
   total: string;
+  /** Input credit inside the supplier's bill (regular GST supplier only). */
+  credit?: GstAmounts;
 }): JournalDraft {
   const total = parseMoney(purchase.total);
+  const c = gstPaise(purchase.credit);
   const memo = `Purchase ${purchase.purchaseNo}`;
 
   return makeDraft("PURCHASE_RECEIPT", purchase.id, purchase.date, memo, [
-    debit(ACCOUNT.INVENTORY, total, purchase.dims, memo),
+    debit(ACCOUNT.INVENTORY, total - c.total, purchase.dims, memo),
+    debit(ACCOUNT.GST_INPUT_CGST, c.cgst, purchase.dims, `${memo} GST input credit`),
+    debit(ACCOUNT.GST_INPUT_SGST, c.sgst, purchase.dims, `${memo} GST input credit`),
+    debit(ACCOUNT.GST_INPUT_IGST, c.igst, purchase.dims, `${memo} GST input credit`),
     credit(ACCOUNT.PAYABLES, total, purchase.dims, memo),
   ]);
 }
@@ -553,8 +588,13 @@ export function expenseEntry(expense: {
   dims: Dimensions;
   /** One-off cost of starting up: reported below operating profit. */
   isSetupCost?: boolean;
+  /** ITC: GST inside the bill comes back as input credit. RCM: the business owes the GST itself and claims it back. */
+  gst?: { mode: "ITC" | "RCM"; amounts: GstAmounts };
 }): JournalDraft {
   const amount = parseMoney(expense.amount);
+  const g = gstPaise(expense.gst?.amounts);
+  const itc = expense.gst?.mode === "ITC";
+  const rcm = expense.gst?.mode === "RCM";
   const memo = expense.isSetupCost
     ? `Set-up cost ${expense.expenseNo} (${expense.category})`
     : `Expense ${expense.expenseNo} (${expense.category})`;
@@ -563,8 +603,12 @@ export function expenseEntry(expense: {
     : expenseAccountForCategory(expense.category);
 
   return makeDraft("EXPENSE", expense.id, expense.date, memo, [
-    debit(expenseAccount, amount, expense.dims, memo),
+    debit(expenseAccount, itc ? amount - g.total : amount, expense.dims, memo),
+    debit(ACCOUNT.GST_INPUT_CGST, g.cgst, expense.dims, `${memo} GST input credit`),
+    debit(ACCOUNT.GST_INPUT_SGST, g.sgst, expense.dims, `${memo} GST input credit`),
+    debit(ACCOUNT.GST_INPUT_IGST, g.igst, expense.dims, `${memo} GST input credit`),
     credit(ACCOUNT.ACCRUED_EXPENSES, amount, expense.dims, memo),
+    credit(ACCOUNT.GST_RCM_PAYABLE, rcm ? g.total : 0n, expense.dims, `${memo} GST on reverse charge`),
   ]);
 }
 
@@ -663,7 +707,12 @@ export function salesReturnEntry(ret: {
   deliveryValue?: string;
   restockCost: string;
   damagedCost: string;
+  /** GST given back (credit note): all of it, and the part that is on the delivery charge. */
+  tax?: GstAmounts;
+  deliveryTax?: string;
 }): JournalDraft {
+  const t = gstPaise(ret.tax);
+  const deliveryTax = parseMoney(ret.deliveryTax || "0");
   const gross = parseMoney(ret.grossValue);
   const delivery = parseMoney(ret.deliveryValue ?? "0");
   const refund = parseMoney(ret.refundValue) - delivery;
@@ -676,8 +725,11 @@ export function salesReturnEntry(ret: {
   }
 
   return makeDraft("SALES_RETURN", ret.id, ret.date, memo, [
-    debit(ACCOUNT.SALES_RETURNS, gross, ret.dims, memo),
-    debit(ACCOUNT.DELIVERY_INCOME, delivery, ret.dims, `${memo} delivery`),
+    debit(ACCOUNT.SALES_RETURNS, gross - (t.total - deliveryTax), ret.dims, memo),
+    debit(ACCOUNT.DELIVERY_INCOME, delivery - deliveryTax, ret.dims, `${memo} delivery`),
+    debit(ACCOUNT.GST_OUTPUT_CGST, t.cgst, ret.dims, `${memo} GST given back`),
+    debit(ACCOUNT.GST_OUTPUT_SGST, t.sgst, ret.dims, `${memo} GST given back`),
+    debit(ACCOUNT.GST_OUTPUT_IGST, t.igst, ret.dims, `${memo} GST given back`),
     credit(ACCOUNT.SALES_DISCOUNTS, gross - refund, ret.dims, memo),
     credit(ACCOUNT.RECEIVABLES, refund + delivery, ret.dims, memo),
     debit(ACCOUNT.INVENTORY, restock, ret.dims, memo),
@@ -746,18 +798,24 @@ export function supplierReturnEntry(ret: {
   dims: Dimensions;
   costValue: string;
   agreedValue: string;
+  /** Input credit taken back with the goods (debit note). `costValue` is then the stock value without GST. */
+  credit?: GstAmounts;
 }): JournalDraft {
   const cost = parseMoney(ret.costValue);
   const agreed = parseMoney(ret.agreedValue);
-  if (agreed > cost) {
+  const c = gstPaise(ret.credit);
+  if (agreed > cost + c.total) {
     throw new Error(`${ret.returnNo}: agreed value cannot be more than the cost of the goods`);
   }
   const memo = `Supplier return ${ret.returnNo}`;
 
   return makeDraft("SUPPLIER_RETURN", ret.id, ret.date, memo, [
     debit(ACCOUNT.PAYABLES, agreed, ret.dims, memo),
-    debit(ACCOUNT.SUPPLIER_RETURN_LOSS, cost - agreed, ret.dims, memo),
+    debit(ACCOUNT.SUPPLIER_RETURN_LOSS, cost + c.total - agreed, ret.dims, memo),
     credit(ACCOUNT.INVENTORY, cost, ret.dims, memo),
+    credit(ACCOUNT.GST_INPUT_CGST, c.cgst, ret.dims, `${memo} GST input credit taken back`),
+    credit(ACCOUNT.GST_INPUT_SGST, c.sgst, ret.dims, `${memo} GST input credit taken back`),
+    credit(ACCOUNT.GST_INPUT_IGST, c.igst, ret.dims, `${memo} GST input credit taken back`),
   ]);
 }
 
@@ -825,6 +883,47 @@ export function openingBalanceEntry(batch: {
 }
 
 // -------------------------------------------------------- trial balance
+
+/**
+ * GST paid for a return period. Regular: the GST owed on sales is cleared partly by input credit and
+ * partly by cash; reverse-charge GST is always cash. Composition: the quarter's tax is a cost.
+ */
+export function gstPaymentEntry(p: {
+  id: number;
+  paymentNo: string;
+  date: string;
+  dims: Dimensions;
+  settled: GstAmounts;
+  credit: GstAmounts;
+  rcmCash: string;
+  compositionTax: string;
+  interestFee: string;
+  cashTotal: string;
+  settlement: Settlement;
+}): JournalDraft {
+  const settled = gstPaise(p.settled);
+  const used = gstPaise(p.credit);
+  const rcm = parseMoney(p.rcmCash || "0");
+  const comp = parseMoney(p.compositionTax || "0");
+  const fee = parseMoney(p.interestFee || "0");
+  const cash = parseMoney(p.cashTotal);
+  const memo = `GST paid ${p.paymentNo}`;
+  if (settled.total - used.total + rcm + comp + fee !== cash) {
+    throw new Error(`${p.paymentNo}: GST settled less credit used, plus reverse charge, composition tax and fees, does not equal the cash paid`);
+  }
+  return makeDraft("GST_PAYMENT", p.id, p.date, memo, [
+    debit(ACCOUNT.GST_OUTPUT_CGST, settled.cgst, p.dims, memo),
+    debit(ACCOUNT.GST_OUTPUT_SGST, settled.sgst, p.dims, memo),
+    debit(ACCOUNT.GST_OUTPUT_IGST, settled.igst, p.dims, memo),
+    debit(ACCOUNT.GST_RCM_PAYABLE, rcm, p.dims, `${memo} reverse charge`),
+    debit(ACCOUNT.GST_COMPOSITION, comp, p.dims, `${memo} composition tax`),
+    debit(ACCOUNT.GST_INTEREST_FEES, fee, p.dims, `${memo} interest and late fee`),
+    credit(ACCOUNT.GST_INPUT_CGST, used.cgst, p.dims, `${memo} input credit used`),
+    credit(ACCOUNT.GST_INPUT_SGST, used.sgst, p.dims, `${memo} input credit used`),
+    credit(ACCOUNT.GST_INPUT_IGST, used.igst, p.dims, `${memo} input credit used`),
+    credit(settlementAccount(p.settlement), cash, lineDims(p.settlement, p.dims), memo),
+  ]);
+}
 
 export type TrialBalanceRow = {
   accountCode: string;

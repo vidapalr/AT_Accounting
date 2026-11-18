@@ -322,6 +322,7 @@ erDiagram
   acct_loans
   acct_loan_year_figures
   acct_tax_documents
+  acct_gst_payments
   acct_branches |o..o{ acct_advances : "legal_business_id,division_id,branch_id"
   acct_legal_businesses |o..o{ acct_advances : "legal_business_id"
   acct_app_users |o..o{ acct_advances : "created_by"
@@ -374,6 +375,7 @@ erDiagram
   acct_loans |o..o{ acct_loan_year_figures : "loan_id"
   acct_legal_businesses |o..o{ acct_loan_year_figures : "legal_business_id"
   acct_legal_businesses |o..o{ acct_tax_documents : "legal_business_id"
+  acct_legal_businesses |o..o{ acct_gst_payments : "legal_business_id"
 ```
 
 ## Foreign-key evidence
@@ -566,6 +568,7 @@ erDiagram
 | acct_loan_year_figures | loan_id | acct_loans | id | [migrations/089_tax_and_year_end.sql](../../migrations/089_tax_and_year_end.sql) |
 | acct_loan_year_figures | legal_business_id | acct_legal_businesses | id | [migrations/089_tax_and_year_end.sql](../../migrations/089_tax_and_year_end.sql) |
 | acct_tax_documents | legal_business_id | acct_legal_businesses | id | [migrations/089_tax_and_year_end.sql](../../migrations/089_tax_and_year_end.sql) |
+| acct_gst_payments | legal_business_id | acct_legal_businesses | id | [migrations/090_gst.sql](../../migrations/090_gst.sql) |
 
 ## Logical relationships requiring application enforcement
 

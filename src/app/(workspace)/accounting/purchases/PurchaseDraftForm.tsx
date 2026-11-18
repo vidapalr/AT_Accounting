@@ -43,6 +43,8 @@ export type PurchaseDraft = {
   remarks: string | null;
   /** Goods already received: saving reverses the old entry and posts again. */
   received?: boolean;
+  /** GST total printed on the supplier's bill (optional). */
+  billTax?: string;
   lines: Array<{
     variant_id: number;
     quantity: string;
@@ -63,6 +65,8 @@ type Props = {
   locations: Location[];
   skus: SKU[];
   draft?: PurchaseDraft;
+  /** The business charges GST: costs are as on the supplier's bill, GST included. */
+  gstOn?: boolean;
 };
 
 const MAX_LINE_COUNT = 100;
@@ -73,6 +77,7 @@ export default function PurchaseDraftForm({
   skus,
   draft,
   prefill,
+  gstOn = false,
 }: Props) {
   const [lineCount, setLineCount] = useState(
     Math.max(draft?.lines.length ?? prefill?.lines.length ?? 0, 1)
@@ -123,6 +128,23 @@ export default function PurchaseDraftForm({
             className={styles.control}
           />
         </label>
+
+        {gstOn ? (
+          <label className={styles.field}>
+            GST on the supplier&apos;s bill (₹, optional)
+            <input
+              name="bill_tax_total"
+              inputMode="decimal"
+              defaultValue={draft?.billTax ?? ""}
+              placeholder="Total CGST + SGST or IGST printed on the bill"
+              className={styles.control}
+            />
+            <span style={{ color: "#64748b", fontSize: 13 }}>
+              Type the cost per piece including GST. If the supplier has a GSTIN, the GST comes back as input credit;
+              this box makes it match the bill to the paisa. Leave empty to work it out from the product rates.
+            </span>
+          </label>
+        ) : null}
 
         <label className={styles.field}>
           Original Invoice Date
@@ -196,7 +218,7 @@ export default function PurchaseDraftForm({
               <th>#</th>
               <th>Product / SKU</th>
               <th>Quantity</th>
-              <th>Unit Cost (₹)</th>
+              <th>{gstOn ? "Cost per piece incl. GST (₹)" : "Unit Cost (₹)"}</th>
               <th>Lot / dye batch (optional)</th>
               <th aria-label="Remove item" />
             </tr>

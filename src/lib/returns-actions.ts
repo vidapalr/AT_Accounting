@@ -11,6 +11,7 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { applyStockDamage, UserError } from "@/lib/stock-damage";
+import { applySalesReturnGst } from "@/lib/gst/data";
 import {
   allocateExact,
   parsePaise,
@@ -261,6 +262,8 @@ export async function createSalesReturnAction(formData: FormData) {
         }
       }
 
+      await applySalesReturnGst(conn, businessId, returnId); // GST given back (credit note), when the bill had GST
+
       if (refundNow && refundTotal > 0n) {
         await insertRefund(conn, {
           businessId, divisionId: Number(sale.division_id), returnId, date,
@@ -463,6 +466,7 @@ export async function editSalesReturnAction(formData: FormData) {
           );
         }
       }
+      await applySalesReturnGst(conn, businessId, returnId);
       await conn.execute(
         `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
          VALUES (?, ?, 'SALES_RETURN_EDITED', 'SALES_RETURN', ?, ?)`,

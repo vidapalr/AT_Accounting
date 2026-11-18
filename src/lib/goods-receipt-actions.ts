@@ -8,10 +8,18 @@ import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { getActiveDivisionId } from "@/lib/division-context";
+import { applyPurchaseGst } from "@/lib/gst/data";
+import { unitCost4 } from "@/lib/gst/engine";
+import { toPaise } from "@/lib/reports/money";
 
 const LIST_PAGE = "/accounting/purchases";
 
 const MAX_MONEY = 999999999999999999n;
+
+/** Purchase line value without input credit, in paise. */
+const netPaise = (l: { line_amount: string; credit_paise: number | string }) => toPaise(l.line_amount) - BigInt(String(l.credit_paise));
+const qtyMilliOf = (q: string) => BigInt(Math.round(Number(q) * 1000));
+const paiseText = (p: bigint) => `${p / 100n}.${String(p % 100n).padStart(2, "0")}`;
 
 function positiveId(value: FormDataEntryValue | null) {
   if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) {
@@ -74,6 +82,7 @@ interface LineRow extends RowDataPacket {
   quantity: string;
   unit_cost: string;
   line_amount: string;
+  credit_paise: number | string;
   remarks: string | null;
   unit_of_measure: string;
   variant_status: string;
@@ -179,6 +188,8 @@ export async function postGoodsReceiptAction(
         if (existing.length > 0) {
           outcome = "already-received";
         } else {
+          // GST on the supplier's bill is worked out again now, from the supplier's details today.
+          await applyPurchaseGst(conn, businessId, purchaseId);
           const [lines] =
             await conn.execute<LineRow[]>(
               `SELECT
@@ -188,6 +199,7 @@ export async function postGoodsReceiptAction(
                  CAST(l.quantity AS CHAR) AS quantity,
                  CAST(l.unit_cost AS CHAR) AS unit_cost,
                  CAST(l.line_amount AS CHAR) AS line_amount,
+                 CASE WHEN l.itc_eligible = 1 THEN ROUND((l.cgst_amount + l.sgst_amount + l.igst_amount) * 100) ELSE 0 END AS credit_paise,
                  l.remarks,
                  v.unit_of_measure,
                  v.status AS variant_status,
@@ -295,8 +307,9 @@ export async function postGoodsReceiptAction(
                   purchaseId,
                   line.id,
                   line.quantity,
-                  line.unit_cost,
-                  line.line_amount,
+                  // Stock is valued without GST that comes back as input credit.
+                  Number(line.credit_paise) > 0 ? unitCost4(netPaise(line), qtyMilliOf(line.quantity)) : line.unit_cost,
+                  Number(line.credit_paise) > 0 ? paiseText(netPaise(line)) : line.line_amount,
                   line.remarks,
                   user.id,
                 ]

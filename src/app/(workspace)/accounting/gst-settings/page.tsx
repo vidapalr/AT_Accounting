@@ -6,6 +6,9 @@ import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 import { GST_STATES } from "@/lib/gst";
 import { saveGstSettingsAction } from "@/lib/gst-actions";
+import { Field, Notice, PageHeader, ResultNotice, Section } from "@/components/ui";
+import SubmitButton from "@/components/SubmitButton";
+import { fieldFull, formGrid, muted } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ result?: string }> };
 
@@ -18,7 +21,7 @@ async function Settings({ searchParams }: Props) {
       WHERE legal_business_id = ? AND setting_key LIKE 'gst\\_%'`,
     [user.legal_business_id]
   );
-  const s = Object.fromEntries(rows.map(r => [String(r.setting_key), String(r.setting_value)]));
+  const s = Object.fromEntries(rows.map((r) => [String(r.setting_key), String(r.setting_value)]));
   const status = s.gst_status ?? "NOT_REGISTERED";
 
   const [counts] = await db.execute<RowDataPacket[]>(
@@ -26,65 +29,73 @@ async function Settings({ searchParams }: Props) {
        FROM acct_products WHERE legal_business_id = ? AND status = 'ACTIVE'`,
     [user.legal_business_id]
   );
-
-  const box: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, marginBottom: 16 };
-  const input: React.CSSProperties = { padding: 10, border: "1px solid #cbd5e1", borderRadius: 8, width: "100%", boxSizing: "border-box" };
+  const ready = Number(counts[0].ready ?? 0);
+  const total = Number(counts[0].total);
 
   return (
-    <div style={{ maxWidth: 760 }}>
-      <h1>GST settings</h1>
-      {result === "saved" && <p role="status" style={{ color: "#166534" }}>Saved.</p>}
-      {result === "invalid" && (
-        <p role="alert" style={{ color: "#b91c1c" }}>Please check the details. A registered business needs a valid GSTIN, its matching state and a start date.</p>
+    <main style={{ maxWidth: 820 }}>
+      <PageHeader title="GST settings" intro="Your GST registration. Bills, purchases and expenses follow it from the GST start date." />
+      <ResultNotice
+        result={result}
+        messages={{
+          saved: { tone: "ok", text: "Saved." },
+          invalid: { tone: "error", text: "Please check the details. A registered business needs a valid GSTIN, its matching state and a start date; the composition rate is a number such as 1." },
+        }}
+      />
+
+      {status === "NOT_REGISTERED" ? (
+        <Notice tone="info">
+          <strong>Not registered for GST.</strong> Bills show no tax, exactly as today. A business that is not registered must not charge GST.
+          When you register, choose the type below, type the GSTIN and the start date, and save: everything is ready.
+        </Notice>
+      ) : status === "REGULAR" ? (
+        <Notice tone="ok">
+          <strong>Regular GST from {s.gst_effective_date}.</strong> Prices include GST: every bill shows the GST inside the price. A business customer who gives a GSTIN gets a B2B tax invoice;
+          everyone else gets a B2C tax invoice. Purchases from suppliers with a GSTIN give input credit; suppliers without one do not. See <Link href="/accounting/gst">GST returns and payments</Link>.
+        </Notice>
+      ) : (
+        <Notice tone="ok">
+          <strong>Composition scheme from {s.gst_effective_date}.</strong> Bills are &quot;bills of supply&quot; with no GST on them. You pay {s.gst_composition_rate ?? "1"}% of turnover each quarter
+          and claim no GST back. Composition does not allow selling to other states or through online marketplaces. See <Link href="/accounting/gst">GST returns and payments</Link>.
+        </Notice>
       )}
 
-      <section style={box}>
-        <strong>{status === "NOT_REGISTERED" ? "Not registered for GST." : "GST details saved."}</strong>
-        <p style={{ color: "#475569", marginBottom: 0 }}>
-          GST is <strong>off</strong>. Invoices and bills show no tax, exactly as today. The app already stores the
-          tax details it will need (product codes and rates, tax columns on every invoice and purchase line), so when
-          you register, the switch-on does not need a new design. A business that is not registered must not charge GST on its bills.
-        </p>
-      </section>
-
-      <section style={box}>
-        <h2 style={{ marginTop: 0 }}>Product tax details</h2>
-        <p style={{ margin: "4px 0" }}>
-          {Number(counts[0].ready ?? 0)} of {Number(counts[0].total)} active products have an HSN code and a tax rate.
-        </p>
+      <Section title="Product tax details">
+        <p style={{ margin: "4px 0" }}>{ready} of {total} active products have an HSN code and a tax rate.{ready < total ? " Products without a rate are billed at 0% until one is filled." : ""}</p>
         <Link className="btn-link btn-link-primary" href="/accounting/products/gst">Fill product HSN codes and rates</Link>
-      </section>
+      </Section>
 
-      <form action={saveGstSettingsAction} style={{ ...box, display: "grid", gap: 12 }}>
-        <h2 style={{ margin: 0 }}>Registration</h2>
-        <label>Registration type
-          <select name="status" defaultValue={status} style={input}>
-            <option value="NOT_REGISTERED">Not registered yet</option>
-            <option value="REGULAR">Regular GST</option>
-            <option value="COMPOSITION">Composition scheme</option>
-          </select>
-        </label>
-        <label>GSTIN (when registered)
-          <input name="gstin" defaultValue={s.gst_gstin ?? ""} maxLength={15} placeholder="36ABCDE1234F1Z5" style={input} />
-        </label>
-        <label>State of registration
-          <select name="state_code" defaultValue={s.gst_state_code ?? ""} style={input}>
-            <option value="">Choose a state</option>
-            {GST_STATES.map(st => <option key={st.code} value={st.code}>{st.name} ({st.code})</option>)}
-          </select>
-        </label>
-        <label>Do your selling prices already include GST?
-          <select name="inclusive" defaultValue={s.gst_prices_inclusive ?? "1"} style={input}>
-            <option value="1">Yes, the price on the tag is the final price (recommended for shops)</option>
-            <option value="0">No, GST is added on top</option>
-          </select>
-        </label>
-        <label>GST start date (when registered)
-          <input type="date" name="effective_date" defaultValue={s.gst_effective_date ?? ""} style={input} />
-        </label>
-        <div><button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Save</button></div>
+      <form action={saveGstSettingsAction}>
+        <Section title="Registration">
+          <div style={formGrid}>
+            <Field label="Registration type">
+              <select name="status" defaultValue={status} style={fieldFull}>
+                <option value="NOT_REGISTERED">Not registered yet</option>
+                <option value="REGULAR">Regular GST</option>
+                <option value="COMPOSITION">Composition scheme</option>
+              </select>
+            </Field>
+            <Field label="GSTIN (when registered)">
+              <input name="gstin" defaultValue={s.gst_gstin ?? ""} maxLength={15} placeholder="36ABCDE1234F1Z5" style={{ ...fieldFull, textTransform: "uppercase" }} />
+            </Field>
+            <Field label="State of registration">
+              <select name="state_code" defaultValue={s.gst_state_code ?? ""} style={fieldFull}>
+                <option value="">Choose a state</option>
+                {GST_STATES.map((st) => <option key={st.code} value={st.code}>{st.name} ({st.code})</option>)}
+              </select>
+            </Field>
+            <Field label="GST start date" hint="Bills, purchases and expenses dated on or after this day follow GST.">
+              <input type="date" name="effective_date" defaultValue={s.gst_effective_date ?? ""} style={fieldFull} />
+            </Field>
+            <Field label="Composition rate (%)" hint="1% for traders. Used only on the composition scheme.">
+              <input name="composition_rate" defaultValue={s.gst_composition_rate ?? "1"} inputMode="decimal" style={fieldFull} />
+            </Field>
+          </div>
+          <p style={muted}>Selling prices include GST: the price on the tag is what the customer pays, and the bill shows the GST inside it.</p>
+        </Section>
+        <SubmitButton label="Save" question="Save the GST registration? Bills dated from the start date will follow it." />
       </form>
-    </div>
+    </main>
   );
 }
 

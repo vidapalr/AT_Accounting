@@ -1,5 +1,7 @@
 "use server";
 
+import { purchaseLineCredits } from "@/lib/gst/data";
+import { addTax, creditShare, taxTotal, unitCost4, ZERO_TAX } from "@/lib/gst/engine";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { PoolConnection } from "mysql2/promise";
@@ -117,7 +119,7 @@ export async function createSupplierReturnAction(formData: FormData) {
         [purchaseId, businessId]
       );
 
-      type Prepared = { lineId: number; variantId: number; qtyMilli: bigint; cost4: bigint; total: bigint };
+      type Prepared = { lineId: number; variantId: number; qtyMilli: bigint; cost4: bigint; total: bigint; net?: bigint };
       const prepared: Prepared[] = [];
       for (const line of lines) {
         const raw = text(`qty_${line.id}`);
@@ -145,15 +147,25 @@ export async function createSupplierReturnAction(formData: FormData) {
       }
       if (prepared.length === 0) throw new UserError("Enter a quantity for at least one item.");
 
-      const costValue = prepared.reduce((s, p) => s + p.total, 0n);
-      const agreed = agreedText === "" ? costValue : parsePaise(agreedText);
-      if (agreed > costValue) {
-        throw new UserError(`The supplier cannot credit more than the goods cost (₹${money(costValue)}).`);
+      // GST: input credit taken on these goods goes back with them (debit note). Stock leaves at its value without GST.
+      const credits = await purchaseLineCredits(conn, businessId, prepared.map((p) => p.lineId));
+      let itc = { ...ZERO_TAX };
+      for (const p of prepared) {
+        const c = credits.get(p.lineId);
+        const share = c ? creditShare(c, p.total) : { ...ZERO_TAX };
+        itc = addTax(itc, share);
+        p.net = p.total - taxTotal(share);
+      }
+      const billedValue = prepared.reduce((s, p) => s + p.total, 0n); // as billed, GST included
+      const costValue = prepared.reduce((s, p) => s + (p.net ?? p.total), 0n); // stock value
+      const agreed = agreedText === "" ? billedValue : parsePaise(agreedText);
+      if (agreed > billedValue) {
+        throw new UserError(`The supplier cannot credit more than the goods cost (₹${money(billedValue)}).`);
       }
       // Goods that go back for full credit are neither profit nor loss. A lower credit is a loss, so it must be a deliberate choice.
-      if (agreed < costValue && text("accept_loss") !== "1") {
+      if (agreed < billedValue && text("accept_loss") !== "1") {
         throw new UserError(
-          `The credit you typed (₹${money(agreed)}) is less than the goods cost (₹${money(costValue)}), so ₹${money(costValue - agreed)} would be written off as a loss. ` +
+          `The credit you typed (₹${money(agreed)}) is less than the goods cost (₹${money(billedValue)}), so ₹${money(billedValue - agreed)} would be written off as a loss. ` +
           `If the supplier is crediting the full cost, leave that box empty. If he really credits less, tick "The supplier is crediting less" and save again.`
         );
       }
@@ -174,14 +186,20 @@ export async function createSupplierReturnAction(formData: FormData) {
         ]
       );
       const returnId = header.insertId;
+      if (taxTotal(itc) > 0n) {
+        await conn.execute(`UPDATE acct_supplier_returns SET itc_cgst = ?, itc_sgst = ?, itc_igst = ? WHERE id = ? AND legal_business_id = ?`, [
+          money(itc.cgst), money(itc.sgst), money(itc.igst), returnId, businessId,
+        ]);
+      }
 
       for (const p of prepared) {
-        const unitCost = `${p.cost4 / 10000n}.${String(p.cost4 % 10000n).padStart(4, "0")}`;
+        const net = p.net ?? p.total;
+        const unitCost = net === p.total ? `${p.cost4 / 10000n}.${String(p.cost4 % 10000n).padStart(4, "0")}` : unitCost4(net, p.qtyMilli);
         await conn.execute(
           `INSERT INTO acct_supplier_return_lines
              (legal_business_id, return_id, purchase_line_id, variant_id, quantity, unit_cost, total_cost)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [businessId, returnId, p.lineId, p.variantId, qtyText(p.qtyMilli), unitCost, money(p.total)]
+          [businessId, returnId, p.lineId, p.variantId, qtyText(p.qtyMilli), unitCost, money(net)]
         );
         await conn.execute(
           `INSERT INTO acct_stock_movements
@@ -191,7 +209,7 @@ export async function createSupplierReturnAction(formData: FormData) {
            VALUES (?, ?, ?, ?, ?, 'PURCHASE_RETURN', 'SUPPLIER_RETURN', ?, ?, ?, ?, ?, ?, ?)`,
           [
             businessId, bill.division_id, sendFrom, p.variantId, date,
-            returnId, p.lineId, `-${qtyText(p.qtyMilli)}`, unitCost, money(p.total),
+            returnId, p.lineId, `-${qtyText(p.qtyMilli)}`, unitCost, money(net),
             `Return ${returnNo} of ${bill.purchase_no} to supplier`, user.id,
           ]
         );

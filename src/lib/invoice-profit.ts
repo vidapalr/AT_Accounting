@@ -3,7 +3,7 @@
  * read from the database (2 decimals), worked in paise to stay exact.
  *
  * Sale value = grand total minus delivery charge (delivery is not item profit),
- * minus any discount given later to close the bill.
+ * minus any discount given later to close the bill, minus GST inside the goods.
  * Profit = sale value minus the cost of the items sold.
  * Percentage = profit / sale value.
  */
@@ -25,11 +25,14 @@ export function invoiceProfit(input: {
   shippingCharge?: number | string | null;
   lateDiscount?: number | string | null;
   lineCosts: Array<number | string | null>;
+  /** GST inside the goods (not the business's money; paid to the government). */
+  goodsTax?: number | string | null;
 }): InvoiceProfit {
   const saleP =
     paise(input.grandTotal) -
     paise(input.shippingCharge) -
-    paise(input.lateDiscount);
+    paise(input.lateDiscount) -
+    paise(input.goodsTax);
   const costP = input.lineCosts.reduce<number>((s, c) => s + paise(c), 0);
   const costMissing = input.lineCosts.some((c) => c === null || c === undefined);
   const profitP = saleP - costP;

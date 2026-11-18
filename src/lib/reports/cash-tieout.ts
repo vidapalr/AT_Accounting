@@ -18,6 +18,7 @@ const NOT_LISTED: Record<string, string> = {
   OWNER_MONEY: "Owner money put in or taken out",
   CASH_TAKEN: "Cash taken to the bank (or from it)",
   FUNDING_RECEIPT: "Funding received",
+  GST_PAYMENT: "GST paid to the government",
   JOURNAL_REVERSAL: "Corrections (reversed entries)",
 };
 

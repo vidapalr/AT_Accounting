@@ -14,6 +14,8 @@ import { loadOffers } from "@/lib/shop";
 import ShareBillButton from "@/components/ShareBillButton";
 import { autoSendSettings } from "@/lib/wa-auto";
 import { normalizePhone as normalizeWaPhone } from "@/lib/whatsapp/core";
+import { GST_STATES } from "@/lib/gst";
+import { loadGstConfig, schemeOn } from "@/lib/gst/data";
 import SalesBillingForm from
   "@/components/accounting/SalesBillingForm";
 
@@ -67,6 +69,7 @@ const messages: Record<string, string> = {
     "Select an active, eligible bank or cash account.",
   "invalid-product": "One or more products are unavailable.",
   "invalid-phone": "Enter a 10 digit mobile number, or leave it empty for a walk-in customer.",
+  "invalid-gstin": "The customer's GSTIN looks wrong. It has 15 characters, like 36ABCDE1234F1Z5. Leave it empty for an ordinary customer.",
   "approval-gone":
     "Some of the items taken on approval were already dealt with. Open Items on approval and check them.",
   "approval-mismatch":
@@ -522,6 +525,16 @@ async function SalesContent({ searchParams }: Props) {
       )
     : [[] as RowDataPacket[]];
   const selectedInvoice = selectedInvoices[0];
+  let selectedGst: { buyerGstin: string; placeOfSupply: string } = { buyerGstin: "", placeOfSupply: "" };
+  if (selectedInvoice) {
+    try {
+      const [g] = await db.execute<RowDataPacket[]>(
+        `SELECT buyer_gstin, place_of_supply FROM acct_sales_headers WHERE legal_business_id = ? AND id = ?`, [businessId, selectedInvoiceId]);
+      selectedGst = { buyerGstin: String(g[0]?.buyer_gstin ?? ""), placeOfSupply: String(g[0]?.place_of_supply ?? "") };
+    } catch {
+      // migration 090 not run yet
+    }
+  }
   const savedLots = new Map<number, string>();
   if (selectedInvoice) {
     try {
@@ -624,6 +637,10 @@ async function SalesContent({ searchParams }: Props) {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
+  const gstCfg = await loadGstConfig(db, businessId);
+  const gstForm = schemeOn(gstCfg, today) === "REGULAR"
+    ? { homeState: gstCfg.stateCode, states: GST_STATES.map((st) => ({ code: st.code, name: st.name })) }
+    : undefined;
 
   return (
     <main style={{
@@ -702,6 +719,7 @@ async function SalesContent({ searchParams }: Props) {
             products={billingProducts}
             paymentAccounts={paymentAccounts}
             today={today}
+            gst={gstForm}
             initialInvoice={{
               id: Number(selectedInvoice.id),
               status: selectedInvoice.status,
@@ -714,6 +732,8 @@ async function SalesContent({ searchParams }: Props) {
                 selectedInvoice.customer_phone ?? ""
               ),
               customerAddress: String(selectedInvoice.customer_address ?? ""),
+              buyerGstin: selectedGst.buyerGstin,
+              placeOfSupply: selectedGst.placeOfSupply,
               isEstimate: Number(selectedInvoice.is_estimate) === 1,
               estimateNo: selectedInvoice.estimate_no ? String(selectedInvoice.estimate_no) : "",
               shippingCharge: String(Number(selectedInvoice.shipping_charge ?? 0)),
@@ -767,6 +787,7 @@ async function SalesContent({ searchParams }: Props) {
             products={billingProducts}
             paymentAccounts={paymentAccounts}
             today={today}
+            gst={gstForm}
             prefill={prefill}
             estimateMode={estimate === "1"}
           />

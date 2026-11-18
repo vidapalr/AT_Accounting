@@ -2,7 +2,7 @@
 
 Source-derived: base schema (through migration 040), followed by migrations 041–078. These are exact CREATE/ALTER definitions, not a database introspection or a flattened final schema. Read later ALTER statements to determine a column’s latest type/default and indexes. DML backfills, triggers and seed records remain in the linked SQL sources. No migrations were executed. The base dump identifies MariaDB 11.8.9; MySQL compatibility must not be assumed.
 
-Tables with CREATE definitions: **152**. Explicit foreign-key declarations extracted: **186**.
+Tables with CREATE definitions: **153**. Explicit foreign-key declarations extracted: **187**.
 
 ## acct_account_map
 
@@ -1879,6 +1879,42 @@ ALTER TABLE acct_expenses
   MODIFY category ENUM('RENT','ELECTRICITY','TRANSPORT','PACKING','SALARY','EMPLOYER_CONTRIBUTION','MAINTENANCE','MARKETING','INTERNET_PHONE','OFFICE_SUPPLIES','BANK_CHARGES','MISCELLANEOUS') NOT NULL;
 ```
 
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_expenses ADD COLUMN IF NOT EXISTS gst_mode ENUM('NONE','ITC','RCM') NOT NULL DEFAULT 'NONE';
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_expenses ADD COLUMN IF NOT EXISTS vendor_gstin VARCHAR(15) NULL;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_expenses ADD COLUMN IF NOT EXISTS gst_rate DECIMAL(5,2) NULL;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_expenses ADD COLUMN IF NOT EXISTS cgst_amount DECIMAL(14,2) NOT NULL DEFAULT 0;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_expenses ADD COLUMN IF NOT EXISTS sgst_amount DECIMAL(14,2) NOT NULL DEFAULT 0;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_expenses ADD COLUMN IF NOT EXISTS igst_amount DECIMAL(14,2) NOT NULL DEFAULT 0;
+```
+
 ## acct_financial_scenarios
 
 Definition: [db/base_schema_2026-10-28.sql](../../db/base_schema_2026-10-28.sql) (line 700)
@@ -2251,6 +2287,46 @@ Change: [migrations/047_investor_returns.sql](../../migrations/047_investor_retu
 ```sql
 ALTER TABLE acct_funding_transactions
   ADD COLUMN IF NOT EXISTS return_treatment ENUM('PROFIT_SHARE','COST') NULL;
+```
+
+## acct_gst_payments
+
+Definition: [migrations/090_gst.sql](../../migrations/090_gst.sql) (line 47)
+
+```sql
+CREATE TABLE IF NOT EXISTS acct_gst_payments (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  legal_business_id BIGINT UNSIGNED NOT NULL,
+  payment_no VARCHAR(20) NOT NULL,                     -- automatic, e.g. GSTP-0001
+  scheme ENUM('REGULAR','COMPOSITION') NOT NULL DEFAULT 'REGULAR',
+  period_from DATE NOT NULL,
+  period_to DATE NOT NULL,
+  paid_on DATE NOT NULL,
+  -- GST settled, by kind (credit used + cash)
+  settled_cgst DECIMAL(14,2) NOT NULL DEFAULT 0,
+  settled_sgst DECIMAL(14,2) NOT NULL DEFAULT 0,
+  settled_igst DECIMAL(14,2) NOT NULL DEFAULT 0,
+  -- input credit used, by the kind of credit
+  itc_cgst DECIMAL(14,2) NOT NULL DEFAULT 0,
+  itc_sgst DECIMAL(14,2) NOT NULL DEFAULT 0,
+  itc_igst DECIMAL(14,2) NOT NULL DEFAULT 0,
+  rcm_cash DECIMAL(14,2) NOT NULL DEFAULT 0,           -- reverse-charge GST (always paid in cash)
+  composition_tax DECIMAL(14,2) NOT NULL DEFAULT 0,    -- composition scheme tax for the quarter
+  interest_fee DECIMAL(14,2) NOT NULL DEFAULT 0,       -- interest and late fee
+  cash_total DECIMAL(14,2) NOT NULL DEFAULT 0,
+  paid_from ENUM('BANK','CASH') NOT NULL DEFAULT 'BANK',
+  bank_account_id BIGINT UNSIGNED NULL,
+  cash_account_id BIGINT UNSIGNED NULL,
+  challan_ref VARCHAR(40) NULL,                        -- CPIN / CIN from the GST portal (outside identifier)
+  note VARCHAR(250) NULL,
+  status ENUM('ACTIVE','CANCELLED') NOT NULL DEFAULT 'ACTIVE',
+  created_by BIGINT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_gst_payments_no (legal_business_id, payment_no),
+  KEY idx_gst_payments_business (legal_business_id, status, period_to),
+  CONSTRAINT fk_gst_payments_business FOREIGN KEY (legal_business_id) REFERENCES acct_legal_businesses (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ## acct_historical_funding_batches
@@ -3695,6 +3771,18 @@ ALTER TABLE `acct_products`
   ADD CONSTRAINT `fk_product_division` FOREIGN KEY (`division_id`,`legal_business_id`) REFERENCES `acct_divisions` (`id`, `legal_business_id`);
 ```
 
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_products ADD COLUMN IF NOT EXISTS gst_rate_high DECIMAL(5,2) NULL;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_products ADD COLUMN IF NOT EXISTS gst_price_limit DECIMAL(12,2) NULL;
+```
+
 ## acct_profit_allocations
 
 Definition: [db/base_schema_2026-10-28.sql](../../db/base_schema_2026-10-28.sql) (line 1544)
@@ -3846,6 +3934,24 @@ ALTER TABLE `acct_purchase_headers`
   ADD CONSTRAINT `fk_purchase_location` FOREIGN KEY (`legal_business_id`,`receiving_location_id`) REFERENCES `acct_inventory_locations` (`legal_business_id`, `id`),
   ADD CONSTRAINT `fk_purchase_poster` FOREIGN KEY (`posted_by`) REFERENCES `acct_app_users` (`id`),
   ADD CONSTRAINT `fk_purchase_supplier` FOREIGN KEY (`legal_business_id`,`supplier_id`) REFERENCES `acct_suppliers` (`legal_business_id`, `id`);
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_purchase_headers ADD COLUMN IF NOT EXISTS gst_treatment ENUM('NONE','REGULAR','UNREGISTERED','COMPOSITION') NOT NULL DEFAULT 'NONE';
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_purchase_headers ADD COLUMN IF NOT EXISTS supplier_gstin VARCHAR(15) NULL;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_purchase_headers ADD COLUMN IF NOT EXISTS bill_tax_total DECIMAL(14,2) NULL;
 ```
 
 ## acct_purchase_lines
@@ -4227,6 +4333,42 @@ Change: [migrations/066_bill_terms.sql](../../migrations/066_bill_terms.sql)
 ALTER TABLE acct_sales_headers ADD COLUMN IF NOT EXISTS terms_text TEXT NULL;
 ```
 
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_sales_headers ADD COLUMN IF NOT EXISTS invoice_kind ENUM('PLAIN','TAX_INVOICE','BILL_OF_SUPPLY') NOT NULL DEFAULT 'PLAIN';
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_sales_headers ADD COLUMN IF NOT EXISTS buyer_gstin VARCHAR(15) NULL;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_sales_headers ADD COLUMN IF NOT EXISTS shipping_gst_rate DECIMAL(5,2) NULL;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_sales_headers ADD COLUMN IF NOT EXISTS shipping_cgst DECIMAL(14,2) NOT NULL DEFAULT 0;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_sales_headers ADD COLUMN IF NOT EXISTS shipping_sgst DECIMAL(14,2) NOT NULL DEFAULT 0;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_sales_headers ADD COLUMN IF NOT EXISTS shipping_igst DECIMAL(14,2) NOT NULL DEFAULT 0;
+```
+
 ## acct_sales_lines
 
 Definition: [db/base_schema_2026-10-28.sql](../../db/base_schema_2026-10-28.sql) (line 1761)
@@ -4496,6 +4638,30 @@ Change: [migrations/053_return_delivery_refund.sql](../../migrations/053_return_
 ```sql
 ALTER TABLE acct_sales_returns
   ADD COLUMN IF NOT EXISTS delivery_value DECIMAL(18,2) NOT NULL DEFAULT 0.00;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_sales_returns ADD COLUMN IF NOT EXISTS cgst_amount DECIMAL(14,2) NOT NULL DEFAULT 0;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_sales_returns ADD COLUMN IF NOT EXISTS sgst_amount DECIMAL(14,2) NOT NULL DEFAULT 0;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_sales_returns ADD COLUMN IF NOT EXISTS igst_amount DECIMAL(14,2) NOT NULL DEFAULT 0;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_sales_returns ADD COLUMN IF NOT EXISTS delivery_tax DECIMAL(14,2) NOT NULL DEFAULT 0;
 ```
 
 ## acct_scenario_assumptions
@@ -5450,6 +5616,24 @@ ALTER TABLE `acct_supplier_returns`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 ```
 
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_supplier_returns ADD COLUMN IF NOT EXISTS itc_cgst DECIMAL(14,2) NOT NULL DEFAULT 0;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_supplier_returns ADD COLUMN IF NOT EXISTS itc_sgst DECIMAL(14,2) NOT NULL DEFAULT 0;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_supplier_returns ADD COLUMN IF NOT EXISTS itc_igst DECIMAL(14,2) NOT NULL DEFAULT 0;
+```
+
 ## acct_suppliers
 
 Definition: [db/base_schema_2026-10-28.sql](../../db/base_schema_2026-10-28.sql) (line 2196)
@@ -5511,6 +5695,12 @@ Change: [migrations/089_tax_and_year_end.sql](../../migrations/089_tax_and_year_
 
 ```sql
 ALTER TABLE acct_suppliers ADD COLUMN IF NOT EXISTS pan CHAR(10) NULL;
+```
+
+Change: [migrations/090_gst.sql](../../migrations/090_gst.sql)
+
+```sql
+ALTER TABLE acct_suppliers ADD COLUMN IF NOT EXISTS gst_composition TINYINT(1) NOT NULL DEFAULT 0;
 ```
 
 ## acct_tax_challans

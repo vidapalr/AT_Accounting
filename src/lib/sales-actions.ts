@@ -21,6 +21,8 @@ import { nextCode } from "@/lib/codes";
 import { releaseItemsForSale } from "@/lib/approval-stock";
 import { currentTerms } from "@/lib/bill-terms";
 import { documentPrefix } from "@/lib/doc-numbers";
+import { applySaleGst, cleanGstin } from "@/lib/gst/data";
+import { GST_STATES } from "@/lib/gst";
 
 const PAGE = "/accounting/sales";
 
@@ -98,6 +100,15 @@ function errorRedirect(message: string): never {
   redirect(`${PAGE}?result=${encodeURIComponent(message)}`);
 }
 
+/** Buyer's GSTIN and the state the goods go to, typed on the bill when GST is on. "bad" = GSTIN typed wrongly. */
+function readBuyerGst(form: FormData): { gstin: string | null; stateCode: string | null } | "bad" {
+  const typed = String(form.get("buyer_gstin") ?? "").trim();
+  const gstin = typed ? cleanGstin(typed) : null;
+  if (typed && !gstin) return "bad";
+  const st = String(form.get("place_of_supply") ?? "").trim();
+  return { gstin, stateCode: GST_STATES.some((x) => x.code === st) ? st : null };
+}
+
 export async function createSaleAction(
   form: FormData
 ): Promise<void> {
@@ -112,6 +123,7 @@ export async function createSaleAction(
     form.get("customer_type") === "WHOLESALE" ? "WHOLESALE" : form.get("customer_type") === "RETAIL" ? "RETAIL" : undefined;
   const customerAddress = String(form.get("customer_address") ?? "").trim();
   const remarks = String(form.get("remarks") ?? "").trim();
+  const buyer = readBuyerGst(form);
   // Set when a saved draft is being confirmed: the same invoice is posted, not a new one.
   // (The button that sends this does not reliably send its own name/value, so this field decides.)
   const draftField = Number(form.get("confirm_draft_id") ?? 0);
@@ -167,6 +179,7 @@ export async function createSaleAction(
   if (customerPhone !== "" && phone10 === null) {
     errorRedirect("invalid-phone");
   }
+  if (buyer === "bad") errorRedirect("invalid-gstin");
 
   const DIVISION_ID = await divisionOfBranch(businessId, branchId);
   if (DIVISION_ID === null || !canUseDivision(user, DIVISION_ID)) errorRedirect("invalid-branch");
@@ -847,6 +860,9 @@ export async function createSaleAction(
             }
           }
 
+          // GST: split each line into value and tax (prices include GST, so the bill total is unchanged).
+          await applySaleGst(conn, businessId, createdId, buyer);
+
           if (mode === "POSTED") {
             for (const payment of resolvedPayments) {
               await conn.execute(
@@ -1005,6 +1021,7 @@ export async function updateSaleAction(
     form.get("customer_type") === "WHOLESALE" ? "WHOLESALE" : form.get("customer_type") === "RETAIL" ? "RETAIL" : undefined;
   const customerAddress = String(form.get("customer_address") ?? "").trim();
   const remarks = String(form.get("remarks") ?? "").trim();
+  const buyer = readBuyerGst(form);
 
   if (
     !Number.isSafeInteger(saleId) ||
@@ -1023,6 +1040,9 @@ export async function updateSaleAction(
   const phone10 = normalizePhone(customerPhone);
   if (customerPhone !== "" && phone10 === null) {
     redirect(`${PAGE}?result=invalid-phone`);
+  }
+  if (buyer === "bad") {
+    redirect(`${PAGE}?result=invalid-gstin`);
   }
 
   const DIVISION_ID = await divisionOfBranch(businessId, branchId);
@@ -1609,6 +1629,8 @@ export async function updateSaleAction(
                 line_total: line.total,
               });
             }
+
+            await applySaleGst(conn, businessId, saleId, buyer);
 
             await conn.execute(
               `INSERT INTO acct_audit_events (

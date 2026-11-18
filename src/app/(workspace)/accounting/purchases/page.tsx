@@ -6,6 +6,7 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { loadGstConfig } from "@/lib/gst/data";
 import PurchaseDraftForm, {
   type PurchaseDraft,
   type Prefill,
@@ -283,6 +284,10 @@ async function PurchaseContent({ searchParams }: Props) {
           location_id: Number(editHeader.location_id),
           remarks: editHeader.remarks,
           received: editHeader.status === "POSTED",
+          billTax: await db
+            .execute<RowDataPacket[]>(`SELECT bill_tax_total FROM acct_purchase_headers WHERE id = ? AND legal_business_id = ?`, [editId, businessId])
+            .then(([r]) => (r[0]?.bill_tax_total == null ? "" : String(r[0].bill_tax_total)))
+            .catch(() => ""),
           lines: editLines.map((line, i) => ({
             variant_id: Number(line.variant_id),
             quantity: line.quantity,
@@ -294,6 +299,7 @@ async function PurchaseContent({ searchParams }: Props) {
     }
   }
 
+  const gstCfg = await loadGstConfig(db, businessId);
   const ready =
     suppliers.length > 0 &&
     locations.length > 0 &&
@@ -395,6 +401,7 @@ async function PurchaseContent({ searchParams }: Props) {
           }))}
           draft={editDraft}
           prefill={editDraft ? undefined : prefill}
+          gstOn={gstCfg.scheme === "REGULAR"}
         />
       </section>
 

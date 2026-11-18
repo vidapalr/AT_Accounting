@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getActiveDivisionId } from "@/lib/division-context";
 import { businessDocCode, divisionDocCode } from "@/lib/doc-numbers";
 import { EXPENSE_CATEGORY_KEYS } from "@/lib/expense-categories";
+import { applyExpenseGst, readExpenseGst } from "@/lib/gst/data";
 
 const PAGE = "/accounting/expenses";
 
@@ -65,6 +66,8 @@ export async function createExpenseCore(
   const amount = String(form.get("amount") ?? "").trim();
   const remarks = String(form.get("remarks") ?? "").trim();
   const isSetupCost = form.get("is_setup_cost") === "1" ? 1 : 0;
+  const gst = readExpenseGst(form);
+  if (gst === "bad") redirect(`${PAGE}?result=invalid-gst`);
   const mode = String(form.get("mode") ?? "CONFIRMED");
   const paymentSource = String(
     form.get("initial_payment_source") ?? "UNPAID"
@@ -282,6 +285,7 @@ export async function createExpenseCore(
       );
 
       createdId = saved.insertId;
+      await applyExpenseGst(conn, businessId, createdId, expenseDate, paise(amount), gst);
 
       if (hasPayment) {
         let bankId: number | null = null;
