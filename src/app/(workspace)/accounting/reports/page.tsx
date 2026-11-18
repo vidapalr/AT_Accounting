@@ -5,7 +5,7 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { postPendingEntriesAction } from "@/lib/ledger-sync-actions";
-import { autoPostPending, isAutoPostOn } from "@/lib/ledger/auto-post";
+import { isAutoPostOn } from "@/lib/ledger/auto-post";
 import { setAutoPostAction } from "@/lib/ledger-sync-actions";
 import { getSyncStatus } from "@/lib/ledger/sync-status";
 import { getBalanceReport, getProfitReport } from "@/lib/reports/report-data";
@@ -42,7 +42,6 @@ async function ReportsContent({ searchParams }: Props) {
   const from = isDate(query.from) ? query.from : String(years[0]?.starts_on ?? `${today.slice(0, 4)}-04-01`);
   const to = isDate(query.to) ? query.to : today;
 
-  await autoPostPending(db, businessId).catch(() => undefined);
   const autoOn = await isAutoPostOn(db, businessId);
   const sync = await getSyncStatus(db, businessId);
   const needsReview =

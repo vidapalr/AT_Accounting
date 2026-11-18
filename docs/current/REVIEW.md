@@ -1,5 +1,9 @@
 # Code review — 10 November 2026
 
+## Follow-up — read-only financial screens (18 November 2026)
+
+The dashboard, Reports page and shared `LedgerStatusNote` previously called `autoPostPending()` during server rendering. Visiting any of these screens could therefore create journals when automatic posting was enabled, while a failure was silently ignored. The rendering-time calls have been removed. Automatic ledger posting remains available through the authorized `/api/ledger/auto-post` scheduled endpoint and the explicit owner-triggered posting controls. A static regression test (`tests/read-only-financial-pages.test.mjs`) guards these three readers from reintroducing posting calls. Production scheduling and end-to-end ledger reconciliation have not been verified as part of this change.
+
 Baseline: `9f8c44e95deba0b6da2d1657a5aaa8d0b0515269`. This is a focused manual review supported by a complete structural inventory of the selected source directories. It is **not a completed manual audit of all 102,575 lines**. No application defects were changed in this documentation delivery.
 
 ## Status update — 17 November 2026
