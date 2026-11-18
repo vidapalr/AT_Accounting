@@ -61,6 +61,7 @@ export const NAVIGATION: NavSection[] = [
     items: [
       { label: "Dashboard", href: "/dashboard", hint: "Today's sales, profit and money at a glance" },
       { label: "Insights", href: "/accounting/insights", hint: "Best sellers, who owes, slow stock, what is about to run out" },
+      { label: "Ask about your business", href: "/accounting/assistant", hint: "Type a question about sales, stock, profit or dues and get a plain answer" },
       { label: "Approvals", href: "/accounting/approvals", hint: "Entries above a limit waiting for a check or a final approval" },
       { label: "My investment", href: "/accounting/my-investment", hint: "Your money in, paid back, and your profit share" },
     ],

@@ -28,3 +28,7 @@ export function shopHosts(): string[] {
 export function appHosts(): string[] {
   return hostList(env("APP_HOSTS") || env("ACCOUNTING_HOST") || env("APP_PUBLIC_URL"));
 }
+
+/** AI assistant (read-only answers): the Anthropic API key, and the model to use. Empty key = assistant off. */
+export const AI_API_KEY = env("ANTHROPIC_API_KEY");
+export const AI_MODEL = env("AI_MODEL") || "claude-sonnet-5-5";
