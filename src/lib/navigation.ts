@@ -214,6 +214,7 @@ export const NAVIGATION: NavSection[] = [
       { label: "Month close", href: "/accounting/month-close", hint: "Checklist before closing a month" },
       { label: "Months and years", href: "/accounting/periods", hint: "Open and close accounting months" },
       { label: "Year end", href: "/accounting/year-end", hint: "Start the new year and close the old one" },
+      { label: "Income tax and year-end pack", href: "/accounting/tax", hint: "Advance tax, tax statement, loans, depreciation and one download for your accountant" },
       { label: "Auditor adjustments", href: "/accounting/auditor-adjustments", hint: "Record a change your auditor asked for, as its own dated entry" },
       { label: "Download for the auditor", href: "/accounting/audit/export", hint: "Excel and Tally files of the books" },
       { label: "Change history", href: "/accounting/audit/changes", hint: "Who did what, and when" },

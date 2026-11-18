@@ -19,6 +19,8 @@ import { addDays, inr, inrShort, percent, todayInIndia, toNumber } from "@/lib/r
 import BarChart from "@/components/BarChart";
 import styles from "./dashboard.module.css";
 import { ACCOUNT } from "@/lib/ledger/posting-rules";
+import { upcomingInstalment } from "@/lib/tax/advance-tax";
+import { businessSetting } from "@/lib/business-settings";
 
 type Props = { searchParams: Promise<{ period?: string }> };
 
@@ -109,6 +111,7 @@ async function DashboardContent({ searchParams }: Props) {
     .catch(() => [[{ n: 0 }]] as unknown as [RowDataPacket[]]);
   const newOrders = Number(orderRows[0]?.n ?? 0);
   const backup = user.role === "GROUP_OWNER" ? await lastBackup(db, businessId) : null;
+  const taxDue = upcomingInstalment(today, (await businessSetting(businessId, "tax_presumptive")) === "1");
 
   return (
     <div className={styles.page}>
@@ -126,6 +129,12 @@ async function DashboardContent({ searchParams }: Props) {
         <p className={`${styles.notice} ${styles.noticeWarn}`}>
           {backup.days === null ? "You have never taken a backup." : `Your last backup was ${backup.days} days ago.`}{" "}
           <Link href="/accounting/backup">Take one now</Link>.
+        </p>
+      )}
+      {taxDue && (
+        <p className={`${styles.notice} ${styles.noticeWarn}`}>
+          Advance tax instalment due on {taxDue.due} ({taxDue.days === 0 ? "today" : `${taxDue.days} day${taxDue.days === 1 ? "" : "s"} left`}).{" "}
+          <Link href="/accounting/tax">See how much to pay</Link>.
         </p>
       )}
       {sync.pending.length > 0 && (

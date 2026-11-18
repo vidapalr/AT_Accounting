@@ -636,7 +636,7 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Named form controls (including imported UI): None detected statically
 - Direct guard calls: requireAccess("reports")
 - Direct action imports: `@/lib/posting-retry-actions`
-- Referenced tables (dependency closure): `acct_account_map`, `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_approval_items`, `acct_approval_requests`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_auditor_adjustments`, `acct_bank_accounts`, `acct_bank_statement_lines`, `acct_bot_answers`, `acct_branches`, `acct_budgets`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_cash_note_log`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customer_messages`, `acct_customer_notes`, `acct_customers`, `acct_deals`, `acct_divisions`, `acct_document_log`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_instagram_posts`, `acct_invoice_shares`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_leads`, `acct_legal_businesses`, `acct_letter_templates`, `acct_login_attempts`, `acct_offers`, `acct_online_orders`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_accounts`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_payslips`, `acct_posting_failures`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_orders`, `acct_purchase_payments`, `acct_reel_tracks`, `acct_sale_rewards`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_selling_prices`, `acct_serials`, `acct_service_tickets`, `acct_sessions`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_shop_password_resets`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_stock_movements`, `acct_stock_reporters`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_user_access`, `acct_user_totp`, `acct_vouchers`, `acct_wa_broadcasts`, `acct_wa_status_log`, `acct_whatsapp_recipients`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_accounting_periods`, `acct_advance_transactions`, `acct_advances`, `acct_app_users`, `acct_approval_items`, `acct_approval_requests`, `acct_asset_dep_runs`, `acct_asset_depreciation`, `acct_audit_events`, `acct_auditor_adjustments`, `acct_bank_accounts`, `acct_bank_statement_lines`, `acct_bot_answers`, `acct_branches`, `acct_budgets`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_cash_closings`, `acct_cash_note_log`, `acct_chart_of_accounts`, `acct_customer_credits`, `acct_customer_messages`, `acct_customer_notes`, `acct_customers`, `acct_deals`, `acct_divisions`, `acct_document_log`, `acct_employee_pay_history`, `acct_employees`, `acct_expense_payments`, `acct_expenses`, `acct_financial_years`, `acct_fixed_assets`, `acct_free_stock`, `acct_funding_agreements`, `acct_funding_transactions`, `acct_instagram_posts`, `acct_invoice_shares`, `acct_journal_entries`, `acct_journal_lines`, `acct_journal_post_sequences`, `acct_journal_reversals`, `acct_leads`, `acct_legal_businesses`, `acct_letter_templates`, `acct_login_attempts`, `acct_offers`, `acct_online_orders`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_owner_accounts`, `acct_owner_money`, `acct_party_setoff_lines`, `acct_party_setoffs`, `acct_payslips`, `acct_posting_failures`, `acct_product_media`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_orders`, `acct_purchase_payments`, `acct_reel_tracks`, `acct_sale_rewards`, `acct_sales_headers`, `acct_sales_lines`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sales_return_lines`, `acct_sales_returns`, `acct_selling_prices`, `acct_serials`, `acct_service_tickets`, `acct_sessions`, `acct_shop_customers`, `acct_shop_email_verifications`, `acct_shop_password_resets`, `acct_staff_advances`, `acct_stock_damages`, `acct_stock_finds`, `acct_stock_movements`, `acct_stock_reporters`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_tax_challans`, `acct_user_access`, `acct_user_totp`, `acct_vouchers`, `acct_wa_broadcasts`, `acct_wa_status_log`, `acct_whatsapp_recipients`
 
 ## Earlier funding entries
 
@@ -1429,6 +1429,78 @@ Every page.tsx in the checkout is listed below. Extracted from source, not brows
 - Direct guard calls: requireAccess("purchases")
 - Direct action imports: `@/lib/supplier-actions`
 - Referenced tables (dependency closure): `acct_app_users`, `acct_audit_events`, `acct_business_hosts`, `acct_business_settings`, `acct_legal_businesses`, `acct_product_variants`, `acct_sessions`, `acct_suppliers`, `acct_user_access`
+
+## /accounting/tax/challans
+
+- Route: `/accounting/tax/challans`
+- Source: [src/app/(workspace)/accounting/tax/challans/page.tsx](../../src/app/(workspace)/accounting/tax/challans/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT
+- Purpose: See page source and linked modules for redirect or dynamic content.
+- Static headings: Dynamic or delegated
+- Named form controls (including imported UI): `amount`, `bsr_code`, `challan_serial`, `id`, `kind`, `note`, `paid_on`, `receipt`, `year`
+- Direct guard calls: requireAccess("tax")
+- Direct action imports: `@/lib/tax-actions`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_advance_transactions`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_customers`, `acct_divisions`, `acct_expense_payments`, `acct_fixed_assets`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_loan_year_figures`, `acct_loans`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_stock_movements`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_tax_challans`, `acct_tax_documents`, `acct_tax_statement_lines`, `acct_user_access`
+
+## /accounting/tax/depreciation
+
+- Route: `/accounting/tax/depreciation`
+- Source: [src/app/(workspace)/accounting/tax/depreciation/page.tsx](../../src/app/(workspace)/accounting/tax/depreciation/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT
+- Purpose: See page source and linked modules for redirect or dynamic content.
+- Static headings: Dynamic or delegated
+- Named form controls (including imported UI): `it_wdv_year`, `year`
+- Direct guard calls: requireAccess("tax")
+- Direct action imports: `@/lib/tax-actions`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_advance_transactions`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_customers`, `acct_divisions`, `acct_expense_payments`, `acct_fixed_assets`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_loan_year_figures`, `acct_loans`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_stock_movements`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_tax_challans`, `acct_tax_documents`, `acct_tax_statement_lines`, `acct_user_access`
+
+## /accounting/tax/loans
+
+- Route: `/accounting/tax/loans`
+- Source: [src/app/(workspace)/accounting/tax/loans/page.tsx](../../src/app/(workspace)/accounting/tax/loans/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT
+- Purpose: See page source and linked modules for redirect or dynamic content.
+- Static headings: Dynamic or delegated
+- Named form controls (including imported UI): `back`, `certified_closing`, `certified_interest`, `certified_principal`, `emi`, `first_emi_month`, `id`, `kind`, `lender_account_no`, `lender_name`, `loan_id`, `loan_kind`, `note`, `paper`, `principal`, `rate`, `status`, `taken_on`, `tenure_months`, `title`, `year`
+- Direct guard calls: requireAccess("tax")
+- Direct action imports: `@/lib/tax-actions`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_advance_transactions`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_customers`, `acct_divisions`, `acct_expense_payments`, `acct_fixed_assets`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_loan_year_figures`, `acct_loans`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_stock_movements`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_tax_challans`, `acct_tax_documents`, `acct_tax_statement_lines`, `acct_user_access`
+
+## Income tax and year-end pack
+
+- Route: `/accounting/tax`
+- Source: [src/app/(workspace)/accounting/tax/page.tsx](../../src/app/(workspace)/accounting/tax/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT
+- Purpose: Advance tax, tax statement, loans, depreciation and one download for your accountant
+- Static headings: Dynamic or delegated
+- Named form controls (including imported UI): `estimate`, `optout_ack`, `tax_audited`, `tax_company_scheme`, `tax_presumptive`, `tax_regime`, `year`
+- Direct guard calls: requireAccess("tax")
+- Direct action imports: `@/lib/tax-actions`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_advance_transactions`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_customers`, `acct_divisions`, `acct_expense_payments`, `acct_fixed_assets`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_loan_year_figures`, `acct_loans`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_stock_movements`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_tax_challans`, `acct_tax_documents`, `acct_tax_statement_lines`, `acct_user_access`
+
+## /accounting/tax/statement
+
+- Route: `/accounting/tax/statement`
+- Source: [src/app/(workspace)/accounting/tax/statement/page.tsx](../../src/app/(workspace)/accounting/tax/statement/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT
+- Purpose: See page source and linked modules for redirect or dynamic content.
+- Static headings: Dynamic or delegated
+- Named form controls (including imported UI): `id`, `kind`, `paper`, `pasted`, `statement_file`, `title`, `year`
+- Direct guard calls: requireAccess("tax")
+- Direct action imports: `@/lib/tax-actions`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_advance_transactions`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_customers`, `acct_divisions`, `acct_expense_payments`, `acct_fixed_assets`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_loan_year_figures`, `acct_loans`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_stock_movements`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_tax_challans`, `acct_tax_documents`, `acct_tax_statement_lines`, `acct_user_access`
+
+## /accounting/tax/year-figures
+
+- Route: `/accounting/tax/year-figures`
+- Source: [src/app/(workspace)/accounting/tax/year-figures/page.tsx](../../src/app/(workspace)/accounting/tax/year-figures/page.tsx)
+- Access: GROUP_OWNER, ACCOUNTANT
+- Purpose: See page source and linked modules for redirect or dynamic content.
+- Static headings: Dynamic or delegated
+- Named form controls (including imported UI): `id`, `pan`, `party`, `year`
+- Direct guard calls: requireAccess("tax")
+- Direct action imports: `@/lib/tax-actions`
+- Referenced tables (dependency closure): `acct_account_map`, `acct_advance_transactions`, `acct_app_users`, `acct_bank_accounts`, `acct_branches`, `acct_business_hosts`, `acct_business_settings`, `acct_cash_accounts`, `acct_chart_of_accounts`, `acct_customers`, `acct_divisions`, `acct_expense_payments`, `acct_fixed_assets`, `acct_funding_transactions`, `acct_journal_entries`, `acct_journal_lines`, `acct_legal_businesses`, `acct_loan_year_figures`, `acct_loans`, `acct_opening_balance_batches`, `acct_opening_balance_lines`, `acct_opening_investor_bank_balances`, `acct_product_variants`, `acct_products`, `acct_purchase_headers`, `acct_purchase_lines`, `acct_purchase_payments`, `acct_sales_headers`, `acct_sales_payments`, `acct_sales_refunds`, `acct_sessions`, `acct_stock_movements`, `acct_supplier_refunds`, `acct_supplier_returns`, `acct_suppliers`, `acct_tax_challans`, `acct_tax_documents`, `acct_tax_statement_lines`, `acct_user_access`
 
 ## History
 

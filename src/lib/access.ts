@@ -82,7 +82,8 @@ export type Feature =
   | "both_sides"
   | "online_orders"
   | "investor_view"
-  | "customers";
+  | "customers"
+  | "tax";
 
 const FEATURE_ROLES: Record<Feature, Role[]> = {
   dashboard: ["GROUP_OWNER", "ACCOUNTANT"],
@@ -113,6 +114,8 @@ const FEATURE_ROLES: Record<Feature, Role[]> = {
   // An investor sees only their own investment (the page filters to the investor tied to the login).
   investor_view: ["INVESTOR"],
   customers: ["GROUP_OWNER", "ACCOUNTANT", "CASHIER", "DIVISION_MANAGER"],
+  // Income tax and year-end pack: advance tax, tax statement, loans, papers for the accountant.
+  tax: ["GROUP_OWNER", "ACCOUNTANT"],
 };
 
 export function canAccess(role: string, feature: Feature): boolean {
@@ -180,6 +183,7 @@ const PATH_FEATURES: Array<[string, Feature]> = [
   ["/accounting/expenses", "expenses"],
   ["/accounting/fixed-assets", "expenses"],
   ["/accounting/advances-deposits", "expenses"],
+  ["/accounting/tax", "tax"],
 ];
 
 export function featureForPath(path: string): Feature | null {

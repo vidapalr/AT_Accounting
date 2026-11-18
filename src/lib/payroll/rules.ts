@@ -43,7 +43,8 @@ export const ESI_DEFAULTS = {
 };
 
 export type Slab = { upTo: bigint | null; ratePct: number };
-export type TaxRegimeRule = { slabs: Slab[]; standardDeduction: bigint; rebateLimit: bigint; rebateMax: bigint };
+/** `marginalRelief`: just above the rebate limit, tax is never more than the income above it (new regime only). */
+export type TaxRegimeRule = { slabs: Slab[]; standardDeduction: bigint; rebateLimit: bigint; rebateMax: bigint; marginalRelief: boolean };
 export type TaxYearRule = { NEW: TaxRegimeRule; OLD: TaxRegimeRule; cessPct: number; certificate: string; quarterly: string };
 
 const NEW_2025: TaxRegimeRule = {
@@ -59,6 +60,7 @@ const NEW_2025: TaxRegimeRule = {
   standardDeduction: R(75000),
   rebateLimit: R(1200000),
   rebateMax: R(60000),
+  marginalRelief: true,
 };
 const OLD_2025: TaxRegimeRule = {
   slabs: [
@@ -70,6 +72,7 @@ const OLD_2025: TaxRegimeRule = {
   standardDeduction: R(50000),
   rebateLimit: R(500000),
   rebateMax: R(12500),
+  marginalRelief: false,
 };
 
 /** Keyed by financial year start, e.g. "2026" = FY 2026-27. */

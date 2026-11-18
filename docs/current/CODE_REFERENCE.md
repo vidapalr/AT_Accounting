@@ -392,6 +392,16 @@ Local dependencies: [src/components/accounting/CashNotesPanel.tsx](../../src/com
 
 Direct table references: None
 
+## src/components/accounting/TaxPackNav.tsx
+
+[src/components/accounting/TaxPackNav.tsx](../../src/components/accounting/TaxPackNav.tsx) · 38 lines
+
+Exports: `TAX_TABS`, `TaxPackNav`
+
+Local dependencies: [src/lib/tax/tax-year.ts](../../src/lib/tax/tax-year.ts)
+
+Direct table references: None
+
 ## src/components/accounting/UnpaidWalkIns.tsx
 
 [src/components/accounting/UnpaidWalkIns.tsx](../../src/components/accounting/UnpaidWalkIns.tsx) · 43 lines
@@ -534,7 +544,7 @@ Direct table references: None
 
 ## src/lib/access.ts
 
-[src/lib/access.ts](../../src/lib/access.ts) · 219 lines
+[src/lib/access.ts](../../src/lib/access.ts) · 223 lines
 
 Exports: `Role`, `canApproveFreeStock`, `canWriteOffStockCount`, `CASHIER_SPENDING_LIMIT`, `canMergeCustomers`, `LOGIN_ROLES`, `ASSIGNABLE_ROLES`, `ROLE_LABELS`, `ROLE_SUMMARY`, `Feature`, `canAccess`, `featureForPath`, `canOpenPath`, `homePath`, `canRedoCashClosing`, `canGiveBillDiscount`
 
@@ -2154,13 +2164,13 @@ Direct table references: None
 
 ## src/lib/migration-check.ts
 
-[src/lib/migration-check.ts](../../src/lib/migration-check.ts) · 110 lines
+[src/lib/migration-check.ts](../../src/lib/migration-check.ts) · 112 lines
 
 Exports: `MIGRATION_MARKERS`, `missingMigrations`
 
 Local dependencies: None
 
-Direct table references: acct_account_map, acct_approval_items, acct_approval_requests, acct_auditor_adjustments, acct_bank_statement_lines, acct_bot_answers, acct_budgets, acct_business_hosts, acct_business_settings, acct_cash_closings, acct_cash_note_log, acct_customer_credits, acct_customer_messages, acct_customer_notes, acct_customers, acct_deals, acct_document_log, acct_employee_pay_history, acct_employees, acct_expenses, acct_fixed_assets, acct_funding_transactions, acct_instagram_posts, acct_invoice_shares, acct_leads, acct_letter_templates, acct_login_attempts, acct_offers, acct_online_orders, acct_owner_accounts, acct_owner_money, acct_party_setoffs, acct_payslips, acct_posting_failures, acct_product_media, acct_product_variants, acct_products, acct_purchase_lines, acct_purchase_orders, acct_purchase_payments, acct_reel_tracks, acct_sale_rewards, acct_sales_headers, acct_sales_payments, acct_sales_returns, acct_selling_prices, acct_serials, acct_service_tickets, acct_shop_customers, acct_shop_email_verifications, acct_shop_password_resets, acct_staff_advances, acct_stock_finds, acct_stock_movements, acct_stock_reporters, acct_supplier_returns, acct_user_access, acct_user_totp, acct_vouchers, acct_wa_broadcasts, acct_wa_status_log, acct_whatsapp_recipients
+Direct table references: acct_account_map, acct_approval_items, acct_approval_requests, acct_auditor_adjustments, acct_bank_statement_lines, acct_bot_answers, acct_budgets, acct_business_hosts, acct_business_settings, acct_cash_closings, acct_cash_note_log, acct_customer_credits, acct_customer_messages, acct_customer_notes, acct_customers, acct_deals, acct_document_log, acct_employee_pay_history, acct_employees, acct_expenses, acct_fixed_assets, acct_funding_transactions, acct_instagram_posts, acct_invoice_shares, acct_leads, acct_letter_templates, acct_login_attempts, acct_offers, acct_online_orders, acct_owner_accounts, acct_owner_money, acct_party_setoffs, acct_payslips, acct_posting_failures, acct_product_media, acct_product_variants, acct_products, acct_purchase_lines, acct_purchase_orders, acct_purchase_payments, acct_reel_tracks, acct_sale_rewards, acct_sales_headers, acct_sales_payments, acct_sales_returns, acct_selling_prices, acct_serials, acct_service_tickets, acct_shop_customers, acct_shop_email_verifications, acct_shop_password_resets, acct_staff_advances, acct_stock_finds, acct_stock_movements, acct_stock_reporters, acct_supplier_returns, acct_suppliers, acct_tax_challans, acct_user_access, acct_user_totp, acct_vouchers, acct_wa_broadcasts, acct_wa_status_log, acct_whatsapp_recipients
 
 ## src/lib/month-close.ts
 
@@ -2184,7 +2194,7 @@ Direct table references: None
 
 ## src/lib/navigation.ts
 
-[src/lib/navigation.ts](../../src/lib/navigation.ts) · 302 lines
+[src/lib/navigation.ts](../../src/lib/navigation.ts) · 303 lines
 
 Exports: `NavItem`, `NavModule`, `NavSection`, `OPTIONAL_MODULES`, `NAVIGATION`, `parseModulesOff`, `menuFor`, `activeHref`
 
@@ -2434,7 +2444,7 @@ Direct table references: None
 
 ## src/lib/payroll/rules.ts
 
-[src/lib/payroll/rules.ts](../../src/lib/payroll/rules.ts) · 116 lines
+[src/lib/payroll/rules.ts](../../src/lib/payroll/rules.ts) · 119 lines
 
 Exports: `R`, `PfRule`, `PF_CEILINGS`, `PF_DEFAULTS`, `ESI_DEFAULTS`, `Slab`, `TaxRegimeRule`, `TaxYearRule`, `TAX_YEARS`, `taxYearRule`, `PtSlab`, `PT_PRESETS`, `parsePtSlabs`, `formatPtSlabs`
 
@@ -2754,9 +2764,9 @@ Direct table references: acct_bank_accounts, acct_cash_accounts, acct_journal_en
 
 ## src/lib/reports/money.ts
 
-[src/lib/reports/money.ts](../../src/lib/reports/money.ts) · 50 lines
+[src/lib/reports/money.ts](../../src/lib/reports/money.ts) · 57 lines
 
-Exports: `toPaise`, `inr`, `inrShort`, `percent`, `toNumber`, `todayInIndia`, `isDate`, `addDays`
+Exports: `toPaise`, `inr`, `inrShort`, `percent`, `toNumber`, `todayInIndia`, `isDate`, `addDays`, `parseRupees`
 
 Local dependencies: None
 
@@ -3337,6 +3347,96 @@ Direct table references: acct_audit_events, acct_bank_accounts, acct_cash_accoun
 [src/lib/supplier-statement.ts](../../src/lib/supplier-statement.ts) · 90 lines
 
 Exports: `StatementKind`, `StatementEvent`, `StatementRow`, `effectOf`, `buildStatement`, `Ageing`, `ageDues`
+
+Local dependencies: None
+
+Direct table references: None
+
+## src/lib/tax-actions.ts
+
+[src/lib/tax-actions.ts](../../src/lib/tax-actions.ts) · 317 lines
+
+Exports: `saveTaxSettingsAction`, `addChallanAction`, `cancelChallanAction`, `readStatementAction`, `uploadTaxPaperAction`, `removeTaxPaperAction`, `saveLoanAction`, `saveLoanYearAction`, `saveItDepreciationAction`, `savePartyPanAction`
+
+Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/lib/db-errors.ts](../../src/lib/db-errors.ts), [src/lib/business-settings.ts](../../src/lib/business-settings.ts), [src/lib/codes.ts](../../src/lib/codes.ts), [src/lib/reports/money.ts](../../src/lib/reports/money.ts), [src/lib/document-storage.ts](../../src/lib/document-storage.ts), [src/lib/tax/form168.ts](../../src/lib/tax/form168.ts), [src/lib/tax/it-depreciation.ts](../../src/lib/tax/it-depreciation.ts), [src/lib/tax/year-figures.ts](../../src/lib/tax/year-figures.ts)
+
+Direct table references: acct_customers, acct_loan_year_figures, acct_loans, acct_suppliers, acct_tax_challans, acct_tax_documents, acct_tax_statement_lines
+
+## src/lib/tax/advance-tax.ts
+
+[src/lib/tax/advance-tax.ts](../../src/lib/tax/advance-tax.ts) · 214 lines
+
+Exports: `LegalForm`, `Regime`, `CompanyScheme`, `TaxEstimate`, `estimateTax`, `projectYearProfit`, `ADVANCE_TAX_THRESHOLD`, `InstalmentRow`, `InstalmentPlan`, `instalmentDates`, `planInstalments`, `daysUntil`, `upcomingInstalment`
+
+Local dependencies: [src/lib/payroll/engine.ts](../../src/lib/payroll/engine.ts), [src/lib/payroll/rules.ts](../../src/lib/payroll/rules.ts)
+
+Direct table references: None
+
+## src/lib/tax/data.ts
+
+[src/lib/tax/data.ts](../../src/lib/tax/data.ts) · 355 lines
+
+Exports: `TAX_KEYS`, `yearKeys`, `TaxSettings`, `loadTaxSettings`, `taxTablesReady`, `Challan`, `loadChallans`, `StatementTds`, `loadStatement`, `advanceTaxPlan`, `statementCheck`, `Loan`, `loadLoans`, `loadItDepreciation`, `StockLine`, `closingStock`, `turnoverByMonth`, `PartyBalance`, `debtorsAt`, `creditorsAt`, `TaxDocument`, `loadTaxDocuments`, `DOC_KIND_LABELS`
+
+Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/db-errors.ts](../../src/lib/db-errors.ts), [src/lib/business-settings.ts](../../src/lib/business-settings.ts), [src/lib/reports/report-data.ts](../../src/lib/reports/report-data.ts), [src/lib/reports/money.ts](../../src/lib/reports/money.ts), [src/lib/ledger/posting-rules.ts](../../src/lib/ledger/posting-rules.ts), [src/lib/supplier-ledger.ts](../../src/lib/supplier-ledger.ts), [src/lib/supplier-statement.ts](../../src/lib/supplier-statement.ts), [src/lib/tax/advance-tax.ts](../../src/lib/tax/advance-tax.ts), [src/lib/tax/it-depreciation.ts](../../src/lib/tax/it-depreciation.ts), [src/lib/tax/loan-schedule.ts](../../src/lib/tax/loan-schedule.ts), [src/lib/tax/form168.ts](../../src/lib/tax/form168.ts), [src/lib/tax/tax-year.ts](../../src/lib/tax/tax-year.ts), [src/lib/tax/year-figures.ts](../../src/lib/tax/year-figures.ts)
+
+Direct table references: acct_customers, acct_fixed_assets, acct_legal_businesses, acct_loan_year_figures, acct_loans, acct_product_variants, acct_products, acct_sales_headers, acct_sales_payments, acct_stock_movements, acct_suppliers, acct_tax_challans, acct_tax_documents, acct_tax_statement_lines
+
+## src/lib/tax/form168.ts
+
+[src/lib/tax/form168.ts](../../src/lib/tax/form168.ts) · 109 lines
+
+Exports: `TdsCredit`, `TaxPaidLine`, `statementDate`, `parseStatement`, `ChallanInBooks`, `ChallanMatch`, `matchChallans`, `nameKey`
+
+Local dependencies: [src/lib/reports/money.ts](../../src/lib/reports/money.ts)
+
+Direct table references: None
+
+## src/lib/tax/it-depreciation.ts
+
+[src/lib/tax/it-depreciation.ts](../../src/lib/tax/it-depreciation.ts) · 130 lines
+
+Exports: `ASSET_BLOCKS`, `AssetBlock`, `BLOCK_LABELS`, `DEFAULT_IT_RATES`, `TaxAsset`, `BlockYear`, `daysInUse`, `blockYear`, `itDepreciation`
+
+Local dependencies: [src/lib/payroll/engine.ts](../../src/lib/payroll/engine.ts)
+
+Direct table references: None
+
+## src/lib/tax/loan-schedule.ts
+
+[src/lib/tax/loan-schedule.ts](../../src/lib/tax/loan-schedule.ts) · 69 lines
+
+Exports: `ScheduleRow`, `monthlyInstalment`, `loanSchedule`, `yearTotals`
+
+Local dependencies: [src/lib/payroll/engine.ts](../../src/lib/payroll/engine.ts)
+
+Direct table references: None
+
+## src/lib/tax/pack.ts
+
+[src/lib/tax/pack.ts](../../src/lib/tax/pack.ts) · 284 lines
+
+Exports: `buildTaxPack`
+
+Local dependencies: [src/lib/db.ts](../../src/lib/db.ts), [src/lib/db-errors.ts](../../src/lib/db-errors.ts), [src/lib/brand.ts](../../src/lib/brand.ts), [src/lib/document-storage.ts](../../src/lib/document-storage.ts), [src/lib/export/ledger-data.ts](../../src/lib/export/ledger-data.ts), [src/lib/reports/report-data.ts](../../src/lib/reports/report-data.ts), [src/lib/reports/money.ts](../../src/lib/reports/money.ts), [src/lib/tax/data.ts](../../src/lib/tax/data.ts), [src/lib/tax/it-depreciation.ts](../../src/lib/tax/it-depreciation.ts), [src/lib/tax/tax-year.ts](../../src/lib/tax/tax-year.ts), [src/lib/tax/year-figures.ts](../../src/lib/tax/year-figures.ts)
+
+Direct table references: acct_employees, acct_fixed_assets, acct_payslips, acct_tax_documents
+
+## src/lib/tax/tax-year.ts
+
+[src/lib/tax/tax-year.ts](../../src/lib/tax/tax-year.ts) · 49 lines
+
+Exports: `taxYearOf`, `taxYearLabel`, `taxYearRange`, `parseTaxYear`, `newAct`, `formNames`, `returnDueDate`
+
+Local dependencies: None
+
+Direct table references: None
+
+## src/lib/tax/year-figures.ts
+
+[src/lib/tax/year-figures.ts](../../src/lib/tax/year-figures.ts) · 35 lines
+
+Exports: `taxYearMonths`, `monthTotals`, `isPan`, `panOf`, `monthName`
 
 Local dependencies: None
 

@@ -123,7 +123,7 @@ export function annualTax(taxable: bigint, rule: TaxRegimeRule, cessPct: number)
   if (taxable <= 0n) return 0n;
   let tax = slabTax(taxable, rule);
   if (taxable <= rule.rebateLimit) tax = max(0n, tax - rule.rebateMax);
-  else tax = min(tax, taxable - rule.rebateLimit); // marginal relief: never more tax than income above the limit
+  else if (rule.marginalRelief) tax = min(tax, taxable - rule.rebateLimit); // never more tax than income above the limit
   return roundRupee(tax + (tax * BigInt(cessPct)) / 100n);
 }
 

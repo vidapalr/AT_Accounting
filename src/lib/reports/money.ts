@@ -47,3 +47,10 @@ export function addDays(date: string, days: number): string {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
+/** Typed or downloaded amount ("1,23,456.70", "₹ 500") -> paise; empty or not a number -> null. */
+export function parseRupees(raw: string | null | undefined): bigint | null {
+  const s = String(raw ?? "").replace(/[₹,\s]/g, "");
+  if (!/^-?\d+(\.\d{1,2})?$/.test(s)) return null;
+  return toPaise(s);
+}

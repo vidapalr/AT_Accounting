@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   experimental: {
     cpus: 1,
+    // Tax papers and challans are uploaded through forms (up to 5 MB each).
+    serverActions: { bodySizeLimit: "6mb" },
   },
 };
 

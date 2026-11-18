@@ -37,6 +37,8 @@ Static source inventory. A named guard is evidence of a call, not proof of compl
 | `/api/shop/cart` | POST | [src/app/api/shop/cart/route.ts](../../src/app/api/shop/cart/route.ts) | Inspect source |  |
 | `/api/shop/media/[id]` | GET | [src/app/api/shop/media/[id]/route.ts](../../src/app/api/shop/media/[id]/route.ts) | Inspect source | acct_product_media, acct_products |
 | `/api/shop/order` | POST | [src/app/api/shop/order/route.ts](../../src/app/api/shop/order/route.ts) | getShopCustomer( |  |
+| `/api/tax/document/[id]` | GET | [src/app/api/tax/document/[id]/route.ts](../../src/app/api/tax/document/[id]/route.ts) | getSessionUser( | acct_tax_documents |
+| `/api/tax/pack` | GET | [src/app/api/tax/pack/route.ts](../../src/app/api/tax/pack/route.ts) | getSessionUser( |  |
 | `/api/whatsapp/preview` | GET | [src/app/api/whatsapp/preview/route.ts](../../src/app/api/whatsapp/preview/route.ts) | getSessionUser( | acct_whatsapp_recipients, acct_whatsapp_subscriptions |
 | `/api/whatsapp/run` | GET, POST | [src/app/api/whatsapp/run/route.ts](../../src/app/api/whatsapp/run/route.ts) | authorised( | acct_business_settings |
 | `/api/whatsapp/webhook` | GET, POST | [src/app/api/whatsapp/webhook/route.ts](../../src/app/api/whatsapp/webhook/route.ts) | Inspect source | acct_customers, acct_wa_delivery, acct_wa_status_log |

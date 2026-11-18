@@ -317,6 +317,11 @@ erDiagram
   acct_pay_components
   acct_payslips
   acct_statutory_remittances
+  acct_tax_challans
+  acct_tax_statement_lines
+  acct_loans
+  acct_loan_year_figures
+  acct_tax_documents
   acct_branches |o..o{ acct_advances : "legal_business_id,division_id,branch_id"
   acct_legal_businesses |o..o{ acct_advances : "legal_business_id"
   acct_app_users |o..o{ acct_advances : "created_by"
@@ -363,6 +368,12 @@ erDiagram
   acct_legal_businesses |o..o{ acct_pay_components : "legal_business_id"
   acct_legal_businesses |o..o{ acct_payslips : "legal_business_id"
   acct_legal_businesses |o..o{ acct_statutory_remittances : "legal_business_id"
+  acct_legal_businesses |o..o{ acct_tax_challans : "legal_business_id"
+  acct_legal_businesses |o..o{ acct_tax_statement_lines : "legal_business_id"
+  acct_legal_businesses |o..o{ acct_loans : "legal_business_id"
+  acct_loans |o..o{ acct_loan_year_figures : "loan_id"
+  acct_legal_businesses |o..o{ acct_loan_year_figures : "legal_business_id"
+  acct_legal_businesses |o..o{ acct_tax_documents : "legal_business_id"
 ```
 
 ## Foreign-key evidence
@@ -549,6 +560,12 @@ erDiagram
 | acct_pay_components | legal_business_id | acct_legal_businesses | id | [migrations/088_payroll.sql](../../migrations/088_payroll.sql) |
 | acct_payslips | legal_business_id | acct_legal_businesses | id | [migrations/088_payroll.sql](../../migrations/088_payroll.sql) |
 | acct_statutory_remittances | legal_business_id | acct_legal_businesses | id | [migrations/088_payroll.sql](../../migrations/088_payroll.sql) |
+| acct_tax_challans | legal_business_id | acct_legal_businesses | id | [migrations/089_tax_and_year_end.sql](../../migrations/089_tax_and_year_end.sql) |
+| acct_tax_statement_lines | legal_business_id | acct_legal_businesses | id | [migrations/089_tax_and_year_end.sql](../../migrations/089_tax_and_year_end.sql) |
+| acct_loans | legal_business_id | acct_legal_businesses | id | [migrations/089_tax_and_year_end.sql](../../migrations/089_tax_and_year_end.sql) |
+| acct_loan_year_figures | loan_id | acct_loans | id | [migrations/089_tax_and_year_end.sql](../../migrations/089_tax_and_year_end.sql) |
+| acct_loan_year_figures | legal_business_id | acct_legal_businesses | id | [migrations/089_tax_and_year_end.sql](../../migrations/089_tax_and_year_end.sql) |
+| acct_tax_documents | legal_business_id | acct_legal_businesses | id | [migrations/089_tax_and_year_end.sql](../../migrations/089_tax_and_year_end.sql) |
 
 ## Logical relationships requiring application enforcement
 
