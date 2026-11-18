@@ -30,6 +30,7 @@ Names and usage locations only; no environment files or secret values were read.
 | `MEDIA_DIR` | [src/app/api/backup/files/route.ts](../../src/app/api/backup/files/route.ts), [src/lib/media-storage.ts](../../src/lib/media-storage.ts) |
 | `NODE_ENV` | [src/app/api/dev/db-check/route.ts](../../src/app/api/dev/db-check/route.ts), [src/app/api/dev/schema-check/route.ts](../../src/app/api/dev/schema-check/route.ts), [src/lib/auth.ts](../../src/lib/auth.ts), [src/lib/db.ts](../../src/lib/db.ts), [src/lib/same-origin.ts](../../src/lib/same-origin.ts), [src/lib/shop-account.ts](../../src/lib/shop-account.ts), [src/lib/tenant.ts](../../src/lib/tenant.ts), [src/lib/two-step-actions.ts](../../src/lib/two-step-actions.ts), [src/lib/two-step.ts](../../src/lib/two-step.ts) |
 | `PRIVATE_DIR` | [src/lib/private-root.ts](../../src/lib/private-root.ts) |
+| `SECRETS_ENCRYPTION_KEY` | [src/lib/secret-box.ts](../../src/lib/secret-box.ts) |
 | `SHOP_BUSINESS_ID` | [src/lib/tenant.ts](../../src/lib/tenant.ts) |
 | `SHOP_HOSTS` | [src/lib/shop-url.ts](../../src/lib/shop-url.ts), [tests/host-routing.test.mjs](../../tests/host-routing.test.mjs) |
 | `SHOP_NOTIFY_EMAIL` | [src/lib/order-mail.ts](../../src/lib/order-mail.ts) |

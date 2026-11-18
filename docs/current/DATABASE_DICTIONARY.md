@@ -2,7 +2,7 @@
 
 Source-derived: base schema (through migration 040), followed by migrations 041–078. These are exact CREATE/ALTER definitions, not a database introspection or a flattened final schema. Read later ALTER statements to determine a column’s latest type/default and indexes. DML backfills, triggers and seed records remain in the linked SQL sources. No migrations were executed. The base dump identifies MariaDB 11.8.9; MySQL compatibility must not be assumed.
 
-Tables with CREATE definitions: **153**. Explicit foreign-key declarations extracted: **187**.
+Tables with CREATE definitions: **156**. Explicit foreign-key declarations extracted: **190**.
 
 ## acct_account_map
 
@@ -555,6 +555,30 @@ Change: [db/base_schema_2026-10-28.sql](../../db/base_schema_2026-10-28.sql)
 ```sql
 ALTER TABLE `acct_asset_depreciation`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+```
+
+## acct_attendance
+
+Definition: [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql) (line 13)
+
+```sql
+CREATE TABLE IF NOT EXISTS acct_attendance (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  legal_business_id BIGINT UNSIGNED NOT NULL,
+  employee_id BIGINT UNSIGNED NOT NULL,
+  work_date DATE NOT NULL,
+  in_time TIME NULL,
+  out_time TIME NULL,
+  status ENUM('PRESENT','HALF_DAY','ABSENT','LEAVE','WEEKLY_OFF','HOLIDAY') NULL,
+  source ENUM('WHATSAPP','MANUAL') NOT NULL DEFAULT 'MANUAL',
+  note VARCHAR(200) NULL,
+  updated_by BIGINT UNSIGNED NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_attendance_day (legal_business_id, employee_id, work_date),
+  KEY idx_attendance_month (legal_business_id, work_date),
+  CONSTRAINT fk_attendance_business FOREIGN KEY (legal_business_id) REFERENCES acct_legal_businesses (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ## acct_audit_events
@@ -1744,6 +1768,24 @@ Change: [migrations/088_payroll.sql](../../migrations/088_payroll.sql)
 
 ```sql
 ALTER TABLE acct_employees ADD COLUMN IF NOT EXISTS old_regime_deductions DECIMAL(18,2) NOT NULL DEFAULT 0;
+```
+
+Change: [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql)
+
+```sql
+ALTER TABLE acct_employees ADD COLUMN IF NOT EXISTS employment_type ENUM('FULL_TIME','PART_TIME','DAILY_WAGE') NOT NULL DEFAULT 'FULL_TIME';
+```
+
+Change: [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql)
+
+```sql
+ALTER TABLE acct_employees ADD COLUMN IF NOT EXISTS daily_wage DECIMAL(12,2) NULL;
+```
+
+Change: [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql)
+
+```sql
+ALTER TABLE acct_employees ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(15) NULL;
 ```
 
 ## acct_expense_payments
@@ -5025,6 +5067,50 @@ Change: [db/base_schema_2026-10-28.sql](../../db/base_schema_2026-10-28.sql)
 ```sql
 ALTER TABLE `acct_staff_advances`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+```
+
+## acct_statutory_login_views
+
+Definition: [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql) (line 54)
+
+```sql
+CREATE TABLE IF NOT EXISTS acct_statutory_login_views (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  legal_business_id BIGINT UNSIGNED NOT NULL,
+  login_id BIGINT UNSIGNED NOT NULL,
+  viewed_by BIGINT UNSIGNED NOT NULL,
+  viewed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_login_views (legal_business_id, login_id, viewed_at),
+  CONSTRAINT fk_login_views_business FOREIGN KEY (legal_business_id) REFERENCES acct_legal_businesses (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+## acct_statutory_logins
+
+Definition: [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql) (line 32)
+
+```sql
+CREATE TABLE IF NOT EXISTS acct_statutory_logins (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  legal_business_id BIGINT UNSIGNED NOT NULL,
+  kind ENUM('PF','ESI','GST','INCOME_TAX','TDS','PROFESSIONAL_TAX','SHOP_LICENCE','UDYAM','TRADE_LICENCE','BANK','OTHER') NOT NULL,
+  label VARCHAR(100) NOT NULL,
+  registration_no VARCHAR(60) NULL,                    -- PF code, ESI code, GSTIN, PAN, TAN ... (outside identifiers)
+  portal_url VARCHAR(255) NULL,
+  login_id VARCHAR(120) NULL,
+  password_cipher VARBINARY(512) NULL,                 -- encrypted with the app's key; never shown in lists
+  registered_on DATE NULL,
+  renewal_due DATE NULL,
+  note VARCHAR(300) NULL,
+  status ENUM('ACTIVE','REMOVED') NOT NULL DEFAULT 'ACTIVE',
+  created_by BIGINT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_statutory_business (legal_business_id, status),
+  CONSTRAINT fk_statutory_business FOREIGN KEY (legal_business_id) REFERENCES acct_legal_businesses (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ## acct_statutory_remittances

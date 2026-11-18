@@ -65,7 +65,7 @@ export async function salesInsights(db: Pool, businessId: number, from: string, 
   );
   const [lowMargin] = await db.query<Row[]>(
     `SELECT p.product_name, SUM(${NET}) AS amount, SUM(${NET} - COALESCE(l.total_cost, 0)) AS margin
-       ${SALE} GROUP BY p.id, p.product_name HAVING amount > 0 ORDER BY margin / amount ASC LIMIT 5`,
+       ${SALE} GROUP BY p.id, p.product_name HAVING amount > 0 ORDER BY SUM(${NET} - COALESCE(l.total_cost, 0)) / SUM(${NET}) ASC LIMIT 5`,
     args
   );
   const [byWeekday] = await db.query<Row[]>(
@@ -85,7 +85,7 @@ export async function salesInsights(db: Pool, businessId: number, from: string, 
   );
   // New customers: first ever bill falls in the period. Returning: bought before the period too.
   const [custMix] = await db.query<Row[]>(
-    `SELECT SUM(first_bill >= ?) AS fresh, SUM(first_bill < ?) AS returning FROM (
+    `SELECT SUM(first_bill >= ?) AS fresh, SUM(first_bill < ?) AS repeat_buyers FROM (
         SELECT h.customer_id, MIN(h.invoice_date) AS first_bill FROM acct_sales_headers h
          WHERE h.legal_business_id = ? AND h.status = 'POSTED' AND h.customer_id IS NOT NULL AND h.invoice_date <= ?
          GROUP BY h.customer_id
@@ -121,7 +121,7 @@ export async function salesInsights(db: Pool, businessId: number, from: string, 
     byHour: Array.from({ length: 14 }, (_, i) => i + 8).map((h) => ({ label: `${h > 12 ? h - 12 : h}${h >= 12 ? "pm" : "am"}`, value: n(byHour.find((r) => n(r.hr) === h)?.amount) })),
     customerMix: [
       { label: "New customers", value: n(custMix[0]?.fresh) },
-      { label: "Returning customers", value: n(custMix[0]?.returning) },
+      { label: "Returning customers", value: n(custMix[0]?.repeat_buyers) },
     ],
     notSelling: notSelling.map((r) => ({ name: String(r.product_name), onhand: n(r.onhand), value: n(r.value) })),
   };

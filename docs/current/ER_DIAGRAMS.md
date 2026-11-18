@@ -21,6 +21,8 @@ erDiagram
   acct_user_backup_codes
   acct_login_challenges
   acct_business_hosts
+  acct_statutory_logins
+  acct_statutory_login_views
   acct_legal_businesses |o..o{ acct_branches : "legal_business_id"
   acct_divisions |o..o{ acct_branches : "division_id"
   acct_agreement_versions |o..o{ acct_business_documents : "agreement_version_id"
@@ -39,6 +41,8 @@ erDiagram
   acct_legal_businesses |o..o{ acct_user_access : "legal_business_id"
   acct_divisions |o..o{ acct_user_access : "division_id,legal_business_id"
   acct_legal_businesses |o..o{ acct_business_hosts : "legal_business_id"
+  acct_legal_businesses |o..o{ acct_statutory_logins : "legal_business_id"
+  acct_legal_businesses |o..o{ acct_statutory_login_views : "legal_business_id"
 ```
 
 ## Funding and agreements
@@ -323,6 +327,7 @@ erDiagram
   acct_loan_year_figures
   acct_tax_documents
   acct_gst_payments
+  acct_attendance
   acct_branches |o..o{ acct_advances : "legal_business_id,division_id,branch_id"
   acct_legal_businesses |o..o{ acct_advances : "legal_business_id"
   acct_app_users |o..o{ acct_advances : "created_by"
@@ -376,6 +381,7 @@ erDiagram
   acct_legal_businesses |o..o{ acct_loan_year_figures : "legal_business_id"
   acct_legal_businesses |o..o{ acct_tax_documents : "legal_business_id"
   acct_legal_businesses |o..o{ acct_gst_payments : "legal_business_id"
+  acct_legal_businesses |o..o{ acct_attendance : "legal_business_id"
 ```
 
 ## Foreign-key evidence
@@ -569,6 +575,9 @@ erDiagram
 | acct_loan_year_figures | legal_business_id | acct_legal_businesses | id | [migrations/089_tax_and_year_end.sql](../../migrations/089_tax_and_year_end.sql) |
 | acct_tax_documents | legal_business_id | acct_legal_businesses | id | [migrations/089_tax_and_year_end.sql](../../migrations/089_tax_and_year_end.sql) |
 | acct_gst_payments | legal_business_id | acct_legal_businesses | id | [migrations/090_gst.sql](../../migrations/090_gst.sql) |
+| acct_attendance | legal_business_id | acct_legal_businesses | id | [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql) |
+| acct_statutory_logins | legal_business_id | acct_legal_businesses | id | [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql) |
+| acct_statutory_login_views | legal_business_id | acct_legal_businesses | id | [migrations/091_staff_attendance_statutory.sql](../../migrations/091_staff_attendance_statutory.sql) |
 
 ## Logical relationships requiring application enforcement
 

@@ -171,7 +171,7 @@ async function Content({ searchParams }: { searchParams: Promise<{ days?: string
           ))}
         </nav>
         <p style={{ fontSize: 18 }}>
-          {period.label}: <strong>{rs(si.amount)}</strong> from {si.bills} bills · average bill <strong>{rs(si.average)}</strong> · {si.customers} named customers.
+          {period.label}: <strong>{rs(si.amount)}</strong> from {si.bills} bills · average bill <strong>{rs(si.average)}</strong> · {si.customers} named {si.customers === 1 ? "customer" : "customers"}.
         </p>
         <div style={{ display: "grid", gap: 24, gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", margin: "12px 0" }}>
           <PieChart title="Sales by kind of product" parts={si.byCategory} note="Without GST." />

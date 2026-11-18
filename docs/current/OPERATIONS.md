@@ -30,6 +30,8 @@ Compare the resulting schema with the [DDL history](DATABASE_DICTIONARY.md), the
 | --- | --- |
 | SQL | DB variables above and a compatible MariaDB server |
 | Bank account encryption | `BANK_ENCRYPTION_KEY` and `BANK_FINGERPRINT_KEY`, each a 32-byte hex key; preserve keys securely across deployments/restores |
+| Portal password encryption | `SECRETS_ENCRYPTION_KEY` (32-byte hex). Falls back to `BANK_ENCRYPTION_KEY` when not set. Never change it after passwords are saved, or they can no longer be opened |
+| AI assistant (answers only) | `ANTHROPIC_API_KEY` switches on Reports > Ask about your business; `AI_MODEL` optional (default `claude-sonnet-5-5`). Without a key the page explains how to switch it on |
 | Product media | `MEDIA_DIR`; use persistent storage outside the replaced application release folder |
 | Private documents | `PRIVATE_DIR` (outside the release folder); falls back to `<process.cwd()>/private_uploads` |
 | Host routing | `APP_HOSTS` and `SHOP_HOSTS` (comma lists, paired per company; older `ACCOUNTING_HOST` / `TEXTILES_HOST` / `SHOP_PUBLIC_URL` still read). Sign-in checks the request's own address |
