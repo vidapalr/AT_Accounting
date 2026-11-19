@@ -1,9 +1,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { headers } from "next/headers";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
+import { canAccess } from "@/lib/access";
+import { checkWaConnection } from "@/lib/bot/wa-connection";
+import { subscribeWabaAction } from "@/lib/bot/wa-connection-actions";
 import { explainWhatsAppError, maskPhone, stuckHint } from "@/lib/bot/wa-errors";
 import { cellTop as cell } from "@/lib/ui/styles";
 
@@ -14,8 +18,14 @@ type Entry = {
 
 const IST_MIN = 330; // the database keeps UTC; show Indian time
 
-async function Content() {
+type Props = { searchParams: Promise<{ check?: string; sub?: string; why?: string }> };
+
+async function Content({ searchParams }: Props) {
   const user = await requireAccess("online_orders");
+  const query = await searchParams;
+  const canSetUp = canAccess(user.role, "dashboard");
+  const conn = canSetUp && query.check === "1" ? await checkWaConnection() : null;
+  const host = (await headers()).get("host") ?? "your-site";
   const biz = user.legal_business_id;
   const entries: Entry[] = [];
 
@@ -117,6 +127,51 @@ async function Content() {
           )}
         </p>
       )}
+      {canSetUp && !hook?.okAt && (
+        <section style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 14, margin: "12px 0" }}>
+          <h2 style={{ fontSize: 17, margin: "0 0 6px" }}>WhatsApp connection</h2>
+          {query.sub === "ok" && <p style={{ color: "#166534" }}>Connected. Ask someone to send a WhatsApp message to the shop number, then reload this page: the line above should show a time.</p>}
+          {query.sub === "fail" && <p style={{ color: "#b91c1c" }}>Meta refused: {query.why || "no reason given"}</p>}
+          {!conn ? (
+            <>
+              <p style={{ margin: "0 0 10px", color: "#475569" }}>Messages sent to the shop number are not reaching this app. This asks Meta how the connection is set up.</p>
+              <Link href="/accounting/chatbot/log?check=1" className="btn-link btn-link-primary">Check WhatsApp connection</Link>
+            </>
+          ) : (
+            <>
+              {conn.verdict.length === 0 ? (
+                <p style={{ color: "#166534" }}>Meta reports no problem with the set-up. If messages still do not arrive, check in Meta → your app → WhatsApp → Configuration that the webhook address is https://{host}/api/whatsapp/webhook and that &lsquo;messages&rsquo; is subscribed, and that the app is Live.</p>
+              ) : (
+                <ul style={{ color: "#b91c1c", paddingLeft: 18 }}>{conn.verdict.map((v, i) => <li key={i}>{v}</li>)}</ul>
+              )}
+              <table style={{ borderCollapse: "collapse", marginBottom: 10 }}>
+                <tbody>
+                  <tr><td style={cell}>Number this app sends from</td><td style={cell}><strong>{conn.number ? `${conn.number.display} (${conn.number.name || "no name"})` : "unknown"}</strong>{conn.number && <> · {conn.number.platform || "?"} · {conn.number.status || "?"}</>}</td></tr>
+                  <tr><td style={cell}>Meta app</td><td style={cell}>{conn.appName ?? "unknown"}{conn.appId ? ` (${conn.appId})` : ""}</td></tr>
+                  <tr><td style={cell}>Settings in Hostinger</td><td style={cell}>
+                    {(["token", "phoneId", "appSecret", "verifyToken"] as const).map((k) => `${{ token: "access token", phoneId: "phone number id", appSecret: "app secret", verifyToken: "verify token" }[k]} ${conn.settings[k] ? "✓" : "✗ missing"}`).join(" · ")}
+                  </td></tr>
+                  {conn.wabas.map((w) => (
+                    <tr key={w.id}><td style={cell}>Business account {w.id}</td><td style={cell}>
+                      {w.hasThisNumber === false ? "does not hold this number · " : ""}
+                      apps receiving its messages: {w.subscribedApps.length ? w.subscribedApps.join(", ") : "none"}{" "}
+                      {w.thisAppSubscribed ? <strong style={{ color: "#166534" }}>✓ this app</strong> : <strong style={{ color: "#b91c1c" }}>✗ not this app</strong>}
+                    </td></tr>
+                  ))}
+                </tbody>
+              </table>
+              <p style={{ margin: "0 0 10px", color: "#475569" }}>Check the number above is the shop number your staff and customers message. If it is a different number, messages to the shop number can never reach this app.</p>
+              {conn.wabas.filter((w) => w.hasThisNumber !== false && !w.thisAppSubscribed).map((w) => (
+                <form key={w.id} action={subscribeWabaAction} style={{ display: "inline-block", marginRight: 8 }}>
+                  <input type="hidden" name="waba_id" value={w.id} />
+                  <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Connect incoming messages</button>
+                </form>
+              ))}
+              <Link href="/accounting/chatbot/log?check=1" className="btn-link">Check again</Link>
+            </>
+          )}
+        </section>
+      )}
       {!logReady && <p style={{ color: "#92400e" }}>Step-by-step times need the new database step (077_wa_status_log). Until then only the latest result is shown.</p>}
       {shown.length === 0 ? <p>Nothing has been sent automatically yet.</p> : (
         <div style={{ overflowX: "auto" }}>
@@ -159,6 +214,6 @@ async function Content() {
   );
 }
 
-export default function Page() {
-  return <Suspense fallback={<p>Loading…</p>}><Content /></Suspense>;
+export default function Page(props: Props) {
+  return <Suspense fallback={<p>Loading…</p>}><Content {...props} /></Suspense>;
 }
