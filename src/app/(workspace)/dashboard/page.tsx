@@ -20,6 +20,9 @@ import styles from "./dashboard.module.css";
 import { ACCOUNT } from "@/lib/ledger/posting-rules";
 import { upcomingInstalment } from "@/lib/tax/advance-tax";
 import { businessSetting } from "@/lib/business-settings";
+import { canAccess } from "@/lib/access";
+import { customerBalances, WALK_IN } from "@/lib/customer-balance";
+import { balanceTotals } from "@/lib/customer-balance-math";
 
 type Props = { searchParams: Promise<{ period?: string }> };
 
@@ -54,7 +57,12 @@ async function DashboardContent({ searchParams }: Props) {
   const from = showYear ? fyStart : monthStart;
   const periodLabel = showYear ? "this financial year" : "this month";
 
+<<<<<<< HEAD
   const [sync, scopes, todayScopes, positions, balances, daily, expenses, owed] = await Promise.all([
+=======
+  await autoPostPending(db, businessId).catch(() => undefined);
+  const [sync, scopes, todayScopes, positions, balances, daily, expenses, people] = await Promise.all([
+>>>>>>> feat/ledger-dry-run
     getSyncStatus(db, businessId),
     getProfitReport(db, businessId, from, today),
     getProfitReport(db, businessId, today, today),
@@ -62,17 +70,7 @@ async function DashboardContent({ searchParams }: Props) {
     getBalanceReport(db, businessId, today),
     getDailySeries(db, businessId, addDays(today, -29), today),
     getExpenseBreakdown(db, businessId, from, today),
-    db.execute<RowDataPacket[]>(
-      `SELECT COALESCE(SUM(r.refund_value), 0) - COALESCE(SUM(f.paid), 0)
-              - COALESCE((SELECT SUM(px.amount) FROM acct_sales_payments px WHERE px.legal_business_id = ? AND px.exchange_return_id IS NOT NULL AND px.status = 'RECORDED'), 0) AS owed
-       FROM acct_sales_returns r
-       LEFT JOIN (
-         SELECT return_id, SUM(amount) AS paid FROM acct_sales_refunds
-         WHERE status = 'RECORDED' GROUP BY return_id
-       ) f ON f.return_id = r.id
-       WHERE r.legal_business_id = ? AND r.status = 'POSTED'`,
-      [businessId, businessId]
-    ),
+    customerBalances(db, businessId, { includeSupplier: canAccess(user.role, "both_sides") }),
   ]);
 
   const pendingOpeningHeld = [...positions.banks, ...positions.cash].reduce(
@@ -87,12 +85,18 @@ async function DashboardContent({ searchParams }: Props) {
 
   const net = (a: { debit: bigint; credit: bigint }) => a.debit - a.credit;
   const byCode = (code: string) => balances.accounts.find((a) => a.standard === code);
-  const receivables = byCode(ACCOUNT.RECEIVABLES) ? net(byCode(ACCOUNT.RECEIVABLES)!) : 0n;
-  const payables = byCode(ACCOUNT.PAYABLES) ? -net(byCode(ACCOUNT.PAYABLES)!) : 0n;
+  // Each person counts once, on one side: returns and credit are set off against their bills, and a
+  // customer who also sells to us is set off against what we owe them (so not on both tiles).
+  const walkIn = people.get(WALK_IN);
+  people.delete(WALK_IN);
+  const owedTotals = balanceTotals(people.values());
+  const receivables = owedTotals.owedToUs + (walkIn && walkIn.billsDue > 0n ? walkIn.billsDue : 0n);
+  const refundsOwed = owedTotals.owedToCustomers + (walkIn ? walkIn.returnOwed : 0n);
+  const supplierSetoff = owedTotals.supplierSetoff;
+  const payables = (byCode(ACCOUNT.PAYABLES) ? -net(byCode(ACCOUNT.PAYABLES)!) : 0n) - supplierSetoff;
   const stock = byCode(ACCOUNT.INVENTORY) ? net(byCode(ACCOUNT.INVENTORY)!) : 0n;
   const investorMoney = byCode(ACCOUNT.INVESTOR_CAPITAL) ? -net(byCode(ACCOUNT.INVESTOR_CAPITAL)!) : 0n;
   const setupAsset = byCode(ACCOUNT.SETUP_ASSET) ? net(byCode(ACCOUNT.SETUP_ASSET)!) : 0n;
-  const refundsOwed = BigInt(Math.round(Number(owed[0][0]?.owed ?? 0) * 100));
 
   const businessHeld = [...positions.banks, ...positions.cash];
   const totalHeld = businessHeld.reduce((s, a) => s + a.balance, 0n);
@@ -177,7 +181,7 @@ async function DashboardContent({ searchParams }: Props) {
         <article className={`${styles.card} ${styles.kpiMoney}`}>
           <p className={styles.kpiLabel}>Customers owe you</p>
           <p className={styles.kpiValue}>{inrShort(receivables)}</p>
-          <p className={styles.kpiNote}>{refundsOwed > 0n ? `Refunds you owe customers: ${inrShort(refundsOwed)}` : "No refunds pending"}</p>
+          <p className={styles.kpiNote}>{refundsOwed > 0n ? `You owe customers (returns and credit): ${inrShort(refundsOwed)}` : "Nothing owed to customers"}</p>
         </article>
       </section>
 
@@ -400,6 +404,9 @@ async function DashboardContent({ searchParams }: Props) {
         <article className={`${styles.card} ${styles.kpiMoney}`}>
           <p className={styles.kpiLabel}>You owe suppliers</p>
           <p className={styles.kpiValue}>{inrShort(payables)}</p>
+          {supplierSetoff > 0n && (
+            <p className={styles.kpiNote}>After setting off {inrShort(supplierSetoff)} owed by suppliers who also buy from you</p>
+          )}
         </article>
         <article className={`${styles.card} ${styles.kpiMoney}`}>
           <p className={styles.kpiLabel}>Investor money in the business</p>

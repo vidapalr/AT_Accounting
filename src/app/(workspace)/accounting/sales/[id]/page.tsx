@@ -22,8 +22,9 @@ import { requireAccess } from "@/lib/auth";
 import { invoiceProfit } from "@/lib/invoice-profit";
 import { pointsBalance } from "@/lib/rewards-data";
 import { pointsEarned, REWARDS_START_DATE } from "@/lib/rewards-math";
-import { useCreditOnSaleAction } from "@/lib/customer-credit-actions";
+import { useCreditOnSaleAction, useReturnValueOnSaleAction } from "@/lib/customer-credit-actions";
 import { customerCreditPaise } from "@/lib/customer-credit";
+import { customerBalance } from "@/lib/customer-balance";
 import { receiveSalePaymentAction, giveBillDiscountAction } from "@/lib/sale-payment-actions";
 import { canGiveBillDiscount } from "@/lib/access";
 import ConfirmButton from "@/components/ConfirmButton";
@@ -47,6 +48,9 @@ const PAY_MESSAGES: Record<string, { ok: boolean; text: string }> = {
   "too-much": { ok: false, text: "That is more than the amount still due. Add the customer's mobile number to this bill first, then the extra can be kept as credit we owe them." },
   "ok-used": { ok: true, text: "The customer's credit was used on this bill." },
   "credit-none": { ok: false, text: "This customer has no credit to use." },
+  "ok-return": { ok: true, text: "Return value we owed the customer was used on this bill." },
+  "return-none": { ok: false, text: "This customer has no return value left to use." },
+  "return-setup": { ok: false, text: "Returns are not fully set up yet (database file 044_exchange is missing). Nothing was saved." },
   "ok-credit": { ok: true, text: "Payment saved. The bill is settled and the extra money is kept as credit we owe this customer (see the customer's page)." },
   "credit-setup": { ok: false, text: "Customer credit is not set up yet (database file 082_customer_credit is missing). Nothing was saved." },
   "not-posted": { ok: false, text: "Confirm the sale before taking payment." },
@@ -326,6 +330,10 @@ async function InvoiceDetails({ params, searchParams }: Props) {
   const today = new Date().toISOString().slice(0, 10);
   const creditAvailable = invoice.customer_id && outstanding > 0
     ? Number(await customerCreditPaise(db, businessId, Number(invoice.customer_id))) / 100
+    : 0;
+  // Return value we still owe this customer (from any of their bills) can pay what is left here.
+  const returnAvailable = invoice.customer_id && outstanding > 0
+    ? Number((await customerBalance(db, businessId, Number(invoice.customer_id), false)).returnOwed) / 100
     : 0;
 
   const paymentStatus =
@@ -675,6 +683,17 @@ async function InvoiceDetails({ params, searchParams }: Props) {
             ₹{money(outstanding)} is still due. Take payment
           </a>
         </p>
+      )}
+
+      {outstanding > 0 && returnAvailable > 0 && (
+        <form action={useReturnValueOnSaleAction} className="no-print" style={{ margin: "16px 0", padding: 14, background: "#eff6ff", border: "1px solid #93c5fd", borderRadius: 10, maxWidth: 560 }}>
+          <input type="hidden" name="sale_id" value={invoice.id} />
+          <p style={{ margin: "0 0 10px" }}>
+            We owe this customer <strong>₹{money(returnAvailable)}</strong> for returned items. Use ₹{money(Math.min(returnAvailable, outstanding))} of it to pay this bill?
+            {returnAvailable > outstanding && <> The other ₹{money(returnAvailable - outstanding)} stays owed to them.</>}
+          </p>
+          <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Use return value</button>
+        </form>
       )}
 
       {outstanding > 0 && creditAvailable > 0 && (

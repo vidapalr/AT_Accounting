@@ -8,7 +8,8 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { canUseDivision } from "@/lib/scope";
 import { customerCreditPaise, lockCustomer } from "@/lib/customer-credit";
-import { isMissingTable } from "@/lib/db-errors";
+import { isMissingColumn, isMissingTable } from "@/lib/db-errors";
+import { lockReturnCredit } from "@/lib/return-credit";
 
 const METHODS = new Set(["CASH", "UPI", "BANK_TRANSFER", "CARD"]);
 
@@ -152,6 +153,78 @@ export async function useCreditOnSaleAction(form: FormData): Promise<void> {
     result = isMissingTable(e) ? "credit-setup" : "failed";
   } finally {
     if (result !== "ok-used") await conn.rollback().catch(() => undefined);
+    conn.release();
+  }
+  revalidatePath(back);
+  redirect(`${back}?pay=${result}`);
+}
+
+/**
+ * Use return value we still owe the customer (returns not yet paid back or used) to pay what is left on a bill.
+ * Oldest return first. No cash moves and no journal: the return already reduced what the customer owes in the books.
+ */
+export async function useReturnValueOnSaleAction(form: FormData): Promise<void> {
+  const user = await requireAccess("sales");
+  const businessId = user.legal_business_id;
+  const saleId = Number(form.get("sale_id"));
+  const back = `/accounting/sales/${saleId}`;
+  if (!Number.isSafeInteger(saleId) || saleId <= 0) redirect(`${back}?pay=invalid`);
+
+  let result = "failed";
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [sales] = await conn.execute<RowDataPacket[]>(
+      `SELECT id, division_id, customer_id, status, ROUND(grand_total * 100) AS total_paise,
+              DATE_FORMAT(invoice_date, '%Y-%m-%d') AS invoice_date
+         FROM acct_sales_headers WHERE legal_business_id = ? AND id = ? FOR UPDATE`,
+      [businessId, saleId]
+    );
+    const sale = canUseDivision(user, Number(sales[0]?.division_id)) ? sales[0] : undefined;
+    if (!sale || sale.status !== "POSTED" || !sale.customer_id) {
+      result = "invalid";
+    } else {
+      await lockCustomer(conn, businessId, Number(sale.customer_id));
+      const [paid] = await conn.execute<RowDataPacket[]>(
+        `SELECT COALESCE(SUM(ROUND(amount * 100)), 0) AS p FROM acct_sales_payments
+          WHERE legal_business_id = ? AND sale_id = ? AND status = 'RECORDED'`, [businessId, saleId]);
+      let left = BigInt(sale.total_paise) - BigInt(String(paid[0].p));
+      const [rets] = await conn.execute<RowDataPacket[]>(
+        `SELECT r.id FROM acct_sales_returns r
+           JOIN acct_sales_headers h ON h.id = r.sale_id AND h.legal_business_id = r.legal_business_id
+          WHERE r.legal_business_id = ? AND r.status = 'POSTED' AND h.customer_id = ?
+          ORDER BY r.return_date, r.id`,
+        [businessId, Number(sale.customer_id)]
+      );
+      const today = new Date().toISOString().slice(0, 10);
+      const date = today < String(sale.invoice_date) ? String(sale.invoice_date) : today;
+      let used = 0n;
+      for (const r of rets) {
+        if (left <= 0n) break;
+        const credit = await lockReturnCredit(conn, businessId, Number(r.id));
+        if (!credit || credit.availablePaise <= 0n) continue;
+        const take = credit.availablePaise < left ? credit.availablePaise : left;
+        await conn.execute(
+          `INSERT INTO acct_sales_payments (legal_business_id, division_id, sale_id, payment_date, payment_method,
+             payment_account_type, bank_account_id, cash_account_id, payment_account, amount, payment_reference, remarks,
+             status, created_by, exchange_return_id)
+           VALUES (?, ?, ?, ?, 'EXCHANGE', 'OTHERS', NULL, NULL, NULL, ?, NULL, 'Return value used', 'RECORDED', ?, ?)`,
+          [businessId, sale.division_id, saleId, date, rupees(take), user.id, Number(r.id)]
+        );
+        left -= take;
+        used += take;
+      }
+      if (used <= 0n) {
+        result = "return-none";
+      } else {
+        await conn.commit();
+        result = "ok-return";
+      }
+    }
+  } catch (e) {
+    result = isMissingTable(e) || isMissingColumn(e) ? "return-setup" : "failed";
+  } finally {
+    if (result !== "ok-return") await conn.rollback().catch(() => undefined);
     conn.release();
   }
   revalidatePath(back);
