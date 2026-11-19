@@ -18,6 +18,7 @@ import { addDays, inr, inrShort, percent, todayInIndia, toNumber } from "@/lib/r
 import BarChart from "@/components/BarChart";
 import styles from "./dashboard.module.css";
 import { ACCOUNT } from "@/lib/ledger/posting-rules";
+import { salesBreakdown } from "@/lib/reports/profit-levels";
 import { upcomingInstalment } from "@/lib/tax/advance-tax";
 import { businessSetting } from "@/lib/business-settings";
 import { canAccess } from "@/lib/access";
@@ -158,7 +159,10 @@ async function DashboardContent({ searchParams }: Props) {
         <article className={`${styles.card} ${styles.kpi}`}>
           <p className={styles.kpiLabel}>Net sales today</p>
           <p className={styles.kpiValue}>{inrShort(netSales(day))}</p>
-          <p className={styles.kpiNote}>After discounts and returns</p>
+          <p className={styles.kpiNote}>{salesBreakdown(day, inrShort).line}</p>
+          {salesBreakdown(day, inrShort).returnsExceedSales && (
+            <p className={styles.kpiNote}>Returns taken back today are more than today&apos;s sales. A return counts on the day the goods come back, even for an older bill. <Link href="/accounting/returns">See the returns</Link></p>
+          )}
         </article>
         <article className={`${styles.card} ${styles.kpiGood}`}>
           <p className={styles.kpiLabel}>Operating profit today</p>

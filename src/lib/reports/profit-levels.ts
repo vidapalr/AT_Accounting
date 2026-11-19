@@ -175,3 +175,15 @@ export function balanceSheet(totals: { accountCode: string; debit: bigint; credi
 
   return { assets, liabilities, capital, profitToDate: profit, totalAssets, totalLiabilitiesAndCapital };
 }
+
+/**
+ * How net sales were reached, in words, e.g. "Sales ₹1,300 · returns ₹2,150". A return counts on the
+ * day the goods come back (even for an older bill), so a day can have more returns than sales.
+ */
+export function salesBreakdown(f: Pick<ProfitFigures, "sales" | "discounts" | "returns">, fmt: (p: bigint) => string): { line: string; returnsExceedSales: boolean } {
+  const otherDiscounts = f.discounts - f.returns;
+  const parts = [`Sales ${fmt(f.sales)}`];
+  if (f.returns !== 0n) parts.push(`returns ${fmt(f.returns)}`);
+  if (otherDiscounts !== 0n) parts.push(`discounts ${fmt(otherDiscounts)}`);
+  return { line: parts.length > 1 ? parts.join(" · ") : "After discounts and returns", returnsExceedSales: f.sales - f.discounts < 0n };
+}

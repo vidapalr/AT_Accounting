@@ -36,3 +36,13 @@ test("dashboard totals count each person once, on one side", () => {
   assert.equal(t.owedToCustomers, 57000n);
   assert.equal(t.supplierSetoff, 680000n + 200000n);
 });
+
+import { salesBreakdown } from "../src/lib/reports/profit-levels.ts";
+test("dashboard explains negative net sales: returns from earlier bills count today", () => {
+  const f = (p) => `₹${p / 100n}`;
+  const r = salesBreakdown({ sales: 130000n, discounts: 215000n, returns: 215000n }, f);
+  assert.equal(r.line, "Sales ₹1300 · returns ₹2150");
+  assert.equal(r.returnsExceedSales, true);
+  assert.equal(salesBreakdown({ sales: 130000n, discounts: 0n, returns: 0n }, f).line, "After discounts and returns");
+  assert.equal(salesBreakdown({ sales: 130000n, discounts: 15000n, returns: 5000n }, f).line, "Sales ₹1300 · returns ₹50 · discounts ₹100");
+});
