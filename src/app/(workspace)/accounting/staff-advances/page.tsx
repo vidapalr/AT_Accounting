@@ -8,7 +8,7 @@ import { giveStaffAdvanceAction } from "@/lib/staff-advance-actions";
 import SubmitButton from "@/components/SubmitButton";
 import { cellTop as cell, box, fieldFull as field } from "@/lib/ui/styles";
 
-type Props = { searchParams: Promise<{ saved?: string; error?: string }> };
+type Props = { searchParams: Promise<{ saved?: string; error?: string; employee?: string }> };
 type Row = RowDataPacket & Record<string, string | number | null>;
 
 const paise = (v: unknown) => BigInt(Math.round(Number(v ?? 0) * 100));
@@ -68,7 +68,7 @@ async function Content({ searchParams }: Props) {
         <h2>Give an advance</h2>
         <form action={giveStaffAdvanceAction} style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", alignItems: "end" }}>
           <label>Person
-            <select name="employee_id" required defaultValue="" style={field}>
+            <select name="employee_id" required defaultValue={/^\d{1,10}$/.test(query.employee ?? "") ? String(query.employee) : ""} style={field}>
               <option value="" disabled>Choose…</option>
               {people.filter((p) => p.status === "ACTIVE").map((p) => <option key={String(p.id)} value={String(p.id)}>{String(p.full_name)}</option>)}
             </select>

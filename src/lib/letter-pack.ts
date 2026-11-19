@@ -22,7 +22,8 @@ export type PackBlock =
   | { kind: "money"; rows: MoneyRow[] }
   | { kind: "note"; text: string }
   | { kind: "sign" }
-  | { kind: "accept" };
+  /** The employee's acceptance (or, for a warning, acknowledgement) box. */
+  | { kind: "accept"; title: string; text: string };
 
 /** compact: set a little smaller so it stays on one page (the terms and conditions). */
 export type PackPage = { title: string; blocks: PackBlock[]; compact?: boolean };
@@ -59,6 +60,48 @@ export function addDaysDmy(dateIso: string, days: number): string {
 }
 
 const isWage = (c: LetterContext) => c.employmentType === "DAILY_WAGE" || c.employmentType === "HOURLY";
+
+/** What differs between the pack letters: page titles, page-2 wording and the acceptance sentence. */
+type Profile = { details: string; annex: string; intro: string; accept: string; next: { title: string; text: (who: string) => string } };
+const PROFILES: Partial<Record<LetterType, Profile>> = {
+  offer: {
+    details: "OFFER DETAILS", annex: "COMPENSATION ANNEXURE",
+    intro: "the details of the position we are offering you are given below",
+    accept: "I accept this offer of employment on the terms set out in this letter and its annexures, and I confirm that I will join on the date of joining given in it.",
+    next: { title: "Next steps", text: (who) => `Please accept this offer before it lapses. When you join, report to ${who} with the documents listed above; you will then receive your letter of appointment and Employee ID.` },
+  },
+  appointment: {
+    details: "JOINING DETAILS", annex: "SALARY ANNEXURE",
+    intro: "the details of your joining are given below. Please keep this page for your reference",
+    accept: "I accept this appointment on the terms and conditions set out in this letter and its annexures.",
+    next: { title: "On your first day", text: (who) => `Please report to ${who} at the start of working hours. Your attendance will be recorded from your registered WhatsApp number by sending IN when you arrive and OUT when you leave.` },
+  },
+  part_time_appointment: {
+    details: "JOINING DETAILS (PART TIME)", annex: "SALARY ANNEXURE (PART TIME)",
+    intro: "the details of your part-time joining are given below. Please keep this page for your reference",
+    accept: "I accept this part-time appointment on the terms and conditions set out in this letter and its annexures.",
+    next: { title: "On your first day", text: (who) => `Please report to ${who} at the start of your first shift. Your working days will be agreed with your manager, and your attendance is recorded by sending IN and OUT from your registered WhatsApp number.` },
+  },
+  daily_wage_engagement: {
+    details: "ENGAGEMENT DETAILS", annex: "WAGE ANNEXURE",
+    intro: "the details of your engagement are given below",
+    accept: "I accept this engagement on a daily-wage basis on the terms set out in this letter and its annexures.",
+    next: { title: "On your first day", text: (who) => `Please report to ${who} at the start of working hours. Each day you work is counted from your IN and OUT messages on WhatsApp, so please send both every day.` },
+  },
+  hourly_engagement: {
+    details: "ENGAGEMENT DETAILS", annex: "PAY ANNEXURE",
+    intro: "the details of your engagement are given below",
+    accept: "I accept this engagement on an hourly basis on the terms set out in this letter and its annexures.",
+    next: { title: "On your first day", text: (who) => `Please report to ${who} at the agreed time. Your hours are counted from the moment you send IN to the moment you send OUT on WhatsApp, so please send both every time you work.` },
+  },
+};
+
+/** Acceptance box of the one-page letters that ask for it: a warning is acknowledged, not accepted. */
+function onePageAccept(type: LetterType, person: string): PackBlock {
+  return type === "warning"
+    ? { kind: "accept", title: "ACKNOWLEDGEMENT BY THE EMPLOYEE", text: `I, ${person}, have received this letter and understood its contents.` }
+    : { kind: "accept", title: "ACCEPTANCE BY THE EMPLOYEE", text: `I, ${person}, have read and understood this letter and accept its contents.` };
+}
 
 /**
  * Salary annexure rows from one month worked out by the payroll rules (full month, the person's own PF,
@@ -134,8 +177,10 @@ export function buildLetterPack(input: PackInput): LetterPack {
   };
 
   if (!PACK_LETTERS.has(type)) {
-    return { ...base, pages: [{ title: letter.heading, blocks: [...welcome, { kind: "sign" }, ...(letter.needsAcceptance ? [{ kind: "accept" } as PackBlock] : [])] }] };
+    return { ...base, pages: [{ title: letter.heading, blocks: [...welcome, { kind: "sign" }, ...(letter.needsAcceptance ? [onePageAccept(type, person)] : [])] }] };
   }
+  const profile = PROFILES[type]!;
+  const who = ctx.reportsTo || "the branch manager";
 
   const t = ctx.terms;
   const wage = isWage(ctx);
@@ -147,14 +192,15 @@ export function buildLetterPack(input: PackInput): LetterPack {
       : [["Monthly gross salary", `₹${ctx.salary}`], ["Annual cost to company", ctx.ctc ? `₹${ctx.ctc}` : "[CTC]"]];
 
   const joining: PackBlock[] = [
-    { kind: "p", text: `Dear ${person}, the details of your ${type === "offer" ? "proposed " : ""}joining are given below. Please keep this page for your reference.` },
+    { kind: "p", text: `Dear ${person}, ${profile.intro}.` },
     { kind: "facts", rows: [
-      ["Employee ID", missing(ctx.employeeCode, "Employee ID")],
+      [type === "offer" ? "Reference" : "Employee ID", missing(ctx.employeeCode, "Employee ID")],
       ["Name", person],
       ["Designation", missing(ctx.jobTitle, "job title")],
       ["Department", ctx.department || "—"],
       ["Type of employment", { FULL_TIME: "Full time", PART_TIME: "Part time", DAILY_WAGE: "Daily wage", HOURLY: "Paid by the hour" }[ctx.employmentType ?? "FULL_TIME"]],
-      ["Date of joining", missing(ctx.joinedOn, "joining date")],
+      [type === "offer" ? "Proposed date of joining" : "Date of joining", missing(ctx.joinedOn, "joining date")],
+      ...(type === "offer" ? ([["Offer valid until", missing(ctx.offerValidUntil, "offer valid until")]] as Array<[string, string]>) : []),
       ["Place of work", input.workAddress || ctx.place],
       ["Reporting to", ctx.reportsTo || "Branch manager"],
       ["Working hours", t.hours],
@@ -162,7 +208,7 @@ export function buildLetterPack(input: PackInput): LetterPack {
       ["Notice period", `${t.noticeDays} days`],
       ...payFact,
     ] },
-    { kind: "h", text: "Please bring on your first day" },
+    { kind: "h", text: type === "offer" ? "Documents to bring when you join" : "Please bring on your first day" },
     { kind: "list", items: [
       "Aadhaar card and PAN card (original and one photocopy each)",
       "Two recent passport-size photographs",
@@ -171,8 +217,8 @@ export function buildLetterPack(input: PackInput): LetterPack {
       "Relieving letter and last pay slip from your previous employer, if any",
       "UAN (PF number) and ESI number, if you already have them",
     ] },
-    { kind: "h", text: "On your first day" },
-    { kind: "p", text: `Please report to ${ctx.reportsTo || "the branch manager"} at the start of working hours. Your attendance will be recorded from your registered WhatsApp number by sending IN when you arrive and OUT when you leave.` },
+    { kind: "h", text: profile.next.title },
+    { kind: "p", text: profile.next.text(who) },
   ];
 
   const termsLetter = renderLetter(input.terms, ctx);
@@ -187,15 +233,15 @@ export function buildLetterPack(input: PackInput): LetterPack {
     ? "The monthly figures are an estimate for a normal month. Actual pay depends on the days or hours recorded in the attendance register."
     : "Provident Fund, ESI and professional tax are worked out on the rules that apply today and will follow any change in the law. Income tax is deducted at source as the law requires." });
   annex.push({ kind: "sign" });
-  if (letter.needsAcceptance) annex.push({ kind: "accept" });
+  if (letter.needsAcceptance) annex.push({ kind: "accept", title: "ACCEPTANCE BY THE EMPLOYEE", text: `I, ${person}, have read and understood every page of this letter. ${profile.accept}` });
 
   return {
     ...base,
     pages: [
       { title: letter.heading, blocks: [...welcome, { kind: "sign" }] },
-      { title: "JOINING DETAILS", blocks: joining },
+      { title: profile.details, blocks: joining },
       { title: termsLetter.heading, blocks: termsBlocks, compact: true },
-      { title: wage ? "PAY ANNEXURE" : "SALARY ANNEXURE", blocks: annex },
+      { title: profile.annex, blocks: annex },
     ],
   };
 }

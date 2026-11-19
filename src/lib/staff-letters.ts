@@ -27,7 +27,13 @@ export type LetterType =
   | "payslip";
 
 /** Letters, plus the terms-and-conditions page of the offer and joining pack (editable like a letter). */
-export type TemplateLetterType = Exclude<LetterType, "payslip"> | "terms_monthly" | "terms_wage";
+export type TemplateLetterType = Exclude<LetterType, "payslip"> | TermsTemplate;
+/** The terms-and-conditions page of each pack letter has its own wording. */
+export type TermsTemplate = "terms_offer" | "terms_monthly" | "terms_part_time" | "terms_wage" | "terms_hourly";
+export const TERMS_FOR: Record<string, TermsTemplate> = {
+  offer: "terms_offer", appointment: "terms_monthly", part_time_appointment: "terms_part_time",
+  daily_wage_engagement: "terms_wage", hourly_engagement: "terms_hourly",
+};
 
 /** Letters printed as the four-page corporate pack: welcome, joining details, terms, salary annexure. */
 export const PACK_LETTERS: ReadonlySet<LetterType> = new Set(["offer", "appointment", "part_time_appointment", "daily_wage_engagement", "hourly_engagement"]);
@@ -51,8 +57,11 @@ export const LETTER_TYPES: Array<{ key: LetterType; label: string }> = [
 /** Everything that can be worded on Set-up > Letter templates. */
 export const TEMPLATE_LIST: Array<{ key: TemplateLetterType; label: string }> = [
   ...(LETTER_TYPES.filter((t) => t.key !== "payslip") as Array<{ key: TemplateLetterType; label: string }>),
-  { key: "terms_monthly", label: "Terms and conditions page: full and part time" },
-  { key: "terms_wage", label: "Terms and conditions page: daily wage and hourly" },
+  { key: "terms_offer", label: "Terms page: offer letter" },
+  { key: "terms_monthly", label: "Terms page: full-time appointment" },
+  { key: "terms_part_time", label: "Terms page: part-time appointment" },
+  { key: "terms_wage", label: "Terms page: daily-wage engagement" },
+  { key: "terms_hourly", label: "Terms page: hourly engagement" },
 ];
 
 export type Terms = {
@@ -261,12 +270,12 @@ export const DEFAULT_TEMPLATES: Record<TemplateLetterType, LetterTemplate> = {
   },
   warning: {
     heading: "WARNING LETTER",
-    needsAcceptance: false,
+    needsAcceptance: true,
     body: [
       "Dear {{person}},",
       "This letter is a formal warning about the following: {{reason}}.",
       "We expect you to correct this at once. If it happens again, the company may take further action as per your terms of employment.",
-      "Please sign a copy of this letter to show you have received it.",
+      "Please sign the acknowledgement below, or tap Received when this letter is sent to you on WhatsApp, to show that you have received it.",
     ].join("\n\n"),
   },
   terms_monthly: {
@@ -306,17 +315,17 @@ export const DEFAULT_TEMPLATES: Record<TemplateLetterType, LetterTemplate> = {
     ].join("\n\n"),
   },
   terms_wage: {
-    heading: "TERMS AND CONDITIONS OF ENGAGEMENT",
+    heading: "TERMS OF ENGAGEMENT (DAILY WAGE)",
     needsAcceptance: false,
     body: [
       "## 1. Nature of engagement",
-      "You are engaged as {{job_title}} on a {{employment_type}} basis. You are paid only for the time actually worked, as recorded in the attendance register.",
+      "You are engaged as {{job_title}} on a daily-wage basis. You are paid only for the days you actually work, as recorded in the attendance register. This engagement does not make you a monthly-paid employee.",
       "## 2. Place of work",
       "You will work at {{place}}, or at any other branch of {{employer}} that the company asks you to.",
       "## 3. Working hours and attendance",
       "Your usual working hours are {{hours}}. You will record your attendance every day by sending IN on arrival and OUT on leaving from your registered WhatsApp number, or as the company directs.",
       "## 4. Pay",
-      "Your rate of pay is set out in the Pay Annexure. Pay for the month is worked out from the attendance register and paid on or before the seventh day of the following month. Employees' State Insurance and other deductions will be made as the law requires where they apply.",
+      "Your daily wage is set out in the Wage Annexure. A day marked present in the attendance register is paid in full and a half day is paid half; a day not worked is not paid. The month's wages are paid on or before the seventh day of the following month. Employees' State Insurance and other deductions will be made as the law requires where they apply.",
       "## 5. Conduct and company property",
       "You will follow the instructions of your manager and the rules of the shop, treat customers with courtesy, and account for any cash, stock or property placed in your care. All company property must be returned when you leave.",
       "## 6. Confidentiality",
@@ -325,6 +334,84 @@ export const DEFAULT_TEMPLATES: Record<TemplateLetterType, LetterTemplate> = {
       "Either side may end this engagement by giving {{notice_days}} days' notice. The company may end it at once for misconduct.",
       "## 8. Communication and electronic acceptance",
       "You agree to receive letters and pay details from the company by WhatsApp and email. Accepting a letter electronically, such as by a reply from your registered number, has the same effect as signing it.",
+      "## 9. Governing law",
+      "This engagement is governed by the laws of India, and the courts at {{place}} alone will have jurisdiction.",
+    ].join("\n\n"),
+  },
+  terms_offer: {
+    heading: "TERMS OF THE OFFER",
+    needsAcceptance: false,
+    body: [
+      "## 1. Position offered",
+      "You are offered the position of {{job_title}} on a {{employment_type}} basis, based at {{place}}, with a proposed date of joining of {{joined_on}}.",
+      "## 2. Validity of this offer",
+      "This offer is valid until {{offer_valid_until}}. If it is not accepted by then, it will lapse on its own without further notice.",
+      "## 3. Conditions of the offer",
+      "This offer is subject to: your original identity, address, education and bank documents being verified on joining; satisfactory references where asked for; and your confirmation that you are not bound by any other employment or agreement that would stop you joining us. If any information you have given is found to be untrue, the offer may be withdrawn, or the employment ended if you have already joined.",
+      "## 4. Compensation",
+      "Your compensation is set out in the Compensation Annexure. Provident Fund, Employees' State Insurance, professional tax and income tax will be deducted as the law requires where they apply.",
+      "## 5. Probation, leave and notice",
+      "On joining you will be on probation for {{probation}}. {{leave}}. After confirmation, the notice period is {{notice_days}} days by either side.",
+      "## 6. Letter of appointment",
+      "On the day you join you will receive a letter of appointment with your Employee ID and the full terms and conditions of employment. That letter will then govern your employment.",
+      "## 7. Withdrawal of the offer",
+      "The company may withdraw this offer before you join if any condition above is not met, or if you do not join on the agreed date without informing us in advance.",
+      "## 8. Confidentiality",
+      "Please keep the terms of this offer, and in particular your compensation, confidential.",
+      "## 9. Acceptance",
+      "Please confirm your acceptance by signing at the end of this letter, or by accepting it electronically from your registered WhatsApp number, before the date in clause 2.",
+    ].join("\n\n"),
+  },
+  terms_part_time: {
+    heading: "TERMS AND CONDITIONS OF PART-TIME EMPLOYMENT",
+    needsAcceptance: false,
+    body: [
+      "## 1. Part-time basis",
+      "You are employed as {{job_title}} on a part-time basis. Your monthly salary is fixed for the part-time hours agreed with you and is not a full-time salary.",
+      "## 2. Working days and hours",
+      "Your working hours are {{hours}}. Your working days and hours are set by your manager and may be changed with reasonable notice to suit the needs of the business. Time worked beyond your agreed hours is paid only when your manager has approved it in advance.",
+      "## 3. Probation",
+      "You will be on probation for {{probation}}. During probation either side may end the employment with seven days' notice.",
+      "## 4. Attendance",
+      "You will record your attendance every working day by sending IN on arrival and OUT on leaving from your registered WhatsApp number. Days absent without leave are not paid.",
+      "## 5. Leave",
+      "{{leave}}, in proportion to your part-time days. Leave must be approved in advance except in an emergency.",
+      "## 6. Salary and statutory benefits",
+      "Your salary is set out in the Salary Annexure and is paid on or before the seventh day of the following month. Statutory deductions and contributions are made as the law requires where they apply.",
+      "## 7. Other work",
+      "You may take up other work outside your agreed hours, provided it is not for a competing business, does not affect your work here, and you tell the company about it in writing.",
+      "## 8. Conduct, cash and company property",
+      "You will follow the instructions of your manager and the company's policies, treat customers with courtesy, and account for any cash, stock or property in your care. All company property must be returned when you leave.",
+      "## 9. Confidentiality",
+      "You will keep the company's business, prices, suppliers and customer information confidential, during your employment and after it ends.",
+      "## 10. Notice period",
+      "After confirmation, either side may end the employment by giving {{notice_days}} days' notice in writing, or salary in place of notice. The company may end it without notice for serious misconduct, after giving you an opportunity to explain.",
+      "## 11. Communication and electronic acceptance",
+      "You agree to receive letters and pay slips by WhatsApp and email. Accepting a letter electronically from your registered number has the same effect as signing it.",
+      "## 12. Governing law",
+      "This employment is governed by the laws of India, and the courts at {{place}} alone will have jurisdiction.",
+    ].join("\n\n"),
+  },
+  terms_hourly: {
+    heading: "TERMS OF ENGAGEMENT (HOURLY)",
+    needsAcceptance: false,
+    body: [
+      "## 1. Nature of engagement",
+      "You are engaged as {{job_title}} on an hourly basis. You are paid only for the hours you actually work. There is no fixed minimum number of hours each week, and this engagement does not make you a monthly-paid employee.",
+      "## 2. Schedule",
+      "Your hours are offered by your manager according to the needs of the business. Usual working hours are {{hours}}. Please tell your manager in advance if you cannot work hours you have agreed to.",
+      "## 3. How hours are counted",
+      "Your hours are counted from the time you send IN to the time you send OUT from your registered WhatsApp number, to the nearest tenth of an hour. Hours not recorded this way are paid only when your manager confirms them.",
+      "## 4. Pay",
+      "Your hourly rate is set out in the Pay Annexure. The month's pay is worked out from the hours recorded and paid on or before the seventh day of the following month. Statutory deductions are made as the law requires where they apply.",
+      "## 5. Conduct and company property",
+      "You will follow the instructions of your manager and the rules of the shop, treat customers with courtesy, and account for any cash, stock or property in your care.",
+      "## 6. Confidentiality",
+      "You will keep the company's prices, customer details and business information confidential, during your engagement and after it ends.",
+      "## 7. Ending the engagement",
+      "Either side may end this engagement by giving {{notice_days}} days' notice. The company may end it at once for misconduct.",
+      "## 8. Communication and electronic acceptance",
+      "You agree to receive letters and pay details by WhatsApp and email. Accepting a letter electronically from your registered number has the same effect as signing it.",
       "## 9. Governing law",
       "This engagement is governed by the laws of India, and the courts at {{place}} alone will have jurisdiction.",
     ].join("\n\n"),

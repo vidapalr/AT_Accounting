@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { buildLetterPack, letterRef, salaryAnnexure, addDaysDmy } from "../src/lib/letter-pack.ts";
-import { DEFAULT_TEMPLATES, DEFAULT_TERMS, renderLetter } from "../src/lib/staff-letters.ts";
+import { DEFAULT_TEMPLATES, DEFAULT_TERMS, TERMS_FOR, renderLetter } from "../src/lib/staff-letters.ts";
 import { computePayslip, DEFAULT_SETTINGS } from "../src/lib/payroll/engine.ts";
 
 const components = [
@@ -24,7 +24,7 @@ const ctx = {
 };
 const pack = (type, extra = {}) => buildLetterPack({
   type, ctx: { ...ctx, ...extra }, dateIso: "2026-11-19", letter: DEFAULT_TEMPLATES[type],
-  terms: DEFAULT_TEMPLATES[extra.employmentType === "DAILY_WAGE" ? "terms_wage" : "terms_monthly"],
+  terms: DEFAULT_TEMPLATES[TERMS_FOR[type] ?? "terms_monthly"],
   homeAddress: "Kapra, Hyderabad", phone: "9000000001", workAddress: "Shop 1, Kapra",
   annexure: { rows: salaryAnnexure(slipFor(1800000n), { bonusAnnual: 0n, gratuityAnnual: 0n }).rows, basis: [] },
 });
@@ -44,8 +44,8 @@ test("joining letters are four pages: welcome, joining details, terms, annexure 
 
 test("daily-wage pack shows the wage and the wage terms, no probation or leave rows", () => {
   const p = pack("daily_wage_engagement", { employmentType: "DAILY_WAGE", dailyWage: "600.00" });
-  assert.equal(p.pages[3].title, "PAY ANNEXURE");
-  assert.equal(p.pages[2].title, "TERMS AND CONDITIONS OF ENGAGEMENT");
+  assert.equal(p.pages[3].title, "WAGE ANNEXURE");
+  assert.equal(p.pages[2].title, "TERMS OF ENGAGEMENT (DAILY WAGE)");
   const facts = p.pages[1].blocks.find((b) => b.kind === "facts").rows;
   assert.ok(facts.some(([k, v]) => k === "Daily wage" && v === "₹600.00 a day"));
   assert.ok(!facts.some(([k]) => k === "Probation" || k === "Paid leave"));
@@ -57,7 +57,7 @@ test("other letters are one corporate page; certificates have no addressee block
   assert.deepEqual(relieving.to, []);
   const warning = pack("warning", { reason: "late arrival" });
   assert.equal(warning.to[0], "Ms. Asha");
-  assert.equal(warning.pages[0].blocks.at(-1).kind, "sign");
+  assert.equal(warning.pages[0].blocks.at(-1).kind, "accept");
 });
 
 test("salary annexure adds up: gross, benefits, CTC and take-home", () => {
@@ -82,4 +82,18 @@ test("terms template headings become sub-headings; helpers", () => {
   assert.ok(t.blocks.some((b) => b.kind === "p" && b.text.includes("30 days' notice")));
   assert.equal(letterRef("offer", "", "2026-11-19"), "HR/OL/NEW/20261119");
   assert.equal(addDaysDmy("2026-11-28", 7), "05-12-2026");
+});
+
+test("each pack letter has its own wording: titles, terms and acceptance", () => {
+  const kinds = ["offer", "appointment", "part_time_appointment", "daily_wage_engagement", "hourly_engagement"];
+  const packs = kinds.map((k) => pack(k, k.includes("daily") ? { employmentType: "DAILY_WAGE", dailyWage: "600" } : k.includes("hourly") ? { employmentType: "HOURLY", hourlyRate: "90" } : k.includes("part") ? { employmentType: "PART_TIME" } : {}));
+  const terms = packs.map((p) => JSON.stringify(p.pages[2]));
+  assert.equal(new Set(terms).size, kinds.length, "every terms page is different");
+  const accepts = packs.map((p) => p.pages[3].blocks.at(-1).text);
+  assert.equal(new Set(accepts).size, kinds.length, "every acceptance sentence is different");
+  const offer = packs[0];
+  assert.deepEqual(offer.pages.map((x) => x.title), ["OFFER OF EMPLOYMENT", "OFFER DETAILS", "TERMS OF THE OFFER", "COMPENSATION ANNEXURE"]);
+  assert.ok(offer.pages[1].blocks.find((b) => b.kind === "facts").rows.some(([k, v]) => k === "Offer valid until" && v === "26-11-2026"));
+  assert.match(accepts[0], /I will join/);
+  assert.equal(pack("warning", { reason: "late" }).pages[0].blocks.at(-1).title, "ACKNOWLEDGEMENT BY THE EMPLOYEE");
 });

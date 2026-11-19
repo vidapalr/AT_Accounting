@@ -128,14 +128,13 @@ export async function letterPackToPdf(pack: LetterPack, brand: Pick<Brand, "grou
     doc.moveDown(1);
   };
 
-  const accept = () => {
-    const text = `I, ${pack.personName}, have read and understood this letter and all its pages and annexures, and I accept the terms and conditions set out in them.`;
+  const accept = (title: string, text: string) => {
     doc.font("R").fontSize(10);
     const h = doc.heightOfString(text, { width: width - 24 }) + 96;
     ensure(h);
     const y = doc.y + 6;
     doc.rect(left, y, width, h).lineWidth(0.8).strokeColor(NAVY).stroke();
-    doc.font("B").fontSize(10.5).fillColor(NAVY).text("ACCEPTANCE BY THE EMPLOYEE", left + 12, y + 10, { width: width - 24 });
+    doc.font("B").fontSize(10.5).fillColor(NAVY).text(title, left + 12, y + 10, { width: width - 24 });
     doc.font("R").fontSize(10).fillColor(INK).text(text, left + 12, doc.y + 4, { width: width - 24, align: "justify", lineGap: 2 });
     const lineY = y + h - 26;
     const third = (width - 24) / 3;
@@ -185,7 +184,7 @@ export async function letterPackToPdf(pack: LetterPack, brand: Pick<Brand, "grou
     if (b.kind === "facts") return facts(b.rows);
     if (b.kind === "money") return money(b.rows);
     if (b.kind === "sign") return sign();
-    return accept();
+    return accept(b.title, b.text);
   };
 
   pack.pages.forEach((page, i) => {

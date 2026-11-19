@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildLetter, renderLetter, leaveWords, DEFAULT_TERMS, DEFAULT_TEMPLATES } from "../src/lib/staff-letters.ts";
+import { buildLetter, renderLetter, leaveWords, DEFAULT_TERMS, DEFAULT_TEMPLATES, TERMS_FOR } from "../src/lib/staff-letters.ts";
 import { buildLetterPack } from "../src/lib/letter-pack.ts";
 const ctx = { title: "Ms.", name: "Asha", jobTitle: "Sales Girl", salary: "12,000", joinedOn: "01-11-2026", noticeGivenOn: "", leftOn: "", letterDate: "03-11-2026", place: "Hyderabad", employer: "Test Co", terms: DEFAULT_TERMS };
 test("leave words", () => {
@@ -12,7 +12,7 @@ test("leave words", () => {
 // Offer and joining letters carry their terms on the joining-details, terms and annexure pages.
 const packText = (type, c) => JSON.stringify(buildLetterPack({
   type, ctx: c, dateIso: "2026-11-03", letter: DEFAULT_TEMPLATES[type],
-  terms: DEFAULT_TEMPLATES[c.employmentType === "DAILY_WAGE" || c.employmentType === "HOURLY" ? "terms_wage" : "terms_monthly"],
+  terms: DEFAULT_TEMPLATES[TERMS_FOR[type] ?? "terms_monthly"],
   homeAddress: "", phone: "", workAddress: "", annexure: null,
 }));
 test("appointment carries the typed terms", () => {

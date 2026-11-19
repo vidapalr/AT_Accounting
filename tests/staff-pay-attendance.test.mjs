@@ -7,7 +7,7 @@ import { parseAttendanceMessage, indiaDateTime, applyPunch, hoursWorked, monthHo
 import { pieSlices, OTHER_COLOUR, PIE_COLOURS } from "../src/lib/reports/pie.ts";
 import { daysToRenewal, isRegistrationKind } from "../src/lib/registrations.ts";
 import { billLinks, brandFrom } from "../src/lib/brand-core.ts";
-import { DEFAULT_TERMS, DEFAULT_TEMPLATES } from "../src/lib/staff-letters.ts";
+import { DEFAULT_TERMS, DEFAULT_TEMPLATES, TERMS_FOR } from "../src/lib/staff-letters.ts";
 import { buildLetterPack } from "../src/lib/letter-pack.ts";
 
 const comps = [
@@ -116,7 +116,7 @@ test("bill QR links keep only https addresses, in order", () => {
 test("letters for part time, daily wage and hourly staff", () => {
   const ctx = { title: "Ms.", name: "Asha", jobTitle: "Helper", salary: "8,000", joinedOn: "01-11-2026", noticeGivenOn: "", leftOn: "", letterDate: "03-11-2026", place: "Hyderabad", employer: "Test Co", terms: DEFAULT_TERMS };
   const packText = (type, c) => JSON.stringify(buildLetterPack({
-    type, ctx: c, dateIso: "2026-11-03", letter: DEFAULT_TEMPLATES[type], terms: DEFAULT_TEMPLATES[c.employmentType === "PART_TIME" ? "terms_monthly" : "terms_wage"],
+    type, ctx: c, dateIso: "2026-11-03", letter: DEFAULT_TEMPLATES[type], terms: DEFAULT_TEMPLATES[TERMS_FOR[type]],
     homeAddress: "", phone: "", workAddress: "", annexure: null,
   }));
   const pt = packText("part_time_appointment", { ...ctx, employmentType: "PART_TIME" });

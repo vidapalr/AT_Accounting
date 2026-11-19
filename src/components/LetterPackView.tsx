@@ -52,10 +52,8 @@ function Block({ b, pack, compact }: { b: PackBlock; pack: LetterPack; compact: 
   }
   return (
     <div style={{ border: `1.5px solid ${NAVY}`, padding: "12px 14px", marginTop: 18 }}>
-      <div style={{ color: NAVY, fontWeight: 800 }}>ACCEPTANCE BY THE EMPLOYEE</div>
-      <p style={{ textAlign: "justify", margin: "6px 0 34px" }}>
-        I, {pack.personName}, have read and understood this letter and all its pages and annexures, and I accept the terms and conditions set out in them.
-      </p>
+      <div style={{ color: NAVY, fontWeight: 800 }}>{b.title}</div>
+      <p style={{ textAlign: "justify", margin: "6px 0 34px" }}>{b.text}</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 18, color: "#64748b", fontSize: 12 }}>
         {["Signature", "Date", "Place"].map((l) => <div key={l} style={{ borderTop: "1px solid #0f172a", paddingTop: 4 }}>{l}</div>)}
       </div>

@@ -15,7 +15,7 @@ export const LETTER_TEMPLATE_TEXT = {
 
 export const acceptPayload = (sendId: number) => `LACCEPT:${sendId}`;
 
-const ACCEPT_WORDS = new Set(["accept", "accepted", "i accept", "i accept it", "yes i accept", "i agree", "agree", "agreed", "i accept the offer", "i accept the terms"]);
+const ACCEPT_WORDS = new Set(["accept", "accepted", "i accept", "i accept it", "yes i accept", "i agree", "agree", "agreed", "i accept the offer", "i accept the terms", "received", "i have received", "i have received it"]);
 
 export function parseAcceptance(replyId: string | null | undefined, text: string | null | undefined): { sendId: number | null; words: string } | null {
   const id = /^LACCEPT:(\d{1,18})$/.exec(String(replyId ?? "").trim());

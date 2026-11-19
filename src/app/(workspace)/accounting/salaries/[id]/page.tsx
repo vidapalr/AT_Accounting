@@ -14,6 +14,7 @@ import { ctcFromGross, grossFromCtc, monthlyGrossFor, type Ctc } from "@/lib/pay
 import { ctcForEmployee, defaultLetterType } from "@/lib/staff-letter-data";
 import { addStaffPaperAction, removeStaffPaperAction, saveAadhaarAction, sendStaffPaperAction } from "@/lib/staff-paper-actions";
 import { letterSendStatus } from "@/lib/letter-send";
+import { staffAdvances } from "@/lib/staff-advance-data";
 import ConfirmButton from "@/components/ConfirmButton";
 import { Badge, Notice, StatTile, Tabs } from "@/components/ui";
 import { ACCEPT_KINDS, missingPapers, PAPER_KINDS, paperLabel } from "@/lib/staff-papers";
@@ -115,7 +116,9 @@ async function Content({ params, searchParams }: Props) {
   const acceptedCount = toAccept.filter((p) => sends.get(Number(p.id))?.status === "ACCEPTED").length;
   const waitingCount = toAccept.filter((p) => sends.get(Number(p.id))?.status === "SENT").length;
   const expectedKinds = PAPER_KINDS.filter((k) => k.expected).length;
-  const tab = (["details", "pay", "papers", "statutory"] as const).find((t) => t === q.tab) ?? "details";
+  const advances = await staffAdvances(businessId, Number(id));
+  const advanceLeft = advances.reduce((t, a) => t + a.left, 0n);
+  const tab = (["details", "pay", "advances", "papers", "statutory"] as const).find((t) => t === q.tab) ?? "details";
   const base = `/accounting/salaries/${e.id}`;
   const typeWords = { FULL_TIME: "Full time", PART_TIME: "Part time", DAILY_WAGE: "Daily wage", HOURLY: "Paid by the hour" }[workType];
   const payNow = workType === "DAILY_WAGE" ? `${e.daily_wage == null ? "—" : inr(e.daily_wage)} a day` : workType === "HOURLY" ? `${e.hourly_rate == null ? "—" : inr(e.hourly_rate)} an hour` : `${inr(e.monthly_salary)} a month`;
@@ -142,6 +145,7 @@ async function Content({ params, searchParams }: Props) {
         <StatTile label="Pay" value={payNow} note={typeWords} />
         <StatTile label="Cost to company a year" value={inrP(ctcNow.annual.ctc)} note={`Take-home ${inrP(ctcNow.takeHomeMonthly)} a month`} />
         <StatTile label="Papers on file" value={papersReady ? `${papers.length}` : "—"} note={stillToDo.length ? `Still to take: ${stillToDo.length}` : "Nothing missing"} />
+        <StatTile label="Advance to take back" value={inrP(advanceLeft)} note={advances.length ? `${advances.length} advance${advances.length === 1 ? "" : "s"} given` : "No advances"} />
         <StatTile label="Letters accepted" value={papersReady ? `${acceptedCount} of ${toAccept.length}` : "—"} note={waitingCount ? `${waitingCount} waiting for the person` : "None waiting"} />
       </div>
 
@@ -152,6 +156,7 @@ async function Content({ params, searchParams }: Props) {
       <Tabs base={base} current={tab} tabs={[
         { key: "details", label: "Details" },
         { key: "pay", label: "Pay and CTC" },
+        { key: "advances", label: "Advances", count: advances.length },
         { key: "papers", label: "Papers and letters", count: papersReady ? papers.length : undefined },
         { key: "statutory", label: "PF, ESI and tax" },
       ]} />
@@ -273,6 +278,44 @@ async function Content({ params, searchParams }: Props) {
         )}
       </section>
         </>
+      )}
+
+      {tab === "advances" && (
+        <section style={box}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <h2 style={{ margin: 0 }}>Salary advances</h2>
+            <Link className="btn-link btn-link-primary" href={`/accounting/staff-advances?employee=${e.id}`}>Give an advance</Link>
+          </div>
+          {advances.length === 0 ? <p style={{ color: "#64748b" }}>No advance has been given to {String(e.full_name)}.</p> : (
+            <>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 12, minWidth: 640 }}>
+                  <thead><tr>{["Advance", "Given on", "Amount", "Taken back", "Still owed", "Each month", "In the books"].map((h) => <th key={h} style={cell}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {advances.map((a) => (
+                      <tr key={a.id}>
+                        <td style={cell}><strong>{a.advanceNo || `#${a.id}`}</strong>{a.note ? <div style={{ color: "#64748b", fontSize: 12.5 }}>{a.note}</div> : null}{a.paidHow ? <div style={{ color: "#64748b", fontSize: 12.5 }}>Paid by {a.paidHow}</div> : null}</td>
+                        <td style={cell}>{a.givenOn}</td>
+                        <td style={{ ...cell, textAlign: "right" }}>{inrP(a.amount)}</td>
+                        <td style={{ ...cell, textAlign: "right" }}>
+                          {inrP(a.recovered)}
+                          {a.recoveries.length > 0 && <div style={{ color: "#64748b", fontSize: 12 }}>{a.recoveries.map((r) => `${r.on} ${inrP(r.amount)}${r.fromSalary ? " (salary)" : ""}`).join(", ")}</div>}
+                        </td>
+                        <td style={{ ...cell, textAlign: "right" }}>{a.left > 0n ? <Badge tone="wait">{inrP(a.left)}</Badge> : <Badge tone="ok">Cleared</Badge>}</td>
+                        <td style={{ ...cell, textAlign: "right" }}>{a.instalment > 0n ? inrP(a.instalment) : "—"}</td>
+                        <td style={cell}>{a.journalNo ? <Badge tone="ok" title="Posted to Advances to staff">{a.journalNo}</Badge> : <Badge tone="wait">Waiting to be posted</Badge>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p style={{ color: "#64748b", fontSize: 13 }}>
+                In the books: an advance is posted to <strong>Advances to staff</strong> (money the person owes the business) and taken out of the cash or bank account it was paid from.
+                When it is taken back from salary on the Payroll page, the same account goes down, so the balance there always equals what staff still owe. Total still owed by {String(e.full_name)}: <strong>{inrP(advanceLeft)}</strong>.
+              </p>
+            </>
+          )}
+        </section>
       )}
 
       {tab === "statutory" && (

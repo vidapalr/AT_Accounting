@@ -91,13 +91,16 @@ export async function sendStaffPaper(businessId: number, userId: number, employe
       whatsapp = { ok: false, text: media.reason };
     } else {
       const tpl = await businessSettings(businessId, [LETTER_TEMPLATE_KEYS.name, LETTER_TEMPLATE_KEYS.language]);
+      // A warning is acknowledged (Received); every other letter to accept gets I accept.
+      const isWarning = String(d.kind) === "WARNING_LETTER";
+      const button = isWarning ? "Received" : "I accept";
       const body = needsAccept
-        ? `Dear ${person}, please find your ${label} from ${employer}. Please read all the pages and tap I accept to confirm.`
+        ? `Dear ${person}, please find your ${label} from ${employer}. Please read all the pages and tap ${button} to confirm.`
         : `Dear ${person}, please find your ${label} from ${employer}.`;
       const r = tpl[LETTER_TEMPLATE_KEYS.name]
         ? await sendWhatsAppDocumentTemplate(phone.slice(1), tpl[LETTER_TEMPLATE_KEYS.name], tpl[LETTER_TEMPLATE_KEYS.language] || "en", media.id, fileName(label),
             [person, label, employer], needsAccept ? acceptPayload(sendId) : undefined)
-        : await sendWhatsAppDocumentWithButtons(phone.slice(1), media.id, fileName(label), body, needsAccept ? [{ id: acceptPayload(sendId), title: "I accept" }] : []);
+        : await sendWhatsAppDocumentWithButtons(phone.slice(1), media.id, fileName(label), body, needsAccept ? [{ id: acceptPayload(sendId), title: button }] : []);
       await finish(sendId, r.ok, r.id ?? null, r.ok ? null : sendProblem(r));
       whatsapp = r.ok
         ? { ok: true, text: `Sent on WhatsApp to ${phone}${needsAccept ? ". It is marked accepted when they tap I accept." : "."}` }

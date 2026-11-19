@@ -26,7 +26,7 @@ const MESSAGES = {
 } as const;
 
 /** Which page of the four-page pack each joining template fills. */
-const isPackPart = (k: TemplateLetterType) => k === "terms_monthly" || k === "terms_wage" || PACK_LETTERS.has(k as LetterType);
+const isPackPart = (k: TemplateLetterType) => k.startsWith("terms_") || PACK_LETTERS.has(k as LetterType);
 const GROUPS: Array<{ title: string; keys: TemplateLetterType[] }> = [
   { title: "Offer and joining pack (4 pages)", keys: TEMPLATE_LIST.filter((t) => isPackPart(t.key)).map((t) => t.key) },
   { title: "Other letters (1 page)", keys: TEMPLATE_LIST.filter((t) => !isPackPart(t.key)).map((t) => t.key) },
@@ -43,7 +43,7 @@ async function Content({ searchParams }: Props) {
   const custom = new Set(own.map((r) => String(r.letter_type)));
   const wa = await businessSettings(user.legal_business_id, [LETTER_TEMPLATE_KEYS.name, LETTER_TEMPLATE_KEYS.language]);
   const label = TEMPLATE_LIST.find((t) => t.key === type)?.label ?? "";
-  const isTerms = type === "terms_monthly" || type === "terms_wage";
+  const isTerms = type.startsWith("terms_");
 
   return (
     <main style={{ maxWidth: 1060 }}>
@@ -88,7 +88,7 @@ async function Content({ searchParams }: Props) {
               <ol style={{ margin: "6px 0 0", paddingLeft: 20 }}>
                 <li>Welcome letter: the wording of the offer, appointment or engagement letter{!isTerms ? " (this page)" : ""}.</li>
                 <li>Joining details: made automatically from the staff record (Employee ID, date, place, hours, documents to bring).</li>
-                <li>Terms and conditions: the &ldquo;Terms and conditions page&rdquo; wording{isTerms ? " (this page)" : ""}; it is fitted onto one page.</li>
+                <li>Terms and conditions: each letter has its own &ldquo;Terms page&rdquo; wording{isTerms ? " (this page)" : ""}; it is fitted onto one page.</li>
                 <li>Salary annexure and acceptance: worked out from the pay and Payroll settings.</li>
               </ol>
             </div>

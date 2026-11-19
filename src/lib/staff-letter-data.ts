@@ -7,7 +7,7 @@ import { getBrand } from "@/lib/brand";
 import { loadLetterTemplate } from "@/lib/letter-templates";
 import { ctcFromGross, monthlyGrossFor, type EmploymentType } from "@/lib/payroll/ctc";
 import { loadComponents, loadCtcOptions, loadNormalMonth, loadPayrollSettings, toPaise } from "@/lib/payroll/data";
-import { DEFAULT_TERMS, LETTER_TYPES, PACK_LETTERS, type LetterContext, type LetterType, type Terms } from "@/lib/staff-letters";
+import { DEFAULT_TERMS, LETTER_TYPES, PACK_LETTERS, TERMS_FOR, type LetterContext, type LetterType, type Terms } from "@/lib/staff-letters";
 import { addDaysDmy, buildLetterPack, salaryAnnexure, type LetterPack } from "@/lib/letter-pack";
 import { ageAt, computePayslip, daysIn } from "@/lib/payroll/engine";
 import { ensureEmployeeCode } from "@/lib/employee-code";
@@ -156,7 +156,7 @@ export async function loadStaffLetter(businessId: number, employeeId: number, q:
     pack: type === "payslip" ? null : buildLetterPack({
       type, ctx, dateIso: today,
       letter: await loadLetterTemplate(businessId, type),
-      terms: await loadLetterTemplate(businessId, workType === "DAILY_WAGE" || workType === "HOURLY" ? "terms_wage" : "terms_monthly"),
+      terms: await loadLetterTemplate(businessId, TERMS_FOR[type] ?? "terms_monthly"),
       homeAddress: String(e.home_address ?? ""),
       phone: String(e.phone ?? ""),
       workAddress: address,
