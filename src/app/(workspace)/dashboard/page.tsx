@@ -57,12 +57,7 @@ async function DashboardContent({ searchParams }: Props) {
   const from = showYear ? fyStart : monthStart;
   const periodLabel = showYear ? "this financial year" : "this month";
 
-<<<<<<< HEAD
-  const [sync, scopes, todayScopes, positions, balances, daily, expenses, owed] = await Promise.all([
-=======
-  await autoPostPending(db, businessId).catch(() => undefined);
   const [sync, scopes, todayScopes, positions, balances, daily, expenses, people] = await Promise.all([
->>>>>>> feat/ledger-dry-run
     getSyncStatus(db, businessId),
     getProfitReport(db, businessId, from, today),
     getProfitReport(db, businessId, today, today),
