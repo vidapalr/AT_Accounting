@@ -559,7 +559,11 @@ export default function SalesBillingForm({
           >
             {known
               ? `Existing customer: ${known.name}. ${
-                  known.dues > 0 ? `Still owes ₹${amount(known.dues)}.` : "No dues."
+                  known.dues > 0
+                    ? `Still owes ₹${amount(known.dues)}.`
+                    : known.dues < 0
+                      ? `You owe them ₹${amount(-known.dues)}.`
+                      : "No dues."
                 }${
                   known.creditLimit > 0 ? ` Credit limit ₹${amount(known.creditLimit)}.` : ""
                 }`

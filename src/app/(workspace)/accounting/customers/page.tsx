@@ -8,7 +8,7 @@ import { createCustomerAction } from "@/lib/customer-actions";
 import { prettyPhone } from "@/lib/customer-phone";
 import UnpaidWalkIns from "@/components/accounting/UnpaidWalkIns";
 import { canAccess } from "@/lib/access";
-import { loadLinkedPeople } from "@/lib/party-link";
+import { customerBalances } from "@/lib/customer-balance";
 
 type Props = {
   searchParams: Promise<{ q?: string; view?: string; result?: string }>;
@@ -69,11 +69,8 @@ async function CustomerList({ searchParams }: Props) {
     [businessId, like, like, like]
   );
 
-  // A customer who is also a supplier: show what is left after what we owe them.
-  const weOwe = new Map<number, number>();
-  if (canAccess(user.role, "both_sides")) {
-    for (const p of await loadLinkedPeople(db, businessId)) weOwe.set(p.customerId, Number(p.weOweThem));
-  }
+  // One figure per person: bills, less returns and credit we owe them, less what we owe them as a supplier.
+  const balances = await customerBalances(db, businessId, { includeSupplier: canAccess(user.role, "both_sides") });
 
   const customers = rows.map(r => ({
     id: Number(r.id),
@@ -85,9 +82,7 @@ async function CustomerList({ searchParams }: Props) {
     visits: Number(r.visits),
     billed_paise: Number(r.billed_paise),
     last_visit: r.last_visit ? String(r.last_visit) : null,
-    gross: Number(r.billed_paise) - Number(r.paid_paise),
-    weOweThem: weOwe.get(Number(r.id)) ?? 0,
-    dues: Number(r.billed_paise) - Number(r.paid_paise) - (weOwe.get(Number(r.id)) ?? 0),
+    dues: Number(balances.get(Number(r.id))?.net ?? 0n),
   }));
   // dues > 0: they owe us (after setting off); dues < 0: we owe them.
   const shown = view === "dues" ? customers.filter(c => c.dues > 0) : customers;
@@ -167,12 +162,7 @@ async function CustomerList({ searchParams }: Props) {
                 <td style={cell}>{Number(c.visits)}</td>
                 <td style={cell}>₹{inr(c.billed_paise)}</td>
                 <td style={{ ...cell, color: c.dues > 0 ? "#b45309" : c.dues < 0 ? "#1d4ed8" : "#166534", fontWeight: 600 }}>
-                  {c.dues > 0 ? `₹${inr(c.dues)}` : c.dues < 0 ? `We owe them ₹${inr(-c.dues)}` : "Nothing"}
-                  {c.weOweThem > 0 && (
-                    <small style={{ display: "block", fontWeight: 400, color: "#64748b" }}>
-                      Also a supplier: they owe ₹{inr(Math.max(c.gross, 0))}, we owe them ₹{inr(c.weOweThem)}
-                    </small>
-                  )}
+                  {c.dues > 0 ? `₹${inr(c.dues)}` : c.dues < 0 ? `You owe them ₹${inr(-c.dues)}` : "Nothing"}
                 </td>
                 <td style={cell}>{c.last_visit ?? "—"}</td>
                 <td style={cell}>

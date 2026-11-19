@@ -1,5 +1,6 @@
 
-import { canGiveBillDiscount } from "@/lib/access";
+import { canAccess, canGiveBillDiscount } from "@/lib/access";
+import { customerBalances } from "@/lib/customer-balance";
 import { loadPriceOverrides } from "@/lib/selling-price-data";
 import { loadQtyRule, loadOwnTierPrices, tiersFor } from "@/lib/qty-price-data";
 import { divisionSql } from "@/lib/scope";
@@ -194,28 +195,24 @@ async function SalesContent({ searchParams }: Props) {
   );
 
   const [customerRows] = await db.execute<RowDataPacket[]>(
-    `SELECT c.full_name, c.phone, c.customer_type, c.address, c.city, ROUND(c.credit_limit * 100) AS limit_paise,
-            COALESCE((SELECT SUM(ROUND(h.grand_total * 100)) FROM acct_sales_headers h
-                       WHERE h.legal_business_id = c.legal_business_id
-                         AND h.customer_id = c.id AND h.status = 'POSTED'), 0)
-          - COALESCE((SELECT SUM(ROUND(p.amount * 100)) FROM acct_sales_payments p
-                        JOIN acct_sales_headers h2 ON h2.legal_business_id = p.legal_business_id
-                         AND h2.id = p.sale_id
-                       WHERE h2.legal_business_id = c.legal_business_id
-                         AND h2.customer_id = c.id AND h2.status = 'POSTED'
-                         AND p.status = 'RECORDED'), 0) AS dues_paise
+    `SELECT c.id, c.full_name, c.phone, c.customer_type, c.address, c.city, ROUND(c.credit_limit * 100) AS limit_paise
        FROM acct_customers c
       WHERE c.legal_business_id = ? AND c.status = 'ACTIVE' AND c.phone IS NOT NULL
       ORDER BY c.id DESC
       LIMIT 500`,
     [businessId]
   );
+  // Same one figure as the customer page: above zero they owe us, below zero we owe them.
+  const balances = await customerBalances(db, businessId, {
+    customerIds: customerRows.map((c) => Number(c.id)),
+    includeSupplier: canAccess(user.role, "both_sides"),
+  });
   const customerOptions = customerRows.map(c => ({
     name: String(c.full_name),
     phone: String(c.phone),
     type: c.customer_type === "WHOLESALE" ? ("WHOLESALE" as const) : ("RETAIL" as const),
     address: [c.address, c.city].filter(Boolean).join(", "),
-    dues: Number(c.dues_paise) / 100,
+    dues: Number(balances.get(Number(c.id))?.net ?? 0n) / 100,
     creditLimit: Number(c.limit_paise) / 100,
   }));
 

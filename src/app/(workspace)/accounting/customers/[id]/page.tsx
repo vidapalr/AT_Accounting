@@ -12,7 +12,6 @@ import { updateCustomerAction } from "@/lib/customer-actions";
 import ConfirmButton from "@/components/ConfirmButton";
 import { mergeCustomersAction } from "@/lib/customer-merge-actions";
 import { canMergeCustomers, canAccess } from "@/lib/access";
-import { loadOtherSide } from "@/lib/party-link";
 import { prettyPhone } from "@/lib/customer-phone";
 import { whatsappLink } from "@/lib/whatsapp/core";
 import PrintHeader from "@/components/PrintHeader";
@@ -21,7 +20,8 @@ import { loadCustomerTimeline } from "@/lib/customer-timeline-data";
 import { KIND_LABEL } from "@/lib/customer-timeline";
 import { addCustomerNoteAction } from "@/lib/customer-note-actions";
 import { receiveCreditAction, refundCreditAction } from "@/lib/customer-credit-actions";
-import { customerCreditPaise } from "@/lib/customer-credit";
+import { customerBalance } from "@/lib/customer-balance";
+import { balanceBreakdown } from "@/lib/customer-balance-math";
 import { isMissingTable } from "@/lib/db-errors";
 import { getBrand } from "@/lib/brand";
 
@@ -123,10 +123,10 @@ async function CustomerPage({ params, searchParams }: Props) {
   const billed = list.reduce((s, b) => s + b.total, 0);
   const paid = list.reduce((s, b) => s + b.paid, 0);
   const dues = billed - paid;
-  // Also a supplier? Then the figure that matters is what is left after setting off what we owe them.
-  const other = canAccess(user.role, "both_sides") ? await loadOtherSide(db, businessId, { customerId }) : null;
-  const weOweThem = other ? Number(other.weOweThem) : 0;
-  const net = dues - weOweThem;
+  // One figure for this person: unpaid bills, less returns and credit we owe them, less what we owe them as a supplier.
+  const balance = await customerBalance(db, businessId, customerId, canAccess(user.role, "both_sides"));
+  const net = Number(balance.net);
+  const breakdown = balanceBreakdown(balance, (p) => `₹${inr(Number(p))}`);
   const average = list.length ? Math.round(billed / list.length) : 0;
   const isOwner = user.role === "GROUP_OWNER";
 
@@ -138,22 +138,7 @@ async function CustomerPage({ params, searchParams }: Props) {
         )
       : null;
 
-  // Credit we hold for her, plus return value not yet paid back or used on a bill.
-  const creditHeld = Number(await customerCreditPaise(db, businessId, customerId));
-  let returnOwed = 0;
-  try {
-    const [ro] = await db.execute<RowDataPacket[]>(
-      `SELECT COALESCE(SUM(GREATEST(0, ROUND(r.refund_value * 100)
-                - COALESCE((SELECT SUM(ROUND(f.amount * 100)) FROM acct_sales_refunds f WHERE f.return_id = r.id), 0)
-                - COALESCE((SELECT SUM(ROUND(p.amount * 100)) FROM acct_sales_payments p
-                             WHERE p.exchange_return_id = r.id AND p.status = 'RECORDED'), 0))), 0) AS owed
-         FROM acct_sales_returns r
-         JOIN acct_sales_headers h ON h.id = r.sale_id
-        WHERE r.legal_business_id = ? AND h.customer_id = ? AND r.status = 'POSTED'`,
-      [businessId, customerId]
-    );
-    returnOwed = Number(ro[0]?.owed ?? 0);
-  } catch { /* return columns differ: skip */ }
+  const creditHeld = Number(balance.creditHeld);
   let creditRows: RowDataPacket[] = [];
   let bankRows: RowDataPacket[] = [];
   let cashRows: RowDataPacket[] = [];
@@ -172,7 +157,6 @@ async function CustomerPage({ params, searchParams }: Props) {
   [cashRows] = await db.execute<RowDataPacket[]>(
     `SELECT id, cash_name FROM acct_cash_accounts WHERE legal_business_id = ? AND status = 'ACTIVE' ORDER BY cash_name, id`, [businessId]);
   const today = new Date().toISOString().slice(0, 10);
-  const weOweTotal = creditHeld + returnOwed;
   const msg = result ? MESSAGES[result] : undefined;
   const timeline = await loadCustomerTimeline(db, businessId, customerId, c.phone ? String(c.phone) : null);
 
@@ -241,26 +225,20 @@ async function CustomerPage({ params, searchParams }: Props) {
         <div style={card}><small>Total bought</small><br /><strong style={{ fontSize: 22 }}>₹{inr(billed)}</strong></div>
         <div style={card}><small>Average bill</small><br /><strong style={{ fontSize: 22 }}>₹{inr(average)}</strong></div>
         <div style={{ ...card, borderColor: net > 0 ? "#fcd34d" : net < 0 ? "#93c5fd" : "#bbf7d0" }}>
-          <small>{net < 0 ? "We owe them" : weOweThem > 0 ? "Owes you (after what we owe them)" : "Owes you"}</small><br />
+          <small>{net < 0 ? "You owe them" : "Owes you"}</small><br />
           <strong style={{ fontSize: 22, color: net > 0 ? "#b45309" : net < 0 ? "#1d4ed8" : "#166534" }}>
-            {net > 0 ? `₹${inr(net)}` : net < 0 ? `₹${inr(-net)}` : "Nothing"}
+            {net === 0 ? "Nothing" : `₹${inr(Math.abs(net))}`}
           </strong>
-          {weOweThem > 0 && (
-            <small style={{ display: "block", color: "#64748b" }}>
-              They owe ₹{inr(Math.max(dues, 0))}, we owe them ₹{inr(weOweThem)}
-            </small>
-          )}
         </div>
         {Number(c.limit_paise) > 0 && (
           <div style={card}><small>Credit limit</small><br /><strong style={{ fontSize: 22 }}>₹{inr(Number(c.limit_paise))}</strong></div>
         )}
       </div>
 
-      {weOweTotal > 0 && (
-        <p style={{ background: "#eff6ff", border: "1px solid #93c5fd", borderRadius: 10, padding: 12, maxWidth: 640 }}>
-          <strong>We owe this customer ₹{inr(weOweTotal)}.</strong>{" "}
-          {creditHeld > 0 && <>Credit from extra payments: ₹{inr(creditHeld)}. </>}
-          {returnOwed > 0 && <>Return value not yet paid back or used: ₹{inr(returnOwed)} (see the invoice or Returns). </>}
+      {breakdown && (
+        <p style={{ color: "#475569", maxWidth: 720, marginTop: 0 }}>
+          {breakdown}
+          {net < 0 && balance.returnOwed + balance.creditHeld > 0n && " Use it on their next bill, or pay it back from Returns or Customer credit below."}
         </p>
       )}
 
