@@ -5,12 +5,12 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { prettyPhone } from "@/lib/customer-phone";
 import { isMissingColumn } from "@/lib/db-errors";
-import { addEmployeeAction, updateEmployeeAction } from "@/lib/salary-actions";
+import { addEmployeeAction } from "@/lib/salary-actions";
 import EmploymentPayFields from "@/components/EmploymentPayFields";
 import Link from "next/link";
 import SubmitButton from "@/components/SubmitButton";
-import ConfirmButton from "@/components/ConfirmButton";
-import { cellTop as cell, box, fieldFull as field } from "@/lib/ui/styles";
+import { Badge, Notice, PageHeader, StatTile } from "@/components/ui";
+import { cellTop as cell, box, bigButton, fieldFull as field } from "@/lib/ui/styles";
 import { getBrand } from "@/lib/brand";
 import { todayInIndia } from "@/lib/format";
 
@@ -48,12 +48,15 @@ async function SalariesContent({ searchParams }: Props) {
          ON s.employee_id = e.id AND s.legal_business_id = e.legal_business_id AND s.salary_month = ?
       WHERE e.legal_business_id = ? AND (e.status = 'ACTIVE' OR s.id IS NOT NULL)
       ORDER BY e.status, e.full_name`;
+  // Newest columns first; fall back step by step on a database where later migrations are not run yet.
   let people: Row[] = [];
-  try {
-    [people] = await db.execute<Row[]>(listSql(" e.employment_type, e.daily_wage, e.hourly_rate,"), [month, businessId]);
-  } catch (error) {
-    if (!isMissingColumn(error)) throw error;
-    [people] = await db.execute<Row[]>(listSql(""), [month, businessId]);
+  for (const extra of [" e.employment_type, e.daily_wage, e.hourly_rate, e.employee_code,", " e.employment_type, e.daily_wage, e.hourly_rate,", ""]) {
+    try {
+      [people] = await db.execute<Row[]>(listSql(extra), [month, businessId]);
+      break;
+    } catch (error) {
+      if (!isMissingColumn(error) || extra === "") throw error;
+    }
   }
   // The salary in force for the month shown (pay changes can start on a later date).
   try {
@@ -84,87 +87,81 @@ async function SalariesContent({ searchParams }: Props) {
   const paid = people.reduce((s, p) => s + Number(p.paid_amount ?? 0), 0);
   const waiting = active.filter((p) => p.paid_amount === null).length;
 
+  const typeWords: Record<string, string> = { FULL_TIME: "Full time", PART_TIME: "Part time", DAILY_WAGE: "Daily wage", HOURLY: "Hourly" };
+
   return (
-    <main style={{ padding: 16, maxWidth: 900 }}>
-      <h1>Salaries</h1>
-      {query.saved && <p style={{ color: "#166534", fontSize: 17 }}>{query.saved.slice(0, 300)}</p>}
-      {query.error && <p style={{ color: "#b91c1c", fontSize: 17 }}>{query.error.slice(0, 300)}</p>}
+    <main style={{ padding: 16, maxWidth: 1060 }}>
+      <PageHeader
+        title="Staff records"
+        intro="Everyone who works here: their record, papers and letters, and whether this month's pay is done."
+        actions={<>
+          <a className="btn-link btn-link-primary" style={bigButton} href="#add">Add a person</a>
+          <Link className="btn-link" href={`/accounting/payroll?month=${month}`}>Payroll</Link>
+          <Link className="btn-link" href="/accounting/attendance">Attendance</Link>
+          <Link className="btn-link" href="/accounting/staff-advances">Advances</Link>
+          <Link className="btn-link" href="/accounting/letter-templates">Letter templates</Link>
+        </>}
+      />
+      {query.saved && <Notice tone="ok">{query.saved.slice(0, 300)}</Notice>}
+      {query.error && <Notice tone="error">{query.error.slice(0, 300)}</Notice>}
 
-      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <a className="btn-link" href={`/accounting/salaries?month=${shiftMonth(month, -1)}`}>← {monthLabel(shiftMonth(month, -1))}</a>
-        <strong style={{ fontSize: 20 }}>{monthLabel(month)}</strong>
-        <a className="btn-link" href={`/accounting/salaries?month=${shiftMonth(month, 1)}`}>{monthLabel(shiftMonth(month, 1))} →</a>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", margin: "12px 0" }}>
+        <Link className="btn-link" href={`/accounting/salaries?month=${shiftMonth(month, -1)}`}>← {monthLabel(shiftMonth(month, -1))}</Link>
+        <strong style={{ fontSize: 18 }}>{monthLabel(month)}</strong>
+        <Link className="btn-link" href={`/accounting/salaries?month=${shiftMonth(month, 1)}`}>{monthLabel(shiftMonth(month, 1))} →</Link>
       </div>
-      <p style={{ color: "#64748b" }}>
-        Monthly salaries {inr(payable)} · paid {inr(paid)} · {waiting === 0 ? "everyone is paid" : `${waiting} still to pay`}
-      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12 }}>
+        <StatTile label="People working" value={active.length} />
+        <StatTile label="Monthly salaries" value={inr(payable)} note="Full and part time" />
+        <StatTile label={`Paid for ${monthLabel(month)}`} value={inr(paid)} />
+        <StatTile label="Still to pay" value={waiting} note={waiting ? <Link href={`/accounting/payroll?month=${month}`}>Pay on the Payroll page</Link> : "Everyone is paid"} />
+      </div>
 
-      <p><a className="btn-link" href="/accounting/staff-advances">Staff advances</a></p>
-
-      <section style={box}>
-        {people.map((p) => {
-          const left = p.status !== "ACTIVE";
-          const slip = p.paid_amount !== null && p.phone
-            ? `https://wa.me/91${p.phone}?text=${encodeURIComponent(`Hello ${p.full_name}, your salary for ${monthLabel(month)} of ₹${Number(p.paid_amount).toLocaleString("en-IN")} was paid on ${p.paid_on}.` + (Number(p.advance_deducted) > 0 ? ` ₹${Number(p.advance_deducted).toLocaleString("en-IN")} was taken off for your advance; advance balance ₹${Number(p.advance_left).toLocaleString("en-IN")}.` : "") + ` - ${brand.shopName}`)}`
-            : null;
-          return (
-            <div key={String(p.id)} style={{ ...cell, display: "grid", gap: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-                <span>
-                  <strong>{p.full_name}</strong>{left ? " (left)" : ""}
-                  <br /><span style={{ color: "#64748b", fontSize: 14 }}>{[p.job_title, p.phone ? prettyPhone(String(p.phone)) : null].filter(Boolean).join(" · ")}</span>
-                </span>
-                <span style={{ textAlign: "right" }}>
-                  {p.paid_amount !== null ? (
-                    <><strong style={{ color: "#166534" }}>✓ Paid {inr(p.paid_amount)}</strong>{Number(p.advance_deducted) > 0 && <><br /><span style={{ fontSize: 14 }}>{inr(p.advance_deducted)} taken off an advance</span></>}<br /><span style={{ color: "#64748b", fontSize: 14 }}>on {p.paid_on}</span></>
-                  ) : (
-                    <>{payLabel(p)}</>
-                  )}
-                </span>
-              </div>
-
-              {p.paid_amount === null && !left && (
-                <Link href={`/accounting/payroll?month=${month}`} className="btn-link btn-link-primary">Pay on the Payroll page</Link>
-              )}
-              <a href={`/accounting/salaries/${p.id}`} className="btn-link">Staff record</a>
-              {slip && <a href={slip} target="_blank" rel="noreferrer" className="btn-link">Send pay slip on WhatsApp</a>}
-
-              {!left && (
-                <details>
-                  <summary style={{ cursor: "pointer", color: "#64748b" }}>Change pay or mark as left</summary>
-                  {monthlyStaff(p) ? (
-                    <form action={updateEmployeeAction} style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "8px 0" }}>
-                      <input type="hidden" name="month" value={month} />
-                      <input type="hidden" name="employee_id" value={String(p.id)} />
-                      <input type="hidden" name="what" value="SALARY" />
-                      <input name="monthly_salary" inputMode="decimal" defaultValue={String(Number(p.monthly_salary))} style={{ ...field, width: 140 }} aria-label="New monthly salary" />
-                      <SubmitButton label="Save new salary" className="btn-link" />
-                    </form>
-                  ) : (
-                    <p style={{ margin: "8px 0" }}><a href={`/accounting/salaries/${p.id}`} className="btn-link">Change the wage on the staff record</a></p>
-                  )}
-                  <form action={updateEmployeeAction}>
-                    <input type="hidden" name="month" value={month} />
-                    <input type="hidden" name="employee_id" value={String(p.id)} />
-                    <input type="hidden" name="what" value="LEFT" />
-                    <ConfirmButton label="Mark as left" question={`Mark ${p.full_name} as having left? They will no longer appear for new months.`} />
-                  </form>
-                </details>
-              )}
-            </div>
-          );
-        })}
-        {people.length === 0 && <p>No one added yet. Add the first person below.</p>}
+      <section style={{ ...box, padding: 0, overflowX: "auto" }}>
+        {people.length === 0 ? <p style={{ padding: 16 }}>No one added yet. Add the first person below.</p> : (
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
+            <thead>
+              <tr style={{ background: "#f8fafc" }}>{["Person", "Type", "Pay", monthLabel(month), ""].map((h) => <th key={h} style={{ ...cell, fontSize: 13, color: "#475569" }}>{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {people.map((p) => {
+                const left = p.status !== "ACTIVE";
+                const slip = p.paid_amount !== null && p.phone
+                  ? `https://wa.me/91${p.phone}?text=${encodeURIComponent(`Hello ${p.full_name}, your salary for ${monthLabel(month)} of ₹${Number(p.paid_amount).toLocaleString("en-IN")} was paid on ${p.paid_on}.` + (Number(p.advance_deducted) > 0 ? ` ₹${Number(p.advance_deducted).toLocaleString("en-IN")} was taken off for your advance; advance balance ₹${Number(p.advance_left).toLocaleString("en-IN")}.` : "") + ` - ${brand.shopName}`)}`
+                  : null;
+                return (
+                  <tr key={String(p.id)} style={{ opacity: left ? 0.65 : 1 }}>
+                    <td style={cell}>
+                      <Link href={`/accounting/salaries/${p.id}`} style={{ fontWeight: 700, fontSize: 16 }}>{p.full_name}</Link>{left ? <> <Badge>Left</Badge></> : null}
+                      <div style={{ color: "#64748b", fontSize: 13 }}>{[p.employee_code, p.job_title, p.phone ? prettyPhone(String(p.phone)) : null].filter(Boolean).join(" · ")}</div>
+                    </td>
+                    <td style={cell}>{typeWords[String(p.employment_type ?? "FULL_TIME")] ?? "Full time"}</td>
+                    <td style={{ ...cell, whiteSpace: "nowrap" }}>{payLabel(p).replace(/^Salary /, "")}</td>
+                    <td style={cell}>
+                      {p.paid_amount !== null ? (
+                        <><Badge tone="ok">Paid {inr(p.paid_amount)}</Badge><div style={{ color: "#64748b", fontSize: 12.5, marginTop: 2 }}>on {p.paid_on}{Number(p.advance_deducted) > 0 ? ` · ${inr(p.advance_deducted)} off advance` : ""}</div></>
+                      ) : left ? "—" : <Badge tone="wait">To pay</Badge>}
+                    </td>
+                    <td style={{ ...cell, textAlign: "right", whiteSpace: "nowrap" }}>
+                      {slip && <a href={slip} target="_blank" rel="noreferrer" className="btn-link" style={{ marginRight: 6 }}>Pay message</a>}
+                      <Link href={`/accounting/salaries/${p.id}`} className="btn-link btn-link-primary">Open</Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </section>
 
-      <section style={box}>
-        <h2>Add a person</h2>
-        <form action={addEmployeeAction} style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+      <details id="add" open={people.length === 0} style={{ ...box }}>
+        <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 18 }}>Add a person</summary>
+        <form action={addEmployeeAction} style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", marginTop: 12 }}>
           <input type="hidden" name="month" value={month} />
           <label>Name<input name="full_name" required maxLength={150} style={field} /></label>
           <EmploymentPayFields showSalary />
           <label>Mobile (for pay slips)<input name="phone" inputMode="tel" style={field} /></label>
-          <label>WhatsApp number for attendance (optional)<input name="whatsapp_number" inputMode="numeric" maxLength={14} style={field} /></label>
+          <label>WhatsApp number for attendance and letters (optional)<input name="whatsapp_number" inputMode="numeric" maxLength={14} style={field} /></label>
           <label>Job (optional)<input name="job_title" maxLength={100} style={field} /></label>
           <label>Branch
             <select name="branch_id" defaultValue={branches.length === 1 ? String(branches[0].id) : ""} style={field}>
@@ -175,7 +172,8 @@ async function SalariesContent({ searchParams }: Props) {
           <label>Joined on (optional)<input type="date" name="joined_on" style={field} /></label>
           <div style={{ alignSelf: "end" }}><SubmitButton label="Add person" /></div>
         </form>
-      </section>
+        <p style={{ color: "#64748b", fontSize: 13 }}>The Employee ID is given automatically. You land on the person&apos;s record to take their papers and make the letter.</p>
+      </details>
     </main>
   );
 }

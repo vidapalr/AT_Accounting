@@ -12,6 +12,7 @@ import { aadhaarLast4, folderOf, isPaperKind, paperLabel } from "@/lib/staff-pap
 import { loadStaffLetter, type LetterQuery } from "@/lib/staff-letter-data";
 import { paperToPdf } from "@/lib/paper-pdf";
 import { letterPackToPdf } from "@/lib/letter-pack-pdf";
+import { sendStaffPaper } from "@/lib/letter-send";
 import { getBrand } from "@/lib/brand";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -30,15 +31,15 @@ export async function addStaffPaperAction(form: FormData): Promise<void> {
   const page = `/accounting/salaries/${id}`;
   const kind = text(form, "kind");
   const file = form.get("file");
-  if (!isPaperKind(kind)) go(page, { error: "Choose what the paper is." });
-  if (!(file instanceof File) || file.size === 0) go(page, { error: "Choose a file to keep (PDF, JPG or PNG)." });
-  if (file.size > MAX_DOCUMENT_SIZE) go(page, { error: "The file is larger than 5 MB. Take a smaller photo or scan." });
+  if (!isPaperKind(kind)) go(page, { tab: "papers", error: "Choose what the paper is." });
+  if (!(file instanceof File) || file.size === 0) go(page, { tab: "papers", error: "Choose a file to keep (PDF, JPG or PNG)." });
+  if (file.size > MAX_DOCUMENT_SIZE) go(page, { tab: "papers", error: "The file is larger than 5 MB. Take a smaller photo or scan." });
   const buffer = Buffer.from(await file.arrayBuffer());
   const mime = detectDocumentType(buffer);
-  if (!mime) go(page, { error: "Only a PDF, JPG or PNG can be kept." });
+  if (!mime) go(page, { tab: "papers", error: "Only a PDF, JPG or PNG can be kept." });
 
   const [owns] = await db.query<Row[]>(`SELECT id FROM acct_employees WHERE legal_business_id = ? AND id = ?`, [user.legal_business_id, id]);
-  if (owns.length !== 1) go(page, { error: "That person is not in this company." });
+  if (owns.length !== 1) go(page, { tab: "papers", error: "That person is not in this company." });
 
   const key = await saveStaffFile(user.legal_business_id, id, buffer, mime);
   try {
@@ -50,11 +51,11 @@ export async function addStaffPaperAction(form: FormData): Promise<void> {
     );
   } catch (error) {
     await deleteStaffFile(key).catch(() => {});
-    if (isMissingTable(error)) go(page, { error: "Run migration 093 in phpMyAdmin first." });
+    if (isMissingTable(error)) go(page, { tab: "papers", error: "Run migration 093 in phpMyAdmin first." });
     throw error;
   }
   revalidatePath(page);
-  go(page, { saved: `${paperLabel(kind)} kept in this person's folder.` });
+  go(page, { tab: "papers", saved: `${paperLabel(kind)} kept in this person's folder.` });
 }
 
 /** Takes a paper out of the folder: the row is marked removed and the file is deleted. */
@@ -68,11 +69,11 @@ export async function removeStaffPaperAction(form: FormData): Promise<void> {
       WHERE legal_business_id = ? AND employee_id = ? AND id = ? AND status = 'ACTIVE'`,
     [user.legal_business_id, id, paperId]
   ).catch(() => [[] as Row[]]);
-  if (rows.length !== 1) go(page, { error: "That paper is not in this folder." });
+  if (rows.length !== 1) go(page, { tab: "papers", error: "That paper is not in this folder." });
   await db.query(`UPDATE acct_employee_documents SET status = 'REMOVED' WHERE legal_business_id = ? AND id = ?`, [user.legal_business_id, paperId]);
   await deleteStaffFile(String(rows[0].storage_key)).catch(() => {});
   revalidatePath(page);
-  go(page, { saved: `${paperLabel(String(rows[0].kind))} removed from the folder.` });
+  go(page, { tab: "papers", saved: `${paperLabel(String(rows[0].kind))} removed from the folder.` });
 }
 
 /** Aadhaar: only the last four digits are kept, so the number cannot be taken from the database. */
@@ -82,16 +83,16 @@ export async function saveAadhaarAction(form: FormData): Promise<void> {
   const page = `/accounting/salaries/${id}`;
   const typed = text(form, "aadhaar");
   const last4 = typed ? aadhaarLast4(typed) : "";
-  if (typed && last4 === null) go(page, { error: "An Aadhaar number is 12 digits." });
+  if (typed && last4 === null) go(page, { tab: "papers", error: "An Aadhaar number is 12 digits." });
   try {
     await db.query(`UPDATE acct_employees SET aadhaar_last4 = ? WHERE legal_business_id = ? AND id = ?`, [last4 || null, user.legal_business_id, id]);
   } catch (error) {
     if (isRedirect(error)) throw error;
     if (!isMissingColumn(error)) throw error;
-    go(page, { error: "Run migration 093 in phpMyAdmin first." });
+    go(page, { tab: "papers", error: "Run migration 093 in phpMyAdmin first." });
   }
   revalidatePath(page);
-  go(page, { saved: last4 ? `Aadhaar ending ${last4} saved. Keep the card itself in the folder below.` : "Aadhaar cleared." });
+  go(page, { tab: "papers", saved: last4 ? `Aadhaar ending ${last4} saved. Keep the card itself in the folder below.` : "Aadhaar cleared." });
 }
 
 /** The kind of paper a letter is filed as. */
@@ -131,7 +132,8 @@ export async function keepLetterAction(form: FormData): Promise<void> {
   const pack = loaded.pack!;
   const brand = await getBrand(user.legal_business_id);
   const pdf = await letterPackToPdf(pack, brand, loaded.address);
-  const letter = { heading: pack.pages[0].title };
+  // Kept under the readable subject, e.g. "Letter of appointment – Sales Executive".
+  const letter = { heading: pack.subject };
   const kind = LETTER_PAPER[loaded.type] ?? "OTHER_OFFICIAL";
   const key = await saveStaffFile(user.legal_business_id, id, pdf, "application/pdf");
   try {
@@ -209,4 +211,17 @@ export async function keepPayslipAction(form: FormData): Promise<void> {
   }
   revalidatePath(`/accounting/salaries/${id}`);
   go(back, { ...query, saved: `Pay slip for ${month} kept in ${String(p.full_name)}'s folder.` });
+}
+
+/** Send a paper from the person's folder on WhatsApp (and email when saved); letters to accept get an I accept button. */
+export async function sendStaffPaperAction(form: FormData): Promise<void> {
+  const user = await requireAccess("salary");
+  const employeeId = Number(text(form, "employee_id"));
+  const paperId = Number(text(form, "paper_id"));
+  const back = `/accounting/salaries/${employeeId}`;
+  if (!Number.isSafeInteger(employeeId) || !Number.isSafeInteger(paperId) || employeeId <= 0 || paperId <= 0) redirect("/accounting/salaries");
+  const r = await sendStaffPaper(user.legal_business_id, user.id, employeeId, paperId);
+  const words = [r.whatsapp.text, r.email?.text].filter(Boolean).join(" ");
+  revalidatePath(back);
+  redirect(`${back}?tab=papers&${r.whatsapp.ok ? "saved" : "error"}=${encodeURIComponent(words.slice(0, 400))}`);
 }

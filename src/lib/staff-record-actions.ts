@@ -11,8 +11,8 @@ const money = /^\d{1,9}(\.\d{1,2})?$/;
 const dateOk = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
 const todayIso = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
 
-function back(id: number, kind: "saved" | "error", text: string): never {
-  redirect(`/accounting/salaries/${id}?${kind}=${encodeURIComponent(text.slice(0, 220))}`);
+function back(id: number, kind: "saved" | "error", text: string, tab = "details"): never {
+  redirect(`/accounting/salaries/${id}?tab=${tab}&${kind}=${encodeURIComponent(text.slice(0, 220))}`);
 }
 
 async function ownEmployee(businessId: number, id: number) {
@@ -51,11 +51,11 @@ export async function addPayChangeAction(formData: FormData) {
   const user = await requireAccess("salary");
   const id = Number(formData.get("employee_id"));
   const get = (n: string) => String(formData.get(n) ?? "").trim();
-  if (!(await ownEmployee(user.legal_business_id, id))) return back(id, "error", "Person not found.");
+  if (!(await ownEmployee(user.legal_business_id, id))) return back(id, "error", "Person not found.", "pay");
   const salary = get("monthly_salary").replaceAll(",", "");
   const from = get("effective_from");
-  if (!money.test(salary) || Number(salary) <= 0) return back(id, "error", "Type the new monthly salary in rupees.");
-  if (!dateOk(from)) return back(id, "error", "Choose the date the new salary starts.");
+  if (!money.test(salary) || Number(salary) <= 0) return back(id, "error", "Type the new monthly salary in rupees.", "pay");
+  if (!dateOk(from)) return back(id, "error", "Choose the date the new salary starts.", "pay");
   await db.execute(
     `INSERT INTO acct_employee_pay_history (legal_business_id, employee_id, effective_from, monthly_salary, note, changed_by)
      VALUES (?, ?, ?, ?, ?, ?)`,
@@ -79,5 +79,5 @@ export async function addPayChangeAction(formData: FormData) {
   );
   revalidatePath(`/accounting/salaries/${id}`);
   revalidatePath("/accounting/salaries");
-  return back(id, "saved", from > todayIso() ? "Saved. The new salary starts on the date you chose." : "Salary change saved.");
+  return back(id, "saved", from > todayIso() ? "Saved. The new salary starts on the date you chose." : "Salary change saved.", "pay");
 }

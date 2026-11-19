@@ -145,7 +145,7 @@ export async function saveStaffDetailsAction(formData: FormData) {
   const text = (n: string) => String(formData.get(n) ?? "").trim();
   const id = Number(text("employee_id"));
   const back = `${PAGE}/${id}`;
-  const say = (kind: "saved" | "error", m: string): never => redirect(`${back}?${kind}=${encodeURIComponent(m)}#details`);
+  const say = (kind: "saved" | "error", m: string): never => redirect(`${back}?tab=details&${kind}=${encodeURIComponent(m)}`);
   if (!Number.isInteger(id) || id <= 0) redirect(PAGE);
   const email = text("email").toLowerCase().slice(0, 150);
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) say("error", "That email address does not look right.");

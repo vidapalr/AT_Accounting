@@ -6,14 +6,17 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { addPayChangeAction, saveStaffDatesAction } from "@/lib/staff-record-actions";
-import { cell, box, fieldBlock as field } from "@/lib/ui/styles";
+import { cell, box, bigButton, fieldBlock as field } from "@/lib/ui/styles";
 import { saveEmployeeStatutoryAction, saveEmploymentAction } from "@/lib/payroll-actions";
 import { saveStaffDetailsAction } from "@/lib/salary-actions";
 import { loadComponents, loadCtcOptions, loadPayrollSettings } from "@/lib/payroll/data";
 import { ctcFromGross, grossFromCtc, monthlyGrossFor, type Ctc } from "@/lib/payroll/ctc";
 import { ctcForEmployee, defaultLetterType } from "@/lib/staff-letter-data";
-import { addStaffPaperAction, removeStaffPaperAction, saveAadhaarAction } from "@/lib/staff-paper-actions";
-import { missingPapers, PAPER_KINDS, paperLabel } from "@/lib/staff-papers";
+import { addStaffPaperAction, removeStaffPaperAction, saveAadhaarAction, sendStaffPaperAction } from "@/lib/staff-paper-actions";
+import { letterSendStatus } from "@/lib/letter-send";
+import ConfirmButton from "@/components/ConfirmButton";
+import { Badge, Notice, StatTile, Tabs } from "@/components/ui";
+import { ACCEPT_KINDS, missingPapers, PAPER_KINDS, paperLabel } from "@/lib/staff-papers";
 import { isMissingTable } from "@/lib/db-errors";
 import EmploymentPayFields from "@/components/EmploymentPayFields";
 import { ageAt } from "@/lib/payroll/engine";
@@ -22,7 +25,7 @@ import { todayInIndia } from "@/lib/format";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
 
-type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; error?: string; ctc?: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string; error?: string; ctc?: string; tab?: string }> };
 
 const inr = (v: unknown) => `₹${Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -106,16 +109,68 @@ async function Content({ params, searchParams }: Props) {
     </table>
   );
 
+  // Letters sent on WhatsApp and their acceptance, for the badges in the folder.
+  const sends = papersReady ? await letterSendStatus(businessId, Number(id)) : new Map<number, { status: string; at: string; acceptedAt: string; error: string }>();
+  const toAccept = papers.filter((p) => ACCEPT_KINDS.has(String(p.kind)) && !String(p.label ?? "").includes("(accepted copy)"));
+  const acceptedCount = toAccept.filter((p) => sends.get(Number(p.id))?.status === "ACCEPTED").length;
+  const waitingCount = toAccept.filter((p) => sends.get(Number(p.id))?.status === "SENT").length;
+  const expectedKinds = PAPER_KINDS.filter((k) => k.expected).length;
+  const tab = (["details", "pay", "papers", "statutory"] as const).find((t) => t === q.tab) ?? "details";
+  const base = `/accounting/salaries/${e.id}`;
+  const typeWords = { FULL_TIME: "Full time", PART_TIME: "Part time", DAILY_WAGE: "Daily wage", HOURLY: "Paid by the hour" }[workType];
+  const payNow = workType === "DAILY_WAGE" ? `${e.daily_wage == null ? "—" : inr(e.daily_wage)} a day` : workType === "HOURLY" ? `${e.hourly_rate == null ? "—" : inr(e.hourly_rate)} an hour` : `${inr(e.monthly_salary)} a month`;
+
   return (
-    <main style={{ padding: 24, maxWidth: 820 }}>
-      <Link className="btn-link" href="/accounting/salaries">← Salaries</Link>
-      <h1>{String(e.full_name)}{e.status === "LEFT" ? " (left)" : ""}</h1>
-      <p><Link className="btn-link btn-link-primary" href={`/accounting/salaries/${e.id}/letters`}>Letters and pay slip</Link></p>
-      <p style={{ color: "#64748b" }}>{[e.employee_code ? `Employee ID ${e.employee_code}` : "", e.job_title, e.phone].filter(Boolean).join(" · ")} · Salary now {inr(e.monthly_salary)}</p>
-      {q.saved && <p role="status" style={{ color: "#166534" }}>{q.saved.slice(0, 220)}</p>}
-      {q.error && <p role="alert" style={{ color: "#b91c1c" }}>{q.error.slice(0, 220)}</p>}
+    <main style={{ padding: 24, maxWidth: 980 }}>
+      <Link className="btn-link" href="/accounting/salaries">← Staff</Link>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginTop: 12 }}>
+        <div>
+          <h1 style={{ margin: "0 0 4px", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            {String(e.full_name)} <Badge tone={e.status === "LEFT" ? "plain" : "ok"}>{e.status === "LEFT" ? "Left" : "Working"}</Badge>
+          </h1>
+          <div style={{ color: "#475569" }}>
+            {[e.employee_code ? `Employee ID ${e.employee_code}` : "", e.job_title, typeWords, e.department, e.phone].filter(Boolean).join(" · ")}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link className="btn-link btn-link-primary" style={bigButton} href={`${base}/letters`}>Make a letter</Link>
+          <Link className="btn-link" style={bigButton} href={`${base}?tab=papers`}>Papers and letters</Link>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12, marginTop: 16 }}>
+        <StatTile label="Pay" value={payNow} note={typeWords} />
+        <StatTile label="Cost to company a year" value={inrP(ctcNow.annual.ctc)} note={`Take-home ${inrP(ctcNow.takeHomeMonthly)} a month`} />
+        <StatTile label="Papers on file" value={papersReady ? `${papers.length}` : "—"} note={stillToDo.length ? `Still to take: ${stillToDo.length}` : "Nothing missing"} />
+        <StatTile label="Letters accepted" value={papersReady ? `${acceptedCount} of ${toAccept.length}` : "—"} note={waitingCount ? `${waitingCount} waiting for the person` : "None waiting"} />
+      </div>
+
+      {q.saved && <div style={{ marginTop: 14 }}><Notice tone="ok">{q.saved.slice(0, 400)}</Notice></div>}
+      {q.error && <div style={{ marginTop: 14 }}><Notice tone="error">{q.error.slice(0, 400)}</Notice></div>}
       {!ready && <p role="alert">Not set up yet. Ask Claude for the database file named 062_staff_record.</p>}
 
+      <Tabs base={base} current={tab} tabs={[
+        { key: "details", label: "Details" },
+        { key: "pay", label: "Pay and CTC" },
+        { key: "papers", label: "Papers and letters", count: papersReady ? papers.length : undefined },
+        { key: "statutory", label: "PF, ESI and tax" },
+      ]} />
+
+      {tab === "details" && (
+        <>
+      <section style={box} id="details">
+        <h2>Contact and job details (for letters)</h2>
+        {"employee_code" in e ? (
+          <form action={saveStaffDetailsAction} style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+            <input type="hidden" name="employee_id" value={String(e.id)} />
+            <label>Email (letters are emailed too when this is filled)<input name="email" type="email" defaultValue={String(e.email ?? "")} maxLength={150} style={field} /></label>
+            <label>Department<input name="department" defaultValue={String(e.department ?? "")} maxLength={100} placeholder="e.g. Sales" style={field} /></label>
+            <label>Reports to<input name="reports_to" defaultValue={String(e.reports_to ?? "")} maxLength={150} placeholder="e.g. Shop manager" style={field} /></label>
+            <label style={{ gridColumn: "1 / -1" }}>Home address<textarea name="home_address" defaultValue={String(e.home_address ?? "")} maxLength={300} rows={2} style={field} /></label>
+            <div><button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Save details</button></div>
+          </form>
+        ) : <p role="alert">Run migration 095 in phpMyAdmin to add the Employee ID, email and address.</p>}
+      </section>
       <section style={box}>
         <h2>Type of work and attendance</h2>
         {typeKnown ? (
@@ -135,21 +190,24 @@ async function Content({ params, searchParams }: Props) {
           </form>
         ) : <p role="alert">Run migrations 091 and 092 in phpMyAdmin to set the type of work and attendance.</p>}
       </section>
+          {ready && (
+          <section style={box}>
+            <h2>Joined, notice and leaving</h2>
+            <form action={saveStaffDatesAction} style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+              <input type="hidden" name="employee_id" value={String(e.id)} />
+              <label>Joined on<input type="date" name="joined_on" defaultValue={d(e.joined_on)} style={field} /></label>
+              <label>Gave notice on<input type="date" name="notice_given_on" defaultValue={d(e.notice_given_on)} style={field} /></label>
+              <label>Last working day<input type="date" name="left_on" defaultValue={d(e.left_on)} style={field} /></label>
+              <div style={{ alignSelf: "end" }}><button type="submit" className="btn-link btn-link-primary" style={{ fontSize: 16, padding: "12px 22px" }}>Save dates</button></div>
+            </form>
+            <p style={{ color: "#64748b", fontSize: 13 }}>Once the last working day has come, the person is marked as left. Earlier payments stay in the books.</p>
+          </section>
+          )}
+        </>
+      )}
 
-      <section style={box} id="details">
-        <h2>Contact and job details (for letters)</h2>
-        {"employee_code" in e ? (
-          <form action={saveStaffDetailsAction} style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
-            <input type="hidden" name="employee_id" value={String(e.id)} />
-            <label>Email (letters are emailed too when this is filled)<input name="email" type="email" defaultValue={String(e.email ?? "")} maxLength={150} style={field} /></label>
-            <label>Department<input name="department" defaultValue={String(e.department ?? "")} maxLength={100} placeholder="e.g. Sales" style={field} /></label>
-            <label>Reports to<input name="reports_to" defaultValue={String(e.reports_to ?? "")} maxLength={150} placeholder="e.g. Shop manager" style={field} /></label>
-            <label style={{ gridColumn: "1 / -1" }}>Home address<textarea name="home_address" defaultValue={String(e.home_address ?? "")} maxLength={300} rows={2} style={field} /></label>
-            <div><button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Save details</button></div>
-          </form>
-        ) : <p role="alert">Run migration 095 in phpMyAdmin to add the Employee ID, email and address.</p>}
-      </section>
-
+      {tab === "pay" && (
+        <>
       <section style={box}>
         <h2>Salary and cost to company (CTC)</h2>
         {workType === "DAILY_WAGE" ? (
@@ -180,7 +238,45 @@ async function Content({ params, searchParams }: Props) {
           </>
         ) : null}
       </section>
+          {ready && (
+          <section style={box}>
+            <h2>Pay changes</h2>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead><tr>{["From", "Monthly salary", "Note"].map((h) => <th key={h} style={cell}>{h}</th>)}</tr></thead>
+              <tbody>
+                {history.map((h, i) => (
+                  <tr key={i}><td style={cell}>{String(h.f)}</td><td style={cell}>{inr(h.monthly_salary)}</td><td style={cell}>{String(h.note ?? "")}</td></tr>
+                ))}
+              </tbody>
+            </table>
+            <h3>Change the pay</h3>
+            <form action={addPayChangeAction} style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+              <input type="hidden" name="employee_id" value={String(e.id)} />
+              <label>New monthly salary (₹)<input name="monthly_salary" inputMode="decimal" required style={field} /></label>
+              <label>Starts on<input type="date" name="effective_from" required defaultValue={new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10)} style={field} /></label>
+              <label>Note (optional)<input name="note" maxLength={200} style={field} /></label>
+              <div style={{ alignSelf: "end" }}><button type="submit" className="btn-link btn-link-primary" style={{ fontSize: 16, padding: "12px 22px" }}>Save pay change</button></div>
+            </form>
+          </section>
+          )}
+      <section style={box}>
+        <h2>Salary paid</h2>
+        {paid.length === 0 ? <p>No salary paid yet.</p> : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead><tr>{["Month", "Paid", "Taken off advance", "On"].map((h) => <th key={h} style={cell}>{h}</th>)}</tr></thead>
+            <tbody>
+              {paid.map((p, i) => (
+                <tr key={i}><td style={cell}>{String(p.salary_month)}</td><td style={cell}>{inr(p.amount)}</td><td style={cell}>{Number(p.advance_deducted) > 0 ? inr(p.advance_deducted) : ""}</td><td style={cell}>{String(p.p)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+        </>
+      )}
 
+      {tab === "statutory" && (
+        <>
       {"uan" in e ? (
         <section style={box}>
           <h2>PF, ESI and income tax</h2>
@@ -220,96 +316,77 @@ async function Content({ params, searchParams }: Props) {
           </form>
         </section>
       ) : null}
-
-      {ready && (
-        <>
-          <section style={box}>
-            <h2>Joined, notice and leaving</h2>
-            <form action={saveStaffDatesAction} style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
-              <input type="hidden" name="employee_id" value={String(e.id)} />
-              <label>Joined on<input type="date" name="joined_on" defaultValue={d(e.joined_on)} style={field} /></label>
-              <label>Gave notice on<input type="date" name="notice_given_on" defaultValue={d(e.notice_given_on)} style={field} /></label>
-              <label>Last working day<input type="date" name="left_on" defaultValue={d(e.left_on)} style={field} /></label>
-              <div style={{ alignSelf: "end" }}><button type="submit" className="btn-link btn-link-primary" style={{ fontSize: 16, padding: "12px 22px" }}>Save dates</button></div>
-            </form>
-            <p style={{ color: "#64748b", fontSize: 13 }}>Once the last working day has come, the person is marked as left. Earlier payments stay in the books.</p>
-          </section>
-
-          <section style={box}>
-            <h2>Pay changes</h2>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead><tr>{["From", "Monthly salary", "Note"].map((h) => <th key={h} style={cell}>{h}</th>)}</tr></thead>
-              <tbody>
-                {history.map((h, i) => (
-                  <tr key={i}><td style={cell}>{String(h.f)}</td><td style={cell}>{inr(h.monthly_salary)}</td><td style={cell}>{String(h.note ?? "")}</td></tr>
-                ))}
-              </tbody>
-            </table>
-            <h3>Change the pay</h3>
-            <form action={addPayChangeAction} style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-              <input type="hidden" name="employee_id" value={String(e.id)} />
-              <label>New monthly salary (₹)<input name="monthly_salary" inputMode="decimal" required style={field} /></label>
-              <label>Starts on<input type="date" name="effective_from" required defaultValue={new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10)} style={field} /></label>
-              <label>Note (optional)<input name="note" maxLength={200} style={field} /></label>
-              <div style={{ alignSelf: "end" }}><button type="submit" className="btn-link btn-link-primary" style={{ fontSize: 16, padding: "12px 22px" }}>Save pay change</button></div>
-            </form>
-          </section>
         </>
       )}
 
-      <section style={box}>
-        <h2>Folder: papers of {String(e.full_name)}</h2>
-        {!papersReady ? <p role="alert">Run migration 093 in phpMyAdmin to keep papers for each person.</p> : (
-          <>
-            {stillToDo.length ? (
-              <p style={{ color: "#92400e" }}>
-                Still to take: {stillToDo.map((k) => k.label).join(", ")}.{" "}
-                {stillToDo.some((k) => k.key.endsWith("LETTER")) ? (
-                  <Link href={`/accounting/salaries/${e.id}/letters?type=${defaultLetterType(e.employment_type)}`}>Make the letter now</Link>
-                ) : null}
-              </p>
-            ) : <p style={{ color: "#166534" }}>Every paper this person needs is on file.</p>}
+      {tab === "papers" && (
+        <section style={box}>
+          {!papersReady ? <p role="alert">Run migration 093 in phpMyAdmin to keep papers for each person.</p> : (
+            <>
+              {stillToDo.length ? (
+                <Notice tone="warn">
+                  Still to take: {stillToDo.map((k) => k.label).join(", ")}.{" "}
+                  {stillToDo.some((k) => k.key.endsWith("LETTER")) ? <Link href={`${base}/letters?type=${defaultLetterType(e.employment_type)}`}>Make the letter now</Link> : null}
+                </Notice>
+              ) : <Notice tone="ok">Every paper this person needs is on file ({expectedKinds} required).</Notice>}
 
-            <form action={saveAadhaarAction} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end", margin: "12px 0" }}>
-              <input type="hidden" name="employee_id" value={String(e.id)} />
-              <label style={{ display: "grid", gap: 4 }}>Aadhaar number (only the last 4 digits are kept)
-                <input name="aadhaar" inputMode="numeric" maxLength={14} placeholder={e.aadhaar_last4 ? `XXXX XXXX ${String(e.aadhaar_last4)}` : "12 digits"} style={{ ...field, width: 220 }} />
-              </label>
-              <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Save Aadhaar</button>
-              {e.aadhaar_last4 ? <span style={{ color: "#64748b" }}>On record: ending {String(e.aadhaar_last4)}</span> : null}
-            </form>
+              {(["OFFICIAL", "PERSONAL"] as const).map((folder) => {
+                const inFolder = papers.filter((d) => String(d.folder) === folder);
+                return (
+                  <div key={folder} style={{ marginTop: 18 }}>
+                    <h2 style={{ fontSize: 18, margin: "0 0 8px" }}>{folder === "OFFICIAL" ? "Letters and official papers" : "Personal papers (ID, bank, certificates)"}</h2>
+                    {inFolder.length === 0 ? <p style={{ color: "#64748b", margin: 0 }}>Nothing kept here yet.</p> : (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        {inFolder.map((docu) => {
+                          const sent = sends.get(Number(docu.id));
+                          const isPdf = String(docu.mime_type).includes("pdf");
+                          const isCopy = String(docu.label ?? "").includes("(accepted copy)");
+                          const askAccept = ACCEPT_KINDS.has(String(docu.kind)) && !isCopy;
+                          return (
+                            <div key={String(docu.id)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 14px", background: "#fff" }}>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontWeight: 600, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                                  <a href={`/api/staff-papers/${docu.id}`} target="_blank" rel="noreferrer">{String(docu.label || paperLabel(String(docu.kind)))}</a>
+                                  {isCopy ? <Badge tone="ok">Signed copy</Badge>
+                                    : sent?.status === "ACCEPTED" ? <Badge tone="ok" title={`Accepted on ${sent.acceptedAt}`}>Accepted {sent.acceptedAt.slice(0, 10)}</Badge>
+                                    : sent?.status === "SENT" ? <Badge tone={askAccept ? "wait" : "info"} title={`Sent ${sent.at}`}>{askAccept ? "Waiting for acceptance" : "Sent"}</Badge>
+                                    : sent?.status === "FAILED" ? <Badge tone="bad" title={sent.error}>Not sent</Badge>
+                                    : null}
+                                </div>
+                                <div style={{ color: "#64748b", fontSize: 13 }}>
+                                  {[paperLabel(String(docu.kind)), `kept ${String(docu.on_date)}`, sent?.status === "SENT" ? `sent ${sent.at}` : "", sent?.status === "FAILED" ? sent.error : ""].filter(Boolean).join(" · ")}
+                                </div>
+                              </div>
+                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                                <a className="btn-link" href={`/api/staff-papers/${docu.id}`} target="_blank" rel="noreferrer">View</a>
+                                {folder === "OFFICIAL" && isPdf && !isCopy && sent?.status !== "ACCEPTED" ? (
+                                  <form action={sendStaffPaperAction}>
+                                    <input type="hidden" name="employee_id" value={String(e.id)} />
+                                    <input type="hidden" name="paper_id" value={String(docu.id)} />
+                                    <ConfirmButton className="btn-link btn-link-primary" label={sent?.status === "SENT" || sent?.status === "FAILED" ? "Send again" : "Send on WhatsApp"}
+                                      question={`Send this to ${String(e.full_name)} on WhatsApp${e.email ? " and email" : ""}?${askAccept ? " They will be asked to tap I accept." : ""}`} />
+                                  </form>
+                                ) : null}
+                                {sent?.status !== "ACCEPTED" || isCopy ? (
+                                  <form action={removeStaffPaperAction}>
+                                    <input type="hidden" name="employee_id" value={String(e.id)} />
+                                    <input type="hidden" name="paper_id" value={String(docu.id)} />
+                                    <ConfirmButton label="Remove" question="Remove this paper from the folder? The file is deleted." />
+                                  </form>
+                                ) : null}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
 
-            {(["PERSONAL", "OFFICIAL"] as const).map((folder) => {
-              const inFolder = papers.filter((d) => String(d.folder) === folder);
-              return (
-                <div key={folder} style={{ margin: "12px 0" }}>
-                  <h3 style={{ margin: "0 0 6px" }}>{folder === "PERSONAL" ? "Personal papers" : "Official papers"}</h3>
-                  {inFolder.length === 0 ? <p style={{ color: "#64748b", margin: 0 }}>Nothing kept here yet.</p> : (
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <thead><tr>{["Paper", "Note", "Kept on", ""].map((h) => <th key={h} style={cell}>{h}</th>)}</tr></thead>
-                      <tbody>
-                        {inFolder.map((docu) => (
-                          <tr key={String(docu.id)}>
-                            <td style={cell}><a href={`/api/staff-papers/${docu.id}`} target="_blank" rel="noreferrer">{paperLabel(String(docu.kind))}</a></td>
-                            <td style={cell}>{[String(docu.label ?? ""), docu.belongs_to ? String(docu.belongs_to) : ""].filter(Boolean).join(" · ")}</td>
-                            <td style={cell}>{String(docu.on_date)}</td>
-                            <td style={cell}>
-                              <form action={removeStaffPaperAction}>
-                                <input type="hidden" name="employee_id" value={String(e.id)} />
-                                <input type="hidden" name="paper_id" value={String(docu.id)} />
-                                <button type="submit" className="btn-link" style={{ cursor: "pointer" }}>Remove</button>
-                              </form>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              );
-            })}
-
-            <h3>Keep a paper in this folder</h3>
+              <details style={{ marginTop: 20 }} open={papers.length === 0}>
+                <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 16 }}>Add a paper (Aadhaar, PAN, bank, certificate...)</summary>
+                <div style={{ marginTop: 12 }}>
             <form action={addStaffPaperAction} style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
               <input type="hidden" name="employee_id" value={String(e.id)} />
               <label>What is it
@@ -326,26 +403,23 @@ async function Content({ params, searchParams }: Props) {
               <label>Note (optional)<input name="label" maxLength={150} style={field} /></label>
               <div style={{ alignSelf: "end" }}><button type="submit" className="btn-link btn-link-primary" style={{ fontSize: 16, padding: "12px 22px" }}>Keep in the folder</button></div>
             </form>
-            <p style={{ color: "#64748b", fontSize: 13 }}>
-              Papers are kept outside the app folder, one folder for each person, and only people who may see salaries can open them. Letters are saved here with one press from <Link href={`/accounting/salaries/${e.id}/letters`}>Letters and pay slip</Link>. The full Aadhaar number is never stored: only the last four digits and the picture of the card.
-            </p>
-          </>
-        )}
-      </section>
-
-      <section style={box}>
-        <h2>Salary paid</h2>
-        {paid.length === 0 ? <p>No salary paid yet.</p> : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead><tr>{["Month", "Paid", "Taken off advance", "On"].map((h) => <th key={h} style={cell}>{h}</th>)}</tr></thead>
-            <tbody>
-              {paid.map((p, i) => (
-                <tr key={i}><td style={cell}>{String(p.salary_month)}</td><td style={cell}>{inr(p.amount)}</td><td style={cell}>{Number(p.advance_deducted) > 0 ? inr(p.advance_deducted) : ""}</td><td style={cell}>{String(p.p)}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+            <form action={saveAadhaarAction} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end", margin: "12px 0" }}>
+              <input type="hidden" name="employee_id" value={String(e.id)} />
+              <label style={{ display: "grid", gap: 4 }}>Aadhaar number (only the last 4 digits are kept)
+                <input name="aadhaar" inputMode="numeric" maxLength={14} placeholder={e.aadhaar_last4 ? `XXXX XXXX ${String(e.aadhaar_last4)}` : "12 digits"} style={{ ...field, width: 220 }} />
+              </label>
+              <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Save Aadhaar</button>
+              {e.aadhaar_last4 ? <span style={{ color: "#64748b" }}>On record: ending {String(e.aadhaar_last4)}</span> : null}
+            </form>
+                </div>
+              </details>
+              <p style={{ color: "#64748b", fontSize: 13 }}>
+                Only people who may see salaries can open these papers. Letters are made on <Link href={`${base}/letters`}>Make a letter</Link> and kept here with one press; then send them from here. A letter to accept comes back as a signed copy when the person taps I accept on WhatsApp. The full Aadhaar number is never stored.
+              </p>
+            </>
+          )}
+        </section>
+      )}
     </main>
   );
 }

@@ -324,11 +324,11 @@ export async function saveEmployeeStatutoryAction(form: FormData): Promise<void>
   const esi = text(form, "esi_number").replace(/\s/g, "");
   const dob = text(form, "date_of_birth");
   const deductions = text(form, "old_regime_deductions").replaceAll(",", "") || "0";
-  if (pan && !/^[A-Z]{5}\d{4}[A-Z]$/.test(pan)) go(page, { error: "PAN must be 5 letters, 4 numbers and 1 letter." });
-  if (uan && !/^\d{12}$/.test(uan)) go(page, { error: "UAN must be 12 numbers." });
-  if (esi && !/^\d{10,17}$/.test(esi)) go(page, { error: "ESI number must be 10 to 17 numbers." });
-  if (dob && !/^\d{4}-\d{2}-\d{2}$/.test(dob)) go(page, { error: "Choose the date of birth." });
-  if (!/^\d{1,9}(\.\d{1,2})?$/.test(deductions)) go(page, { error: "Deductions must be an amount in rupees." });
+  if (pan && !/^[A-Z]{5}\d{4}[A-Z]$/.test(pan)) go(page, { tab: "statutory", error: "PAN must be 5 letters, 4 numbers and 1 letter." });
+  if (uan && !/^\d{12}$/.test(uan)) go(page, { tab: "statutory", error: "UAN must be 12 numbers." });
+  if (esi && !/^\d{10,17}$/.test(esi)) go(page, { tab: "statutory", error: "ESI number must be 10 to 17 numbers." });
+  if (dob && !/^\d{4}-\d{2}-\d{2}$/.test(dob)) go(page, { tab: "statutory", error: "Choose the date of birth." });
+  if (!/^\d{1,9}(\.\d{1,2})?$/.test(deductions)) go(page, { tab: "statutory", error: "Deductions must be an amount in rupees." });
   await db.query(
     `UPDATE acct_employees SET pan = ?, uan = ?, name_as_per_uan = ?, esi_number = ?, date_of_birth = ?,
             pf_member = ?, esi_member = ?, pt_applicable = ?, tax_regime = ?, old_regime_deductions = ?
@@ -338,7 +338,7 @@ export async function saveEmployeeStatutoryAction(form: FormData): Promise<void>
      text(form, "tax_regime") === "OLD" ? "OLD" : "NEW", deductions, user.legal_business_id, id]
   );
   revalidatePath(page);
-  go(page, { saved: "PF, ESI and tax details saved." });
+  go(page, { tab: "statutory", saved: "PF, ESI and tax details saved." });
 }
 
 /** Kind of work (full time, part time, daily wage), the daily wage and the WhatsApp number used for attendance. */
@@ -351,18 +351,18 @@ export async function saveEmploymentAction(form: FormData): Promise<void> {
   const rate = text(form, "hourly_rate").replaceAll(",", "");
   const wa = text(form, "whatsapp_number").replace(/\D/g, "").slice(-10);
   const amount = /^\d{1,7}(\.\d{1,2})?$/;
-  if (type === "DAILY_WAGE" && !amount.test(wage)) go(page, { error: "Write the daily wage in rupees, e.g. 600." });
-  if (type === "HOURLY" && !amount.test(rate)) go(page, { error: "Write the rate for one hour in rupees, e.g. 80." });
-  if (wage && !amount.test(wage)) go(page, { error: "The daily wage must be an amount in rupees." });
-  if (rate && !amount.test(rate)) go(page, { error: "The hourly rate must be an amount in rupees." });
-  if (wa && wa.length !== 10) go(page, { error: "Write the 10-digit WhatsApp number." });
+  if (type === "DAILY_WAGE" && !amount.test(wage)) go(page, { tab: "details", error: "Write the daily wage in rupees, e.g. 600." });
+  if (type === "HOURLY" && !amount.test(rate)) go(page, { tab: "details", error: "Write the rate for one hour in rupees, e.g. 80." });
+  if (wage && !amount.test(wage)) go(page, { tab: "details", error: "The daily wage must be an amount in rupees." });
+  if (rate && !amount.test(rate)) go(page, { tab: "details", error: "The hourly rate must be an amount in rupees." });
+  if (wa && wa.length !== 10) go(page, { tab: "details", error: "Write the 10-digit WhatsApp number." });
   try {
     if (wa) {
       const [clash] = await db.query<Row[]>(
         `SELECT full_name FROM acct_employees WHERE legal_business_id = ? AND whatsapp_number = ? AND id <> ? AND status = 'ACTIVE' LIMIT 1`,
         [user.legal_business_id, wa, id]
       );
-      if (clash.length) go(page, { error: `That WhatsApp number is already saved for ${clash[0].full_name}.` });
+      if (clash.length) go(page, { tab: "details", error: `That WhatsApp number is already saved for ${clash[0].full_name}.` });
     }
     try {
       await db.query(`UPDATE acct_employees SET employment_type = ?, daily_wage = ?, hourly_rate = ?, whatsapp_number = ? WHERE legal_business_id = ? AND id = ?`, [
@@ -377,12 +377,12 @@ export async function saveEmploymentAction(form: FormData): Promise<void> {
         t, wage || null, wa || null, user.legal_business_id, id,
       ]);
       revalidatePath(page);
-      go(page, { saved: `Saved. ${wa ? "Attendance will work now. " : ""}To add hourly pay as well, run migration 092 in phpMyAdmin.` });
+      go(page, { tab: "details", saved: `Saved. ${wa ? "Attendance will work now. " : ""}To add hourly pay as well, run migration 092 in phpMyAdmin.` });
     }
   } catch (error) {
     if (isRedirect(error)) throw error;
-    go(page, { error: "Run migration 091 in phpMyAdmin first." });
+    go(page, { tab: "details", error: "Run migration 091 in phpMyAdmin first." });
   }
   revalidatePath(page);
-  go(page, { saved: "Type of work saved." });
+  go(page, { tab: "details", saved: "Type of work saved." });
 }

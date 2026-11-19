@@ -12,7 +12,9 @@ export function mailConfigured(): boolean {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && process.env.MAIL_FROM);
 }
 
-export async function sendMail(to: string, mail: MailText): Promise<boolean> {
+export type MailAttachment = { filename: string; content: Buffer; contentType: string };
+
+export async function sendMail(to: string, mail: MailText, attachments: MailAttachment[] = []): Promise<boolean> {
   if (!mailConfigured() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return false;
   try {
     const port = Number(process.env.SMTP_PORT ?? 465);
@@ -22,7 +24,7 @@ export async function sendMail(to: string, mail: MailText): Promise<boolean> {
       secure: port === 465,
       auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
     });
-    await transport.sendMail({ from: process.env.MAIL_FROM, to, subject: mail.subject, text: mail.text });
+    await transport.sendMail({ from: process.env.MAIL_FROM, to, subject: mail.subject, text: mail.text, attachments });
     return true;
   } catch (error) {
     console.error("Email could not be sent:", (error as Error).message);

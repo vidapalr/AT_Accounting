@@ -9,6 +9,7 @@ import { optWord } from "@/lib/broadcast-math";
 import { businessIdForWhatsAppNumber, currentBusinessId } from "@/lib/tenant";
 import { loadBrand } from "@/lib/brand";
 import { recordWhatsAppPunch } from "@/lib/attendance-data";
+import { acceptLetterOnWhatsApp } from "@/lib/letter-send";
 
 /**
  * Where WhatsApp (Meta Cloud API) delivers messages that employees send to the
@@ -104,7 +105,18 @@ export async function POST(request: NextRequest) {
                 : null;
         // Keep the last message received, so the Attendance register can show what actually arrived.
         await noteLastIncoming(BUSINESS_ID, message.from, message.type ?? "?", text).catch(() => {});
+        // What a tapped button sends back (I accept on a staff letter carries LACCEPT:<id>).
+        const replyId =
+          message.type === "button" ? (message.button?.payload ?? null)
+          : message.type === "interactive" ? (message.interactive?.button_reply?.id ?? message.interactive?.list_reply?.id ?? null)
+          : null;
         try {
+          // A staff member accepting a letter sent to them (button or "I accept").
+          const accepted = await acceptLetterOnWhatsApp(BUSINESS_ID, message.from, replyId, text, message.id ?? null);
+          if (accepted) {
+            await sendWhatsAppText(message.from, accepted).catch((e) => console.error("Acceptance reply failed:", e));
+            continue;
+          }
           // STOP / START about offer messages work even when the bot is off.
           const word = optWord(text);
           if (word) {

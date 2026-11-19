@@ -60,3 +60,6 @@ export function aadhaarLast4(typed: string): string | null {
   const digits = typed.replace(/\D/g, "");
   return digits.length === 12 ? digits.slice(-4) : null;
 }
+
+/** Papers the person is asked to accept when they are sent (an I accept button on WhatsApp). */
+export const ACCEPT_KINDS: ReadonlySet<string> = new Set(["OFFER_LETTER", "APPOINTMENT_LETTER", "ENGAGEMENT_LETTER", "WARNING_LETTER", "AGREEMENT"]);

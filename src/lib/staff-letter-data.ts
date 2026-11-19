@@ -54,6 +54,20 @@ export async function ctcForEmployee(businessId: number, e: Row, month = todayIn
   return { type, normal, ctc: ctcFromGross({ monthlyGross, components, settings, options, month }), settings, components, options };
 }
 
+/** The person's branch address for the letterhead (the brand's town when no branch is set). */
+export async function branchAddress(businessId: number, branchId: unknown, fallback: string): Promise<{ address: string; city: string }> {
+  const [branch] = await db.execute<Row[]>(
+    `SELECT address_line1, address_line2, city, state, postal_code FROM acct_branches
+      WHERE legal_business_id = ? AND id = ? LIMIT 1`,
+    [businessId, Number(branchId ?? 0)]
+  );
+  const b = branch[0];
+  return {
+    address: [b?.address_line1, b?.address_line2, b?.city, b?.state, b?.postal_code].filter(Boolean).join(", ") || fallback,
+    city: String(b?.city ?? fallback),
+  };
+}
+
 export type StaffLetter = {
   employee: Row;
   type: LetterType;
@@ -82,13 +96,7 @@ export async function loadStaffLetter(businessId: number, employeeId: number, q:
   };
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(q.month ?? "") ? String(q.month) : todayInIndia().slice(0, 7);
 
-  const [branch] = await db.execute<Row[]>(
-    `SELECT address_line1, address_line2, city, state, postal_code FROM acct_branches
-      WHERE legal_business_id = ? AND id = ? LIMIT 1`,
-    [businessId, Number(e.branch_id ?? 0)]
-  );
-  const b = branch[0];
-  const address = [b?.address_line1, b?.address_line2, b?.city, b?.state, b?.postal_code].filter(Boolean).join(", ") || brand.place;
+  const { address, city } = await branchAddress(businessId, e.branch_id, brand.place);
   const { ctc, normal, settings, components, type: workType } = await ctcForEmployee(businessId, e, month);
   const today = todayInIndia();
 
@@ -101,7 +109,7 @@ export async function loadStaffLetter(businessId: number, employeeId: number, q:
     noticeGivenOn: dmy(e.notice_given_on),
     leftOn: dmy(e.left_on),
     letterDate: dmy(todayInIndia()),
-    place: String(b?.city ?? brand.place),
+    place: city,
     terms,
     employer: brand.shopName !== brand.groupName ? `${brand.groupName} (${brand.shopName})` : brand.groupName,
     newSalary: /^\d{1,9}(\.\d{1,2})?$/.test(q.new_salary ?? "") ? inr(q.new_salary) : "",
@@ -156,6 +164,6 @@ export async function loadStaffLetter(businessId: number, employeeId: number, q:
     }),
     month,
     address,
-    branchCity: String(b?.city ?? brand.place),
+    branchCity: city,
   };
 }
