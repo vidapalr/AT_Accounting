@@ -83,7 +83,9 @@ test("India time and punches", () => {
   assert.equal(hoursWorked("09:20:00", "18:00:00"), 8.7);
   assert.equal(hoursWorked("18:00:00", "09:00:00"), null);
   assert.deepEqual(monthMarks([{ status: "PRESENT" }, { status: "HALF_DAY" }, { status: "ABSENT" }, { status: "HOLIDAY" }, { status: null }]), { present: 1, half: 1, absent: 1, leave: 0, off: 1 });
-  assert.match(punchReply("Asha", "IN", "09:20:00"), /IN marked at 09:20/);
+  assert.match(punchReply("Asha", "IN", "09:20:00"), /^Good morning Asha\. IN marked at 09:20/);
+  assert.match(punchReply("Asha", "IN", "14:05:00"), /^Good afternoon/);
+  assert.match(punchReply("Asha", "IN", "19:54:00"), /^Good evening/);
 });
 
 test("pie folds small slices into Other", () => {

@@ -79,5 +79,7 @@ export function monthMarks(days: Array<{ status: DayStatus | null }>): { present
 /** The reply sent back on WhatsApp after a punch. */
 export function punchReply(name: string, punch: Punch, time: string): string {
   const hhmm = time.slice(0, 5);
-  return punch === "IN" ? `Good morning ${name}. IN marked at ${hhmm}.` : `Thank you ${name}. OUT marked at ${hhmm}.`;
+  const hour = Number(time.slice(0, 2));
+  const hello = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  return punch === "IN" ? `${hello} ${name}. IN marked at ${hhmm}.` : `Thank you ${name}. OUT marked at ${hhmm}.`;
 }
