@@ -7,7 +7,8 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import PrintButton from "@/components/PrintButton";
 import Letterhead from "@/components/Letterhead";
-import { LETTER_TYPES } from "@/lib/staff-letters";
+import { LETTER_TYPES, PACK_LETTERS } from "@/lib/staff-letters";
+import LetterPackView from "@/components/LetterPackView";
 import { loadStaffLetter } from "@/lib/staff-letter-data";
 import { getBrand } from "@/lib/brand";
 import { keepLetterAction, keepPayslipAction } from "@/lib/staff-paper-actions";
@@ -44,7 +45,7 @@ async function Content({ params, searchParams }: Props) {
       fullSlip = full[0] ?? null;
     } catch { /* before migration 088: the short pay slip below */ }
   }
-  const letter = loaded.letter;
+  const pack = loaded.pack;
   const [yy, mm] = month.split("-");
 
   return (
@@ -94,34 +95,19 @@ async function Content({ params, searchParams }: Props) {
                ["effective", q.effective ?? ""], ["reason", ctx.reason]] as Array<[string, string]>).map(([n, v]) => (
               <input key={n} type="hidden" name={n} value={v} />
             ))}
-            <button type="submit" className="btn-link" style={{ cursor: "pointer" }}>Keep this letter in {ctx.name}&apos;s folder</button>
+            <button type="submit" className="btn-link" style={{ cursor: "pointer" }}>Keep this {PACK_LETTERS.has(type) ? "letter pack (PDF)" : "letter (PDF)"} in {ctx.name}&apos;s folder</button>
           </form>
         )}
         <p style={{ color: "#64748b", fontSize: 13 }}>
-          The wording of each letter can be changed on <Link href="/accounting/letter-templates">Letter templates</Link>. Check the terms above, press Show the paper, read it, then Print. Keeping it in the folder saves a PDF under the person&apos;s <Link href={`/accounting/salaries/${id}`}>staff record</Link>. Anything in [square brackets] is missing from the staff record: fill it on the person&apos;s Staff record page first.
+          The wording of each letter can be changed on <Link href="/accounting/letter-templates">Letter templates</Link>. Check the terms above, press Show the paper, read it, then Print. Keeping it in the folder saves a PDF under the person&apos;s <Link href={`/accounting/salaries/${id}`}>staff record</Link>. Anything in [square brackets] is missing from the staff record: fill it on the person&apos;s Staff record page first. Offer and joining letters print as four pages: welcome letter, joining details, terms and conditions, and salary annexure with the acceptance.
         </p>
       </div>
 
-      <section data-print-sheet style={{ border: "1px solid #cbd5e1", padding: 28, background: "#fff", color: "#0f172a", lineHeight: 1.6 }}>
+      {pack && <LetterPackView pack={pack} address={address} />}
+      {!pack && <section data-print-sheet style={{ border: "1px solid #cbd5e1", padding: 28, background: "#fff", color: "#0f172a", lineHeight: 1.6 }}>
         <Letterhead address={address} />
 
-        {letter ? (
-          <>
-            <p style={{ textAlign: "right", margin: "16px 0 4px" }}>Date: {ctx.letterDate}</p>
-            <p style={{ margin: "4px 0" }}>To: {title ? `${title} ` : ""}{ctx.name}{ctx.jobTitle ? `, ${ctx.jobTitle}` : ""}</p>
-            <h2 style={{ textAlign: "center", textDecoration: "underline", margin: "18px 0" }}>{letter.heading}</h2>
-            {letter.blocks.map((block, i) => block.kind === "p" ? <p key={i}>{block.text}</p> : (
-              <ol key={i} style={{ paddingLeft: 22 }}>
-                {block.items.map((t, j) => <li key={j} style={{ marginBottom: 4 }}>{t}</li>)}
-              </ol>
-            ))}
-            <p style={{ marginTop: 36 }}>For {brand.groupName.toUpperCase()}</p>
-            <p style={{ marginTop: 40 }}>_____________________________<br />Authorised signatory</p>
-            {letter.needsAcceptance && (
-              <p style={{ marginTop: 28 }}>I accept the above terms.<br /><br />_____________________________ &nbsp;&nbsp; Date: ______________<br />{title ? `${title} ` : ""}{ctx.name}</p>
-            )}
-          </>
-        ) : fullSlip ? (
+        {fullSlip ? (
           <PayslipView p={fullSlip} />
         ) : (
           <>
@@ -142,7 +128,7 @@ async function Content({ params, searchParams }: Props) {
             <p style={{ marginTop: 36 }}>For {brand.groupName.toUpperCase()}<br /><br />_____________________________<br />Authorised signatory</p>
           </>
         )}
-      </section>
+      </section>}
     </main>
   );
 }

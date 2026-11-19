@@ -8,6 +8,7 @@ import { requireAccess } from "@/lib/auth";
 import { addPayChangeAction, saveStaffDatesAction } from "@/lib/staff-record-actions";
 import { cell, box, fieldBlock as field } from "@/lib/ui/styles";
 import { saveEmployeeStatutoryAction, saveEmploymentAction } from "@/lib/payroll-actions";
+import { saveStaffDetailsAction } from "@/lib/salary-actions";
 import { loadComponents, loadCtcOptions, loadPayrollSettings } from "@/lib/payroll/data";
 import { ctcFromGross, grossFromCtc, monthlyGrossFor, type Ctc } from "@/lib/payroll/ctc";
 import { ctcForEmployee, defaultLetterType } from "@/lib/staff-letter-data";
@@ -110,7 +111,7 @@ async function Content({ params, searchParams }: Props) {
       <Link className="btn-link" href="/accounting/salaries">← Salaries</Link>
       <h1>{String(e.full_name)}{e.status === "LEFT" ? " (left)" : ""}</h1>
       <p><Link className="btn-link btn-link-primary" href={`/accounting/salaries/${e.id}/letters`}>Letters and pay slip</Link></p>
-      <p style={{ color: "#64748b" }}>{[e.job_title, e.phone].filter(Boolean).join(" · ")} · Salary now {inr(e.monthly_salary)}</p>
+      <p style={{ color: "#64748b" }}>{[e.employee_code ? `Employee ID ${e.employee_code}` : "", e.job_title, e.phone].filter(Boolean).join(" · ")} · Salary now {inr(e.monthly_salary)}</p>
       {q.saved && <p role="status" style={{ color: "#166534" }}>{q.saved.slice(0, 220)}</p>}
       {q.error && <p role="alert" style={{ color: "#b91c1c" }}>{q.error.slice(0, 220)}</p>}
       {!ready && <p role="alert">Not set up yet. Ask Claude for the database file named 062_staff_record.</p>}
@@ -133,6 +134,20 @@ async function Content({ params, searchParams }: Props) {
             <div><button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Save type of work</button></div>
           </form>
         ) : <p role="alert">Run migrations 091 and 092 in phpMyAdmin to set the type of work and attendance.</p>}
+      </section>
+
+      <section style={box} id="details">
+        <h2>Contact and job details (for letters)</h2>
+        {"employee_code" in e ? (
+          <form action={saveStaffDetailsAction} style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+            <input type="hidden" name="employee_id" value={String(e.id)} />
+            <label>Email (letters are emailed too when this is filled)<input name="email" type="email" defaultValue={String(e.email ?? "")} maxLength={150} style={field} /></label>
+            <label>Department<input name="department" defaultValue={String(e.department ?? "")} maxLength={100} placeholder="e.g. Sales" style={field} /></label>
+            <label>Reports to<input name="reports_to" defaultValue={String(e.reports_to ?? "")} maxLength={150} placeholder="e.g. Shop manager" style={field} /></label>
+            <label style={{ gridColumn: "1 / -1" }}>Home address<textarea name="home_address" defaultValue={String(e.home_address ?? "")} maxLength={300} rows={2} style={field} /></label>
+            <div><button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Save details</button></div>
+          </form>
+        ) : <p role="alert">Run migration 095 in phpMyAdmin to add the Employee ID, email and address.</p>}
       </section>
 
       <section style={box}>

@@ -7,7 +7,10 @@ import { getBrand } from "@/lib/brand";
 import { loadLetterTemplate } from "@/lib/letter-templates";
 import { ctcFromGross, monthlyGrossFor, type EmploymentType } from "@/lib/payroll/ctc";
 import { loadComponents, loadCtcOptions, loadNormalMonth, loadPayrollSettings, toPaise } from "@/lib/payroll/data";
-import { DEFAULT_TERMS, LETTER_TYPES, renderLetter, type Letter, type LetterContext, type LetterType, type Terms } from "@/lib/staff-letters";
+import { DEFAULT_TERMS, LETTER_TYPES, PACK_LETTERS, type LetterContext, type LetterType, type Terms } from "@/lib/staff-letters";
+import { addDaysDmy, buildLetterPack, salaryAnnexure, type LetterPack } from "@/lib/letter-pack";
+import { ageAt, computePayslip, daysIn } from "@/lib/payroll/engine";
+import { ensureEmployeeCode } from "@/lib/employee-code";
 import { todayInIndia } from "@/lib/format";
 
 /** What the letters screen may be asked for; the same values are used when a letter is saved to a folder. */
@@ -55,8 +58,8 @@ export type StaffLetter = {
   employee: Row;
   type: LetterType;
   ctx: LetterContext;
-  /** null for the pay slip, which the screen draws from the saved pay slip instead. */
-  letter: Letter | null;
+  /** The letter as pages (null for the pay slip, which the screen draws from the saved pay slip instead). */
+  pack: LetterPack | null;
   month: string;
   address: string;
   branchCity: string;
@@ -64,6 +67,7 @@ export type StaffLetter = {
 
 /** Everything the letters screen (and saving a letter to a folder) needs for one person. */
 export async function loadStaffLetter(businessId: number, employeeId: number, q: LetterQuery): Promise<StaffLetter | null> {
+  const code = await ensureEmployeeCode(db, businessId, employeeId);
   const [emp] = await db.execute<Row[]>(`SELECT * FROM acct_employees WHERE legal_business_id = ? AND id = ?`, [businessId, employeeId]);
   const e = emp[0];
   if (!e) return null;
@@ -85,7 +89,8 @@ export async function loadStaffLetter(businessId: number, employeeId: number, q:
   );
   const b = branch[0];
   const address = [b?.address_line1, b?.address_line2, b?.city, b?.state, b?.postal_code].filter(Boolean).join(", ") || brand.place;
-  const { ctc } = await ctcForEmployee(businessId, e, month);
+  const { ctc, normal, settings, components, type: workType } = await ctcForEmployee(businessId, e, month);
+  const today = todayInIndia();
 
   const ctx: LetterContext = {
     title: ["Mr.", "Ms.", "Mrs."].includes(q.title ?? "") ? String(q.title) : "",
@@ -106,13 +111,49 @@ export async function loadStaffLetter(businessId: number, employeeId: number, q:
     dailyWage: e.daily_wage == null ? "" : inr(e.daily_wage),
     hourlyRate: e.hourly_rate == null ? "" : inr(e.hourly_rate),
     ctc: inr(Number(ctc.annual.ctc) / 100),
+    employeeCode: code ?? "",
+    department: String(e.department ?? ""),
+    reportsTo: String(e.reports_to ?? ""),
+    offerValidUntil: addDaysDmy(today, 7),
   };
+
+  // Salary annexure: one full month on the payroll rules, with the person's own PF, ESI and PT settings.
+  let annexure: { rows: ReturnType<typeof salaryAnnexure>["rows"]; basis: string[] } | null = null;
+  if (PACK_LETTERS.has(type) && ctc.monthlyGross > 0n) {
+    const flag = (v: unknown) => v == null || Number(v) === 1;
+    const slip = computePayslip({
+      month, monthlySalary: ctc.monthlyGross, components, daysInMonth: daysIn(month), paidDays: daysIn(month),
+      person: {
+        pfMember: flag(e.pf_member), esiMember: flag(e.esi_member), ptApplicable: flag(e.pt_applicable),
+        regime: e.tax_regime === "OLD" ? "OLD" : "NEW", oldRegimeDeductions: 0n,
+        age: ageAt(month, e.date_of_birth ? new Date(String(e.date_of_birth)).toISOString().slice(0, 10) : null),
+      },
+      ytd: { gross: 0n, tds: 0n, pt: 0n }, advance: 0n,
+    }, { ...settings, tds: { enabled: false } });
+    const a = salaryAnnexure(slip, { bonusAnnual: ctc.annual.bonus, gratuityAnnual: ctc.annual.gratuity });
+    ctx.ctc = inr(Number(a.ctcAnnual) / 100);
+    const monthlyWords = `₹${inr(Number(ctc.monthlyGross) / 100)}`;
+    const basis = workType === "DAILY_WAGE"
+      ? [`Basis of pay: ₹${ctx.dailyWage} a day × ${normal.daysAMonth} working days in a normal month = ${monthlyWords} a month (estimate).`]
+      : workType === "HOURLY"
+        ? [`Basis of pay: ₹${ctx.hourlyRate} an hour × ${normal.hoursADay} hours × ${normal.daysAMonth} days in a normal month = ${monthlyWords} a month (estimate).`]
+        : [`Your annual cost to company (CTC) is ₹${ctx.ctc}, made up as follows.`];
+    annexure = { rows: a.rows, basis };
+  }
 
   return {
     employee: e,
     type,
     ctx,
-    letter: type === "payslip" ? null : renderLetter(await loadLetterTemplate(businessId, type), ctx),
+    pack: type === "payslip" ? null : buildLetterPack({
+      type, ctx, dateIso: today,
+      letter: await loadLetterTemplate(businessId, type),
+      terms: await loadLetterTemplate(businessId, workType === "DAILY_WAGE" || workType === "HOURLY" ? "terms_wage" : "terms_monthly"),
+      homeAddress: String(e.home_address ?? ""),
+      phone: String(e.phone ?? ""),
+      workAddress: address,
+      annexure,
+    }),
     month,
     address,
     branchCity: String(b?.city ?? brand.place),

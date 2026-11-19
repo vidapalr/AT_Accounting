@@ -4,14 +4,14 @@ import Link from "next/link";
 import { requireAccess } from "@/lib/auth";
 import { loadLetterTemplate } from "@/lib/letter-templates";
 import { resetLetterTemplateAction, saveLetterTemplateAction } from "@/lib/letter-template-actions";
-import { LETTER_FIELDS, LETTER_TYPES, type TemplateLetterType } from "@/lib/staff-letters";
+import { LETTER_FIELDS, TEMPLATE_LIST, type TemplateLetterType } from "@/lib/staff-letters";
 import ConfirmButton from "@/components/ConfirmButton";
 import { Field, PageHeader, ResultNotice, Section } from "@/components/ui";
 import { bigButton, fieldFull, formGrid, muted } from "@/lib/ui/styles";
 
 type Props = { searchParams: Promise<{ type?: string; result?: string }> };
 
-const TEMPLATE_TYPES = LETTER_TYPES.filter((t) => t.key !== "payslip") as Array<{ key: TemplateLetterType; label: string }>;
+const TEMPLATE_TYPES = TEMPLATE_LIST;
 
 const MESSAGES = {
   saved: { tone: "ok", text: "Saved. Every letter of this kind now uses this wording." },
@@ -45,7 +45,7 @@ async function Content({ searchParams }: Props) {
         <form action={saveLetterTemplateAction} style={{ display: "grid", gap: 14 }}>
           <input type="hidden" name="letter_type" value={type} />
           <Field label="Heading"><input name="heading" defaultValue={template.heading} maxLength={120} required style={fieldFull} /></Field>
-          <Field label="Wording" hint="A blank line starts a new paragraph. A line starting with “- ” becomes a numbered point. Use the blanks listed below.">
+          <Field label="Wording" hint="A blank line starts a new paragraph. A line starting with “- ” becomes a numbered point; a line starting with “## ” becomes a sub-heading. Use the blanks listed below.">
             <textarea name="body" defaultValue={template.body} rows={18} required style={{ ...fieldFull, fontFamily: "inherit", lineHeight: 1.5 }} />
           </Field>
           <label style={{ display: "flex", gap: 8, alignItems: "center" }}>

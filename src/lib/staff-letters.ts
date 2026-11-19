@@ -26,7 +26,11 @@ export type LetterType =
   | "warning"
   | "payslip";
 
-export type TemplateLetterType = Exclude<LetterType, "payslip">;
+/** Letters, plus the terms-and-conditions page of the offer and joining pack (editable like a letter). */
+export type TemplateLetterType = Exclude<LetterType, "payslip"> | "terms_monthly" | "terms_wage";
+
+/** Letters printed as the four-page corporate pack: welcome, joining details, terms, salary annexure. */
+export const PACK_LETTERS: ReadonlySet<LetterType> = new Set(["offer", "appointment", "part_time_appointment", "daily_wage_engagement", "hourly_engagement"]);
 
 export const LETTER_TYPES: Array<{ key: LetterType; label: string }> = [
   { key: "offer", label: "Offer letter" },
@@ -42,6 +46,13 @@ export const LETTER_TYPES: Array<{ key: LetterType; label: string }> = [
   { key: "experience", label: "Experience certificate" },
   { key: "warning", label: "Warning letter" },
   { key: "payslip", label: "Pay slip" },
+];
+
+/** Everything that can be worded on Set-up > Letter templates. */
+export const TEMPLATE_LIST: Array<{ key: TemplateLetterType; label: string }> = [
+  ...(LETTER_TYPES.filter((t) => t.key !== "payslip") as Array<{ key: TemplateLetterType; label: string }>),
+  { key: "terms_monthly", label: "Terms and conditions page: full and part time" },
+  { key: "terms_wage", label: "Terms and conditions page: daily wage and hourly" },
 ];
 
 export type Terms = {
@@ -81,6 +92,12 @@ export type LetterContext = {
   hourlyRate?: string;
   /** Cost to company a year, formatted (full time). */
   ctc?: string;
+  /** Employee ID (EMP-0001), department and reporting manager, from the staff record. */
+  employeeCode?: string;
+  department?: string;
+  reportsTo?: string;
+  /** Offer letters: the last day to accept. */
+  offerValidUntil?: string;
   /** Only some letters use these. */
   newSalary?: string;
   effectiveFrom?: string;
@@ -94,7 +111,7 @@ export type LetterTemplate = {
   needsAcceptance: boolean;
 };
 
-export type LetterBlock = { kind: "p"; text: string } | { kind: "list"; items: string[] };
+export type LetterBlock = { kind: "p"; text: string } | { kind: "h"; text: string } | { kind: "list"; items: string[] };
 export type Letter = { heading: string; blocks: LetterBlock[]; needsAcceptance: boolean };
 
 /** Every {{field}} a template may use, with the label shown when it is empty. */
@@ -108,6 +125,11 @@ export const LETTER_FIELDS: Array<{ key: string; label: string; help: string }> 
   { key: "daily_wage", label: "daily wage", help: "Daily wage (daily-wage staff)" },
   { key: "ctc", label: "CTC", help: "Cost to company a year (see the staff record)" },
   { key: "employment_type", label: "type of work", help: "Full time, part time or daily wage" },
+  { key: "employee_id", label: "Employee ID", help: "Employee ID from the staff record, e.g. EMP-0007" },
+  { key: "department", label: "department", help: "Department from the staff record" },
+  { key: "reports_to", label: "reporting manager", help: "Who the person reports to" },
+  { key: "hourly_rate", label: "hourly rate", help: "Rate for one hour (hourly staff)" },
+  { key: "offer_valid_until", label: "offer valid until", help: "Last day to accept an offer (7 days from the letter date)" },
   { key: "joined_on", label: "joining date", help: "Date of joining" },
   { key: "notice_given_on", label: "notice date", help: "Date notice was given" },
   { key: "left_on", label: "last working day", help: "Last working day" },
@@ -122,6 +144,7 @@ export const LETTER_FIELDS: Array<{ key: string; label: string; help: string }> 
   { key: "reason", label: "reason", help: "Reason (warning letter)" },
   { key: "terms", label: "terms", help: "The standard list of terms" },
 ];
+// In a template, a line starting with "## " is a sub-heading (used on the terms and conditions page).
 
 export const DEFAULT_TEMPLATES: Record<TemplateLetterType, LetterTemplate> = {
   offer: {
@@ -129,73 +152,54 @@ export const DEFAULT_TEMPLATES: Record<TemplateLetterType, LetterTemplate> = {
     needsAcceptance: true,
     body: [
       "Dear {{person}},",
-      "We are pleased to offer you the position of {{job_title}} at {{employer}}, {{place}}. We would like you to join us on {{joined_on}}.",
-      "The main terms of the offer are:",
-      "{{terms}}\n- A detailed appointment letter will be given to you when you join.",
-      "Please sign and return a copy of this letter to confirm that you accept these terms.",
+      "On behalf of {{employer}}, it gives us great pleasure to offer you the position of {{job_title}}. We were impressed by your background and believe you will be a valuable member of our team.",
+      "You will be based at {{place}} and we would like you to join us on {{joined_on}}. Your joining details, the terms and conditions of employment and your salary structure are set out on the pages that follow, and form part of this offer.",
+      "This offer is valid until {{offer_valid_until}}. Please read every page carefully and confirm your acceptance by signing at the end of this letter, or by accepting it electronically when it is sent to you.",
+      "We look forward to welcoming you to {{employer}}.",
     ].join("\n\n"),
   },
   appointment: {
-    heading: "APPOINTMENT LETTER",
+    heading: "LETTER OF APPOINTMENT",
     needsAcceptance: true,
     body: [
       "Dear {{person}},",
-      "With reference to your discussion with us, we are pleased to appoint you as {{job_title}} at {{employer}}, {{place}}, with effect from {{joined_on}}.",
-      "Your terms of employment are:",
-      [
-        "{{terms}}",
-        "- You will do the work of your position honestly and follow the instructions of the management and the rules of the shop.",
-        "- You will keep the business information, prices, customer details and accounts of the company private, during your employment and after you leave.",
-        "- Any money, goods or property of the company in your care must be accounted for and handed back when you leave.",
-        "- Any advance given to you will be recovered as agreed, and any balance will be settled when you leave.",
-      ].join("\n"),
-      "Please sign and return a copy of this letter to confirm that you accept these terms.",
+      "Welcome to {{employer}}. We are delighted to appoint you as {{job_title}} with effect from {{joined_on}}.",
+      "Your Employee ID is {{employee_id}}. Please quote it in all your communication with the company.",
+      "This letter, together with the joining details, the terms and conditions of employment and the salary annexure on the pages that follow, sets out the terms on which you are employed.",
+      "We are confident that your skills and commitment will contribute to our growth, and we wish you a rewarding career with us. Please confirm that you accept these terms by signing at the end of this letter, or by accepting it electronically when it is sent to you.",
     ].join("\n\n"),
   },
   part_time_appointment: {
-    heading: "APPOINTMENT LETTER (PART TIME)",
+    heading: "LETTER OF APPOINTMENT (PART TIME)",
     needsAcceptance: true,
     body: [
       "Dear {{person}},",
-      "We are pleased to appoint you as {{job_title}} at {{employer}}, {{place}}, on a part-time basis, with effect from {{joined_on}}.",
-      "Your terms of employment are:",
-      [
-        "{{terms}}",
-        "- Your working days and hours may be changed by the management with notice to suit the needs of the shop.",
-        "- You will keep the business information, prices and customer details of the company private, during your employment and after you leave.",
-        "- Any money, goods or property of the company in your care must be accounted for and handed back when you leave.",
-      ].join("\n"),
-      "Please sign and return a copy of this letter to confirm that you accept these terms.",
+      "Welcome to {{employer}}. We are pleased to appoint you as {{job_title}} on a part-time basis with effect from {{joined_on}}.",
+      "Your Employee ID is {{employee_id}}. Please quote it in all your communication with the company.",
+      "This letter, together with the joining details, the terms and conditions of employment and the salary annexure on the pages that follow, sets out the terms on which you are employed.",
+      "We look forward to working with you. Please confirm that you accept these terms by signing at the end of this letter, or by accepting it electronically when it is sent to you.",
     ].join("\n\n"),
   },
   daily_wage_engagement: {
-    heading: "ENGAGEMENT LETTER (DAILY WAGE)",
+    heading: "LETTER OF ENGAGEMENT (DAILY WAGE)",
     needsAcceptance: true,
     body: [
       "Dear {{person}},",
-      "We are pleased to engage you as {{job_title}} at {{employer}}, {{place}}, on a daily-wage basis, from {{joined_on}}.",
-      "The terms of your engagement are:",
-      [
-        "{{terms}}",
-        "- Wages are paid for the days actually worked. There is no pay for days not worked.",
-        "- You will follow the instructions of the management and the rules of the shop, and account for any money or goods in your care.",
-      ].join("\n"),
-      "Please sign and return a copy of this letter to confirm that you accept these terms.",
+      "Welcome to {{employer}}. We are pleased to engage you as {{job_title}} on a daily-wage basis from {{joined_on}}.",
+      "Your Employee ID is {{employee_id}}. Please quote it in all your communication with the company.",
+      "The joining details, the terms and conditions of your engagement and your wage details are set out on the pages that follow.",
+      "We look forward to working with you. Please confirm that you accept these terms by signing at the end of this letter, or by accepting it electronically when it is sent to you.",
     ].join("\n\n"),
   },
   hourly_engagement: {
-    heading: "ENGAGEMENT LETTER (PAID BY THE HOUR)",
+    heading: "LETTER OF ENGAGEMENT (HOURLY)",
     needsAcceptance: true,
     body: [
       "Dear {{person}},",
-      "We are pleased to engage you as {{job_title}} at {{employer}}, {{place}}, on an hourly basis, from {{joined_on}}.",
-      "The terms of your engagement are:",
-      [
-        "{{terms}}",
-        "- You are paid for the hours actually worked. There is no pay for hours not worked.",
-        "- You will follow the instructions of the management and the rules of the shop, and account for any money or goods in your care.",
-      ].join("\n"),
-      "Please sign and return a copy of this letter to confirm that you accept these terms.",
+      "Welcome to {{employer}}. We are pleased to engage you as {{job_title}} on an hourly basis from {{joined_on}}.",
+      "Your Employee ID is {{employee_id}}. Please quote it in all your communication with the company.",
+      "The joining details, the terms and conditions of your engagement and your pay details are set out on the pages that follow.",
+      "We look forward to working with you. Please confirm that you accept these terms by signing at the end of this letter, or by accepting it electronically when it is sent to you.",
     ].join("\n\n"),
   },
   confirmation: {
@@ -265,6 +269,66 @@ export const DEFAULT_TEMPLATES: Record<TemplateLetterType, LetterTemplate> = {
       "Please sign a copy of this letter to show you have received it.",
     ].join("\n\n"),
   },
+  terms_monthly: {
+    heading: "TERMS AND CONDITIONS OF EMPLOYMENT",
+    needsAcceptance: false,
+    body: [
+      "## 1. Probation and confirmation",
+      "You will be on probation for {{probation}}. During probation either side may end the employment with seven days' notice. On satisfactory completion you will be confirmed in writing; until then you remain on probation.",
+      "## 2. Place of work and transfer",
+      "You will be based at {{place}}. The company may ask you to work at, or transfer you to, any branch, division or associated business of {{employer}}.",
+      "## 3. Working hours and attendance",
+      "Your working hours are {{hours}}. Weekly off: {{weekly_off}}. You will record your attendance every day by sending IN on arrival and OUT on leaving from your registered WhatsApp number, or as the company directs. Late arrival or absence without permission may lead to loss of pay.",
+      "## 4. Leave",
+      "{{leave}}. Holidays declared by the company are given in addition. Leave must be applied for and approved in advance, except in an emergency. Absence without permission for eight consecutive days may be treated as your having left the employment of your own accord.",
+      "## 5. Salary and statutory benefits",
+      "Your salary and its parts are set out in the Salary Annexure. Salary is paid monthly, on or before the seventh day of the following month, by bank transfer. Provident Fund, Employees' State Insurance, professional tax and income tax will be deducted and contributed as the law requires where they apply. Bonus and gratuity will be paid as the law provides.",
+      "## 6. Conduct and company policies",
+      "You will carry out your duties honestly and diligently, treat customers and colleagues with courtesy, follow the dress code and the instructions of your manager, and comply with company policies as issued or amended from time to time.",
+      "## 7. Cash, stock and company property",
+      "You are responsible for any cash, stock, keys, equipment or records placed in your care. Any loss caused by your negligence or dishonesty may be recovered from you as the law permits. All company property must be returned when you leave.",
+      "## 8. Confidentiality",
+      "You will keep confidential all information about the company's business, prices, suppliers, customers and accounts, both during your employment and after it ends, and will not use it for any other purpose.",
+      "## 9. Other employment",
+      "While employed with us you will not take up any other job or business, paid or unpaid, without the company's written permission.",
+      "## 10. Notice period and termination",
+      "After confirmation, either side may end the employment by giving {{notice_days}} days' notice in writing, or salary in place of notice. The company may end your employment without notice for serious misconduct, such as theft, fraud, violence, wilful damage or disclosure of confidential information, after giving you an opportunity to explain.",
+      "## 11. Advances and final settlement",
+      "Any advance or loan given to you will be recovered as agreed. On leaving, your final settlement will be made after you have handed over your work and all company property.",
+      "## 12. Information and documents",
+      "Your appointment is based on the information and documents you have given. If any of them is found to be false, the company may end your employment at once.",
+      "## 13. Communication and electronic acceptance",
+      "You agree to receive letters, pay slips and other official communication from the company by WhatsApp and email at the number and address you have given. Accepting a letter electronically, such as by a reply from your registered number, has the same effect as signing it.",
+      "## 14. Governing law",
+      "This employment is governed by the laws of India, and the courts at {{place}} alone will have jurisdiction.",
+      "## 15. Entire agreement",
+      "This letter and its annexures are the complete terms of your employment and replace any earlier discussion. Any change will be made in writing.",
+    ].join("\n\n"),
+  },
+  terms_wage: {
+    heading: "TERMS AND CONDITIONS OF ENGAGEMENT",
+    needsAcceptance: false,
+    body: [
+      "## 1. Nature of engagement",
+      "You are engaged as {{job_title}} on a {{employment_type}} basis. You are paid only for the time actually worked, as recorded in the attendance register.",
+      "## 2. Place of work",
+      "You will work at {{place}}, or at any other branch of {{employer}} that the company asks you to.",
+      "## 3. Working hours and attendance",
+      "Your usual working hours are {{hours}}. You will record your attendance every day by sending IN on arrival and OUT on leaving from your registered WhatsApp number, or as the company directs.",
+      "## 4. Pay",
+      "Your rate of pay is set out in the Pay Annexure. Pay for the month is worked out from the attendance register and paid on or before the seventh day of the following month. Employees' State Insurance and other deductions will be made as the law requires where they apply.",
+      "## 5. Conduct and company property",
+      "You will follow the instructions of your manager and the rules of the shop, treat customers with courtesy, and account for any cash, stock or property placed in your care. All company property must be returned when you leave.",
+      "## 6. Confidentiality",
+      "You will keep the company's prices, customer details and business information confidential, during your engagement and after it ends.",
+      "## 7. Ending the engagement",
+      "Either side may end this engagement by giving {{notice_days}} days' notice. The company may end it at once for misconduct.",
+      "## 8. Communication and electronic acceptance",
+      "You agree to receive letters and pay details from the company by WhatsApp and email. Accepting a letter electronically, such as by a reply from your registered number, has the same effect as signing it.",
+      "## 9. Governing law",
+      "This engagement is governed by the laws of India, and the courts at {{place}} alone will have jurisdiction.",
+    ].join("\n\n"),
+  },
 };
 
 export function leaveWords(leaves: string): string {
@@ -314,6 +378,10 @@ export function letterValues(c: LetterContext): Record<string, string> {
     hourly_rate: c.hourlyRate ? `₹${c.hourlyRate}` : "",
     ctc: c.ctc ? `₹${c.ctc}` : "",
     employment_type: TYPE_WORDS[c.employmentType ?? "FULL_TIME"],
+    employee_id: c.employeeCode ?? "",
+    department: c.department ?? "",
+    reports_to: c.reportsTo ?? "",
+    offer_valid_until: c.offerValidUntil ?? "",
     joined_on: c.joinedOn,
     notice_given_on: c.noticeGivenOn,
     left_on: c.leftOn,
@@ -352,7 +420,8 @@ export function renderLetter(template: LetterTemplate, c: LetterContext): Letter
     const flushPara = () => { if (para.length) blocks.push({ kind: "p", text: fill(para.join(" "), values) }); para = []; };
     const flushList = () => { if (list.length) blocks.push({ kind: "list", items: list.map((x) => fill(x, values)) }); list = []; };
     for (const line of lines) {
-      if (line.startsWith("- ")) { flushPara(); list.push(line.slice(2).trim()); }
+      if (line.startsWith("## ")) { flushPara(); flushList(); blocks.push({ kind: "h", text: fill(line.slice(3).trim(), values) }); }
+      else if (line.startsWith("- ")) { flushPara(); list.push(line.slice(2).trim()); }
       else { flushList(); para.push(line); }
     }
     flushPara();

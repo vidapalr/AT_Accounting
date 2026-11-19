@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { normalizePhone } from "@/lib/customer-phone";
 import { isMissingColumn } from "@/lib/db-errors";
+import { ensureEmployeeCode } from "@/lib/employee-code";
 
 const PAGE = "/accounting/salaries";
 const todayIso = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
@@ -86,6 +87,7 @@ export async function addEmployeeAction(formData: FormData) {
       );
     } catch { /* migration 062 not run yet */ }
   }
+  await ensureEmployeeCode(db, user.legal_business_id, saved.insertId);
   await db.execute(
     `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
      VALUES (?, ?, 'EMPLOYEE_ADDED', 'EMPLOYEE', ?, ?)`,
@@ -135,4 +137,31 @@ export async function updateEmployeeAction(formData: FormData) {
   );
   revalidatePath(PAGE);
   go(month, "saved", "Salary changed. It applies from the next payment.");
+}
+
+/** Employee's contact and job details used on letters: email, home address, department, reporting to. */
+export async function saveStaffDetailsAction(formData: FormData) {
+  const user = await requireAccess("salary");
+  const text = (n: string) => String(formData.get(n) ?? "").trim();
+  const id = Number(text("employee_id"));
+  const back = `${PAGE}/${id}`;
+  const say = (kind: "saved" | "error", m: string): never => redirect(`${back}?${kind}=${encodeURIComponent(m)}#details`);
+  if (!Number.isInteger(id) || id <= 0) redirect(PAGE);
+  const email = text("email").toLowerCase().slice(0, 150);
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) say("error", "That email address does not look right.");
+  try {
+    const [r] = await db.execute<ResultSetHeader>(
+      `UPDATE acct_employees SET email = ?, home_address = ?, department = ?, reports_to = ?
+        WHERE legal_business_id = ? AND id = ?`,
+      [email || null, text("home_address").slice(0, 300) || null, text("department").slice(0, 100) || null,
+       text("reports_to").slice(0, 150) || null, user.legal_business_id, id]
+    );
+    if (r.affectedRows !== 1) redirect(PAGE);
+  } catch (error) {
+    if (isMissingColumn(error)) say("error", "Run migration 095 in phpMyAdmin first.");
+    throw error;
+  }
+  await ensureEmployeeCode(db, user.legal_business_id, id);
+  revalidatePath(back);
+  say("saved", "Details saved. They appear on the offer and joining letters.");
 }

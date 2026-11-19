@@ -11,6 +11,7 @@ import { detectDocumentType, deleteStaffFile, MAX_DOCUMENT_SIZE, saveStaffFile }
 import { aadhaarLast4, folderOf, isPaperKind, paperLabel } from "@/lib/staff-papers";
 import { loadStaffLetter, type LetterQuery } from "@/lib/staff-letter-data";
 import { paperToPdf } from "@/lib/paper-pdf";
+import { letterPackToPdf } from "@/lib/letter-pack-pdf";
 import { getBrand } from "@/lib/brand";
 
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -124,22 +125,13 @@ export async function keepLetterAction(form: FormData): Promise<void> {
   const back = `/accounting/salaries/${id}/letters`;
   const query = Object.fromEntries(Object.entries(q).filter(([, v]) => v)) as Record<string, string>;
   const loaded = await loadStaffLetter(user.legal_business_id, id, q);
-  if (!loaded || !loaded.letter) go(back, { ...query, error: "Choose a letter (a pay slip is kept from the Payroll page)." });
+  if (!loaded || !loaded.pack) go(back, { ...query, error: "Choose a letter (a pay slip is kept from the Payroll page)." });
 
-  const { letter, ctx } = loaded;
+  const { ctx } = loaded;
+  const pack = loaded.pack!;
   const brand = await getBrand(user.legal_business_id);
-  const body: string[] = [];
-  for (const block of letter.blocks) {
-    if (block.kind === "p") body.push(block.text);
-    else for (const item of block.items) body.push(`- ${item}`);
-  }
-  if (letter.needsAcceptance) body.push("---", "Accepted by:", "", "Signature: ____________________    Date: ____________");
-  const pdf = await paperToPdf({
-    letterhead: [ctx.employer, loaded.address, [brand.shopPhone, brand.email].filter(Boolean).join(" · ")].filter(Boolean),
-    title: letter.heading,
-    body,
-    footer: [`Place: ${ctx.place}`, `Date: ${ctx.letterDate}`, "", `For ${ctx.employer}`],
-  });
+  const pdf = await letterPackToPdf(pack, brand, loaded.address);
+  const letter = { heading: pack.pages[0].title };
   const kind = LETTER_PAPER[loaded.type] ?? "OTHER_OFFICIAL";
   const key = await saveStaffFile(user.legal_business_id, id, pdf, "application/pdf");
   try {

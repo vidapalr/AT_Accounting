@@ -7,7 +7,8 @@ import { parseAttendanceMessage, indiaDateTime, applyPunch, hoursWorked, monthHo
 import { pieSlices, OTHER_COLOUR, PIE_COLOURS } from "../src/lib/reports/pie.ts";
 import { daysToRenewal, isRegistrationKind } from "../src/lib/registrations.ts";
 import { billLinks, brandFrom } from "../src/lib/brand-core.ts";
-import { buildLetter, DEFAULT_TERMS } from "../src/lib/staff-letters.ts";
+import { DEFAULT_TERMS, DEFAULT_TEMPLATES } from "../src/lib/staff-letters.ts";
+import { buildLetterPack } from "../src/lib/letter-pack.ts";
 
 const comps = [
   { code: "BASIC", name: "Basic", percentBps: 5000, pfWage: true, esiWage: true },
@@ -114,12 +115,16 @@ test("bill QR links keep only https addresses, in order", () => {
 
 test("letters for part time, daily wage and hourly staff", () => {
   const ctx = { title: "Ms.", name: "Asha", jobTitle: "Helper", salary: "8,000", joinedOn: "01-11-2026", noticeGivenOn: "", leftOn: "", letterDate: "03-11-2026", place: "Hyderabad", employer: "Test Co", terms: DEFAULT_TERMS };
-  const pt = JSON.stringify(buildLetter("part_time_appointment", { ...ctx, employmentType: "PART_TIME" }));
+  const packText = (type, c) => JSON.stringify(buildLetterPack({
+    type, ctx: c, dateIso: "2026-11-03", letter: DEFAULT_TEMPLATES[type], terms: DEFAULT_TEMPLATES[c.employmentType === "PART_TIME" ? "terms_monthly" : "terms_wage"],
+    homeAddress: "", phone: "", workAddress: "", annexure: null,
+  }));
+  const pt = packText("part_time_appointment", { ...ctx, employmentType: "PART_TIME" });
   assert.match(pt, /8,000/);
-  const dw = JSON.stringify(buildLetter("daily_wage_engagement", { ...ctx, employmentType: "DAILY_WAGE", dailyWage: "500" }));
+  const dw = packText("daily_wage_engagement", { ...ctx, employmentType: "DAILY_WAGE", dailyWage: "500" });
   assert.match(dw, /500/);
   assert.match(dw, /day/i);
-  const hr = JSON.stringify(buildLetter("hourly_engagement", { ...ctx, employmentType: "HOURLY", hourlyRate: "80" }));
+  const hr = packText("hourly_engagement", { ...ctx, employmentType: "HOURLY", hourlyRate: "80" });
   assert.match(hr, /80/);
   assert.match(hr, /hour/i);
 });

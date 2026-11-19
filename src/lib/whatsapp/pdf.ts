@@ -1,32 +1,17 @@
 import "server-only";
 
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import PDFDocument from "pdfkit";
 
 import type { ReportContent } from "./core";
-import { DEFAULT_LOGOS, type Brand } from "../brand-core.ts";
+import type { Brand } from "../brand-core.ts";
+import { logoFile, pdfFonts } from "../pdf-assets.ts";
 
 const NAVY = "#142c50";
 const GREY = "#64748b";
 
-async function asset(...parts: string[]): Promise<Buffer> {
-  return readFile(join(/* turbopackIgnore: true */ process.cwd(), ...parts));
-}
-
-/** The logo file under public/ (a web address or missing file falls back to the default logo). */
-async function logoFile(path: string): Promise<Buffer> {
-  const clean = path.startsWith("/") && !path.includes("..") ? path : DEFAULT_LOGOS.print;
-  return asset("public", ...clean.split("/").filter(Boolean)).catch(() => asset("public", ...DEFAULT_LOGOS.print.split("/").filter(Boolean)));
-}
-
 /** A4 PDF with the company's letterhead (brand settings), one table per section. */
 export async function renderPdf(content: ReportContent, printedOn: string, brand: Pick<Brand, "groupName" | "logoPrint">): Promise<Buffer> {
-  const [regular, bold, logo] = await Promise.all([
-    asset("assets", "fonts", "DejaVuSans.ttf"),
-    asset("assets", "fonts", "DejaVuSans-Bold.ttf"),
-    logoFile(brand.logoPrint),
-  ]);
+  const [{ regular, bold }, logo] = await Promise.all([pdfFonts(), logoFile(brand.logoPrint)]);
 
   const wide = content.sections.some((s) => s.columns.length > 5);
   const doc = new PDFDocument({ size: "A4", layout: wide ? "landscape" : "portrait", margin: 36, info: { Title: content.title, Author: brand.groupName } });
