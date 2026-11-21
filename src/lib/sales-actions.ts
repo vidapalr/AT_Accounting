@@ -15,6 +15,7 @@ import { normalizePhone } from "@/lib/customer-phone";
 import { db } from "@/lib/db";
 import { divisionOfBranch } from "@/lib/division-context";
 import { autoReverseForEdit } from "@/lib/ledger/reverse-in-tx";
+import { moveExcessToCustomerCredit } from "@/lib/sale-payments";
 import { requireAccess } from "@/lib/auth";
 import { canGiveBillDiscount } from "@/lib/access";
 import { nextCode } from "@/lib/codes";
@@ -1142,6 +1143,7 @@ export async function updateSaleAction(
 
   const conn = await db.getConnection();
   let result = "failed";
+  let movedToCredit = 0n;
 
   try {
     await conn.beginTransaction();
@@ -1160,7 +1162,8 @@ export async function updateSaleAction(
          location_id,
          status,
          DATE_FORMAT(invoice_date, '%Y-%m-%d') AS invoice_date,
-         invoice_no
+         invoice_no,
+         customer_id
        FROM acct_sales_headers
        WHERE legal_business_id = ?
          AND division_id = ?
@@ -1190,8 +1193,18 @@ export async function updateSaleAction(
       if (!undone.ok) blocked = undone.reason === "period-closed" ? "period-closed" : "failed";
     }
 
+    // Returns point at this bill's item lines; changing the items would break them.
+    const [returnsOnBill] = header
+      ? await conn.execute<RowDataPacket[]>(
+          `SELECT id FROM acct_sales_returns WHERE legal_business_id = ? AND sale_id = ? AND status = 'POSTED' LIMIT 1`,
+          [businessId, saleId]
+        )
+      : [[] as RowDataPacket[]];
+
     if (!header || !["DRAFT", "POSTED"].includes(header.status)) {
       result = "not-editable";
+    } else if (returnsOnBill.length > 0) {
+      result = "has-returns";
     } else if (blocked) {
       result = blocked;
     } else if (
@@ -1268,7 +1281,22 @@ export async function updateSaleAction(
         }
       }
 
-      if (collected > grandTotal) {
+      // Money already received beyond the corrected total is kept as credit we owe the customer.
+      let creditBlocked = "";
+      if (collected > grandTotal && header.customer_id) {
+        const moved = await moveExcessToCustomerCredit(conn, {
+          businessId, userId: user.id, saleId, invoiceNo: String(header.invoice_no), divisionId: DIVISION_ID,
+          customerId: Number(header.customer_id), excess: collected - grandTotal,
+        });
+        if (moved.ok) {
+          collected -= moved.moved;
+          movedToCredit = moved.moved;
+        } else creditBlocked = moved.reason;
+      }
+
+      if (creditBlocked) {
+        result = creditBlocked;
+      } else if (collected > grandTotal) {
         result = "payments-exceed-total";
       } else {
         const ids = preparedLines.map(line => line.variantId);
@@ -1675,7 +1703,9 @@ export async function updateSaleAction(
   if (result === "updated") {
     revalidatePath(PAGE);
     revalidatePath("/accounting/stock");
-    redirect(`${PAGE}?result=updated&id=${saleId}`);
+    revalidatePath(`/accounting/sales/${saleId}`);
+    // Next step: the bill, where payment can be taken, changed or removed.
+    redirect(`/accounting/sales/${saleId}?pay=${movedToCredit > 0n ? `edited-credit&moved=${moneyFromPaise(movedToCredit)}` : "edited"}`);
   }
 
   redirect(

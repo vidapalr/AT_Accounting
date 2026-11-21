@@ -1,4 +1,5 @@
 
+import Link from "next/link";
 import { canAccess, canGiveBillDiscount } from "@/lib/access";
 import { customerBalances } from "@/lib/customer-balance";
 import { loadPriceOverrides } from "@/lib/selling-price-data";
@@ -62,7 +63,7 @@ const messages: Record<string, string> = {
   "valuation-invalid":
     "Inventory valuation is inconsistent; the invoice was not changed.",
   "payments-exceed-total":
-    "The new invoice total cannot be less than its recorded payments.",
+    "The new total is less than the money already received, and the bill has no customer to keep the extra as credit. Add the customer's mobile number to the bill, or remove or change a payment on the bill first.",
   "invalid-lines": "Select at least one unique SKU.",
   "invalid-amount": "Check prices, discounts and payments.",
   "invalid-branch": "A unique active retail location is required.",
@@ -78,6 +79,7 @@ const messages: Record<string, string> = {
   "exchange-gone": "The exchange credit could not be found. Nothing was saved.",
   "serial-invalid": "A piece code was wrong or that piece is already sold. Pick a code from the list of pieces in stock and save again.",
   "rewards-invalid": "The points or coupon could not be used any more (already used, not enough points, or the discount was removed). Check them and save again.",
+  "has-returns": "This bill has items returned on it, so its items cannot be changed (the return would no longer match). Record another return for items coming back, or take a payment on the bill.",
   "credit-limit": "This sale would take the customer over their credit limit. Collect some payment, or raise the limit on the customer's page.",
   failed: "Unable to save invoice. Check server logs.",
 };
@@ -486,6 +488,14 @@ async function SalesContent({ searchParams }: Props) {
   const stillOwed = owedRows[0] && Number(owedRows[0].owed) > 0.004 ? owedRows[0] : null;
 
   const selectedInvoiceId = Number(edit ?? view);
+  // A bill with returns on it cannot have its items changed (the return lines point at them).
+  const [returnsOnSelected] = edit && Number.isSafeInteger(Number(edit)) && Number(edit) > 0
+    ? await db.execute<RowDataPacket[]>(
+        `SELECT id FROM acct_sales_returns WHERE legal_business_id = ? AND sale_id = ? AND status = 'POSTED' LIMIT 1`,
+        [businessId, Number(edit)]
+      ).catch(() => [[] as RowDataPacket[]])
+    : [[] as RowDataPacket[]];
+  const editBlockedByReturns = returnsOnSelected.length > 0;
   const hasSelectedInvoice =
     Number.isSafeInteger(selectedInvoiceId) &&
     selectedInvoiceId > 0;
@@ -693,7 +703,17 @@ async function SalesContent({ searchParams }: Props) {
         </p>
       )}
 
-      {edit && selectedInvoice &&
+      {edit && selectedInvoice && editBlockedByReturns ? (
+        <section style={{ border: "1px solid #fcd34d", background: "#fffbeb", borderRadius: 10, padding: 16, margin: "16px 0" }}>
+          <h2 style={{ marginTop: 0 }}>Invoice {selectedInvoice.invoice_no} cannot be edited</h2>
+          <p>Items on this bill have been returned. Changing the items now would no longer match the return, so editing is closed.</p>
+          <p style={{ marginBottom: 0 }}>
+            To take back more items, record another return. To take a payment, or change or remove one, open the bill.{" "}
+            <Link className="btn-link btn-link-primary" href={`/accounting/sales/${selectedInvoice.id}#payments`}>Open the bill</Link>{" "}
+            <Link className="btn-link" href="/accounting/returns">Returns</Link>
+          </p>
+        </section>
+      ) : edit && selectedInvoice &&
       ["DRAFT", "POSTED"].includes(selectedInvoice.status) ? (
         <>
           <h2>

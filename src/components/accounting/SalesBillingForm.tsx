@@ -936,10 +936,18 @@ export default function SalesBillingForm({
             An estimate is a quote. No stock moves and no payment is taken. Turn it into an invoice when the customer buys.
           </p>
         ) : editing && !editingDraft ? (
-          <p style={{ color: "#475569" }}>
-            Payments already received (₹{amount(initialInvoice.collected)}) are kept.
-            The new bill total cannot be less than this.
-          </p>
+          <div style={{ marginTop: 18, padding: 14, border: "1px solid #cbd5e1", borderRadius: 10, background: "#f8fafc" }}>
+            <h3 style={{ margin: "0 0 6px" }}>Payments</h3>
+            <p style={{ margin: "0 0 6px" }}>
+              Already received on this bill: <strong>₹{amount(initialInvoice.collected)}</strong>
+              {grandTotal - initialInvoice.collected > 0.004 ? <> · still due after this change: <strong>₹{amount(grandTotal - initialInvoice.collected)}</strong></> : null}
+              {initialInvoice.collected - grandTotal > 0.004 ? <> · the new total is <strong>₹{amount(initialInvoice.collected - grandTotal)}</strong> less than what was received</> : null}
+            </p>
+            <p style={{ color: "#475569", margin: 0 }}>
+              After you save, the bill opens: take a payment there, or change or remove a payment entered wrongly.
+              {initialInvoice.collected - grandTotal > 0.004 ? " The extra money already received is kept as credit for the customer (pay it back or use it on the next bill)." : ""}
+            </p>
+          </div>
         ) : (
           <div style={{ marginTop: 18 }}>
             <h3 style={{ margin: "0 0 8px" }}>Did the customer pay now?</h3>

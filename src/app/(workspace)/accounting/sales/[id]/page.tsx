@@ -25,7 +25,8 @@ import { pointsEarned, REWARDS_START_DATE } from "@/lib/rewards-math";
 import { useCreditOnSaleAction, useReturnValueOnSaleAction } from "@/lib/customer-credit-actions";
 import { customerCreditPaise } from "@/lib/customer-credit";
 import { customerBalance } from "@/lib/customer-balance";
-import { receiveSalePaymentAction, giveBillDiscountAction } from "@/lib/sale-payment-actions";
+import { receiveSalePaymentAction, giveBillDiscountAction, correctSalePaymentAction } from "@/lib/sale-payment-actions";
+import { MONEY_METHODS } from "@/lib/sale-payments";
 import { canGiveBillDiscount } from "@/lib/access";
 import ConfirmButton from "@/components/ConfirmButton";
 import { setInvoiceMobileAction } from "@/lib/customer-merge-actions";
@@ -37,7 +38,7 @@ import { explainWhatsAppError } from "@/lib/bot/wa-errors";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ pay?: string; mobile?: string; share?: string }>;
+  searchParams?: Promise<{ pay?: string; mobile?: string; share?: string; moved?: string }>;
 };
 
 const PAY_MESSAGES: Record<string, { ok: boolean; text: string }> = {
@@ -57,6 +58,14 @@ const PAY_MESSAGES: Record<string, { ok: boolean; text: string }> = {
   "discount-ok": { ok: true, text: "Discount given. It counts as paid on this bill." },
   "discount-denied": { ok: false, text: "Only the owner or accountant can give a discount." },
   "discount-reason": { ok: false, text: "Write a short reason for the discount." },
+  edited: { ok: true, text: "Bill saved. Take a payment below if anything is still due, or change a payment in the list." },
+  "edited-credit": { ok: true, text: "Bill saved. It is now less than the money already received, so the extra is kept as credit we owe the customer (pay it back or use it on the next bill from the customer's page)." },
+  changed: { ok: true, text: "Payment changed. The old entry is kept in the books as reversed and the corrected one is posted." },
+  removed: { ok: true, text: "Payment removed. The old entry is kept in the books as reversed." },
+  "change-too-much": { ok: false, text: "The changed amount cannot be more than the bill total less the other payments." },
+  "why-needed": { ok: false, text: "Write why the payment is being removed." },
+  "not-correctable": { ok: false, text: "This kind of payment (discount, set-off or customer credit) is corrected from its own page." },
+  "period-closed": { ok: false, text: "That month is already closed in the books, so the payment cannot be changed." },
   failed: { ok: false, text: "Could not save the payment. Please try again." },
 };
 
@@ -211,6 +220,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
        pay.payment_account,
        pay.amount,
        pay.payment_reference,
+       pay.remarks,
        pay.status,
        pay.bank_account_id,
        pay.cash_account_id,
@@ -367,8 +377,9 @@ async function InvoiceDetails({ params, searchParams }: Props) {
           ← All Invoices
         </Link>
         <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {invoice.status === "POSTED" && !isEstimate && (
-            <Link className="btn-link" href={`/accounting/sales?edit=${invoice.id}`}>Edit this bill</Link>
+          {invoice.status === "POSTED" && !isEstimate && (returnRows.some(r => r.fromThisBill)
+            ? <span style={{ color: "#64748b", fontSize: 13 }} title="Items were returned on this bill, so its items cannot be changed">Has returns: correct it with Returns</span>
+            : <Link className="btn-link" href={`/accounting/sales?edit=${invoice.id}`}>Edit this bill</Link>
           )}
           <LoggedPrintButton
             docType={isEstimate ? "ESTIMATE" : "INVOICE"}
@@ -538,7 +549,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
 
       {!isEstimate && (
       <>
-      <h2>Payment Details</h2>
+      <h2 id="payments">Payment Details</h2>
 
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%" }}>
@@ -551,6 +562,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
                 "Amount",
                 "Reference",
                 "Status",
+                "",
               ].map(x => <th key={x} style={cell}>{x}</th>)}
             </tr>
           </thead>
@@ -568,7 +580,48 @@ async function InvoiceDetails({ params, searchParams }: Props) {
                 <td style={cell}>
                   {payment.payment_reference || "—"}
                 </td>
-                <td style={cell}>{payment.status}</td>
+                <td style={cell}>
+                  {payment.status === "VOID" ? "Removed" : payment.status}
+                  {payment.remarks ? <div style={{ color: "#64748b", fontSize: 12 }}>{String(payment.remarks)}</div> : null}
+                </td>
+                <td style={{ ...cell, minWidth: 150 }}>
+                  {invoice.status === "POSTED" && payment.status === "RECORDED" && (MONEY_METHODS.has(String(payment.payment_method)) || payment.payment_method === "EXCHANGE") ? (
+                    <details className="no-print">
+                      <summary style={{ cursor: "pointer", color: "#1d4ed8" }}>{payment.payment_method === "EXCHANGE" ? "Give back to the return" : "Change or remove"}</summary>
+                      <div style={{ display: "grid", gap: 10, marginTop: 8, minWidth: 260 }}>
+                        {payment.payment_method !== "EXCHANGE" && (
+                          <form action={correctSalePaymentAction} style={{ display: "grid", gap: 6 }}>
+                            <input type="hidden" name="sale_id" value={invoice.id} />
+                            <input type="hidden" name="payment_id" value={payment.id} />
+                            <input type="hidden" name="op" value="change" />
+                            <label>Amount (₹)<input name="amount" inputMode="decimal" defaultValue={Number(payment.amount).toFixed(2)} required style={{ width: "100%" }} /></label>
+                            <label>How they paid
+                              <select name="method" defaultValue={String(payment.payment_method)} style={{ width: "100%" }}>
+                                <option value="CASH">Cash</option><option value="UPI">UPI</option><option value="BANK_TRANSFER">Bank transfer</option><option value="CARD">Card</option>
+                              </select>
+                            </label>
+                            <label>Money went into
+                              <select name="account" defaultValue={payment.cash_account_id ? `CASH:${payment.cash_account_id}` : `BANK:${payment.bank_account_id}`} style={{ width: "100%" }}>
+                                {cashRows.map(c => <option key={`c${c.id}`} value={`CASH:${c.id}`}>Cash: {c.cash_name}</option>)}
+                                {bankRows.map(b => <option key={`b${b.id}`} value={`BANK:${b.id}`}>Bank: {b.bank_name} ••••{b.account_number_last4}</option>)}
+                              </select>
+                            </label>
+                            <label>Date<input type="date" name="payment_date" defaultValue={payment.payment_date} min={invoice.invoice_date} max={today} required style={{ width: "100%" }} /></label>
+                            <label>Reference<input name="reference" defaultValue={String(payment.payment_reference ?? "")} maxLength={150} style={{ width: "100%" }} /></label>
+                            <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer" }}>Save change</button>
+                          </form>
+                        )}
+                        <form action={correctSalePaymentAction} style={{ display: "grid", gap: 6, borderTop: "1px solid #e2e8f0", paddingTop: 8 }}>
+                          <input type="hidden" name="sale_id" value={invoice.id} />
+                          <input type="hidden" name="payment_id" value={payment.id} />
+                          <input type="hidden" name="op" value="remove" />
+                          <label>{payment.payment_method === "EXCHANGE" ? "Why give it back?" : "Why remove it?"}<input name="why" required minLength={3} maxLength={200} placeholder={payment.payment_method === "EXCHANGE" ? "e.g. customer wants a refund instead" : "e.g. entered twice"} style={{ width: "100%" }} /></label>
+                          <ConfirmButton label={payment.payment_method === "EXCHANGE" ? "Give back to the return" : "Remove payment"} question={payment.payment_method === "EXCHANGE" ? "Give this exchange credit back to the return? The bill will show it as still due." : "Remove this payment? The bill will show it as still due, and the book entry is reversed."} />
+                        </form>
+                      </div>
+                    </details>
+                  ) : null}
+                </td>
               </tr>
             ))}
           </tbody>
