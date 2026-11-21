@@ -1,6 +1,6 @@
 "use server";
 
-import { lockReturnCredit } from "@/lib/return-credit";
+import { lockReturnCredit, settleBillFromReturn } from "@/lib/return-credit";
 import { autoReverseForEdit } from "@/lib/ledger/reverse-in-tx";
 import { canUseDivision, locationInScope } from "@/lib/scope";
 import { revalidatePath } from "next/cache";
@@ -264,10 +264,16 @@ export async function createSalesReturnAction(formData: FormData) {
 
       await applySalesReturnGst(conn, businessId, returnId); // GST given back (credit note), when the bill had GST
 
-      if (refundNow && refundTotal > 0n) {
+      // What is still unpaid on this bill is cleared from the return first; only the rest is owed to the customer.
+      const settled = await settleBillFromReturn(conn, {
+        businessId, saleId, returnId, date, userId: user.id, remarks: `Unpaid amount cleared by return ${returnNo}`,
+      });
+      const owedToCustomer = refundTotal - settled;
+
+      if (refundNow && owedToCustomer > 0n) {
         await insertRefund(conn, {
           businessId, divisionId: Number(sale.division_id), returnId, date,
-          amountPaise: refundTotal, method: refundMethod, account: refundAccountValue,
+          amountPaise: owedToCustomer, method: refundMethod, account: refundAccountValue,
           userId: user.id,
         });
       }
@@ -281,7 +287,9 @@ export async function createSalesReturnAction(formData: FormData) {
 
       await conn.commit();
       successId = returnId;
-      message = `Return ${returnNo} recorded. Customer is owed ₹${money(refundTotal)}.`;
+      message = settled > 0n
+        ? `Return ${returnNo} recorded (₹${money(refundTotal)}). ₹${money(settled)} cleared what was still unpaid on ${sale.invoice_no}; ${owedToCustomer > 0n ? `customer is owed ₹${money(owedToCustomer)}.` : "nothing is owed to the customer."}`
+        : `Return ${returnNo} recorded. Customer is owed ₹${money(refundTotal)}.`;
     } catch (error) {
       await conn.rollback();
       message = error instanceof UserError || (error instanceof Error && /Cannot return|Invalid|must be above/.test(error.message))

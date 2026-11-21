@@ -9,7 +9,7 @@ import { requireAccess } from "@/lib/auth";
 import { canUseDivision } from "@/lib/scope";
 import { customerCreditPaise, lockCustomer } from "@/lib/customer-credit";
 import { isMissingColumn, isMissingTable } from "@/lib/db-errors";
-import { lockReturnCredit } from "@/lib/return-credit";
+import { settleBillFromReturn } from "@/lib/return-credit";
 
 const METHODS = new Set(["CASH", "UPI", "BANK_TRANSFER", "CARD"]);
 
@@ -188,7 +188,7 @@ export async function useReturnValueOnSaleAction(form: FormData): Promise<void> 
       const [paid] = await conn.execute<RowDataPacket[]>(
         `SELECT COALESCE(SUM(ROUND(amount * 100)), 0) AS p FROM acct_sales_payments
           WHERE legal_business_id = ? AND sale_id = ? AND status = 'RECORDED'`, [businessId, saleId]);
-      let left = BigInt(sale.total_paise) - BigInt(String(paid[0].p));
+      const unpaid = BigInt(sale.total_paise) - BigInt(String(paid[0].p));
       const [rets] = await conn.execute<RowDataPacket[]>(
         `SELECT r.id FROM acct_sales_returns r
            JOIN acct_sales_headers h ON h.id = r.sale_id AND h.legal_business_id = r.legal_business_id
@@ -200,19 +200,8 @@ export async function useReturnValueOnSaleAction(form: FormData): Promise<void> 
       const date = today < String(sale.invoice_date) ? String(sale.invoice_date) : today;
       let used = 0n;
       for (const r of rets) {
-        if (left <= 0n) break;
-        const credit = await lockReturnCredit(conn, businessId, Number(r.id));
-        if (!credit || credit.availablePaise <= 0n) continue;
-        const take = credit.availablePaise < left ? credit.availablePaise : left;
-        await conn.execute(
-          `INSERT INTO acct_sales_payments (legal_business_id, division_id, sale_id, payment_date, payment_method,
-             payment_account_type, bank_account_id, cash_account_id, payment_account, amount, payment_reference, remarks,
-             status, created_by, exchange_return_id)
-           VALUES (?, ?, ?, ?, 'EXCHANGE', 'OTHERS', NULL, NULL, NULL, ?, NULL, 'Return value used', 'RECORDED', ?, ?)`,
-          [businessId, sale.division_id, saleId, date, rupees(take), user.id, Number(r.id)]
-        );
-        left -= take;
-        used += take;
+        if (used >= unpaid) break;
+        used += await settleBillFromReturn(conn, { businessId, saleId, returnId: Number(r.id), date, userId: user.id, remarks: "Return value used" });
       }
       if (used <= 0n) {
         result = "return-none";

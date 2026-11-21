@@ -45,3 +45,38 @@ export async function lockReturnCredit(conn: PoolConnection, businessId: number,
     availablePaise: left > 0n ? left : 0n,
   };
 }
+
+const rupees = (p: bigint) => `${p / 100n}.${(p % 100n).toString().padStart(2, "0")}`;
+
+/**
+ * Uses a return's value to pay what is still unpaid on a bill (an EXCHANGE payment linked to the
+ * return). No cash moves and no journal: the return already reduced what the customer owes in the
+ * books. Returns the amount used (0 when nothing is unpaid or nothing is left on the return).
+ * Call inside the transaction, with the bill locked.
+ */
+export async function settleBillFromReturn(conn: PoolConnection, input: {
+  businessId: number; saleId: number; returnId: number; date: string; userId: number; remarks: string; maxPaise?: bigint;
+}): Promise<bigint> {
+  const [bills] = await conn.execute<RowDataPacket[]>(
+    `SELECT division_id, ROUND(grand_total * 100) AS total_paise,
+            (SELECT COALESCE(SUM(ROUND(p.amount * 100)), 0) FROM acct_sales_payments p
+              WHERE p.legal_business_id = h.legal_business_id AND p.sale_id = h.id AND p.status = 'RECORDED') AS paid_paise
+       FROM acct_sales_headers h WHERE h.legal_business_id = ? AND h.id = ? AND h.status = 'POSTED'`,
+    [input.businessId, input.saleId]
+  );
+  if (!bills[0]) return 0n;
+  const unpaid = BigInt(String(bills[0].total_paise)) - BigInt(String(bills[0].paid_paise));
+  const credit = await lockReturnCredit(conn, input.businessId, input.returnId);
+  if (!credit || unpaid <= 0n || credit.availablePaise <= 0n) return 0n;
+  let take = credit.availablePaise < unpaid ? credit.availablePaise : unpaid;
+  if (input.maxPaise !== undefined && input.maxPaise < take) take = input.maxPaise;
+  if (take <= 0n) return 0n;
+  await conn.execute(
+    `INSERT INTO acct_sales_payments (legal_business_id, division_id, sale_id, payment_date, payment_method,
+       payment_account_type, bank_account_id, cash_account_id, payment_account, amount, payment_reference, remarks,
+       status, created_by, exchange_return_id)
+     VALUES (?, ?, ?, ?, 'EXCHANGE', 'OTHERS', NULL, NULL, NULL, ?, NULL, ?, 'RECORDED', ?, ?)`,
+    [input.businessId, bills[0].division_id, input.saleId, input.date, rupees(take), input.remarks.slice(0, 250), input.userId, input.returnId]
+  );
+  return take;
+}
