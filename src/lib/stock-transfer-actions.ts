@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
+import { loadPriceOverrides } from "@/lib/selling-price-data";
 
 import { requireAccess } from "@/lib/auth";
 import { getActiveDivisionId } from "@/lib/division-context";
@@ -636,6 +637,7 @@ export async function saveStockTransferDraftAction(
 
         }
 
+        const itemPrices = await loadPriceOverrides(businessId);
         for (const item of items) {
           const stock = variants.find(v => Number(v.id) === item.variantId);
           if (!stock || Number(stock.available_quantity) <= 0 ||
@@ -651,8 +653,11 @@ export async function saveStockTransferDraftAction(
           );
           // The owner may type his own minimum and maximum; otherwise they come from the stock cost.
           const typedOk = (v: string | null) => v !== null && v !== "" && /^\d{1,9}(\.\d{1,2})?$/.test(v) && Number(v) > 0;
-          const calculatedMin = typedOk(item.minPrice) ? String(item.minPrice) : String(autoPrices[0].minimum);
-          const calculatedMax = typedOk(item.maxPrice) ? String(item.maxPrice) : String(autoPrices[0].maximum);
+          // The item's prices set at buying (Selling prices) come next, then the stock cost.
+          const own = itemPrices.get(item.variantId);
+          const calculatedMin = typedOk(item.minPrice) ? String(item.minPrice) : own?.min != null ? own.min.toFixed(2) : String(autoPrices[0].minimum);
+          const calculatedMax = typedOk(item.maxPrice) ? String(item.maxPrice) : own?.max != null ? own.max.toFixed(2) : String(autoPrices[0].maximum);
+          const suggested = item.suggestedPrice || (own?.suggested != null ? own.suggested.toFixed(2) : null);
           if (Number(calculatedMin) > Number(calculatedMax)) {
             throw new Error("The minimum price cannot be more than the maximum price");
           }
@@ -695,7 +700,7 @@ export async function saveStockTransferDraftAction(
 
               calculatedMax,
 
-              item.suggestedPrice,
+              suggested,
 
             ]
 

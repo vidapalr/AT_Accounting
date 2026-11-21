@@ -7,6 +7,7 @@ import PrintTransferButton from "./PrintTransferButton";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
+import { loadPriceOverrides } from "@/lib/selling-price-data";
 import { requireAccess } from "@/lib/auth";
 import StockTransferDraftForm, {
   type StockTransferDraft,
@@ -173,6 +174,7 @@ async function TransferContent({ searchParams }: Props) {
     [businessId]
   );
 
+  const itemPrices = await loadPriceOverrides(businessId);
   // Source-location balances and calculated selling prices; no costs exposed.
   const [sourceBalances] = await db.execute<RowDataPacket[]>(
     `SELECT location_id, variant_id,
@@ -438,13 +440,17 @@ async function TransferContent({ searchParams }: Props) {
           key={draft?.id ?? "new"}
           locations={locations}
           variants={variants}
-          sourceBalances={sourceBalances.map(r => ({
-            location_id: Number(r.location_id),
-            variant_id: Number(r.variant_id),
-            available_qty: String(r.available_qty),
-            min_price: r.min_price == null ? null : String(r.min_price),
-            max_price: r.max_price == null ? null : String(r.max_price),
-          }))}
+          sourceBalances={sourceBalances.map(r => {
+            // Prices set at buying (Selling prices) are shown first; otherwise worked out from the cost.
+            const own = itemPrices.get(Number(r.variant_id));
+            return {
+              location_id: Number(r.location_id),
+              variant_id: Number(r.variant_id),
+              available_qty: String(r.available_qty),
+              min_price: own?.min != null ? own.min.toFixed(2) : r.min_price == null ? null : String(r.min_price),
+              max_price: own?.max != null ? own.max.toFixed(2) : r.max_price == null ? null : String(r.max_price),
+            };
+          })}
           today={today}
           draft={draft}
         />

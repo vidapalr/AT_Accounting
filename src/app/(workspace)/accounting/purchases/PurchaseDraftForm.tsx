@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 
 import QuickSupplierSelect from "@/components/accounting/quick-supplier-select";
@@ -9,6 +9,7 @@ import {
   updatePurchaseDraftAction,
   editReceivedPurchaseAction,
 } from "@/lib/purchase-actions";
+import { quickCreateItemAction } from "@/lib/quick-item-actions";
 
 import styles from "./purchases.module.css";
 
@@ -64,6 +65,10 @@ type Props = {
   suppliers: Supplier[];
   locations: Location[];
   skus: SKU[];
+  /** Product groups, for New item. */
+  categories?: Array<{ id: number; name: string }>;
+  /** The item's current usual selling price (variant id -> rupees), shown on the line. */
+  prices?: Record<number, string>;
   draft?: PurchaseDraft;
   /** The business charges GST: costs are as on the supplier's bill, GST included. */
   gstOn?: boolean;
@@ -74,7 +79,9 @@ const MAX_LINE_COUNT = 100;
 export default function PurchaseDraftForm({
   suppliers,
   locations,
-  skus,
+  skus: initialSkus,
+  categories = [],
+  prices = {},
   draft,
   prefill,
   gstOn = false,
@@ -82,6 +89,30 @@ export default function PurchaseDraftForm({
   const [lineCount, setLineCount] = useState(
     Math.max(draft?.lines.length ?? prefill?.lines.length ?? 0, 1)
   );
+  // Items can be added while typing the purchase (New item), so the list lives in state.
+  const [skus, setSkus] = useState<SKU[]>(initialSkus);
+  const startLine = (i: number) => String(draft?.lines[i]?.variant_id ?? prefill?.lines[i]?.variant_id ?? "");
+  const [chosen, setChosen] = useState<string[]>(() => Array.from({ length: MAX_LINE_COUNT }, (_, i) => startLine(i)));
+  const [priceText, setPriceText] = useState<string[]>(() => Array.from({ length: MAX_LINE_COUNT }, (_, i) => prices[Number(startLine(i))] ?? ""));
+  const [newFor, setNewFor] = useState<number | null>(null);
+  const [newItem, setNewItem] = useState({ productName: "", categoryId: categories[0]?.id ?? 0, size: "", color: "", unit: "PCS" as "PCS" | "SET" | "METER" });
+  const [newError, setNewError] = useState("");
+  const [saving, startSaving] = useTransition();
+  const pick = (index: number, id: string) => {
+    setChosen((c) => c.map((v, i) => (i === index ? id : v)));
+    setPriceText((c) => c.map((v, i) => (i === index && !v ? (prices[Number(id)] ?? "") : v)));
+  };
+  const saveNewItem = (index: number) => {
+    setNewError("");
+    startSaving(async () => {
+      const r = await quickCreateItemAction(newItem);
+      if (!r.ok) { setNewError(r.message); return; }
+      setSkus((list) => (list.some((x) => x.id === r.item.id) ? list : [...list, r.item]));
+      pick(index, String(r.item.id));
+      setNewFor(null);
+      setNewItem((n) => ({ ...n, productName: "", size: "", color: "" }));
+    });
+  };
 
   return (
     <form
@@ -211,6 +242,11 @@ export default function PurchaseDraftForm({
         </button>
       </div>
 
+      <p className={styles.muted} style={{ margin: "4px 0 8px" }}>
+        Not in the list? Press <strong>+ New item</strong> on the line. The <strong>selling price</strong> is typed only here: bills,
+        stock moves and the website use it, with the lowest and highest price worked out from the cost (change them any time on Selling prices).
+        Leave it empty to keep the item&apos;s current price.
+      </p>
       <div className={styles.tableWrap}>
         <table className={styles.itemsTable}>
           <thead>
@@ -219,6 +255,7 @@ export default function PurchaseDraftForm({
               <th>Product / SKU</th>
               <th>Quantity</th>
               <th>{gstOn ? "Cost per piece incl. GST (₹)" : "Unit Cost (₹)"}</th>
+              <th>Selling price (₹)</th>
               <th>Lot / dye batch (optional)</th>
               <th aria-label="Remove item" />
             </tr>
@@ -238,12 +275,11 @@ export default function PurchaseDraftForm({
                   <td className={styles.skuCell}>
                     <select
                       name={`line_${index}_variant`}
-                      defaultValue={
-                        saved ? String(saved.variant_id) : pre ? String(pre.variant_id) : ""
-                      }
+                      value={chosen[index]}
+                      onChange={(e) => pick(index, e.target.value)}
                       className={styles.control}
                     >
-                      <option value="">Select SKU</option>
+                      <option value="">Select item</option>
                       {skus.map((sku) => (
                         <option
                           key={sku.id}
@@ -260,6 +296,36 @@ export default function PurchaseDraftForm({
                         </option>
                       ))}
                     </select>
+                    {categories.length > 0 && (
+                      <button type="button" className={styles.secondaryButton} style={{ marginTop: 6 }} onClick={() => { setNewFor(newFor === index ? null : index); setNewError(""); }}>
+                        {newFor === index ? "Close" : "+ New item"}
+                      </button>
+                    )}
+                    {newFor === index && (
+                      <div style={{ marginTop: 8, padding: 10, border: "1px solid #cbd5e1", borderRadius: 8, background: "#f8fafc", display: "grid", gap: 8, minWidth: 260 }}>
+                        <strong>New item</strong>
+                        <label className={styles.field}>Name<input value={newItem.productName} onChange={(e) => setNewItem({ ...newItem, productName: e.target.value })} placeholder="e.g. Banaras silk saree" className={styles.control} /></label>
+                        <label className={styles.field}>Group
+                          <select value={newItem.categoryId} onChange={(e) => setNewItem({ ...newItem, categoryId: Number(e.target.value) })} className={styles.control}>
+                            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </label>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <label className={styles.field} style={{ flex: 1 }}>Size<input value={newItem.size} onChange={(e) => setNewItem({ ...newItem, size: e.target.value })} placeholder="Free / L / 42" className={styles.control} /></label>
+                          <label className={styles.field} style={{ flex: 1 }}>Colour<input value={newItem.color} onChange={(e) => setNewItem({ ...newItem, color: e.target.value })} placeholder="Maroon" className={styles.control} /></label>
+                        </div>
+                        <label className={styles.field}>Counted in
+                          <select value={newItem.unit} onChange={(e) => setNewItem({ ...newItem, unit: e.target.value as "PCS" | "SET" | "METER" })} className={styles.control}>
+                            <option value="PCS">Pieces</option><option value="SET">Sets</option><option value="METER">Metres</option>
+                          </select>
+                        </label>
+                        {newError && <p role="alert" style={{ color: "#b91c1c", margin: 0 }}>{newError}</p>}
+                        <button type="button" className={styles.primaryButton} disabled={saving} onClick={() => saveNewItem(index)}>
+                          {saving ? "Adding…" : "Add item and use it here"}
+                        </button>
+                        <small style={{ color: "#64748b" }}>Code and barcode are given automatically. If the item already exists, it is reused.</small>
+                      </div>
+                    )}
                   </td>
 
                   <td>
@@ -280,6 +346,18 @@ export default function PurchaseDraftForm({
                       inputMode="decimal"
                       placeholder="650.00"
                       defaultValue={saved?.unit_cost ?? ""}
+                      className={styles.control}
+                    />
+                  </td>
+
+                  <td>
+                    <input
+                      name={`line_${index}_price`}
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="Selling price"
+                      value={priceText[index]}
+                      onChange={(e) => setPriceText((c) => c.map((v, i) => (i === index ? e.target.value : v)))}
                       className={styles.control}
                     />
                   </td>
@@ -336,7 +414,7 @@ export default function PurchaseDraftForm({
           disabled={
             suppliers.length === 0 ||
             locations.length === 0 ||
-            skus.length === 0
+            (skus.length === 0 && categories.length === 0)
           }
           className={styles.primaryButton}
         >

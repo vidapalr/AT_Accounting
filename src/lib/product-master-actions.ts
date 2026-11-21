@@ -3,12 +3,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ResultSetHeader, RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { nextCode, nextBarcode } from "@/lib/codes";
 import { requireAccess } from "@/lib/auth";
 import { getActiveDivisionId } from "@/lib/division-context";
+import { insertProduct, insertVariant } from "@/lib/product-master-core";
 
 const PAGE = "/accounting/products";
 
@@ -23,9 +24,6 @@ function id(value: string): number | null {
   return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
-function optional(value: string): string | null {
-  return value === "" ? null : value;
-}
 
 function go(result: string): never {
   redirect(`${PAGE}?result=${encodeURIComponent(result)}`);
@@ -94,52 +92,10 @@ export async function createProductAction(
       if (duplicates.length > 0) {
         outcome = "duplicate-product";
       } else {
-        const [created] = await conn.execute<ResultSetHeader>(
-          `INSERT INTO acct_products
-           (
-             legal_business_id, division_id, category_id,
-             product_code, product_name, brand_name,
-             fabric, design_name, description,
-             status, created_by
-           )
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)`,
-          [
-            businessId,
-            DIVISION_ID,
-            categoryId,
-            code,
-            name,
-            optional(brand),
-            optional(fabric),
-            optional(design),
-            optional(description),
-            user.id,
-          ]
-        );
-
-        await conn.execute(
-          `INSERT INTO acct_audit_events
-           (
-             legal_business_id, actor_user_id,
-             action, subject_type,
-             subject_id, details_json
-           )
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [
-            businessId,
-            user.id,
-            "PRODUCT_CREATED",
-            "PRODUCT",
-            created.insertId,
-            JSON.stringify({
-              division_id: DIVISION_ID,
-              category_id: categoryId,
-              product_code: code,
-              product_name: name,
-            }),
-          ]
-        );
-
+        await insertProduct(conn, {
+          businessId, divisionId: DIVISION_ID, userId: user.id, categoryId: categoryId!, name,
+          brand, fabric, design, description,
+        });
         await conn.commit();
         outcome = "product-created";
       }
@@ -228,53 +184,10 @@ export async function createProductVariantAction(
       if (duplicates.length > 0) {
         outcome = "duplicate-sku";
       } else {
-        const [created] = await conn.execute<ResultSetHeader>(
-          `INSERT INTO acct_product_variants
-           (
-             legal_business_id, division_id, product_id,
-             sku, barcode, size_label, color_name,
-             design_code, unit_of_measure,
-             status, created_by
-           )
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)`,
-          [
-            businessId,
-            DIVISION_ID,
-            productId,
-            sku,
-            optional(barcode),
-            optional(size),
-            optional(color),
-            optional(designCode),
-            unit,
-            user.id,
-          ]
-        );
-
-        await conn.execute(
-          `INSERT INTO acct_audit_events
-           (
-             legal_business_id, actor_user_id,
-             action, subject_type, subject_id,
-             details_json
-           )
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [
-            businessId,
-            user.id,
-            "PRODUCT_VARIANT_CREATED",
-            "PRODUCT_VARIANT",
-            created.insertId,
-            JSON.stringify({
-              product_id: productId,
-              sku,
-              size: optional(size),
-              color: optional(color),
-              unit,
-            }),
-          ]
-        );
-
+        await insertVariant(conn, {
+          businessId, divisionId: DIVISION_ID, userId: user.id, productId: productId!,
+          size, color, unit: unit as "PCS" | "SET" | "METER", designCode,
+        });
         await conn.commit();
         outcome = "variant-created";
       }

@@ -46,6 +46,14 @@ export async function latestPrices(variantIds: number[]): Promise<Map<number, nu
       ORDER BY t.received_at DESC, t.id DESC`,
     [(await shopBusinessId()), variantIds]
   );
+  // The usual selling price set at buying wins over older stock-transfer prices.
+  try {
+    const [own] = await db.query<RowDataPacket[]>(
+      `SELECT variant_id, suggested_price FROM acct_selling_prices WHERE legal_business_id = ? AND suggested_price IS NOT NULL AND variant_id IN (?)`,
+      [(await shopBusinessId()), variantIds]
+    );
+    for (const r of own) prices.set(Number(r.variant_id), Number(r.suggested_price));
+  } catch { /* selling prices not set up yet */ }
   for (const r of rows) {
     const id = Number(r.variant_id);
     if (!prices.has(id)) prices.set(id, Number(r.price));

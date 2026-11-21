@@ -13,6 +13,7 @@ import PurchaseDraftForm, {
 } from "./PurchaseDraftForm";
 import styles from "./purchases.module.css";
 import { getActiveDivisionId } from "@/lib/division-context";
+import { loadPriceOverrides } from "@/lib/selling-price-data";
 
 type Props = {
   searchParams: Promise<{
@@ -300,10 +301,20 @@ async function PurchaseContent({ searchParams }: Props) {
   }
 
   const gstCfg = await loadGstConfig(db, businessId);
+  // Product groups (for New item on a purchase line) and each item's current usual selling price.
+  const [categoryRows] = await db.execute<RowDataPacket[]>(
+    `SELECT id, category_name FROM acct_product_categories WHERE legal_business_id = ? AND division_id = ? AND status = 'ACTIVE' ORDER BY category_name`,
+    [businessId, DIVISION_ID]
+  );
+  const priceOverrides = await loadPriceOverrides(businessId);
+  const linePrices: Record<number, string> = {};
+  for (const [variantId, p] of priceOverrides) if (p.suggested != null) linePrices[variantId] = p.suggested.toFixed(2);
+
+  // Items can be added on the purchase itself, so only a supplier and a warehouse are needed first.
   const ready =
     suppliers.length > 0 &&
     locations.length > 0 &&
-    skus.length > 0;
+    (skus.length > 0 || categoryRows.length > 0);
 
   return (
     <main className={styles.page}>
@@ -399,6 +410,8 @@ async function PurchaseContent({ searchParams }: Props) {
             color_name: sku.color_name,
             unit_of_measure: sku.unit_of_measure,
           }))}
+          categories={categoryRows.map((c) => ({ id: Number(c.id), name: String(c.category_name) }))}
+          prices={linePrices}
           draft={editDraft}
           prefill={editDraft ? undefined : prefill}
           gstOn={gstCfg.scheme === "REGULAR"}
@@ -461,10 +474,15 @@ async function PurchaseContent({ searchParams }: Props) {
                   </td>
                   <td>
                     <span className={styles.statusBadge}>
-                      {purchase.status}
+                      {purchase.status === "DRAFT" ? "Waiting for goods" : purchase.status === "POSTED" ? "Received" : purchase.status}
                     </span>
                   </td>
                   <td>
+                    {purchase.status === "DRAFT" && (
+                      <Link href={`/accounting/purchases/${purchase.id}#receive`} className="btn-link btn-link-primary">
+                        Receive goods
+                      </Link>
+                    )}
                     {purchase.status === "POSTED" && (
                       <>
                         <Link

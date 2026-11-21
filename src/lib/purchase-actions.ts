@@ -15,6 +15,7 @@ import { applyPurchaseGst, netCost, purchaseLineCredits } from "@/lib/gst/data";
 import { unitCost4 } from "@/lib/gst/engine";
 import { isMissingColumn } from "@/lib/db-errors";
 import { parseRupees, toPaise } from "@/lib/reports/money";
+import { saveBuyingPrices } from "@/lib/buying-prices";
 
 const PAGE = "/accounting/purchases";
 const MAX_LINE_COUNT = 100;
@@ -80,6 +81,8 @@ type PurchaseLine = {
   unitCost: string;
   lineAmount: string;
   lot: string;
+  /** Selling price typed on the line (paise), or null to leave the item's price as it is. */
+  pricePaise: bigint | null;
 };
 
 /** Keep the lot name on a purchase line. Before migration 070 the column is missing; the purchase still saves. */
@@ -97,6 +100,7 @@ function parseLines(form: FormData): PurchaseLine[] | null {
     const qtyText = field(form, `line_${i}_quantity`);
     const costText = field(form, `line_${i}_cost`);
     const lot = field(form, `line_${i}_lot`).slice(0, 60);
+    const priceText = field(form, `line_${i}_price`).replaceAll(",", "");
 
     if (!variantText && !qtyText && !costText) {
       continue;
@@ -111,7 +115,8 @@ function parseLines(form: FormData): PurchaseLine[] | null {
       quantity === null ||
       quantity <= 0n ||
       cost === null ||
-      seen.has(variantId)
+      seen.has(variantId) ||
+      (priceText !== "" && decimalScaled(priceText, 2, 12) === null)
     ) {
       return null;
     }
@@ -134,6 +139,7 @@ function parseLines(form: FormData): PurchaseLine[] | null {
       unitCost: scaledString(cost, 4),
       lineAmount: scaledString(linePaise, 2),
       lot,
+      pricePaise: priceText === "" ? null : decimalScaled(priceText, 2, 12),
     });
   }
 
@@ -460,6 +466,7 @@ async function savePurchaseDraft(
                 );
                 await saveLot(conn, lineInsert.insertId, line.lot);
               }
+              await saveBuyingPrices(conn, businessId, user.id, lines);
               await savePurchaseGst(conn, businessId, savedPurchaseId, billTax);
 
               await conn.execute(
@@ -537,6 +544,10 @@ async function savePurchaseDraft(
     }
   }
 
+  // Saved: open the purchase, where the goods are received when they arrive.
+  if ((outcome === "created" || outcome === "updated") && savedPurchaseId !== undefined) {
+    redirect(`${PAGE}/${savedPurchaseId}?result=draft-saved`);
+  }
   go(outcome, savedPurchaseId);
 }
 
@@ -752,6 +763,7 @@ export async function editReceivedPurchaseAction(form: FormData): Promise<void> 
                 await saveLot(conn, inserted.insertId, l.lot);
                 insertedIds.push(inserted.insertId);
               }
+              await saveBuyingPrices(conn, businessId, user.id, lines);
               // GST on the changed bill, then the new quantities go into stock without the input credit.
               await savePurchaseGst(conn, businessId, purchaseId, billTax);
               const credits = await purchaseLineCredits(conn, businessId, insertedIds);

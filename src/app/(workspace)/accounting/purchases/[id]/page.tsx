@@ -1,6 +1,7 @@
 
 import { Suspense } from "react";
 import Link from "next/link";
+import { todayInIndia } from "@/lib/format";
 import { notFound } from "next/navigation";
 import type { RowDataPacket } from "mysql2";
 
@@ -58,7 +59,8 @@ const cell: React.CSSProperties = {
 };
 
 const messages: Record<string, string> = {
-  posted: "Goods receipt posted successfully. Warehouse stock updated.",
+  "draft-saved": "Purchase saved. When the goods arrive at the warehouse, receive them below. Selling prices typed on the lines are already in use.",
+  posted: "Goods received. Warehouse stock is updated. Next: move it to the shop, and pay the supplier.",
   edited: "Purchase changed. The old entry was reversed and the new one will be posted.",
   invalid: "Select a valid received date and confirm receipt.",
   "not-found": "Purchase was not found.",
@@ -370,17 +372,19 @@ async function PurchaseDetailContent({
         </section>
       )}
 
-      <section style={card}>
-        <h2>Goods Receipt</h2>
+      <section style={card} id="receive">
+        <h2>Receive goods</h2>
 
         {purchase.status === "POSTED" ? (
           <>
             <p>
-              Goods receipt has been posted.
-              The purchase is now read-only.
+              Goods received on {purchase.posted_at ?? "—"}. The stock is in the warehouse.
             </p>
-            <p>
-              Posted on: {purchase.posted_at ?? "—"}
+            <p style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Link className="btn-link btn-link-primary" href="/accounting/stock-transfers">Move to the shop</Link>
+              <Link className="btn-link" href="/accounting/purchase-management">Pay the supplier</Link>
+              <Link className="btn-link" href="/accounting/catalogue">Add photos / put on website</Link>
+              <Link className="btn-link" href="/accounting/catalogue/new-stock">Tell customers</Link>
             </p>
           </>
         ) : purchase.status !== "DRAFT" ? (
@@ -409,6 +413,7 @@ async function PurchaseDetailContent({
                   type="date"
                   name="received_date"
                   min={purchase.invoice_date}
+                  defaultValue={todayInIndia()}
                   required
                   style={{
                     display: "block",

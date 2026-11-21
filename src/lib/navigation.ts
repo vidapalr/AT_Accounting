@@ -104,8 +104,8 @@ export const NAVIGATION: NavSection[] = [
     module: "purchases",
     items: [
       { label: "Purchase orders", href: "/accounting/purchase-orders", hint: "Order from a supplier, then turn it into a purchase when goods arrive" },
-      { label: "Buy stock (purchases)", href: "/accounting/purchases", hint: "Record stock bought from suppliers" },
-      { label: "Supplier bills and payments", href: "/accounting/purchase-management", hint: "Receive goods and pay supplier bills" },
+      { label: "Buy stock (purchases)", href: "/accounting/purchases", hint: "Type a supplier's bill, add new items and selling prices; receive the goods when they arrive" },
+      { label: "Pay supplier bills", href: "/accounting/purchase-management", hint: "What you owe on each supplier bill, and paying it" },
       { label: "Pay a supplier", href: "/accounting/pay-supplier", hint: "One payment, spread over their oldest bills" },
       { label: "Return goods to supplier", href: "/accounting/supplier-returns", hint: "Send items back and get credit, refund or replacement" },
       { label: "Suppliers", href: "/accounting/suppliers", hint: "People you buy from" },
