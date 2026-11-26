@@ -82,6 +82,7 @@ export const MIGRATION_MARKERS: Marker[] = [
   { file: "094_attendance_unmatched", table: "acct_attendance_unmatched" },
   { file: "095_staff_id_and_contact", table: "acct_employees", column: "employee_code" },
   { file: "096_letter_sends", table: "acct_letter_sends" },
+  { file: "098_personal_money", table: "acct_personal_entries" },
   { file: "086_business_payment_account", table: "acct_sales_payments", column: "payment_account", enumValue: "BUSINESS" },
   { file: "085_account_map", table: "acct_account_map" },
   { file: "084_letter_templates", table: "acct_letter_templates" },

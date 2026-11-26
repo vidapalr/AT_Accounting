@@ -29,6 +29,7 @@ export type NavModule =
   | "reports"
   | "accounting"
   | "investors"
+  | "personal"
   | "setup";
 
 export type NavSection = {
@@ -50,6 +51,7 @@ export const OPTIONAL_MODULES: Array<{ key: NavModule; label: string }> = [
   { key: "marketing", label: "WhatsApp and social media" },
   { key: "hr", label: "Staff and salaries" },
   { key: "investors", label: "Investors and owner money" },
+  { key: "personal", label: "My money (owner's personal accounts)" },
 ];
 
 export const NAVIGATION: NavSection[] = [
@@ -233,7 +235,6 @@ export const NAVIGATION: NavSection[] = [
     module: "investors",
     items: [
       { label: "Owner money in and out", href: "/accounting/owner-money", hint: "Your own money put into, or taken from, the business" },
-      { label: "Owner accounts", href: "/accounting/owner-accounts", hint: "Business money held in your name, and what was paid from it" },
       { label: "Investors and lenders", href: "/funding", hint: "People who put money into the business" },
       { label: "Agreements", href: "/funding/agreements", hint: "Profit-sharing and loan agreements" },
       { label: "Profit shares", href: "/accounting/investor-shares", hint: "What each investor has earned" },
@@ -241,6 +242,18 @@ export const NAVIGATION: NavSection[] = [
       { label: "Investor money by account", href: "/accounting/investment-accounts", hint: "Investor funds and what was spent from them" },
       { label: "Share register", href: "/funding/participation", hint: "Who holds what share, by division and branch" },
       { label: "Share check", href: "/funding/reconciliation", hint: "Check that shares add up correctly" },
+    ],
+  },
+  {
+    id: "personal",
+    label: "My money",
+    icon: "money",
+    module: "personal",
+    items: [
+      { label: "My money", href: "/accounting/my-money", hint: "Your own bank accounts, cards, spending, loans and investments (only you see this)" },
+      { label: "My accounts and cards", href: "/accounting/my-money?tab=accounts", hint: "Balances and statements, including money linked to the business" },
+      { label: "My loans and EMIs", href: "/accounting/my-money?tab=loans" },
+      { label: "My investments", href: "/accounting/my-money?tab=investments" },
     ],
   },
   {
