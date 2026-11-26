@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { dispatchStockTransferAction, receiveStockTransferAction } from "@/lib/stock-transfer-actions";
+import { dispatchStockTransferAction, receiveStockTransferAction, sendAndReceiveStockTransferAction } from "@/lib/stock-transfer-actions";
 import styles from "./stock-transfers.module.css";
 
 type Transfer = {
@@ -71,7 +71,11 @@ export default function TransferHistoryTable({transfers, today}: {transfers: Tra
             {t.status === "DRAFT" && <div className={styles.actionGroup}>
               <Link className={styles.editLink} href={`/accounting/stock-transfers?edit=${t.id}`}>Edit</Link>
               <form action={dispatchStockTransferAction} onSubmit={e => {if (!window.confirm(`Dispatch ${t.transfer_no}? Stock will be deducted from ${t.from_location}.`)) e.preventDefault();}}>
-                <input type="hidden" name="transfer_id" value={t.id}/><button className={styles.actionButton} type="submit">Dispatch</button>
+                <input type="hidden" name="transfer_id" value={t.id}/><button className={styles.actionButton} type="submit">Dispatch only</button>
+              </form>
+              <form action={sendAndReceiveStockTransferAction} className={styles.receiveForm} onSubmit={e => {if (!window.confirm(`Move ${t.transfer_no} now? Stock leaves ${t.from_location} and is added to ${t.to_location} in one step.`)) e.preventDefault();}}>
+                <input type="hidden" name="transfer_id" value={t.id}/><input type="date" name="received_date" defaultValue={today} min={t.transfer_date} required className={styles.dateControl} aria-label={`Move date ${t.transfer_no}`}/>
+                <button type="submit" className={styles.actionButton}>Send and receive now</button>
               </form>
             </div>}
             {t.status === "DISPATCHED" && <form action={receiveStockTransferAction} className={styles.receiveForm} onSubmit={e => {if (!window.confirm(`Confirm full receipt of ${t.transfer_no}? All items will be added to destination stock.`)) e.preventDefault();}}>

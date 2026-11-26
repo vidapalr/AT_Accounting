@@ -92,6 +92,7 @@ const messages: Record<string, string> = {
   "not-editable": "Only draft stock transfers can be edited.",
   dispatched: "Stock dispatched from the warehouse.",
   received: "Stock received at the branch.",
+  moved: "Stock moved: taken out of the sending place and added to the receiving place in one step.",
   "not-draft": "Only draft transfers can be dispatched.",
   "not-dispatched": "Only dispatched transfers can be received.",
   "date-invalid": "Receipt date cannot precede transfer date.",

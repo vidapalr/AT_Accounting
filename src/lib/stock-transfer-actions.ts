@@ -9,6 +9,8 @@ import { redirect } from "next/navigation";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
+
+type TransferUser = Awaited<ReturnType<typeof requireAccess>>;
 import { loadPriceOverrides } from "@/lib/selling-price-data";
 
 import { requireAccess } from "@/lib/auth";
@@ -800,26 +802,23 @@ function validId(value: FormDataEntryValue | null): number {
 
 }
 
-export async function dispatchStockTransferAction(
-
-  form: FormData
-
-): Promise<void> {
-
+export async function dispatchStockTransferAction(form: FormData): Promise<void> {
   const user = await requireAccess("purchases");
-
-  const DIVISION_ID = await getActiveDivisionId(user);
-
-  const businessId = user.legal_business_id;
-
   const transferId = validId(form.get("transfer_id"));
-
   if (!transferId) {
-
     redirect(`${PAGE}?result=invalid`);
-
   }
+  const result = await dispatchTransfer(user, transferId);
+  if (result === "dispatched") {
+    revalidatePath(PAGE);
+  }
+  redirect(`${PAGE}?result=${result}`);
+}
 
+/** Takes the stock out of the sending place (status DRAFT -> DISPATCHED). Returns the result word. */
+async function dispatchTransfer(user: TransferUser, transferId: number): Promise<string> {
+  const DIVISION_ID = await getActiveDivisionId(user);
+  const businessId = user.legal_business_id;
   const conn = await db.getConnection();
 
   let result = "failed";
@@ -1260,42 +1259,27 @@ export async function dispatchStockTransferAction(
 
   }
 
-  if (result === "dispatched") {
-
-    revalidatePath(PAGE);
-
-  }
-
-  redirect(`${PAGE}?result=${result}`);
-
+  return result;
 }
 
-export async function receiveStockTransferAction(
-
-  form: FormData
-
-): Promise<void> {
-
+export async function receiveStockTransferAction(form: FormData): Promise<void> {
   const user = await requireAccess("purchases");
-
-  const DIVISION_ID = await getActiveDivisionId(user);
-
-  const businessId = user.legal_business_id;
-
   const transferId = validId(form.get("transfer_id"));
-
-  const receivedDate = String(
-
-    form.get("received_date") ?? ""
-
-  );
-
+  const receivedDate = String(form.get("received_date") ?? "");
   if (!transferId || !validIsoDate(receivedDate)) {
-
     redirect(`${PAGE}?result=invalid`);
-
   }
+  const result = await receiveTransfer(user, transferId, receivedDate);
+  if (result === "received") {
+    revalidatePath(PAGE);
+  }
+  redirect(`${PAGE}?result=${result}`);
+}
 
+/** Puts the stock into the receiving place (status DISPATCHED -> RECEIVED). Returns the result word. */
+async function receiveTransfer(user: TransferUser, transferId: number, receivedDate: string): Promise<string> {
+  const DIVISION_ID = await getActiveDivisionId(user);
+  const businessId = user.legal_business_id;
   const conn = await db.getConnection();
 
   let result = "failed";
@@ -1608,12 +1592,22 @@ export async function receiveStockTransferAction(
 
   }
 
-  if (result === "received") {
+  return result;
+}
 
-    revalidatePath(PAGE);
-
+/**
+ * Send and receive in one step, for when the same person moves the stock (one shop, say):
+ * takes the stock out of the sending place and puts it into the receiving place on the given date.
+ */
+export async function sendAndReceiveStockTransferAction(form: FormData): Promise<void> {
+  const user = await requireAccess("purchases");
+  const transferId = validId(form.get("transfer_id"));
+  const receivedDate = String(form.get("received_date") ?? "");
+  if (!transferId || !validIsoDate(receivedDate)) {
+    redirect(`${PAGE}?result=invalid`);
   }
-
-  redirect(`${PAGE}?result=${result}`);
-
+  let result = await dispatchTransfer(user, transferId);
+  if (result === "dispatched") result = await receiveTransfer(user, transferId, receivedDate);
+  revalidatePath(PAGE);
+  redirect(`${PAGE}?result=${result === "received" ? "moved" : result}`);
 }
