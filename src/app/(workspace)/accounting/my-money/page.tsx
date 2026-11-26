@@ -4,7 +4,11 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
 import { loadPersonalMoney, ACCOUNT_KIND_WORDS, type PersonalAccount } from "@/lib/personal-money-data";
-import { setPersonalLoanStatusAction, updatePersonalInvestmentAction, voidPersonalEntryAction } from "@/lib/personal-money-actions";
+import { revealPersonalAccountNoAction, setPersonalLoanStatusAction, updatePersonalInvestmentAction, voidPersonalEntryAction } from "@/lib/personal-money-actions";
+import { rupeesText } from "@/lib/sale-payments";
+import type { StatementLine } from "@/lib/personal-money-data";
+import PersonalAccountForm, { type AccountFormValues } from "@/components/PersonalAccountForm";
+import RevealPassword from "@/components/RevealPassword";
 import { ENTRY_WORDS } from "@/lib/personal-money";
 import { inr, todayInIndia } from "@/lib/reports/money";
 import { cellTopCompact as cell, fieldFull as field, muted } from "@/lib/ui/styles";
@@ -12,7 +16,7 @@ import { Badge, EmptyState, Notice, PageHeader, Section, StatTile, Tabs } from "
 import ConfirmButton from "@/components/ConfirmButton";
 import SubmitButton from "@/components/SubmitButton";
 import {
-  AccountForm, EntryForm, InvestmentForm, InvestmentMoveForm, LoanForm, LoanPaymentForm, INVESTMENT_KIND_WORDS,
+  CardPayForm, EntryForm, InvestmentForm, InvestmentMoveForm, LoanForm, LoanPaymentForm, INVESTMENT_KIND_WORDS,
 } from "@/components/PersonalMoneyForms";
 
 type Props = { searchParams: Promise<{ tab?: string; account?: string; edit?: string; saved?: string; error?: string }> };
@@ -26,6 +30,44 @@ const signed = (p: bigint) => <span style={{ color: p < 0n ? "#b91c1c" : "#16653
 function accountLine(a: PersonalAccount) {
   const bits = [ACCOUNT_KIND_WORDS[a.kind], a.bankName, a.last4 ? `•••• ${a.last4}` : null].filter(Boolean);
   return bits.join(" · ");
+}
+
+function formValues(a: PersonalAccount): AccountFormValues {
+  // The boxes show the starting figure and its date (a card's as what was owed).
+  const asOn = a.openingDate ?? "";
+  const start = a.kind === "CREDIT_CARD" ? -a.openingBalance : a.openingBalance;
+  return {
+    id: a.id, name: a.name, kind: a.kind, bankName: a.bankName ?? "", last4: a.last4 ?? "", note: a.note ?? "",
+    limit: a.creditLimit != null ? rupeesText(a.creditLimit) : "", billDay: a.billDay ? String(a.billDay) : "", dueDay: a.dueDay ? String(a.dueDay) : "",
+    amount: (start < 0n ? "-" : "") + rupeesText(start < 0n ? -start : start), date: asOn,
+    holder: a.holder ?? "", ifsc: a.ifsc ?? "", hasAccountNo: a.hasAccountNo,
+  };
+}
+
+function Lines({ lines, accountId }: { lines: StatementLine[]; accountId: number }) {
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}>
+        <thead><tr><th style={cell}>Date</th><th style={cell}>What</th><th style={right}>Amount</th><th style={right}>Balance</th><th style={cell}></th></tr></thead>
+        <tbody>
+          {lines.map((l, i) => (
+            <tr key={i}>
+              <td style={cell}>{pretty(l.date)}</td>
+              <td style={cell}>{l.label}{l.fromBusiness ? <> <Badge tone="info" title="Recorded in the business; change it there">Business</Badge></> : null}</td>
+              <td style={right}>{signed(l.amount)}</td>
+              <td style={right}>{inr(l.balance)}</td>
+              <td style={cell}>{l.entryId ? (
+                <form action={voidPersonalEntryAction}>
+                  <input type="hidden" name="id" value={l.entryId} /><input type="hidden" name="tab" value="accounts" /><input type="hidden" name="account" value={accountId} />
+                  <ConfirmButton label="Remove" question="Remove this entry? The balance will be recalculated." />
+                </form>
+              ) : null}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function balanceText(a: PersonalAccount) {
@@ -51,7 +93,11 @@ async function Content({ searchParams }: Props) {
 
   const open = data.accounts.find((a) => String(a.id) === q.account);
   const editing = data.accounts.find((a) => String(a.id) === q.edit);
-  const cardsDue = data.accounts.filter((a) => a.card && a.card.owed > 0n && a.card.nextDue).sort((a, b) => a.card!.nextDue!.localeCompare(b.card!.nextDue!));
+  const cardsDue = data.accounts
+    .map((a) => ({ a, due: a.card?.cycles ? a.card.billDue : a.card && a.card.owed > 0n && a.card.nextDue ? { amount: a.card.owed, dueOn: a.card.nextDue } : null }))
+    .filter((x): x is { a: PersonalAccount; due: { amount: bigint; dueOn: string } } => !!x.due)
+    .sort((x, y) => x.due.dueOn.localeCompare(y.due.dueOn));
+  const payFrom = opts.filter((o) => data.accounts.find((a) => a.id === o.id)?.kind !== "CREDIT_CARD");
   const emisDue = data.loans.filter((l) => l.status === "OPEN" && l.direction === "TAKEN" && l.emi && l.emiDay);
 
   return (
@@ -85,7 +131,7 @@ async function Content({ searchParams }: Props) {
           {(cardsDue.length > 0 || emisDue.length > 0) && (
             <Section title="Coming up">
               <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.8 }}>
-                {cardsDue.map((a) => <li key={`c${a.id}`}>{a.name}: pay {inr(a.card!.owed)} by {pretty(a.card!.nextDue!)}</li>)}
+                {cardsDue.map(({ a, due }) => <li key={`c${a.id}`}><Link href={`${PAGE}?tab=accounts&account=${a.id}`}>{a.name}</Link>: pay {inr(due.amount)} by {pretty(due.dueOn)}</li>)}
                 {emisDue.map((l) => <li key={`l${l.id}`}>EMI {inr(l.emi!)} to {l.party} on day {l.emiDay} of each month</li>)}
               </ul>
             </Section>
@@ -120,7 +166,7 @@ async function Content({ searchParams }: Props) {
                       <td style={cell}>{a.card ? (
                         <span style={muted}>
                           {a.card.available !== null ? <>Can still spend {inr(a.card.available)}<br /></> : null}
-                          {a.card.nextDue ? <>Next due {pretty(a.card.nextDue)}</> : null}
+                          {a.card.billDue ? <>Bill {inr(a.card.billDue.amount)} due {pretty(a.card.billDue.dueOn)}</> : a.card.cycles ? <>Last bill paid</> : a.card.nextDue ? <>Next due {pretty(a.card.nextDue)}</> : null}
                         </span>
                       ) : null}</td>
                       <td style={cell}><Link className="btn-link" href={`${PAGE}?tab=accounts&account=${a.id}`}>Statement</Link></td>
@@ -134,52 +180,66 @@ async function Content({ searchParams }: Props) {
             {opts.length < 2 ? <p style={muted}>Add at least two accounts first.</p> : <EntryForm kind="TRANSFER" accounts={opts} today={today} tab="accounts" />}
           </Section>
           <Section title={editing ? `Change ${editing.name}` : "Add an account or card"}>
-            <AccountForm key={editing?.id ?? "new"} account={editing} today={today} />
+            <PersonalAccountForm key={editing?.id ?? "new"} account={editing ? formValues(editing) : undefined} today={today} />
           </Section>
         </>
       )}
 
       {tab === "accounts" && open && (() => {
         const lines = data.statements.get(open.id) ?? [];
+        const cyc = open.card?.cycles ?? null;
         return (
           <>
             <p><Link className="btn-link" href={`${PAGE}?tab=accounts`}>← All accounts</Link></p>
             <h2 style={{ marginBottom: 4 }}>{open.name}</h2>
             <p style={{ ...muted, marginTop: 0 }}>{accountLine(open)}</p>
+            {open.kind === "BANK" && (open.holder || open.ifsc || open.hasAccountNo) && (
+              <p style={{ margin: "0 0 8px", lineHeight: 1.8 }}>
+                {open.holder ? <>Account holder: <strong>{open.holder}</strong><br /></> : null}
+                {open.hasAccountNo ? <>Account number: •••• {open.last4} <RevealPassword id={open.id} reveal={revealPersonalAccountNoAction} label="Show number" /><br /></> : null}
+                {open.ifsc ? <>IFSC: <strong>{open.ifsc}</strong></> : null}
+              </p>
+            )}
             <div style={tiles}>
-              <StatTile label={open.card ? "Owed on the card" : "Balance now"} value={open.card ? inr(open.card.owed) : inr(open.balance)} />
-              {open.card?.available != null && <StatTile label="Can still spend" value={inr(open.card.available)} />}
-              {open.card?.nextDue && <StatTile label="Next payment due" value={pretty(open.card.nextDue)} />}
-              <StatTile label="Start" value={inr(open.openingBalance)} note={open.openingDate ? pretty(open.openingDate) : undefined} />
+              <StatTile label={open.card ? "Owed on the card now" : "Balance now"} value={open.card ? inr(open.card.owed) : inr(open.balance)} />
+              {open.card?.billDue && <StatTile label="Last bill still to pay" value={inr(open.card.billDue.amount)} note={`Due ${pretty(open.card.billDue.dueOn)}`} />}
+              {open.card && cyc && !open.card.billDue && cyc.past[0] && <StatTile label="Last bill" value="Paid" note={`Bill of ${pretty(cyc.past[0].billOn)}`} />}
+              {open.card?.available != null && <StatTile label="Can still spend" value={inr(open.card.available)} note={open.creditLimit != null ? `Limit ${inr(open.creditLimit)}` : undefined} />}
+              {cyc && <StatTile label="Next bill" value={pretty(cyc.open.nextBillOn)} note={`Spent so far ${inr(cyc.open.spent)}`} />}
             </div>
-            <Section title="Spent from this account">
-              <EntryForm kind="EXPENSE" accounts={opts} today={today} tab="accounts" defaultAccount={open.id} />
+
+            {open.card && payFrom.length > 0 && (
+              <Section title="Pay this bill">
+                <CardPayForm cardId={open.id} accounts={payFrom} today={today} amount={open.card.billDue?.amount ?? open.card.owed} />
+              </Section>
+            )}
+            <Section title={open.card ? "Spent on this card" : "Spent from this account"}>
+              <EntryForm kind="EXPENSE" accounts={opts} today={today} tab="accounts" defaultAccount={open.id} stayOn={open.id} />
             </Section>
-            <Section title="Statement" aside={<Link className="btn-link" href={`${PAGE}?tab=accounts&edit=${open.id}`}>Change account details</Link>}>
-              {lines.length === 0 ? <p style={muted}>Nothing recorded yet.</p> : (
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 520 }}>
-                    <thead><tr><th style={cell}>Date</th><th style={cell}>What</th><th style={right}>Amount</th><th style={right}>Balance</th><th style={cell}></th></tr></thead>
-                    <tbody>
-                      {lines.map((l, i) => (
-                        <tr key={i}>
-                          <td style={cell}>{pretty(l.date)}</td>
-                          <td style={cell}>{l.label}{l.fromBusiness ? <> <Badge tone="info" title="Recorded in the business; change it there">Business</Badge></> : null}</td>
-                          <td style={right}>{signed(l.amount)}</td>
-                          <td style={right}>{inr(l.balance)}</td>
-                          <td style={cell}>{l.entryId ? (
-                            <form action={voidPersonalEntryAction}>
-                              <input type="hidden" name="id" value={l.entryId} /><input type="hidden" name="tab" value="accounts" /><input type="hidden" name="account" value={open.id} />
-                              <ConfirmButton label="Remove" question="Remove this entry? The balance will be recalculated." />
-                            </form>
-                          ) : null}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Section>
+
+            {cyc ? (
+              <>
+                <Section title={`Now: ${pretty(cyc.open.from)} to ${pretty(cyc.open.nextBillOn)}`}
+                  aside={<Link className="btn-link" href={`${PAGE}?tab=accounts&edit=${open.id}`}>Change card details</Link>}>
+                  <p style={{ ...muted, marginTop: 0 }}>Goes into the bill of {pretty(cyc.open.nextBillOn)}. Spent {inr(cyc.open.spent)} · Paid or refunded {inr(cyc.open.credits)}</p>
+                  {cyc.open.lines.length === 0 ? <p style={muted}>Nothing yet.</p> : <Lines lines={cyc.open.lines} accountId={open.id} />}
+                </Section>
+                {cyc.past.map((c) => (
+                  <Section key={c.billOn} title={`Bill of ${pretty(c.billOn)}: ${inr(c.billAmount)}`}
+                    aside={c.billAmount === 0n ? <Badge>Nothing to pay</Badge> : c.stillDue === 0n ? <Badge tone="ok">Paid</Badge> : <Badge tone="wait">{`${inr(c.stillDue)} due ${pretty(c.dueOn)}`}</Badge>}>
+                    <p style={{ ...muted, marginTop: 0 }}>
+                      {pretty(c.from)} to {pretty(c.billOn)} · Owed at start {inr(c.openingOwed)} · Spent {inr(c.spent)} · Paid or refunded {inr(c.credits)} · Paid after the bill {inr(c.paidSince)}
+                    </p>
+                    {c.lines.length === 0 ? <p style={muted}>Nothing in this cycle.</p> : <Lines lines={c.lines} accountId={open.id} />}
+                  </Section>
+                ))}
+              </>
+            ) : (
+              <Section title="Statement" aside={<Link className="btn-link" href={`${PAGE}?tab=accounts&edit=${open.id}`}>Change account details</Link>}>
+                {open.card ? <Notice tone="warn">Add the card&rsquo;s bill date and due date to see it bill by bill.</Notice> : null}
+                {lines.length === 0 ? <p style={muted}>Nothing recorded yet.</p> : <Lines lines={lines} accountId={open.id} />}
+              </Section>
+            )}
           </>
         );
       })()}

@@ -4,9 +4,12 @@ import { useActionState, useEffect, useState } from "react";
 
 import { revealPasswordAction, type RevealState } from "@/lib/registration-actions";
 
-/** "Show password" button: asks the server, shows it for 30 seconds, then hides it again. */
-export default function RevealPassword({ id }: { id: number }) {
-  const [state, action, pending] = useActionState<RevealState, FormData>(revealPasswordAction, null);
+type RevealAction = (prev: RevealState, form: FormData) => Promise<RevealState>;
+
+/** "Show password" button: asks the server, shows it for 30 seconds, then hides it again.
+ *  Also used for other secrets (an account number) by passing that secret's server action and a label. */
+export default function RevealPassword({ id, reveal = revealPasswordAction, label = "Show password" }: { id: number; reveal?: RevealAction; label?: string }) {
+  const [state, action, pending] = useActionState<RevealState, FormData>(reveal, null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     if (!state?.password) return;
@@ -24,7 +27,7 @@ export default function RevealPassword({ id }: { id: number }) {
           <button type="button" className="btn-link" onClick={() => setVisible(false)}>Hide</button>
         </>
       ) : (
-        <button type="submit" className="btn-link" disabled={pending} style={{ cursor: "pointer" }}>{pending ? "Opening…" : "Show password"}</button>
+        <button type="submit" className="btn-link" disabled={pending} style={{ cursor: "pointer" }}>{pending ? "Opening…" : label}</button>
       )}
       {state?.error ? <span role="alert" style={{ color: "#b91c1c" }}>{state.error}</span> : null}
     </form>

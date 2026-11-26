@@ -79,3 +79,69 @@ export function cardStatus(balance: bigint, limit: bigint | null, dueDay: number
 export function netWorth(p: { accounts: bigint; loansGiven: bigint; loansTaken: bigint; investments: bigint }): bigint {
   return p.accounts + p.loansGiven + p.investments - p.loansTaken;
 }
+
+const dayAfter = (iso: string) => { const d = new Date(`${iso}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); };
+/** The first date on the given day of the month strictly after `iso`. */
+export const dayOfMonthAfter = (day: number, iso: string) => nextDayOfMonth(day, dayAfter(iso));
+
+export type CardLine = { date: string; amount: bigint };
+export type BillCycle<T extends CardLine> = {
+  from: string; billOn: string; dueOn: string;
+  openingOwed: bigint; spent: bigint; credits: bigint;
+  /** What the bill asked for on the bill date (never below zero). */
+  billAmount: bigint;
+  /** Payments and refunds after the bill date, until the next bill. */
+  paidSince: bigint;
+  stillDue: bigint;
+  lines: T[];
+};
+export type OpenCycle<T extends CardLine> = { from: string; nextBillOn: string; spent: bigint; credits: bigint; owedNow: bigint; lines: T[] };
+
+/**
+ * A credit card's statement grouped by bill cycle. Lines oldest first; a card balance is below zero while owed.
+ * A cycle runs from the day after one bill date to the next bill date. Payments made after a bill date
+ * count against that bill first.
+ */
+export function billCycles<T extends CardLine>(p: { lines: T[]; opening: bigint; openingDate: string | null; billDay: number; dueDay: number | null; today: string; keep?: number }): { past: BillCycle<T>[]; open: OpenCycle<T> } {
+  const start = p.openingDate ?? p.lines[0]?.date ?? p.today;
+  const lines = [...p.lines].sort((a, b) => a.date.localeCompare(b.date));
+  const bills: string[] = [];
+  for (let b = nextDayOfMonth(p.billDay, start); b <= p.today && bills.length < 240; b = dayOfMonthAfter(p.billDay, b)) bills.push(b);
+
+  let bal = p.opening;
+  let i = 0;
+  const take = (to: string) => {
+    const got: T[] = [];
+    let spent = 0n, credits = 0n;
+    while (i < lines.length && lines[i].date <= to) {
+      const l = lines[i++];
+      got.push(l); bal += l.amount;
+      if (l.amount < 0n) spent += -l.amount; else credits += l.amount;
+    }
+    return { got, spent, credits };
+  };
+  const owed = (b: bigint) => (b < 0n ? -b : 0n);
+
+  const past: BillCycle<T>[] = [];
+  let from = start;
+  for (const billOn of bills) {
+    const openingOwed = owed(bal);
+    const t = take(billOn);
+    past.push({
+      from, billOn, dueOn: p.dueDay ? dayOfMonthAfter(p.dueDay, billOn) : billOn,
+      openingOwed, spent: t.spent, credits: t.credits, billAmount: owed(bal), paidSince: 0n, stillDue: 0n, lines: t.got.reverse(),
+    });
+    from = dayAfter(billOn);
+  }
+  const t = take("9999-12-31");
+  const open: OpenCycle<T> = {
+    from, nextBillOn: bills.length ? dayOfMonthAfter(p.billDay, bills[bills.length - 1]) : nextDayOfMonth(p.billDay, start),
+    spent: t.spent, credits: t.credits, owedNow: owed(bal), lines: t.got.reverse(),
+  };
+  for (let k = 0; k < past.length; k++) {
+    past[k].paidSince = k + 1 < past.length ? past[k + 1].credits : open.credits;
+    const left = past[k].billAmount - past[k].paidSince;
+    past[k].stillDue = left > 0n ? left : 0n;
+  }
+  return { past: past.reverse().slice(0, p.keep ?? 12), open };
+}

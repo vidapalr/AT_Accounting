@@ -3,10 +3,9 @@ import SubmitButton from "@/components/SubmitButton";
 import { Field } from "@/components/ui";
 import { fieldFull as field, formGrid } from "@/lib/ui/styles";
 import {
-  addPersonalEntryAction, addPersonalInvestmentAction, addPersonalLoanAction, savePersonalAccountAction,
+  addPersonalEntryAction, addPersonalInvestmentAction, addPersonalLoanAction,
 } from "@/lib/personal-money-actions";
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/personal-money";
-import { ACCOUNT_KIND_WORDS, type AccountKind, type PersonalAccount } from "@/lib/personal-money-data";
 import { rupeesText } from "@/lib/sale-payments";
 
 type Opt = { id: number; name: string };
@@ -31,10 +30,11 @@ const DateField = ({ today, name = "entry_date", label = "Date" }: { today: stri
 const Note = () => <Field label="Note (optional)"><input name="note" maxLength={300} style={field} /></Field>;
 
 /** Money in, spent, or moved between your accounts (also: paying a credit card bill). */
-export function EntryForm({ kind, accounts, today, tab, defaultAccount }: { kind: "INCOME" | "EXPENSE" | "TRANSFER"; accounts: Opt[]; today: string; tab: string; defaultAccount?: number }) {
+export function EntryForm({ kind, accounts, today, tab, defaultAccount, stayOn }: { kind: "INCOME" | "EXPENSE" | "TRANSFER"; accounts: Opt[]; today: string; tab: string; defaultAccount?: number; stayOn?: number }) {
   const cats = kind === "INCOME" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
   return (
     <form action={addPersonalEntryAction} style={formGrid}>
+      {stayOn ? <input type="hidden" name="account" value={stayOn} /> : null}
       <input type="hidden" name="kind" value={kind} />
       <input type="hidden" name="tab" value={tab} />
       <Amount />
@@ -58,32 +58,18 @@ export function EntryForm({ kind, accounts, today, tab, defaultAccount }: { kind
   );
 }
 
-/** Add or change a bank account, card, cash or wallet. */
-export function AccountForm({ account, today }: { account?: PersonalAccount; today: string }) {
-  const a = account;
-  const owed = a?.kind === "CREDIT_CARD" && a.openingBalance < 0n;
-  const opening = a ? (a.openingBalance < 0n ? -a.openingBalance : a.openingBalance) : null;
+/** "Pay this bill": money moves from a bank (or cash) into the card; it is not counted as spending again. */
+export function CardPayForm({ cardId, accounts, today, amount }: { cardId: number; accounts: Opt[]; today: string; amount: bigint }) {
   return (
-    <form action={savePersonalAccountAction} style={formGrid}>
-      {a ? <input type="hidden" name="id" value={a.id} /> : null}
-      <Field label="Name"><input name="account_name" required maxLength={100} defaultValue={a?.name} placeholder="My HDFC savings" style={field} /></Field>
-      <Field label="Kind">
-        <select name="kind" defaultValue={a?.kind ?? "BANK"} style={field}>
-          {(Object.keys(ACCOUNT_KIND_WORDS) as AccountKind[]).map((k) => <option key={k} value={k}>{ACCOUNT_KIND_WORDS[k]}</option>)}
-        </select>
-      </Field>
-      <Field label="Bank (optional)"><input name="bank_name" maxLength={120} defaultValue={a?.bankName ?? ""} placeholder="HDFC Bank" style={field} /></Field>
-      <Field label="Last 4 digits (optional)" hint="Only the last 4, never the full number."><input name="last4" inputMode="numeric" maxLength={4} pattern="\d{4}" defaultValue={a?.last4 ?? ""} style={field} /></Field>
-      <Field label="Balance on the start date (₹)" hint="For a card, type what you owe and tick the box below.">
-        <input name="opening_balance" inputMode="decimal" defaultValue={opening === null ? "0" : rupeesText(opening)} style={field} />
-      </Field>
-      <Field label="Start date"><input type="date" name="opening_date" defaultValue={a?.openingDate ?? today} style={field} /></Field>
-      <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" name="opening_is_owed" value="1" defaultChecked={owed} /> Card: this amount is owed</label>
-      <Field label="Card limit (₹, cards only)"><input name="credit_limit" inputMode="decimal" defaultValue={a?.creditLimit != null ? rupeesText(a.creditLimit) : ""} style={field} /></Field>
-      <Field label="Bill date (day of month)"><input name="bill_day" type="number" min={1} max={31} defaultValue={a?.billDay ?? ""} style={field} /></Field>
-      <Field label="Payment due (day of month)"><input name="due_day" type="number" min={1} max={31} defaultValue={a?.dueDay ?? ""} style={field} /></Field>
-      <Field label="Note (optional)"><input name="note" maxLength={300} defaultValue={a?.note ?? ""} style={field} /></Field>
-      <div style={{ alignSelf: "end" }}><SubmitButton label={a ? "Save changes" : "Add account"} /></div>
+    <form action={addPersonalEntryAction} style={formGrid}>
+      <input type="hidden" name="kind" value="TRANSFER" />
+      <input type="hidden" name="to_account_id" value={cardId} />
+      <input type="hidden" name="tab" value="accounts" />
+      <input type="hidden" name="account" value={cardId} />
+      <Field label="Amount paid (₹)" hint="Full bill, minimum due or any part."><input name="amount" required inputMode="decimal" defaultValue={amount > 0n ? rupeesText(amount) : ""} style={field} /></Field>
+      <AccountSelect accounts={accounts} label="Paid from" />
+      <DateField today={today} />
+      <div style={{ alignSelf: "end" }}><SubmitButton label="Save payment" /></div>
     </form>
   );
 }

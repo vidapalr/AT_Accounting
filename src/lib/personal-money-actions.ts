@@ -9,6 +9,8 @@ import { requireGroupOwner } from "@/lib/auth";
 import { isDate, parseRupees, todayInIndia } from "@/lib/reports/money";
 import { rupeesText } from "@/lib/sale-payments";
 import type { EntryKind } from "@/lib/personal-money";
+import { bankFromIfsc, IFSC_PATTERN, normalIfsc } from "@/lib/ifsc";
+import { openSecret, sealSecret, secretsReady } from "@/lib/secret-box";
 
 // Personal money is private to the owner who records it: every query is scoped to owner_user_id,
 // and nothing is written to the shared audit log (others with audit access would see it).
@@ -25,7 +27,8 @@ const back = (tab: string, extra = "") => `${PAGE}?tab=${tab}${extra}`;
 function fail(tab: string, message: string, extra = ""): never { redirect(`${back(tab, extra)}&error=${encodeURIComponent(message)}`); }
 function done(tab: string, message: string, extra = ""): never { revalidatePath(PAGE); redirect(`${back(tab, extra)}&saved=${encodeURIComponent(message)}`); }
 const missing = (e: unknown) => ["ER_NO_SUCH_TABLE", "ER_BAD_FIELD_ERROR"].includes(String((e as { code?: string }).code));
-const NEEDS = "Run the new database step (098_personal_money) in phpMyAdmin first.";
+const NEEDS = "Run the new database steps (098_personal_money and 099_personal_bank_details) in phpMyAdmin first.";
+const ACCOUNT_NO_PURPOSE = "personal-account-no";
 
 async function ownsAccount(businessId: number, ownerId: number, id: number | null): Promise<boolean> {
   if (!id) return false;
@@ -51,46 +54,93 @@ async function insertEntry(o: { businessId: number; ownerId: number; date: strin
 /** Adds or changes a bank account, credit card, cash or wallet. */
 export async function savePersonalAccountAction(form: FormData): Promise<void> {
   const user = await requireGroupOwner();
-  const id = num(form, "id");
-  const name = text(form, "account_name", 100);
-  const kind = text(form, "kind", 20);
-  const last4 = text(form, "last4", 4);
-  const limit = text(form, "credit_limit", 20) ? parseRupees(text(form, "credit_limit", 20)) : null;
-  const opening = text(form, "opening_balance", 20) ? parseRupees(text(form, "opening_balance", 20)) : 0n;
-  const openingDate = text(form, "opening_date", 10) || todayInIndia();
-  const owedAtStart = form.get("opening_is_owed") === "1";
   const tab = "accounts";
+  const id = num(form, "id");
+  const kind = text(form, "kind", 20);
+  const card = kind === "CREDIT_CARD";
+  const bank = kind === "BANK";
+  const name = text(form, "account_name", 100);
+  const amountText = text(form, card ? "owed_today" : "opening_balance", 20);
+  const amount = amountText ? parseRupees(amountText) : 0n;
+  const openingDate = text(form, "opening_date", 10) || todayInIndia();
+  const limitText = text(form, "credit_limit", 20);
+  const limit = limitText ? parseRupees(limitText) : null;
+  const billDay = day(form, "bill_day");
+  const dueDay = day(form, "due_day");
+  const ifsc = normalIfsc(text(form, "ifsc", 20));
+  const holder = text(form, "account_holder", 150);
+  const accountNoText = text(form, "account_no", 40).replace(/[\s-]/g, "");
+  let last4 = text(form, "last4", 4);
+
   if (name.length < 2) fail(tab, "Give it a name, for example: My HDFC savings, or SBI credit card.");
   if (!KINDS.has(kind)) fail(tab, "Choose what kind of account it is.");
+  if (amount === null) fail(tab, "Type amounts as numbers, for example 25000.");
+  if (!isDate(openingDate) || openingDate > todayInIndia()) fail(tab, "Choose the date of the balance (today or earlier).");
+  if (card) {
+    if (limit === null || limit <= 0n) fail(tab, "Type the card limit, for example 200000.");
+    if (!billDay || !dueDay) fail(tab, "Choose the bill date and the payment due date of the card (day of the month).");
+    if (amount < 0n) fail(tab, "Type what you owe on the card today as a plain amount (0 if nothing).");
+  }
+  if (bank) {
+    if (ifsc && !IFSC_PATTERN.test(ifsc)) fail(tab, "IFSC is 11 letters and numbers, for example SBIN0001234.");
+    if (accountNoText && !/^\d{6,24}$/.test(accountNoText)) fail(tab, "Account number must be 6 to 24 digits.");
+    if (accountNoText) last4 = accountNoText.slice(-4);
+    if (accountNoText && !secretsReady()) fail(tab, "The server has no encryption key, so the account number cannot be saved. Leave it empty for now.");
+  }
   if (last4 && !/^\d{4}$/.test(last4)) fail(tab, "Last 4 digits must be 4 numbers.");
-  if (opening === null || (limit === null && text(form, "credit_limit", 20))) fail(tab, "Type amounts as numbers, for example 25000.");
-  if (!isDate(openingDate)) fail(tab, "Choose the date of the opening balance.");
-  // A card's starting figure is typed as what is owed; it is kept as a balance below zero.
-  const openingSigned = kind === "CREDIT_CARD" && owedAtStart ? -(opening < 0n ? -opening : opening) : opening;
 
-  const values = [name, kind, text(form, "bank_name", 120) || null, last4 || null, limit === null ? null : rupeesText(limit),
-    kind === "CREDIT_CARD" ? day(form, "bill_day") : null, kind === "CREDIT_CARD" ? day(form, "due_day") : null,
-    (openingSigned < 0n ? "-" : "") + rupeesText(openingSigned < 0n ? -openingSigned : openingSigned), openingDate, text(form, "note", 300) || null];
+  // A card balance is kept below zero while money is owed.
+  const opening = card ? -amount : amount;
+  const openingText = (opening < 0n ? "-" : "") + rupeesText(opening < 0n ? -opening : opening);
+  const bankName = text(form, "bank_name", 120) || (bank && ifsc ? bankFromIfsc(ifsc) : null);
+  const base = [name, kind, bankName || null, last4 || null, card && limit !== null ? rupeesText(limit) : null,
+    card ? billDay : null, card ? dueDay : null, openingText, openingDate, text(form, "note", 300) || null];
+  const bankCols = [bank ? holder || null : null, bank ? ifsc || null : null];
+  const cipher = bank && accountNoText ? sealSecret(accountNoText, ACCOUNT_NO_PURPOSE) : null;
+
   try {
     if (id) {
       if (!(await ownsAccount(user.legal_business_id, user.id, id))) fail(tab, "That account was not found.");
       await db.execute(
         `UPDATE acct_owner_accounts SET account_name = ?, kind = ?, bank_name = ?, last4 = ?, credit_limit = ?, bill_day = ?, due_day = ?,
                 opening_balance = ?, opening_date = ?, note = ?, owner_user_id = ? WHERE id = ? AND legal_business_id = ?`,
-        [...values, user.id, id, user.legal_business_id]
+        [...base, user.id, id, user.legal_business_id]
       );
+      await db.execute(`UPDATE acct_owner_accounts SET account_holder = ?, ifsc = ? WHERE id = ? AND legal_business_id = ?`, [...bankCols, id, user.legal_business_id]);
+      // A blank account number keeps the one saved; a card or cash never keeps one.
+      if (cipher || !bank) await db.execute(`UPDATE acct_owner_accounts SET account_no_cipher = ? WHERE id = ? AND legal_business_id = ?`, [cipher, id, user.legal_business_id]);
     } else {
       await db.execute(
-        `INSERT INTO acct_owner_accounts (legal_business_id, account_name, kind, bank_name, last4, credit_limit, bill_day, due_day, opening_balance, opening_date, note, owner_user_id, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [user.legal_business_id, ...values, user.id, user.id]
+        `INSERT INTO acct_owner_accounts (legal_business_id, account_name, kind, bank_name, last4, credit_limit, bill_day, due_day, opening_balance, opening_date, note,
+                account_holder, ifsc, account_no_cipher, owner_user_id, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [user.legal_business_id, ...base, ...bankCols, cipher, user.id, user.id]
       );
     }
   } catch (e) {
     unstable_rethrow(e);
     fail(tab, (e as { code?: string }).code === "ER_DUP_ENTRY" ? "You already have an account with that name." : missing(e) ? NEEDS : "It could not be saved. Nothing was changed.");
   }
-  done(tab, `${id ? "Saved" : "Added"} ${name}.`);
+  done(tab, `${id ? "Saved" : "Added"} ${name}.`, id ? `&account=${id}` : "");
+}
+
+export type RevealState = { id: number; password?: string; error?: string } | null;
+
+/** Shows the full account number to the owner for a short time. */
+export async function revealPersonalAccountNoAction(_prev: RevealState, form: FormData): Promise<RevealState> {
+  const user = await requireGroupOwner();
+  const id = Number(form.get("id"));
+  const [rows] = await db.query<RowDataPacket[]>(
+    `SELECT account_no_cipher FROM acct_owner_accounts WHERE id = ? AND legal_business_id = ? AND (owner_user_id = ? OR owner_user_id IS NULL)`,
+    [id, user.legal_business_id, user.id]
+  );
+  const cipher = rows[0]?.account_no_cipher as Buffer | null | undefined;
+  if (!cipher) return { id, error: "No account number saved." };
+  try {
+    return { id, password: openSecret(Buffer.from(cipher), ACCOUNT_NO_PURPOSE) };
+  } catch {
+    return { id, error: "It could not be opened (the server key may have changed)." };
+  }
 }
 
 /** Money in, spent, moved between your accounts, or a payment against a loan or investment. */
@@ -105,19 +155,20 @@ export async function addPersonalEntryAction(form: FormData): Promise<void> {
   const toAccountId = num(form, "to_account_id");
   const loanId = num(form, "loan_id");
   const investmentId = num(form, "investment_id");
-  if (!ENTRY_KINDS.has(kind)) fail(tab, "Choose what this money is.");
-  if (!isDate(date) || date > todayInIndia()) fail(tab, "Choose a date (not in the future).");
-  if (amount === null || amount <= 0n) fail(tab, "Type the amount, for example 1500.");
-  if (interest === null || interest < 0n || interest > amount) fail(tab, "Interest must be a number no bigger than the amount.");
+  const stay = num(form, "account") ? `&account=${num(form, "account")}` : "";
+  if (!ENTRY_KINDS.has(kind)) fail(tab, "Choose what this money is.", stay);
+  if (!isDate(date) || date > todayInIndia()) fail(tab, "Choose a date (not in the future).", stay);
+  if (amount === null || amount <= 0n) fail(tab, "Type the amount, for example 1500.", stay);
+  if (interest === null || interest < 0n || interest > amount) fail(tab, "Interest must be a number no bigger than the amount.", stay);
   try {
-    if (!(await ownsAccount(user.legal_business_id, user.id, accountId))) fail(tab, "Choose which account the money went from or came into.");
+    if (!(await ownsAccount(user.legal_business_id, user.id, accountId))) fail(tab, "Choose which account the money went from or came into.", stay);
     if (kind === "TRANSFER") {
-      if (!(await ownsAccount(user.legal_business_id, user.id, toAccountId)) || toAccountId === accountId) fail(tab, "Choose a different account to move the money to.");
+      if (!(await ownsAccount(user.legal_business_id, user.id, toAccountId)) || toAccountId === accountId) fail(tab, "Choose a different account to move the money to.", stay);
     }
     const needsLoan = kind === "LOAN_RECEIVED" || kind === "LOAN_PAID";
-    if (needsLoan && !(await owns("acct_personal_loans", user.legal_business_id, user.id, loanId))) fail(tab, "Choose the loan.");
+    if (needsLoan && !(await owns("acct_personal_loans", user.legal_business_id, user.id, loanId))) fail(tab, "Choose the loan.", stay);
     const needsInv = kind === "INVEST" || kind === "REDEEM";
-    if (needsInv && !(await owns("acct_personal_investments", user.legal_business_id, user.id, investmentId))) fail(tab, "Choose the investment.");
+    if (needsInv && !(await owns("acct_personal_investments", user.legal_business_id, user.id, investmentId))) fail(tab, "Choose the investment.", stay);
     await insertEntry({
       businessId: user.legal_business_id, ownerId: user.id, date, kind, amount, interest: needsLoan ? interest : 0n,
       accountId, toAccountId: kind === "TRANSFER" ? toAccountId : null,
@@ -126,9 +177,9 @@ export async function addPersonalEntryAction(form: FormData): Promise<void> {
     });
   } catch (e) {
     unstable_rethrow(e);
-    fail(tab, missing(e) ? NEEDS : "It could not be saved. Nothing was changed.");
+    fail(tab, missing(e) ? NEEDS : "It could not be saved. Nothing was changed.", stay);
   }
-  done(tab, "Saved.");
+  done(tab, "Saved.", stay);
 }
 
 /** Removes a wrong entry (kept, marked as removed, so balances recalculate). */

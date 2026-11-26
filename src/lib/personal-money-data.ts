@@ -4,7 +4,7 @@ import type { Pool, PoolConnection } from "mysql2/promise";
 
 import { toPaise } from "@/lib/reports/money";
 import {
-  cardStatus, entryEffect, linkEffect, netWorth, ENTRY_WORDS, LINK_WORDS,
+  billCycles, cardStatus, entryEffect, linkEffect, netWorth, ENTRY_WORDS, LINK_WORDS,
   type BusinessLink, type EntryKind,
 } from "@/lib/personal-money";
 
@@ -19,8 +19,9 @@ export type PersonalAccount = {
   id: number; name: string; kind: AccountKind; bankName: string | null; last4: string | null; note: string | null;
   creditLimit: bigint | null; billDay: number | null; dueDay: number | null;
   openingBalance: bigint; openingDate: string | null;
+  holder: string | null; ifsc: string | null; hasAccountNo: boolean;
   balance: bigint;
-  card: ReturnType<typeof cardStatus> | null;
+  card: (ReturnType<typeof cardStatus> & { cycles: ReturnType<typeof billCycles<StatementLine>> | null; billDue: { amount: bigint; dueOn: string } | null }) | null;
 };
 
 export type PersonalLoan = {
@@ -101,10 +102,13 @@ async function businessLinks(db: Q, businessId: number, ids: number[]): Promise<
 }
 
 /** Plain description of one personal entry, as it shows on a statement. */
-export function entryLabel(e: PersonalEntry, names: Map<number, string>, side: "from" | "to", loans: Map<number, string>, invs: Map<number, string>): string {
+export function entryLabel(e: PersonalEntry, names: Map<number, string>, side: "from" | "to", loans: Map<number, string>, invs: Map<number, string>, cards = new Set<number>()): string {
   const what = e.category ? `${ENTRY_WORDS[e.kind]}: ${e.category}` : ENTRY_WORDS[e.kind];
   if (e.kind === "TRANSFER") {
     const other = side === "from" ? e.toAccountId : e.accountId;
+    const cardPaid = e.toAccountId != null && cards.has(e.toAccountId);
+    if (cardPaid && side === "from") return `Card bill paid: ${names.get(e.toAccountId!) ?? "card"}`;
+    if (cardPaid && side === "to") return `Payment received from ${names.get(other ?? 0) ?? "another account"}`;
     return `${side === "from" ? "Moved to" : "Moved from"} ${names.get(other ?? 0) ?? "another account"}`;
   }
   if (e.loanId) return `${what} (${loans.get(e.loanId) ?? "loan"})`;
@@ -117,14 +121,17 @@ export async function loadPersonalMoney(db: Q, businessId: number, ownerId: numb
   const empty: PersonalMoney = { ready: false, accounts: [], loans: [], investments: [], entries: [], statements: new Map(), totals: EMPTY_TOTALS, month: { income: 0n, expense: 0n, byCategory: [] } };
   let accRows: RowDataPacket[], loanRows: RowDataPacket[], invRows: RowDataPacket[], entRows: RowDataPacket[];
   try {
-    [accRows] = await db.execute<RowDataPacket[]>(
+    const accountSql = (extra: string) =>
       `SELECT id, account_name, note, kind, bank_name, last4, credit_limit, bill_day, due_day, opening_balance,
-              DATE_FORMAT(opening_date, '%Y-%m-%d') AS opening_date
+              DATE_FORMAT(opening_date, '%Y-%m-%d') AS opening_date${extra}
          FROM acct_owner_accounts
         WHERE legal_business_id = ? AND status = 'ACTIVE' AND (owner_user_id = ? OR owner_user_id IS NULL)
-        ORDER BY FIELD(kind, 'BANK', 'CASH', 'WALLET', 'CREDIT_CARD'), account_name`,
-      [businessId, ownerId]
-    );
+        ORDER BY FIELD(kind, 'BANK', 'CASH', 'WALLET', 'CREDIT_CARD'), account_name`;
+    try {
+      [accRows] = await db.execute<RowDataPacket[]>(accountSql(", account_holder, ifsc, account_no_cipher IS NOT NULL AS has_no"), [businessId, ownerId]);
+    } catch {
+      [accRows] = await db.execute<RowDataPacket[]>(accountSql(""), [businessId, ownerId]); // 099 not run yet
+    }
     [loanRows] = await db.execute<RowDataPacket[]>(
       `SELECT id, direction, party_name, DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date, opening_outstanding, interest_rate,
               emi_amount, emi_day, DATE_FORMAT(end_date, '%Y-%m-%d') AS end_date, note, status
@@ -154,6 +161,7 @@ export async function loadPersonalMoney(db: Q, businessId: number, ownerId: numb
   }));
 
   const names = new Map<number, string>(accRows.map((r) => [Number(r.id), String(r.account_name)]));
+  const cards = new Set<number>(accRows.filter((r) => String(r.kind) === "CREDIT_CARD").map((r) => Number(r.id)));
   const loanNames = new Map<number, string>(loanRows.map((r) => [Number(r.id), String(r.party_name)]));
   const invNames = new Map<number, string>(invRows.map((r) => [Number(r.id), String(r.name)]));
 
@@ -168,8 +176,8 @@ export async function loadPersonalMoney(db: Q, businessId: number, ownerId: numb
 
   for (const e of entries) {
     const fx = entryEffect(e.kind, e.amount, e.interest);
-    if (e.accountId && raw.has(e.accountId)) raw.get(e.accountId)!.push({ date: e.date, label: entryLabel(e, names, "from", loanNames, invNames), amount: fx.account, entryId: e.id, fromBusiness: false });
-    if (e.kind === "TRANSFER" && e.toAccountId && raw.has(e.toAccountId)) raw.get(e.toAccountId)!.push({ date: e.date, label: entryLabel(e, names, "to", loanNames, invNames), amount: fx.toAccount, entryId: e.id, fromBusiness: false });
+    if (e.accountId && raw.has(e.accountId)) raw.get(e.accountId)!.push({ date: e.date, label: entryLabel(e, names, "from", loanNames, invNames, cards), amount: fx.account, entryId: e.id, fromBusiness: false });
+    if (e.kind === "TRANSFER" && e.toAccountId && raw.has(e.toAccountId)) raw.get(e.toAccountId)!.push({ date: e.date, label: entryLabel(e, names, "to", loanNames, invNames, cards), amount: fx.toAccount, entryId: e.id, fromBusiness: false });
     if (e.loanId) {
       const m = loanMove.get(e.loanId) ?? { moved: 0n, interest: 0n, principal: 0n };
       m.moved += fx.loan;
@@ -195,14 +203,24 @@ export async function loadPersonalMoney(db: Q, businessId: number, ownerId: numb
     const opening = p(r.opening_balance);
     let bal = opening;
     const lines = (raw.get(id) ?? []).sort((a, b) => a.date.localeCompare(b.date)).map((l) => { bal += l.amount; return { ...l, balance: bal }; });
-    statements.set(id, lines.reverse());
     const kind = (String(r.kind ?? "BANK") as AccountKind);
     const limit = pn(r.credit_limit);
+    const billDay = r.bill_day == null ? null : Number(r.bill_day);
+    const dueDay = r.due_day == null ? null : Number(r.due_day);
+    const cycles = kind === "CREDIT_CARD" && billDay
+      ? billCycles({ lines, opening, openingDate: s(r.opening_date), billDay, dueDay, today: todayIso })
+      : null;
+    const lastBill = cycles?.past[0];
+    statements.set(id, lines.reverse());
     return {
       id, name: String(r.account_name), kind, bankName: s(r.bank_name), last4: s(r.last4), note: s(r.note),
       creditLimit: limit, billDay: r.bill_day == null ? null : Number(r.bill_day), dueDay: r.due_day == null ? null : Number(r.due_day),
       openingBalance: opening, openingDate: s(r.opening_date), balance: bal,
-      card: kind === "CREDIT_CARD" ? cardStatus(bal, limit, r.due_day == null ? null : Number(r.due_day), todayIso) : null,
+      holder: s(r.account_holder), ifsc: s(r.ifsc), hasAccountNo: Number(r.has_no ?? 0) === 1,
+      card: kind === "CREDIT_CARD" ? {
+        ...cardStatus(bal, limit, dueDay, todayIso), cycles,
+        billDue: lastBill && lastBill.stillDue > 0n ? { amount: lastBill.stillDue, dueOn: lastBill.dueOn } : null,
+      } : null,
     };
   });
 

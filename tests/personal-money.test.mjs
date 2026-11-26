@@ -31,3 +31,30 @@ test("credit card: owed, available and next due date", () => {
 test("net worth", () => {
   assert.equal(netWorth({ accounts: 1000n, loansGiven: 500n, loansTaken: 300n, investments: 200n }), 1400n);
 });
+
+import { billCycles } from "../src/lib/personal-money.ts";
+import { bankFromIfsc } from "../src/lib/ifsc.ts";
+
+test("credit card grouped by bill cycle", () => {
+  // Bill on the 15th, due on the 5th. Owed 2,000 at start (1 Oct).
+  const lines = [
+    { date: "2026-10-10", amount: -500000n },   // spent 5,000
+    { date: "2026-10-20", amount: -300000n },   // spent 3,000 (next bill)
+    { date: "2026-11-02", amount: 700000n },    // paid 7,000 from bank
+    { date: "2026-11-20", amount: -100000n },   // spent 1,000 (open cycle)
+  ];
+  const r = billCycles({ lines, opening: -200000n, openingDate: "2026-10-01", billDay: 15, dueDay: 5, today: "2026-11-26" });
+  assert.equal(r.past.length, 2);
+  const [nov, oct] = r.past;
+  assert.equal(oct.billOn, "2026-10-15"); assert.equal(oct.dueOn, "2026-11-05");
+  assert.equal(oct.billAmount, 700000n); assert.equal(oct.paidSince, 700000n); assert.equal(oct.stillDue, 0n);
+  assert.equal(nov.billOn, "2026-11-15"); assert.equal(nov.dueOn, "2026-12-05");
+  assert.equal(nov.spent, 300000n); assert.equal(nov.billAmount, 300000n); assert.equal(nov.stillDue, 300000n);
+  assert.equal(r.open.nextBillOn, "2026-12-15"); assert.equal(r.open.spent, 100000n); assert.equal(r.open.owedNow, 400000n);
+});
+
+test("IFSC gives the bank name", () => {
+  assert.equal(bankFromIfsc("sbin0001234"), "State Bank of India");
+  assert.equal(bankFromIfsc("HDFC0000001"), "HDFC Bank");
+  assert.equal(bankFromIfsc("HDFC000001"), null);
+});
