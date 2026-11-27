@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { REEL_MAX_PHOTOS, clampSeconds, frameAt, reelDuration, volumeAt } from "@/lib/reel-math";
+import { REEL_MAX_PHOTOS, clampSeconds, frameAt, photoBox, reelDuration, volumeAt } from "@/lib/reel-math";
 
 type Photo = { id: number };
 type Track = { id: number; name: string };
@@ -10,12 +10,14 @@ const W = 720;
 const H = 1280;
 const btn: React.CSSProperties = { cursor: "pointer", fontSize: 17, padding: "14px 22px", minHeight: 48 };
 
-/** A vertical reel from product photos: slow zoom, cross-fades, name and price on top, optional music. Made in this browser. */
+/** A vertical reel from product photos: whole photo (or fill), slow zoom, cross-fades, name and price below, optional music. Made in this browser. */
 export default function ReelMaker({
   productId, productName, priceText, photos, tracks, shopName,
 }: { productId: number; productName: string; priceText: string; photos: Photo[]; tracks: Track[]; shopName: string }) {
   const [picked, setPicked] = useState<number[]>(() => photos.slice(0, REEL_MAX_PHOTOS).map(p => p.id));
   const [seconds, setSeconds] = useState(3);
+  // "whole": every photo shown in full (blurred copy behind it); "fill": photo covers the screen, edges cut off.
+  const [fit, setFit] = useState<"whole" | "fill">("whole");
   const [track, setTrack] = useState<string>("");
   const [title, setTitle] = useState(productName);
   const [price, setPrice] = useState(priceText);
@@ -75,11 +77,21 @@ export default function ReelMaker({
       rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
       const finished = new Promise<void>(resolve => { rec.onstop = () => resolve(); });
 
+      // The photo sits above the name and price, so the text never covers it.
+      const area = { x: 24, y: 36, w: W - 48, h: H - 36 - 330 };
       const drawPhoto = (im: HTMLImageElement, zoom: number, alpha: number) => {
-        const scale = Math.max(W / im.width, H / im.height) * zoom;
-        const w = im.width * scale, h = im.height * scale;
         ctx.globalAlpha = alpha;
-        ctx.drawImage(im, (W - w) / 2, (H - h) / 2, w, h);
+        if (fit === "whole") {
+          // Behind the photo: the same photo filling the screen, blurred and darker (plain dark if blur is not available).
+          const bg = photoBox(im.width, im.height, area, { w: W, h: H }, 1.1, "fill");
+          ctx.filter = "blur(28px) brightness(0.55)";
+          const blurred = ctx.filter !== "none";
+          if (blurred) ctx.drawImage(im, bg.x, bg.y, bg.w, bg.h);
+          ctx.filter = "none";
+          if (!blurred) { ctx.fillStyle = "#111"; ctx.fillRect(0, 0, W, H); }
+        }
+        const b = photoBox(im.width, im.height, area, { w: W, h: H }, zoom, fit);
+        ctx.drawImage(im, b.x, b.y, b.w, b.h);
         ctx.globalAlpha = 1;
       };
       const drawText = () => {
@@ -170,6 +182,15 @@ export default function ReelMaker({
             <label>Name on the video<br /><input value={title} onChange={e => setTitle(e.target.value)} maxLength={80} style={{ padding: 12, fontSize: 16, width: "100%" }} /></label>
             <label>Price on the video (leave empty for none)<br /><input value={price} onChange={e => setPrice(e.target.value)} maxLength={40} style={{ padding: 12, fontSize: 16, width: "100%" }} placeholder="From ₹499" /></label>
             <label>Seconds for each photo (2 to 5)<br /><input type="number" min={2} max={5} step={1} value={seconds} onChange={e => setSeconds(Number(e.target.value))} style={{ padding: 12, fontSize: 16, width: 120 }} /></label>
+            <fieldset style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
+              <legend>Photos in the video</legend>
+              <label style={{ display: "block", marginBottom: 6 }}>
+                <input type="radio" name="fit" checked={fit === "whole"} onChange={() => setFit("whole")} /> Show the whole photo (nothing cut off)
+              </label>
+              <label style={{ display: "block" }}>
+                <input type="radio" name="fit" checked={fit === "fill"} onChange={() => setFit("fill")} /> Fill the screen (edges are cut off)
+              </label>
+            </fieldset>
             <label>Music<br />
               <select value={track} onChange={e => setTrack(e.target.value)} style={{ padding: 12, fontSize: 16, width: "100%" }}>
                 <option value="">No music (add Instagram music when you post)</option>

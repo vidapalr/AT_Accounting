@@ -38,3 +38,22 @@ export function volumeAt(t: number, total: number): number {
   const left = total - t;
   return left >= 1 ? 1 : Math.max(0, left);
 }
+
+export const REEL_MAX_ZOOM = 1.08;
+export type Box = { x: number; y: number; w: number; h: number };
+
+/**
+ * Where a photo is drawn. "whole": the full photo is always visible inside the box (it is made a little smaller
+ * so the slow zoom never cuts an edge). "fill": the photo covers the whole screen and the edges are cut off.
+ */
+export function photoBox(imgW: number, imgH: number, area: Box, screen: { w: number; h: number }, zoom: number, mode: "whole" | "fill"): Box {
+  if (mode === "fill") {
+    const s = Math.max(screen.w / imgW, screen.h / imgH) * zoom;
+    const w = imgW * s, h = imgH * s;
+    return { x: (screen.w - w) / 2, y: (screen.h - h) / 2, w, h };
+  }
+  const z = Math.min(Math.max(zoom, 1), REEL_MAX_ZOOM);
+  const s = (Math.min(area.w / imgW, area.h / imgH) / REEL_MAX_ZOOM) * z;
+  const w = imgW * s, h = imgH * s;
+  return { x: area.x + (area.w - w) / 2, y: area.y + (area.h - h) / 2, w, h };
+}
