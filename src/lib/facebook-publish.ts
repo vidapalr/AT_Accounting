@@ -1,5 +1,5 @@
 /**
- * Posts to the Facebook Page through Meta's Graph API: one photo, several photos in one post, or one video.
+ * Posts to the Facebook Page through Meta's Graph API: one photo, several photos in one post, or one video (as a Reel).
  * Needs server settings FACEBOOK_PAGE_ID and FACEBOOK_PAGE_ACCESS_TOKEN (a Page token; never put it in chat or code).
  * Photos and videos must be reachable from the internet, like Instagram.
  * `fetchFn` can be replaced in tests.
@@ -20,13 +20,20 @@ async function post(fetchFn: FetchFn, path: string, params: Record<string, strin
 export async function publishToFacebook(
   input: { pageId: string; token: string; caption: string; photoUrls?: string[]; videoUrl?: string },
   fetchFn: FetchFn = fetch
-): Promise<{ facebookPostId: string }> {
+): Promise<{ facebookPostId: string; asReel?: boolean }> {
   const { pageId, token, caption } = input;
   const photos = input.photoUrls ?? [];
 
   if (input.videoUrl) {
-    const v = await post(fetchFn, `/${pageId}/videos`, { file_url: input.videoUrl, description: caption, access_token: token });
-    return { facebookPostId: String(v.id ?? "") };
+    // A video goes out as a Reel; if Facebook will not take it as a Reel (for example not upright 9:16,
+    // or longer than 90 seconds), it is posted as a normal video instead.
+    try {
+      const r = await publishReelToFacebook({ pageId, token, caption, videoUrl: input.videoUrl }, fetchFn);
+      return { facebookPostId: r.facebookPostId, asReel: true };
+    } catch {
+      const v = await post(fetchFn, `/${pageId}/videos`, { file_url: input.videoUrl, description: caption, access_token: token });
+      return { facebookPostId: String(v.id ?? ""), asReel: false };
+    }
   }
   if (photos.length === 0) throw new FacebookError("No photo to post.");
   if (photos.length === 1) {
@@ -47,4 +54,25 @@ export async function publishToFacebook(
   ids.forEach((id, i) => { params[`attached_media[${i}]`] = JSON.stringify({ media_fbid: id }); });
   const feed = await post(fetchFn, `/${pageId}/feed`, params);
   return { facebookPostId: String(feed.id ?? "") };
+}
+
+/** A Facebook Reel in three steps: start, let Facebook fetch the video from its address, publish. */
+export async function publishReelToFacebook(
+  input: { pageId: string; token: string; caption: string; videoUrl: string },
+  fetchFn: FetchFn = fetch
+): Promise<{ facebookPostId: string }> {
+  const { pageId, token } = input;
+  const start = await post(fetchFn, `/${pageId}/video_reels`, { upload_phase: "start", access_token: token });
+  const videoId = String(start.video_id ?? "");
+  if (!videoId) throw new FacebookError("Facebook did not start the reel.");
+  const res = await fetchFn(`https://rupload.facebook.com/video-upload/v21.0/${videoId}`, {
+    method: "POST",
+    headers: { Authorization: `OAuth ${token}`, file_url: input.videoUrl },
+  });
+  const up = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
+  if (!res.ok || !up.success) throw new FacebookError(String(up.error?.message ?? `Facebook did not take the reel video (${res.status}).`).slice(0, 250));
+  await post(fetchFn, `/${pageId}/video_reels`, {
+    upload_phase: "finish", video_id: videoId, video_state: "PUBLISHED", description: input.caption.slice(0, 2200), access_token: token,
+  });
+  return { facebookPostId: videoId };
 }

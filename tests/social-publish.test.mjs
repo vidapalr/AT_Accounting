@@ -54,3 +54,19 @@ test("Facebook errors are readable", async () => {
   const { fn } = fakeFetch([{ ok: false, status: 400, json: { error: { message: "Invalid OAuth access token." } } }]);
   await assert.rejects(() => publishToFacebook({ pageId: "77", token: "T", caption: "x", photoUrls: ["u"] }, fn), /Invalid OAuth/);
 });
+
+test("Facebook: a video goes out as a Reel (start, upload from its address, publish)", async () => {
+  const { fn, calls } = fakeFetch([{ json: { video_id: "V1" } }, { json: { success: true } }, { json: { success: true } }]);
+  const out = await publishToFacebook({ pageId: "PG", token: "T", caption: "New", videoUrl: "https://x.test/v.mp4" }, fn);
+  assert.deepEqual(out, { facebookPostId: "V1", asReel: true });
+  assert.match(calls[0].url, /\/PG\/video_reels$/); assert.match(calls[0].body, /upload_phase=start/);
+  assert.match(calls[1].url, /rupload\.facebook\.com\/video-upload\/v21\.0\/V1$/);
+  assert.match(calls[2].body, /upload_phase=finish/); assert.match(calls[2].body, /video_state=PUBLISHED/);
+});
+
+test("Facebook: a video Facebook will not take as a Reel is posted as a normal video", async () => {
+  const { fn, calls } = fakeFetch([{ json: { video_id: "V1" } }, { ok: false, status: 400, json: { error: { message: "Aspect ratio" } } }, { json: { id: "VID" } }]);
+  const out = await publishToFacebook({ pageId: "PG", token: "T", caption: "New", videoUrl: "https://x.test/v.mp4" }, fn);
+  assert.deepEqual(out, { facebookPostId: "VID", asReel: false });
+  assert.match(calls[2].url, /\/PG\/videos$/);
+});

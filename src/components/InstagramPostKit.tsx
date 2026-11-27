@@ -24,12 +24,24 @@ export default function InstagramPostKit({
   lastPosted?: string | null;
 }) {
   const [pending, startPost] = useTransition();
-  // Photos ticked for one combined post (all photos, up to 10, to start with).
-  const [picked, setPicked] = useState<number[]>(() => media.filter(m => m.type === "IMAGE").slice(0, 10).map(m => m.id));
+  // Ticked to post: the photos (up to 10, one combined post) and the newest video, which goes out as a reel.
+  const isVideo = (id: number) => media.find(m => m.id === id)?.type === "VIDEO";
+  const [picked, setPicked] = useState<number[]>(() => {
+    const photos = media.filter(m => m.type === "IMAGE").slice(0, 10).map(m => m.id);
+    const newestVideo = media.filter(m => m.type === "VIDEO").map(m => m.id).sort((a, b) => b - a)[0];
+    return newestVideo ? [...photos, newestVideo] : photos;
+  });
   const [toInstagram, setToInstagram] = useState(autoPost);
   const [toFacebook, setToFacebook] = useState(facebookPost);
   const [lines, setLines] = useState<string[]>([]);
-  const togglePick = (id: number) => setPicked(cur => (cur.includes(id) ? cur.filter(x => x !== id) : cur.length >= 10 ? cur : [...cur, id]));
+  const togglePick = (id: number) => setPicked(cur => {
+    if (cur.includes(id)) return cur.filter(x => x !== id);
+    if (isVideo(id)) return [...cur.filter(x => !isVideo(x)), id]; // one reel at a time
+    return cur.filter(x => !isVideo(x)).length >= 10 ? cur : [...cur, id];
+  });
+  const pickedPhotos = picked.filter(id => !isVideo(id)).length;
+  const pickedReel = picked.some(isVideo);
+  const pickedWords = [pickedPhotos ? `${pickedPhotos} photo${pickedPhotos === 1 ? "" : "s"}` : "", pickedReel ? "1 reel" : ""].filter(Boolean).join(" and ");
   const [caption, setCaption] = useState(initial);
   const [note, setNote] = useState("");
 
@@ -99,7 +111,7 @@ export default function InstagramPostKit({
                 {(autoPost || facebookPost) && (
                   <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 16 }}>
                     <input type="checkbox" checked={picked.includes(m.id)} onChange={() => togglePick(m.id)} style={{ width: 22, height: 22 }} />
-                    Include in the post
+                    {m.type === "VIDEO" ? "Post as a reel" : "Include in the post"}
                   </label>
                 )}
               </div>
@@ -110,7 +122,7 @@ export default function InstagramPostKit({
           <div style={{ marginTop: 16, padding: 14, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10 }}>
             <strong>Post automatically</strong>
             <p style={{ margin: "6px 0", color: "#475569" }}>
-              {picked.length} selected. Several photos go out as <strong>one post</strong> (a swipe-through post). Up to 10 photos.
+              {pickedWords || "Nothing"} selected. Photos go out together as <strong>one post</strong> (swipe-through, up to 10). A ticked video goes out as a <strong>reel</strong>, as its own post.
             </p>
             <div style={{ display: "flex", gap: 18, flexWrap: "wrap", margin: "8px 0" }}>
               {autoPost && (
@@ -131,7 +143,7 @@ export default function InstagramPostKit({
               style={{ cursor: "pointer", fontSize: 17, padding: "12px 22px" }}
               onClick={() => {
                 const where = [toInstagram ? "Instagram" : "", toFacebook ? "Facebook" : ""].filter(Boolean).join(" and ");
-                if (!window.confirm(`Post ${picked.length} photo${picked.length === 1 ? "" : "s"} to ${where} now?`)) return;
+                if (!window.confirm(`Post ${pickedWords} to ${where} now?`)) return;
                 setLines([]);
                 startPost(async () => {
                   const r = await postToSocialAction({ mediaIds: picked, caption, instagram: toInstagram, facebook: toFacebook });
@@ -139,7 +151,7 @@ export default function InstagramPostKit({
                 });
               }}
             >
-              {pending ? "Posting… this can take a minute" : `Post ${picked.length} photo${picked.length === 1 ? "" : "s"} now`}
+              {pending ? "Posting… this can take a minute" : `Post ${pickedWords || "now"}${pickedWords ? " now" : ""}`}
             </button>
             {lines.map((l, i) => <p key={i} role="status" style={{ margin: "8px 0 0", color: l.includes("not posted") || l.includes("not set up") ? "#b91c1c" : "#166534" }}>{l}</p>)}
           </div>

@@ -12,8 +12,9 @@ import { FacebookError, publishToFacebook } from "@/lib/facebook-publish";
 export type SocialResult = { ok: boolean; messages: string[] };
 
 /**
- * Posts the chosen photos (or one video) of ONE product to Instagram and/or the Facebook Page.
+ * Posts the chosen photos and/or one video of ONE product to Instagram and/or the Facebook Page.
  * Several photos become one post: a swipeable carousel on Instagram, a multi-photo post on Facebook.
+ * A video goes out as a reel on both, as its own post in the same press.
  */
 export async function postToSocialAction(input: { mediaIds: number[]; caption: string; instagram: boolean; facebook: boolean }): Promise<SocialResult> {
   const user = await requireAccess("products");
@@ -46,11 +47,14 @@ export async function postToSocialAction(input: { mediaIds: number[]; caption: s
   if (chosen.some((r) => Number(r.show_in_shop) !== 1)) {
     return { ok: false, messages: ["Switch on “Show on online shop” for this product first. Instagram and Facebook need a public link to the photos."] };
   }
-  const hasVideo = chosen.some((r) => r.media_type === "VIDEO");
-  if (hasVideo && chosen.length > 1) return { ok: false, messages: ["A video is posted on its own. Choose the video alone, or only photos."] };
+  // Photos go out together as one post; a video (a reel) goes out as its own reel in the same press.
+  const videos = chosen.filter((r) => r.media_type === "VIDEO").map((r) => Number(r.id));
+  const photoIds = chosen.filter((r) => r.media_type !== "VIDEO").map((r) => Number(r.id));
+  if (videos.length > 1) return { ok: false, messages: ["Choose one video (reel) at a time. Photos can go with it."] };
+  const hasVideo = videos.length > 0;
   const url = (id: number) => `${site}/api/shop/media/${id}`;
   // Instagram gets a JPG copy in a shape it accepts (PNG / WebP / very tall photos are converted on the server).
-  const igUrl = (id: number) => (hasVideo ? url(id) : `${url(id)}?for=instagram`);
+  const igUrl = (id: number) => (videos.includes(id) ? url(id) : `${url(id)}?for=instagram`);
 
   const messages: string[] = [];
   let anyOk = false;
@@ -77,11 +81,11 @@ export async function postToSocialAction(input: { mediaIds: number[]; caption: s
     } catch { /* cannot test from here: carry on */ }
   }
   if (problems.length > 0) return { ok: false, messages: problems };
-  const log = async (channel: "INSTAGRAM" | "FACEBOOK", ok: boolean, remoteId: string | null, error: string | null) => {
-    const base = [user.legal_business_id, Number(chosen[0].product_id), ids[0], text.slice(0, 2200), ok ? "POSTED" : "FAILED", remoteId, error ? error.slice(0, 300) : null, user.id];
+  const log = async (channel: "INSTAGRAM" | "FACEBOOK", ok: boolean, remoteId: string | null, error: string | null, partIds: number[]) => {
+    const base = [user.legal_business_id, Number(chosen[0].product_id), partIds[0], text.slice(0, 2200), ok ? "POSTED" : "FAILED", remoteId, error ? error.slice(0, 300) : null, user.id];
     await db.execute(
       `INSERT INTO acct_instagram_posts (legal_business_id, product_id, media_id, caption, status, instagram_media_id, error_text, created_by, channel, media_count)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [...base, channel, ids.length]
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [...base, channel, partIds.length]
     ).catch(() =>
       // Before migration 049: keep the old log shape.
       db.execute(
@@ -91,39 +95,47 @@ export async function postToSocialAction(input: { mediaIds: number[]; caption: s
     );
   };
 
+  const parts: Array<{ kind: "photos" | "reel"; ids: number[] }> = [];
+  if (photoIds.length) parts.push({ kind: "photos", ids: photoIds });
+  if (hasVideo) parts.push({ kind: "reel", ids: videos });
+  const what = (part: { kind: string; ids: number[] }) =>
+    part.kind === "reel" ? "reel" : part.ids.length > 1 ? `${part.ids.length} photos in one post` : "photo";
+
   if (wantIg) {
     if (!igUser || !igToken) messages.push("Instagram: automatic posting is not set up yet.");
-    else {
+    else for (const part of parts) {
       try {
-        const out = chosen.length === 1
-          ? await publishToInstagram({ kind: hasVideo ? "VIDEO" : "IMAGE", url: igUrl(ids[0]), caption: text, userId: igUser, token: igToken })
-          : await publishCarouselToInstagram({ urls: ids.map(igUrl), caption: text, userId: igUser, token: igToken });
-        messages.push(`Instagram: posted${chosen.length > 1 ? ` (${chosen.length} photos in one post)` : ""}.`);
+        const out = part.kind === "reel" || part.ids.length === 1
+          ? await publishToInstagram({ kind: part.kind === "reel" ? "VIDEO" : "IMAGE", url: igUrl(part.ids[0]), caption: text, userId: igUser, token: igToken })
+          : await publishCarouselToInstagram({ urls: part.ids.map(igUrl), caption: text, userId: igUser, token: igToken });
+        messages.push(`Instagram: posted (${what(part)}).`);
         anyOk = true;
-        await log("INSTAGRAM", true, out.instagramMediaId, null);
+        await log("INSTAGRAM", true, out.instagramMediaId, null, part.ids);
       } catch (error) {
         const reason = error instanceof InstagramError ? error.message : "Could not reach Instagram.";
-        messages.push(`Instagram: not posted. ${reason}`);
-        await log("INSTAGRAM", false, null, reason);
+        messages.push(`Instagram (${what(part)}): not posted. ${reason}`);
+        await log("INSTAGRAM", false, null, reason, part.ids);
       }
     }
   }
 
   if (wantFb) {
     if (!fbPage || !fbToken) messages.push("Facebook: automatic posting is not set up yet.");
-    else {
+    else for (const part of parts) {
       try {
         const out = await publishToFacebook({
           pageId: fbPage, token: fbToken, caption: text,
-          ...(hasVideo ? { videoUrl: url(ids[0]) } : { photoUrls: ids.map(url) }),
+          ...(part.kind === "reel" ? { videoUrl: url(part.ids[0]) } : { photoUrls: part.ids.map(url) }),
         });
-        messages.push(`Facebook: posted${chosen.length > 1 ? ` (${chosen.length} photos in one post)` : ""}.`);
+        messages.push(part.kind === "reel" && out.asReel === false
+          ? "Facebook: posted as a video (Facebook would not take it as a reel: it needs an upright 9:16 video of 3 to 90 seconds)."
+          : `Facebook: posted (${what(part)}).`);
         anyOk = true;
-        await log("FACEBOOK", true, out.facebookPostId, null);
+        await log("FACEBOOK", true, out.facebookPostId, null, part.ids);
       } catch (error) {
         const reason = error instanceof FacebookError ? error.message : "Could not reach Facebook.";
-        messages.push(`Facebook: not posted. ${reason}`);
-        await log("FACEBOOK", false, null, reason);
+        messages.push(`Facebook (${what(part)}): not posted. ${reason}`);
+        await log("FACEBOOK", false, null, reason, part.ids);
       }
     }
   }
