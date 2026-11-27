@@ -4,6 +4,7 @@ import type { RowDataPacket } from "mysql2";
 import { db } from "@/lib/db";
 import { shopBusinessId } from "@/lib/shop";
 import { mediaSize, readMediaRange } from "@/lib/media-storage";
+import { instagramJpeg } from "@/lib/instagram-photo";
 
 /** Public: photos and videos of products the owner switched on for the online shop. */
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -19,6 +20,17 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   );
   const media = rows[0];
   if (!media) return new NextResponse("Not found", { status: 404 });
+
+  // ?for=instagram: a JPG copy in a shape Instagram accepts (made once, then kept).
+  if (request.nextUrl.searchParams.get("for") === "instagram" && String(media.mime_type).startsWith("image/")) {
+    const jpg = await instagramJpeg(String(media.storage_key));
+    if (jpg) {
+      return new NextResponse(new Uint8Array(jpg), {
+        status: 200,
+        headers: { "Content-Type": "image/jpeg", "Content-Length": String(jpg.length), "Cache-Control": "public, max-age=3600", "X-Content-Type-Options": "nosniff" },
+      });
+    }
+  }
 
   const size = await mediaSize(String(media.storage_key));
   if (size === null) return new NextResponse("Not found", { status: 404 });

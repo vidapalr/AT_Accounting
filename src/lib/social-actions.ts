@@ -49,6 +49,8 @@ export async function postToSocialAction(input: { mediaIds: number[]; caption: s
   const hasVideo = chosen.some((r) => r.media_type === "VIDEO");
   if (hasVideo && chosen.length > 1) return { ok: false, messages: ["A video is posted on its own. Choose the video alone, or only photos."] };
   const url = (id: number) => `${site}/api/shop/media/${id}`;
+  // Instagram gets a JPG copy in a shape it accepts (PNG / WebP / very tall photos are converted on the server).
+  const igUrl = (id: number) => (hasVideo ? url(id) : `${url(id)}?for=instagram`);
 
   const messages: string[] = [];
   let anyOk = false;
@@ -60,7 +62,6 @@ export async function postToSocialAction(input: { mediaIds: number[]; caption: s
     try {
       const res = await fetch(url(id), { redirect: "manual", signal: AbortSignal.timeout(10000) });
       const type = res.headers.get("content-type") ?? "";
-      const len = Number(res.headers.get("content-length") ?? 0);
       const label = ids.length > 1 ? `Photo ${i + 1}` : "The photo";
       if (res.status >= 300 && res.status < 400) problems.push(`${label} is behind a redirect (${res.status}). Instagram cannot follow it. Check SHOP_PUBLIC_URL is the exact public address.`);
       else if (res.status === 404) {
@@ -72,7 +73,6 @@ export async function postToSocialAction(input: { mediaIds: number[]; caption: s
       }
       else if (res.status !== 200) problems.push(`${label} cannot be opened from the internet (answer ${res.status}).`);
       else if (!/^(image|video)\//.test(type)) problems.push(`${label} is not served as a photo (it came back as "${type.slice(0, 40) || "unknown"}"). Check SHOP_PUBLIC_URL.`);
-      else if (!hasVideo && len > 8 * 1024 * 1024) problems.push(`${label} is larger than 8 MB. Instagram refuses it. Upload a smaller copy.`);
       await res.body?.cancel();
     } catch { /* cannot test from here: carry on */ }
   }
@@ -93,12 +93,11 @@ export async function postToSocialAction(input: { mediaIds: number[]; caption: s
 
   if (wantIg) {
     if (!igUser || !igToken) messages.push("Instagram: automatic posting is not set up yet.");
-    else if (chosen.some((r) => r.media_type !== "VIDEO" && r.mime_type !== "image/jpeg")) messages.push("Instagram: it accepts JPG photos only. Choose JPG photos, or untick Instagram.");
     else {
       try {
         const out = chosen.length === 1
-          ? await publishToInstagram({ kind: hasVideo ? "VIDEO" : "IMAGE", url: url(ids[0]), caption: text, userId: igUser, token: igToken })
-          : await publishCarouselToInstagram({ urls: ids.map(url), caption: text, userId: igUser, token: igToken });
+          ? await publishToInstagram({ kind: hasVideo ? "VIDEO" : "IMAGE", url: igUrl(ids[0]), caption: text, userId: igUser, token: igToken })
+          : await publishCarouselToInstagram({ urls: ids.map(igUrl), caption: text, userId: igUser, token: igToken });
         messages.push(`Instagram: posted${chosen.length > 1 ? ` (${chosen.length} photos in one post)` : ""}.`);
         anyOk = true;
         await log("INSTAGRAM", true, out.instagramMediaId, null);
