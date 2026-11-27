@@ -15,7 +15,8 @@ import { normalizePhone } from "@/lib/customer-phone";
 import { db } from "@/lib/db";
 import { divisionOfBranch } from "@/lib/division-context";
 import { autoReverseForEdit } from "@/lib/ledger/reverse-in-tx";
-import { moveExcessToCustomerCredit } from "@/lib/sale-payments";
+import { fixSalePayment, insertSalePayment, moveExcessToCustomerCredit, MONEY_METHODS, receivingAccount } from "@/lib/sale-payments";
+import { todayInIndia } from "@/lib/reports/money";
 import { requireAccess } from "@/lib/auth";
 import { canGiveBillDiscount } from "@/lib/access";
 import { nextCode } from "@/lib/codes";
@@ -1141,6 +1142,28 @@ export async function updateSaleAction(
     redirect(`${PAGE}?result=invalid-edit&id=${saleId}`);
   }
 
+  // Payments changed on the edit screen: changes / removals of payments already taken, and new ones.
+  type PayEdit = { id: number; op: "change" | "remove"; method: string; account: string; amount: bigint; date: string; reference: string };
+  type PayNew = { method: string; account: string; amount: bigint; reference: string };
+  let payEdits: PayEdit[] = [];
+  let payNew: PayNew[] = [];
+  try {
+    const edits = JSON.parse(String(form.get("payment_edits_json") ?? "[]"));
+    const added = JSON.parse(String(form.get("payments_json") ?? "[]"));
+    if (!Array.isArray(edits) || !Array.isArray(added) || edits.length > 20 || added.length > 10) throw new Error("bad");
+    payEdits = edits.map((e: Record<string, unknown>) => ({
+      id: Number(e.id), op: e.remove ? "remove" as const : "change" as const, method: String(e.method ?? ""), account: String(e.account ?? ""),
+      amount: e.remove ? 0n : parseAmount(String(e.amount ?? "")), date: String(e.date ?? ""), reference: String(e.reference ?? "").trim().slice(0, 150),
+    }));
+    payNew = added.map((p: Record<string, unknown>) => ({
+      method: String(p.method ?? ""), account: String(p.account ?? ""), amount: parseAmount(String(p.amount ?? "")), reference: String(p.reference ?? "").trim().slice(0, 150),
+    })).filter((p) => p.amount > 0n);
+    if (payEdits.some((e) => !Number.isSafeInteger(e.id) || e.id <= 0 || (e.op === "change" && e.amount <= 0n))) throw new Error("bad");
+    if (payNew.some((p) => !MONEY_METHODS.has(p.method) || !/^(CASH|BANK):\d{1,10}$/.test(p.account))) throw new Error("bad");
+  } catch {
+    redirect(`${PAGE}?result=invalid-payment&edit=${saleId}`);
+  }
+
   const conn = await db.getConnection();
   let result = "failed";
   let movedToCredit = 0n;
@@ -1233,6 +1256,23 @@ export async function updateSaleAction(
          FOR UPDATE`,
         [businessId, DIVISION_ID, saleId]
       );
+      // Payments changed on this screen go in first, so the totals below see them.
+      let payProblem = "";
+      if (header.status === "POSTED") {
+        for (const e of payEdits) {
+          const fixed = await fixSalePayment(conn, {
+            businessId, userId: user.id, saleId, invoiceNo: String(header.invoice_no), invoiceDate: String(header.invoice_date), paymentId: e.id,
+            op: e.op, method: e.method, account: e.account, amount: e.amount, date: e.date, reference: e.reference, why: "Changed while editing the bill",
+          });
+          if (!fixed.ok) { payProblem = `payment-${fixed.reason}`; break; }
+        }
+        const payDate = todayInIndia() < String(header.invoice_date) ? String(header.invoice_date) : todayInIndia();
+        for (const p of payProblem ? [] : payNew) {
+          const acc = await receivingAccount(conn, businessId, p.method, p.account);
+          if (!acc) { payProblem = "payment-invalid-account"; break; }
+          await insertSalePayment(conn, { businessId, userId: user.id, divisionId: DIVISION_ID, saleId, date: payDate, method: p.method, acc, amount: p.amount, reference: p.reference });
+        }
+      }
       const [recordedPayments] =
         await conn.execute<RowDataPacket[]>(
           `SELECT id, amount, payment_method
@@ -1294,7 +1334,9 @@ export async function updateSaleAction(
         } else creditBlocked = moved.reason;
       }
 
-      if (creditBlocked) {
+      if (payProblem) {
+        result = payProblem;
+      } else if (creditBlocked) {
         result = creditBlocked;
       } else if (collected > grandTotal) {
         result = "payments-exceed-total";

@@ -90,6 +90,8 @@ type InitialInvoice = {
   shippingCharge?: string;
   remarks: string;
   collected: number;
+  /** Payments already taken (a confirmed bill): they can be changed or removed on the edit screen. */
+  payments?: Array<{ id: number; method: string; amount: string; date: string; reference: string; account: string }>;
   lines: Array<{
     variantId: number;
     quantity: string;
@@ -225,6 +227,10 @@ export default function SalesBillingForm({
         : [newSaleRow()]
   );
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  // Payments already on a confirmed bill, as changed on this screen (remove = taken off when saved).
+  const [takenPayments, setTakenPayments] = useState(
+    (initialInvoice?.payments ?? []).map(p => ({ ...p, remove: false, original: p }))
+  );
   // One-time token for this form. A new one is made after each save (the page address changes),
   // so a repeated submit of the same form can never create a second bill.
   const [submitToken, setSubmitToken] = useState("");
@@ -306,6 +312,93 @@ export default function SalesBillingForm({
         : payment
     ));
   }
+
+  // One payment row (how, which account, amount, reference); used for a new bill and for a new payment on an edited bill.
+  const paymentFields = (payment: PaymentRow) => (
+              <div key={payment.key} className={styles.pay}>
+                <label className={styles.field}>
+                  How
+                  <select
+                    value={payment.method}
+                    onChange={e =>
+                      updatePayment(payment.key, { method: e.target.value, account: "" })
+                    }
+                  >
+                    <option value="CASH">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="CARD">Card</option>
+                    <option value="BANK_TRANSFER">Bank transfer</option>
+                    {!editing && <option value="OTHER">Other</option>}
+                  </select>
+                </label>
+                <label className={styles.field}>
+                  Money goes into
+                  <select
+                    value={payment.account}
+                    onChange={e => updatePayment(payment.key, { account: e.target.value })}
+                    required={Number(payment.amount) > 0}
+                  >
+                    <option value="">Choose account</option>
+                    {paymentAccounts
+                      .filter(account =>
+                        payment.method === "CASH"
+                          ? account.value.startsWith("CASH:")
+                          : account.value.startsWith("BANK:")
+                      )
+                      .map(account => (
+                        <option key={account.value} value={account.value}>
+                          {account.label}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label className={styles.field}>
+                  Amount ₹
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0.01"
+                    step="0.01"
+                    value={payment.amount}
+                    onChange={e => updatePayment(payment.key, { amount: e.target.value })}
+                  />
+                </label>
+                <label className={styles.field}>
+                  Reference (optional)
+                  <input
+                    value={payment.reference}
+                    onChange={e => updatePayment(payment.key, { reference: e.target.value })}
+                  />
+                </label>
+                {payment.method === "CASH" && !editing && (
+                  <CashNotesPanel
+                    amount={payment.amount}
+                    notesIn={payment.notesIn ?? {}}
+                    notesOut={payment.notesOut ?? {}}
+                    onChange={patch => updatePayment(payment.key, patch)}
+                  />
+                )}
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.btnDanger}`}
+                  onClick={() =>
+                    setPayments(current => current.filter(p => p.key !== payment.key))
+                  }
+                >
+                  Remove
+                </button>
+              </div>
+  );
+
+  function updateTaken(id: number, patch: Partial<{ method: string; account: string; amount: string; reference: string; remove: boolean }>) {
+    setTakenPayments(current => current.map(p => (p.id === id ? { ...p, ...patch } : p)));
+  }
+  const takenChanges = takenPayments.filter(p =>
+    p.remove || p.method !== p.original.method || p.account !== p.original.account ||
+    Number(p.amount) !== Number(p.original.amount) || p.reference !== p.original.reference);
+  const receivedAfterEdit =
+    takenPayments.reduce((sum, p) => sum + (p.remove ? 0 : Number(p.amount || 0)), 0) +
+    payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
   const lineTotals = rows.map(row => {
     const gross =
@@ -440,6 +533,15 @@ export default function SalesBillingForm({
           }))
         )}
       />
+      {editing && !editingDraft && (
+        <input
+          type="hidden"
+          name="payment_edits_json"
+          value={JSON.stringify(takenChanges.map(p => ({
+            id: p.id, remove: p.remove, method: p.method, account: p.account, amount: p.amount, date: p.date, reference: p.reference,
+          })))}
+        />
+      )}
       <input
         type="hidden"
         name="payments_json"
@@ -937,15 +1039,68 @@ export default function SalesBillingForm({
           </p>
         ) : editing && !editingDraft ? (
           <div style={{ marginTop: 18, padding: 14, border: "1px solid #cbd5e1", borderRadius: 10, background: "#f8fafc" }}>
-            <h3 style={{ margin: "0 0 6px" }}>Payments</h3>
-            <p style={{ margin: "0 0 6px" }}>
-              Already received on this bill: <strong>₹{amount(initialInvoice.collected)}</strong>
-              {grandTotal - initialInvoice.collected > 0.004 ? <> · still due after this change: <strong>₹{amount(grandTotal - initialInvoice.collected)}</strong></> : null}
-              {initialInvoice.collected - grandTotal > 0.004 ? <> · the new total is <strong>₹{amount(initialInvoice.collected - grandTotal)}</strong> less than what was received</> : null}
-            </p>
-            <p style={{ color: "#475569", margin: 0 }}>
-              After you save, the bill opens: take a payment there, or change or remove a payment entered wrongly.
-              {initialInvoice.collected - grandTotal > 0.004 ? " The extra money already received is kept as credit for the customer (pay it back or use it on the next bill)." : ""}
+            <h3 style={{ margin: "0 0 6px" }}>Payments on this bill</h3>
+            {takenPayments.length === 0 && <p style={{ margin: "0 0 8px", color: "#475569" }}>No payment taken yet.</p>}
+            {takenPayments.map(p => {
+              const changeable = ["CASH", "UPI", "CARD", "BANK_TRANSFER"].includes(p.original.method);
+              if (!changeable) {
+                return (
+                  <p key={p.id} style={{ margin: "0 0 8px" }}>
+                    {p.original.method === "SET_OFF" ? "Set off against supplier bill" : p.original.method === "DISCOUNT" ? "Discount to close the bill" : p.original.method === "EXCHANGE" ? "Credit from returned items" : p.original.method}
+                    {" "}<strong>₹{amount(Number(p.amount))}</strong> on {p.date} <span style={{ color: "#64748b" }}>(change it on the bill page)</span>
+                  </p>
+                );
+              }
+              return (
+                <div key={p.id} className={styles.pay} style={p.remove ? { opacity: 0.6 } : undefined}>
+                  <label className={styles.field}>
+                    How
+                    <select value={p.method} disabled={p.remove} onChange={e => updateTaken(p.id, { method: e.target.value, account: "" })}>
+                      <option value="CASH">Cash</option>
+                      <option value="UPI">UPI</option>
+                      <option value="CARD">Card</option>
+                      <option value="BANK_TRANSFER">Bank transfer</option>
+                    </select>
+                  </label>
+                  <label className={styles.field}>
+                    Money went into
+                    <select value={p.account} disabled={p.remove} onChange={e => updateTaken(p.id, { account: e.target.value })} required={!p.remove}>
+                      <option value="">Choose account</option>
+                      {paymentAccounts
+                        .filter(acc => (p.method === "CASH" ? acc.value.startsWith("CASH:") : acc.value.startsWith("BANK:")))
+                        .map(acc => <option key={acc.value} value={acc.value}>{acc.label}</option>)}
+                    </select>
+                  </label>
+                  <label className={styles.field}>
+                    Amount ₹
+                    <input type="number" inputMode="decimal" min="0.01" step="0.01" value={p.amount} disabled={p.remove}
+                      onChange={e => updateTaken(p.id, { amount: e.target.value })} />
+                  </label>
+                  <label className={styles.field}>
+                    Reference (optional)
+                    <input value={p.reference} disabled={p.remove} onChange={e => updateTaken(p.id, { reference: e.target.value })} />
+                  </label>
+                  <p style={{ margin: 0, color: "#64748b", fontSize: 13 }}>Taken on {p.date}</p>
+                  <button type="button" className={`${styles.btn} ${p.remove ? styles.btnQuiet : styles.btnDanger}`}
+                    onClick={() => updateTaken(p.id, { remove: !p.remove })}>
+                    {p.remove ? "Keep this payment" : "Remove this payment"}
+                  </button>
+                  {p.remove && <p role="status" style={{ margin: 0, color: "#b91c1c" }}>Will be removed when you save.</p>}
+                </div>
+              );
+            })}
+
+            {payments.map(payment => paymentFields(payment))}
+            <button type="button" className={styles.btn} disabled={paymentAccounts.length === 0}
+              onClick={() => setPayments(current => [...current, { ...newPaymentRow(), amount: grandTotal - receivedAfterEdit > 0.004 ? (grandTotal - receivedAfterEdit).toFixed(2) : "" }])}>
+              Add a payment
+            </button>
+
+            <p style={{ margin: "12px 0 0" }}>
+              Received after your changes: <strong>₹{amount(receivedAfterEdit)}</strong>
+              {grandTotal - receivedAfterEdit > 0.004 ? <> · still due: <strong>₹{amount(grandTotal - receivedAfterEdit)}</strong></> : null}
+              {receivedAfterEdit - grandTotal > 0.004 ? <> · <strong>₹{amount(receivedAfterEdit - grandTotal)}</strong> more than the bill: kept as credit for the customer</> : null}
+              {Math.abs(receivedAfterEdit - grandTotal) <= 0.004 ? <> · <strong>fully paid</strong></> : null}
             </p>
           </div>
         ) : (
@@ -984,81 +1139,7 @@ export default function SalesBillingForm({
               </button>
             </div>
 
-            {payments.map(payment => (
-              <div key={payment.key} className={styles.pay}>
-                <label className={styles.field}>
-                  How
-                  <select
-                    value={payment.method}
-                    onChange={e =>
-                      updatePayment(payment.key, { method: e.target.value, account: "" })
-                    }
-                  >
-                    <option value="CASH">Cash</option>
-                    <option value="UPI">UPI</option>
-                    <option value="CARD">Card</option>
-                    <option value="BANK_TRANSFER">Bank transfer</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  Money goes into
-                  <select
-                    value={payment.account}
-                    onChange={e => updatePayment(payment.key, { account: e.target.value })}
-                    required={Number(payment.amount) > 0}
-                  >
-                    <option value="">Choose account</option>
-                    {paymentAccounts
-                      .filter(account =>
-                        payment.method === "CASH"
-                          ? account.value.startsWith("CASH:")
-                          : account.value.startsWith("BANK:")
-                      )
-                      .map(account => (
-                        <option key={account.value} value={account.value}>
-                          {account.label}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  Amount ₹
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min="0.01"
-                    step="0.01"
-                    value={payment.amount}
-                    onChange={e => updatePayment(payment.key, { amount: e.target.value })}
-                  />
-                </label>
-                <label className={styles.field}>
-                  Reference (optional)
-                  <input
-                    value={payment.reference}
-                    onChange={e => updatePayment(payment.key, { reference: e.target.value })}
-                  />
-                </label>
-                {payment.method === "CASH" && (
-                  <CashNotesPanel
-                    amount={payment.amount}
-                    notesIn={payment.notesIn ?? {}}
-                    notesOut={payment.notesOut ?? {}}
-                    onChange={patch => updatePayment(payment.key, patch)}
-                  />
-                )}
-                <button
-                  type="button"
-                  className={`${styles.btn} ${styles.btnDanger}`}
-                  onClick={() =>
-                    setPayments(current => current.filter(p => p.key !== payment.key))
-                  }
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
+            {payments.map(payment => paymentFields(payment))}
 
             {prefill?.exchange && !initialInvoice && (
               <p style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", padding: 10, borderRadius: 8 }}>

@@ -11,8 +11,7 @@ import { canGiveBillDiscount } from "@/lib/access";
 import { splitPayment } from "@/lib/customer-credit-math";
 import { lockCustomer } from "@/lib/customer-credit";
 import { isMissingTable } from "@/lib/db-errors";
-import { autoReverseForEdit } from "@/lib/ledger/reverse-in-tx";
-import { MONEY_METHODS, receivingAccount, rupeesText } from "@/lib/sale-payments";
+import { fixSalePayment, insertSalePayment, MONEY_METHODS, receivingAccount, rupeesText } from "@/lib/sale-payments";
 
 
 function paise(value: string): bigint {
@@ -80,8 +79,6 @@ export async function receiveSalePaymentAction(form: FormData): Promise<void> {
       const acc = await receivingAccount(conn, businessId, method, account);
       const bankId = acc?.bankId ?? null;
       const cashId = acc?.cashId ?? null;
-      const accountType = acc?.accountType ?? "CASH";
-      const paymentAccount = acc?.paymentAccount ?? "CASH";
 
       if (bankId === null && cashId === null) {
         result = "invalid-account";
@@ -92,20 +89,10 @@ export async function receiveSalePaymentAction(form: FormData): Promise<void> {
         result = "invalid-date";
       } else {
         const split = splitPayment(amount, outstanding);
-        if (split.toBill > 0n) {
-          await conn.execute(
-            `INSERT INTO acct_sales_payments (
-               legal_business_id, division_id, sale_id, payment_date,
-               payment_method, payment_account_type, bank_account_id,
-               cash_account_id, payment_account, amount, payment_reference,
-               status, created_by
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RECORDED', ?)`,
-            [
-              businessId, sale.division_id, saleId, date,
-              method, accountType, bankId, cashId, paymentAccount,
-              rupees(split.toBill), reference || null, user.id,
-            ]
-          );
+        if (split.toBill > 0n && acc) {
+          await insertSalePayment(conn, {
+            businessId, userId: user.id, divisionId: Number(sale.division_id), saleId, date, method, acc, amount: split.toBill, reference,
+          });
         }
         if (split.toCredit > 0n) {
           // The extra is kept as money we owe the customer (customer credit).
@@ -244,64 +231,33 @@ export async function correctSalePaymentAction(form: FormData): Promise<void> {
       [businessId, saleId]
     );
     const sale = canUseDivision(user, Number(sales[0]?.division_id)) ? sales[0] : undefined;
-    const [pays] = await conn.execute<RowDataPacket[]>(
-      `SELECT id, payment_method, ROUND(amount * 100) AS paise FROM acct_sales_payments
-        WHERE legal_business_id = ? AND id = ? AND sale_id = ? AND status = 'RECORDED' FOR UPDATE`,
-      [businessId, paymentId, saleId]
-    );
-    const pay = pays[0];
-    const method = String(pay?.payment_method ?? "");
-    if (!sale || sale.status !== "POSTED" || !pay) {
+    if (!sale || sale.status !== "POSTED") {
       result = "invalid";
-    } else if (!MONEY_METHODS.has(method) && !(method === "EXCHANGE" && op === "remove")) {
-      result = "not-correctable";
     } else if (op === "remove" && why.length < 3) {
       result = "why-needed";
     } else {
       let newAmount = 0n;
-      let acc: Awaited<ReturnType<typeof receivingAccount>> = null;
-      const newMethod = String(form.get("method") ?? "");
-      const date = String(form.get("payment_date") ?? "");
-      const reference = String(form.get("reference") ?? "").trim().slice(0, 150);
       if (op === "change") {
-        const [paid] = await conn.execute<RowDataPacket[]>(
-          `SELECT COALESCE(SUM(ROUND(amount * 100)), 0) AS p FROM acct_sales_payments WHERE legal_business_id = ? AND sale_id = ? AND status = 'RECORDED'`,
-          [businessId, saleId]
+        const [rows] = await conn.execute<RowDataPacket[]>(
+          `SELECT COALESCE(SUM(ROUND(amount * 100)), 0) AS p,
+                  COALESCE(SUM(CASE WHEN id = ? THEN ROUND(amount * 100) ELSE 0 END), 0) AS mine
+             FROM acct_sales_payments WHERE legal_business_id = ? AND sale_id = ? AND status = 'RECORDED'`,
+          [paymentId, businessId, saleId]
         );
-        const room = BigInt(sale.total_paise) - BigInt(String(paid[0].p)) + BigInt(String(pay.paise));
+        const room = BigInt(sale.total_paise) - BigInt(String(rows[0].p)) + BigInt(String(rows[0].mine));
         newAmount = paise(String(form.get("amount") ?? ""));
-        acc = await receivingAccount(conn, businessId, newMethod, String(form.get("account") ?? ""));
         if (newAmount <= 0n || newAmount > room) result = "change-too-much";
-        else if (!acc) result = "invalid-account";
-        else if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < String(sale.invoice_date) || date > new Date().toISOString().slice(0, 10)) result = "invalid-date";
       }
       if (result === "failed") {
-        const undone = method === "EXCHANGE" ? { ok: true as const } : await autoReverseForEdit(conn, {
-          businessId, userId: user.id, sourceType: "SALES_RECEIPT", sourceId: paymentId,
-          reason: `${op === "remove" ? "Removed" : "Edited"}: payment ${paymentId} on invoice ${sale.invoice_no}`,
+        const fixed = await fixSalePayment(conn, {
+          businessId, userId: user.id, saleId, invoiceNo: String(sale.invoice_no), invoiceDate: String(sale.invoice_date), paymentId,
+          op: op as "change" | "remove", method: String(form.get("method") ?? ""), account: String(form.get("account") ?? ""),
+          amount: newAmount, date: String(form.get("payment_date") ?? ""), reference: String(form.get("reference") ?? "").trim().slice(0, 150), why,
         });
-        if (!undone.ok) {
-          result = undone.reason === "period-closed" ? "period-closed" : "failed";
-        } else if (op === "remove") {
-          await conn.execute(`UPDATE acct_sales_payments SET status = 'VOID', remarks = ? WHERE id = ?`, [`Removed: ${why}`.slice(0, 250), paymentId]);
-          result = "removed";
-        } else {
-          await conn.execute(
-            `UPDATE acct_sales_payments SET amount = ?, payment_method = ?, payment_account_type = ?, bank_account_id = ?, cash_account_id = ?,
-                    payment_account = ?, payment_date = ?, payment_reference = ? WHERE id = ?`,
-            [rupeesText(newAmount), newMethod, acc!.accountType, acc!.bankId, acc!.cashId, acc!.paymentAccount, date, reference || null, paymentId]
-          );
-          result = "changed";
-        }
-        if (result === "removed" || result === "changed") {
-          await conn.execute(
-            `INSERT INTO acct_audit_events (legal_business_id, actor_user_id, action, subject_type, subject_id, details_json)
-             VALUES (?, ?, ?, 'SALE', ?, ?)`,
-            [businessId, user.id, result === "removed" ? "SALE_PAYMENT_REMOVED" : "SALE_PAYMENT_CHANGED", saleId,
-             JSON.stringify({ paymentId, from: rupeesText(BigInt(String(pay.paise))), to: result === "changed" ? rupeesText(newAmount) : "0", why })]
-          );
+        if (fixed.ok) {
           await conn.commit();
-        }
+          result = op === "remove" ? "removed" : "changed";
+        } else result = fixed.reason;
       }
     }
     if (result !== "removed" && result !== "changed") await conn.rollback();

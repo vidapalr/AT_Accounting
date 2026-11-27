@@ -79,6 +79,13 @@ const messages: Record<string, string> = {
   "exchange-gone": "The exchange credit could not be found. Nothing was saved.",
   "serial-invalid": "A piece code was wrong or that piece is already sold. Pick a code from the list of pieces in stock and save again.",
   "rewards-invalid": "The points or coupon could not be used any more (already used, not enough points, or the discount was removed). Check them and save again.",
+  "invalid-payment": "A payment on the screen was not filled in properly (method, account and amount). Nothing was changed.",
+  "payment-invalid": "A payment could not be found any more (someone may have changed it). Nothing was changed.",
+  "payment-not-correctable": "Only cash, UPI, card and bank payments can be changed here. Nothing was changed.",
+  "payment-invalid-account": "Choose which account the money went into for every payment. Nothing was changed.",
+  "payment-invalid-date": "A payment date is before the bill date or in the future. Nothing was changed.",
+  "payment-period-closed": "A payment is in a closed month, so it cannot be changed. Nothing was changed.",
+  "payment-failed": "A payment could not be changed. Nothing was changed.",
   "has-returns": "This bill has items returned on it, so its items cannot be changed (the return would no longer match). Record another return for items coming back, or take a payment on the bill.",
   "credit-limit": "This sale would take the customer over their credit limit. Collect some payment, or raise the limit on the customer's page.",
   failed: "Unable to save invoice. Check server logs.",
@@ -603,6 +610,18 @@ async function SalesContent({ searchParams }: Props) {
       )
     : [[] as RowDataPacket[]];
 
+  // Each payment already taken, so it can be changed or removed on the edit screen.
+  const [paymentsToEdit] = selectedInvoice
+    ? await db.execute<RowDataPacket[]>(
+        `SELECT id, payment_method, ROUND(amount * 100) AS paise, DATE_FORMAT(payment_date, '%Y-%m-%d') AS d,
+                payment_reference, bank_account_id, cash_account_id
+           FROM acct_sales_payments
+          WHERE legal_business_id = ? AND sale_id = ? AND status = 'RECORDED'
+          ORDER BY id`,
+        [businessId, selectedInvoiceId]
+      )
+    : [[] as RowDataPacket[]];
+
   const [sales] = await db.execute<RowDataPacket[]>(
     `SELECT
        s.id,
@@ -764,6 +783,14 @@ async function SalesContent({ searchParams }: Props) {
               ).toFixed(2),
               remarks: String(selectedInvoice.remarks ?? ""),
               collected: Number(selectedCollection[0]?.collected ?? 0),
+              payments: paymentsToEdit.map((p) => ({
+                id: Number(p.id),
+                method: String(p.payment_method),
+                amount: (Number(p.paise) / 100).toFixed(2),
+                date: String(p.d),
+                reference: String(p.payment_reference ?? ""),
+                account: p.cash_account_id ? `CASH:${p.cash_account_id}` : p.bank_account_id ? `BANK:${p.bank_account_id}` : "",
+              })),
               lines: selectedLines.map(line => ({
                 lot: savedLots.get(Number(line.variant_id)) ?? "",
                 variantId: Number(line.variant_id),
