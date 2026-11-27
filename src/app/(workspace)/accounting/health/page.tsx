@@ -3,10 +3,11 @@ import Link from "next/link";
 import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
+import SubmitButton from "@/components/SubmitButton";
 import { requireAccess } from "@/lib/auth";
 import { isAutoPostOn } from "@/lib/ledger/auto-post";
 import { getSyncStatus } from "@/lib/ledger/sync-status";
-import { retryPostingAction } from "@/lib/posting-retry-actions";
+import { retryPostingAction, reverseStaleEntriesAction } from "@/lib/posting-retry-actions";
 import { getStockTieOut } from "@/lib/ledger/stock-tieout";
 import { missingMigrations } from "@/lib/migration-check";
 import { getCashTieOut } from "@/lib/reports/cash-tieout";
@@ -20,8 +21,8 @@ const WORDS: Record<string, string> = {
 };
 const nice = (t: string) => WORDS[t] ?? t.toLowerCase().replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
-async function Content({ searchParams }: { searchParams: Promise<{ retry?: string }> }) {
-  const { retry } = await searchParams;
+async function Content({ searchParams }: { searchParams: Promise<{ retry?: string; closed?: string }> }) {
+  const { retry, closed } = await searchParams;
   const user = await requireAccess("reports");
   const businessId = user.legal_business_id;
 
@@ -48,6 +49,10 @@ async function Content({ searchParams }: { searchParams: Promise<{ retry?: strin
       WHERE legal_business_id = ? AND resolved_at IS NULL
       ORDER BY last_failed_at DESC LIMIT 50`, [businessId]
   ).catch(() => [[] as Row[]]);
+  const fixMatch = /^fixed-(\d+)(?:-closed-(\d+))?$/.exec(retry ?? "");
+  const fixText = retry === "fix-error" ? "Could not put them right. Nothing was changed."
+    : fixMatch ? `Done: ${fixMatch[1]} old entr${fixMatch[1] === "1" ? "y" : "ies"} reversed.${fixMatch[2] ? ` ${fixMatch[2]} are in a closed month and were left: ${(closed ?? "").slice(0, 300)}. Open that month, then press again.` : ""}`
+    : null;
   const retryText = retry === "busy" ? "Posting is already running. Wait a minute and look again."
     : retry === "error" ? "Could not run. Nothing was changed."
     : /^posted-(\d+)-failed-(\d+)$/.test(retry ?? "") ? (() => { const m = /^posted-(\d+)-failed-(\d+)$/.exec(retry ?? "")!; return `Done: ${m[1]} posted, ${m[2]} could not be posted.`; })()
@@ -194,8 +199,16 @@ async function Content({ searchParams }: { searchParams: Promise<{ retry?: strin
           <ul style={bad}>
             {sync.problems.map((p) => <li key={p}>{p}</li>)}
             {sync.changedAfterPosting.map((p) => <li key={p}>Changed after posting: {p}. Needs a reversal and re-entry.</li>)}
-            {sync.noLongerValid.map((p) => <li key={p}>Posted, but the record is no longer valid: {p}. Needs a reversal.</li>)}
+            {sync.noLongerValid.map((p) => <li key={p}>Posted, but the record was cancelled afterwards: {p}. Needs a reversal.</li>)}
           </ul>
+        )}
+        {fixText && <p><strong>{fixText}</strong></p>}
+        {sync.stale.length > 0 && user.role === "GROUP_OWNER" && (
+          <form action={reverseStaleEntriesAction}>
+            <SubmitButton label={`Put these ${sync.stale.length} right`}
+              question={`Reverse ${sync.stale.length} old entr${sync.stale.length === 1 ? "y" : "ies"} in the books? Each stays in the books marked reversed; a changed record is then posted again with its new figures.`} />
+            <span style={{ color: "#64748b", marginLeft: 10 }}>Reverses each old entry on its own date. Nothing is deleted.</span>
+          </form>
         )}
         {sync.warnings.length > 0 && <ul>{sync.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
       </section>
@@ -221,6 +234,6 @@ async function Content({ searchParams }: { searchParams: Promise<{ retry?: strin
   );
 }
 
-export default function HealthPage({ searchParams }: { searchParams: Promise<{ retry?: string }> }) {
+export default function HealthPage({ searchParams }: { searchParams: Promise<{ retry?: string; closed?: string }> }) {
   return <Suspense fallback={<p>Loading…</p>}><Content searchParams={searchParams} /></Suspense>;
 }

@@ -152,7 +152,16 @@ async function Content({ searchParams }: Props) {
         </>
       )}
 
-      {tab === "accounts" && !open && (
+      {tab === "accounts" && editing && (
+        <>
+          <p><Link className="btn-link" href={`${PAGE}?tab=accounts&account=${editing.id}`}>← Back to {editing.name}</Link></p>
+          <Section title={`Edit ${editing.name}`}>
+            <PersonalAccountForm key={editing.id} account={formValues(editing)} today={today} />
+          </Section>
+        </>
+      )}
+
+      {tab === "accounts" && !open && !editing && (
         <>
           {data.accounts.length > 0 && (
             <div style={{ overflowX: "auto" }}>
@@ -169,7 +178,10 @@ async function Content({ searchParams }: Props) {
                           {a.card.billDue ? <>Bill {inr(a.card.billDue.amount)} due {pretty(a.card.billDue.dueOn)}</> : a.card.cycles ? <>Last bill paid</> : a.card.nextDue ? <>Next due {pretty(a.card.nextDue)}</> : null}
                         </span>
                       ) : null}</td>
-                      <td style={cell}><Link className="btn-link" href={`${PAGE}?tab=accounts&account=${a.id}`}>Statement</Link></td>
+                      <td style={{ ...cell, whiteSpace: "nowrap" }}>
+                        <Link className="btn-link" href={`${PAGE}?tab=accounts&account=${a.id}`}>Statement</Link>{" "}
+                        <Link className="btn-link" href={`${PAGE}?tab=accounts&edit=${a.id}`}>Edit</Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -179,19 +191,22 @@ async function Content({ searchParams }: Props) {
           <Section title="Move money between my accounts, or pay a card bill">
             {opts.length < 2 ? <p style={muted}>Add at least two accounts first.</p> : <EntryForm kind="TRANSFER" accounts={opts} today={today} tab="accounts" />}
           </Section>
-          <Section title={editing ? `Change ${editing.name}` : "Add an account or card"}>
-            <PersonalAccountForm key={editing?.id ?? "new"} account={editing ? formValues(editing) : undefined} today={today} />
+          <Section title="Add an account or card">
+            <PersonalAccountForm key="new" today={today} />
           </Section>
         </>
       )}
 
-      {tab === "accounts" && open && (() => {
+      {tab === "accounts" && open && !editing && (() => {
         const lines = data.statements.get(open.id) ?? [];
         const cyc = open.card?.cycles ?? null;
         return (
           <>
             <p><Link className="btn-link" href={`${PAGE}?tab=accounts`}>← All accounts</Link></p>
-            <h2 style={{ marginBottom: 4 }}>{open.name}</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <h2 style={{ margin: "0 0 4px" }}>{open.name}</h2>
+              <Link className="btn-link btn-link-primary" href={`${PAGE}?tab=accounts&edit=${open.id}`}>Edit {open.kind === "CREDIT_CARD" ? "card" : "account"} details</Link>
+            </div>
             <p style={{ ...muted, marginTop: 0 }}>{accountLine(open)}</p>
             {open.kind === "BANK" && (open.holder || open.ifsc || open.hasAccountNo) && (
               <p style={{ margin: "0 0 8px", lineHeight: 1.8 }}>
@@ -219,8 +234,7 @@ async function Content({ searchParams }: Props) {
 
             {cyc ? (
               <>
-                <Section title={`Now: ${pretty(cyc.open.from)} to ${pretty(cyc.open.nextBillOn)}`}
-                  aside={<Link className="btn-link" href={`${PAGE}?tab=accounts&edit=${open.id}`}>Change card details</Link>}>
+                <Section title={`Now: ${pretty(cyc.open.from)} to ${pretty(cyc.open.nextBillOn)}`}>
                   <p style={{ ...muted, marginTop: 0 }}>Goes into the bill of {pretty(cyc.open.nextBillOn)}. Spent {inr(cyc.open.spent)} · Paid or refunded {inr(cyc.open.credits)}</p>
                   {cyc.open.lines.length === 0 ? <p style={muted}>Nothing yet.</p> : <Lines lines={cyc.open.lines} accountId={open.id} />}
                 </Section>
@@ -235,7 +249,7 @@ async function Content({ searchParams }: Props) {
                 ))}
               </>
             ) : (
-              <Section title="Statement" aside={<Link className="btn-link" href={`${PAGE}?tab=accounts&edit=${open.id}`}>Change account details</Link>}>
+              <Section title="Statement">
                 {open.card ? <Notice tone="warn">Add the card&rsquo;s bill date and due date to see it bill by bill.</Notice> : null}
                 {lines.length === 0 ? <p style={muted}>Nothing recorded yet.</p> : <Lines lines={lines} accountId={open.id} />}
               </Section>

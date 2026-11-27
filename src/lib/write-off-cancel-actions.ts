@@ -6,6 +6,8 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireGroupOwner } from "@/lib/auth";
+import { autoReverseForEdit } from "@/lib/ledger/reverse-in-tx";
+import { todayInIndia } from "@/lib/reports/money";
 
 const PAGE = "/accounting/returns";
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -16,7 +18,7 @@ const done = (kind: "saved" | "error", message: string): never =>
 /**
  * Owner only. Cancels a damaged / lost write-off made by mistake: the pieces come back into stock
  * at the cost they left at, and the record is marked cancelled. If its journal is already posted,
- * Accounting health then shows it as "no longer valid" for the owner to reverse.
+ * it is reversed in the same step (the old entry stays in the books, marked reversed).
  */
 export async function cancelWriteOffAction(formData: FormData) {
   const user = await requireGroupOwner();
@@ -28,6 +30,7 @@ export async function cancelWriteOffAction(formData: FormData) {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
+    await conn.execute(`SELECT id FROM acct_legal_businesses WHERE id = ? FOR UPDATE`, [businessId]);
     const [rows] = await conn.execute<Row[]>(
       `SELECT id, division_id, location_id, variant_id, quantity, unit_cost, total_cost, reason, status,
               DATE_FORMAT(damage_date, '%Y-%m-%d') AS d
@@ -38,15 +41,21 @@ export async function cancelWriteOffAction(formData: FormData) {
     if (!w) throw new Error("That write-off was not found.");
     if (w.status !== "POSTED") throw new Error("That write-off is already cancelled.");
 
+    const undone = await autoReverseForEdit(conn, { businessId, userId: user.id, sourceType: "STOCK_DAMAGE", sourceId: id, reason: `Write-off ${id} cancelled` });
+    if (!undone.ok) {
+      throw new Error(undone.reason === "period-closed"
+        ? `The write-off is in a closed month (${undone.journalNo ?? ""}). Open that month first, then cancel again.`
+        : "The write-off could not be taken out of the books. Nothing was changed.");
+    }
     await conn.execute(`UPDATE acct_stock_damages SET status = 'VOID' WHERE id = ?`, [id]);
     await conn.execute(
       `INSERT INTO acct_stock_movements
          (legal_business_id, division_id, location_id, variant_id, movement_date,
           movement_type, source_type, source_id, source_line_id, quantity_change,
           unit_cost, total_cost, remarks, created_by)
-       VALUES (?, ?, ?, ?, CURDATE(), 'ADJUSTMENT_IN', 'STOCK_DAMAGE_CANCEL', ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, 'ADJUSTMENT_IN', 'STOCK_DAMAGE_CANCEL', ?, ?, ?, ?, ?, ?, ?)`,
       [
-        businessId, w.division_id, w.location_id, w.variant_id, id, id,
+        businessId, w.division_id, w.location_id, w.variant_id, todayInIndia(), id, id,
         String(w.quantity), String(w.unit_cost), String(w.total_cost),
         `Write-off ${id} cancelled`, user.id,
       ]
@@ -62,10 +71,10 @@ export async function cancelWriteOffAction(formData: FormData) {
       [businessId, user.id, id, JSON.stringify({ quantity: String(w.quantity), cost: String(w.total_cost) })]
     );
     await conn.commit();
-    message = `Write-off cancelled. ${String(w.quantity)} piece(s) are back in stock. If it was already in the books, open Accounting health and reverse the old entry.`;
+    message = `Write-off cancelled. ${String(w.quantity)} piece(s) are back in stock${undone.reversed ? " and its entry in the books is reversed" : ""}.`;
   } catch (error) {
     await conn.rollback().catch(() => {});
-    const known = error instanceof Error && /write-off/.test(error.message);
+    const known = error instanceof Error && /write-off/i.test(error.message);
     if (!known) console.error("Cancel write-off failed:", error);
     message = known ? (error as Error).message : "Could not cancel the write-off. Nothing was changed.";
     conn.release();

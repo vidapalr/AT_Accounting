@@ -16,6 +16,8 @@ export type SyncStatus = {
   changedAfterPosting: string[];
   /** Posted, but the record is no longer valid (voided, deleted, unposted). A reversed journal no longer counts as posted. */
   noLongerValid: string[];
+  /** The same two lists as records, so they can be put right in one press (reversed; a changed one then posts again). */
+  stale: Array<{ sourceType: string; sourceId: number; journalNo: string; changed: boolean }>;
   /** Records the ledger cannot understand yet. */
   problems: string[];
   warnings: string[];
@@ -63,7 +65,7 @@ export async function getSyncStatus(conn: Queryable, businessId: number): Promis
   }
 
   const status: SyncStatus = {
-    pending: [], changedAfterPosting: [], noLongerValid: [],
+    pending: [], changedAfterPosting: [], noLongerValid: [], stale: [],
     problems: built.problems, warnings: built.warnings,
   };
   const seen = new Set<string>();
@@ -89,11 +91,15 @@ export async function getSyncStatus(conn: Queryable, businessId: number): Promis
     }
     if (!journalMatchesSource(want, existing)) {
       status.changedAfterPosting.push(`${existing.journalNo}: ${draft.description}`);
+      status.stale.push({ sourceType: draft.sourceType, sourceId: draft.sourceId, journalNo: existing.journalNo, changed: true });
     }
   }
 
   for (const [key, entry] of posted) {
-    if (!seen.has(key)) status.noLongerValid.push(`${entry.journalNo} (${key})`);
+    if (seen.has(key)) continue;
+    status.noLongerValid.push(`${entry.journalNo} (${key})`);
+    const [type, id] = key.split("#");
+    status.stale.push({ sourceType: type, sourceId: Number(id), journalNo: entry.journalNo, changed: false });
   }
 
   return status;

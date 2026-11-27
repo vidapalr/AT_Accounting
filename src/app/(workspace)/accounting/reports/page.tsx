@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import PrintHeader from "@/components/PrintHeader";
 import type { RowDataPacket } from "mysql2";
 
@@ -116,8 +117,11 @@ async function ReportsContent({ searchParams }: Props) {
           <ul style={{ color: "#b91c1c", marginTop: 8 }}>
             {sync.problems.map((p) => <li key={p}>{p}</li>)}
             {sync.changedAfterPosting.map((p) => <li key={p}>Changed after posting: {p}. Needs a reversal and re-entry.</li>)}
-            {sync.noLongerValid.map((p) => <li key={p}>Posted, but the record is no longer valid: {p}. Needs a reversal.</li>)}
+            {sync.noLongerValid.map((p) => <li key={p}>Posted, but the record was cancelled afterwards: {p}. Needs a reversal.</li>)}
           </ul>
+        )}
+        {sync.stale.length > 0 && user.role === "GROUP_OWNER" && (
+          <p><Link className="btn-link btn-link-primary" href="/accounting/health">Put these right on Accounting health</Link></p>
         )}
       </section>
 
