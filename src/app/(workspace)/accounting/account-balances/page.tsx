@@ -194,6 +194,13 @@ async function AccountBalancesContent({
         <section style={{ marginTop: 36 }}>
           <h2>Transactions — {activeAccount.name}</h2>
 
+          {activeAccount.key.startsWith("BANK:") && (
+            <p>
+              <Link className="btn-link btn-link-primary" href={`/accounting/bank-reconcile?bank=${activeAccount.key.slice(5)}`}>
+                Match with bank statement (start from the opening balance)
+              </Link>
+            </p>
+          )}
           <p>
             {detailEntries.length} recorded transactions
             {" · "}

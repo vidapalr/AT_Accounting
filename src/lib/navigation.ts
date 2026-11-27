@@ -212,6 +212,7 @@ export const NAVIGATION: NavSection[] = [
     items: [
       { label: "Journals", href: "/accounting/journals", hint: "Every accounting entry" },
       { label: "Every ledger line", href: "/accounting/audit/ledger", hint: "Search every posted entry by date, account or words (view only)" },
+      { label: "Match with bank statement", href: "/accounting/bank-reconcile", hint: "Opening balance, then tick each entry seen on the bank statement" },
       { label: "Bank statement check", href: "/accounting/bank-statement", hint: "Upload your bank file and match it with the books" },
       { label: "Accounting health", href: "/accounting/health", hint: "Is everything in the books? What is waiting and why" },
       { label: "Books check", href: "/accounting/reconciliation", hint: "Do the books agree with the records, account by account" },
