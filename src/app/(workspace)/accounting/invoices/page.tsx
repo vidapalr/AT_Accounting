@@ -6,7 +6,8 @@ import type { RowDataPacket } from "mysql2";
 
 import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
-import { canGiveBillDiscount } from "@/lib/access";
+import { canAccess, canGiveBillDiscount } from "@/lib/access";
+import { billsCoveredBySupplier } from "@/lib/party-link";
 import { invoiceProfit } from "@/lib/invoice-profit";
 
 type InvoiceRow = RowDataPacket & {
@@ -15,6 +16,7 @@ type InvoiceRow = RowDataPacket & {
   invoice_date: string;
   customer_name: string | null;
   customer_phone: string | null;
+  customer_id: number | null;
   branch_name: string;
   status: "DRAFT" | "POSTED" | "VOID";
   grand_total: string;
@@ -85,6 +87,7 @@ async function InvoiceList({ searchParams }: Props) {
        ) AS invoice_date,
        s.customer_name,
        s.customer_phone,
+       s.customer_id,
        b.branch_name,
        s.status,
        s.grand_total,
@@ -180,6 +183,12 @@ async function InvoiceList({ searchParams }: Props) {
     background: on ? "#eef2ff" : "#fff", color: on ? "#3730a3" : "#334155",
   });
 
+  // People who are also our suppliers: what we owe them covers their unpaid bills (until a set-off is recorded).
+  const covered = canAccess(user.role, "both_sides")
+    ? await billsCoveredBySupplier(db, businessId, invoices.filter((i) => i.status === "POSTED").map((i) => Number(i.customer_id ?? 0)))
+    : new Map();
+  const coveredTotal = [...covered.values()].reduce((sum, c) => sum + Number(c.covered) / 100, 0);
+
   const totals = invoices.reduce(
     (acc, invoice) => {
       if (invoice.status !== "POSTED") return acc;
@@ -270,6 +279,11 @@ async function InvoiceList({ searchParams }: Props) {
             <strong style={{ fontSize: 24 }}>
               ₹{inr(Number(amount))}
             </strong>
+            {label === "Pending Amount" && coveredTotal > 0.004 && (
+              <div style={{ color: "#1d4ed8", fontSize: 13, marginTop: 4 }}>
+                ₹{inr(coveredTotal)} of this is covered by what we owe them as suppliers
+              </div>
+            )}
           </div>
         ))}
       </div>}
@@ -308,6 +322,9 @@ async function InvoiceList({ searchParams }: Props) {
               const total = Number(invoice.grand_total);
               const paid = Number(invoice.paid_amount);
               const pending = Math.max(0, total - paid);
+              const cover = invoice.status === "POSTED" ? covered.get(invoice.id) : undefined;
+              const coverRupees = cover ? Number(cover.covered) / 100 : 0;
+              const fullyCovered = cover !== undefined && coverRupees >= pending - 0.004;
 
               return (
                 <tr key={invoice.id}>
@@ -336,7 +353,16 @@ async function InvoiceList({ searchParams }: Props) {
                   <td style={cell}>
                     {Number(invoice.is_estimate) === 1 && invoice.status !== "POSTED"
                       ? (invoice.status === "VOID" ? "ESTIMATE (VOID)" : "ESTIMATE")
-                      : paidStatus(invoice.status, total, paid)}
+                      : cover
+                        ? <>
+                            <span style={{ color: "#1d4ed8", fontWeight: 600 }}>{fullyCovered ? "COVERED" : "PART COVERED"}</span>
+                            <div style={{ color: "#1d4ed8", fontSize: 12, whiteSpace: "normal", maxWidth: 220 }}>
+                              {fullyCovered ? "They don't owe us this: we owe them " : `₹${inr(coverRupees)} covered: we owe them `}
+                              ₹{inr(Number(cover.weOweThem) / 100)} as a supplier.{" "}
+                              <Link href={`/accounting/both-sides/${cover.supplierId}`}>Set off</Link>
+                            </div>
+                          </>
+                        : paidStatus(invoice.status, total, paid)}
                   </td>
 
                   <td style={cell}>
@@ -378,7 +404,7 @@ async function InvoiceList({ searchParams }: Props) {
                         {" "}
                       </>
                     )}
-                    {invoice.status === "POSTED" && pending > 0.004 && (
+                    {invoice.status === "POSTED" && pending > 0.004 && !fullyCovered && (
                       <>
                         <Link
                           className="btn-link btn-link-small btn-link-primary"

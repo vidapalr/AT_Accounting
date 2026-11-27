@@ -32,3 +32,13 @@ test("sentence", () => {
   assert.match(netSentence(0n, 4000n, f), /we owe them Rs 40/);
   assert.match(netSentence(100n, 100n, f), /nothing/);
 });
+
+test("bills covered by what we owe the same person", async () => {
+  const { coveredByWhatWeOwe } = await import("../src/lib/setoff-math.ts");
+  const bills = [{ id: 2, date: "2026-11-02", due: 500n }, { id: 1, date: "2026-10-30", due: 680000n }];
+  const all = coveredByWhatWeOwe(bills, 8608500n);
+  assert.equal(all.get(1), 680000n); assert.equal(all.get(2), 500n);
+  const part = coveredByWhatWeOwe(bills, 1000n);
+  assert.equal(part.get(1), 1000n); assert.equal(part.has(2), false);
+  assert.equal(coveredByWhatWeOwe(bills, 0n).size, 0);
+});

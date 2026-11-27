@@ -40,3 +40,14 @@ export function netSentence(theyOweUs: bigint, weOweThem: bigint, fmt: (p: bigin
     : "Net: nothing either way.";
   return `They owe us ${fmt(theyOweUs)}, we owe them ${fmt(weOweThem)}. ${tail}`;
 }
+
+/**
+ * For a person who is both customer and supplier: how much of each unpaid bill is covered by what we owe them,
+ * oldest bill first. A covered bill is still unpaid until a set-off is recorded, but they do not owe us that money.
+ */
+export function coveredByWhatWeOwe(bills: DueBill[], weOweThem: bigint): Map<number, bigint> {
+  const out = new Map<number, bigint>();
+  const amount = maxSetoff(totalDue(bills), weOweThem);
+  for (const s of spreadOldestFirst(bills, amount) ?? []) out.set(s.id, s.amount);
+  return out;
+}

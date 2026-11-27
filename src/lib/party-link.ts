@@ -2,7 +2,7 @@ import "server-only";
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 
 import { billCreditSql } from "@/lib/supplier-ledger";
-import { totalDue, type DueBill } from "@/lib/setoff-math";
+import { coveredByWhatWeOwe, totalDue, type DueBill } from "@/lib/setoff-math";
 
 type Queryable = Pool | PoolConnection;
 type Row = RowDataPacket & Record<string, string | number | null>;
@@ -130,4 +130,33 @@ export async function loadCustomerEntries(db: Queryable, businessId: number, cus
       amount: BigInt(r.paise as number | string),
     })),
   ];
+}
+
+export type CoveredBill = { covered: bigint; supplierId: number; weOweThem: bigint };
+
+/**
+ * For the invoice list: unpaid bills of people who are also our suppliers, and how much of each bill is
+ * covered by what we owe them (oldest bill first). Key = sale id. Only people in `customerIds` are looked at.
+ */
+export async function billsCoveredBySupplier(db: Queryable, businessId: number, customerIds: number[]): Promise<Map<number, CoveredBill>> {
+  const out = new Map<number, CoveredBill>();
+  const wanted = new Set(customerIds.filter((n) => n > 0));
+  if (wanted.size === 0) return out;
+  const [links] = await db.query<Row[]>(
+    `SELECT s.id AS supplier_id, c.id AS customer_id
+       FROM acct_suppliers s
+       JOIN acct_customers c ON c.legal_business_id = s.legal_business_id AND c.id = s.linked_customer_id
+      WHERE s.legal_business_id = ? AND c.linked_supplier_id = s.id`,
+    [businessId]
+  );
+  for (const l of links) {
+    const customerId = Number(l.customer_id);
+    if (!wanted.has(customerId)) continue;
+    const supplierId = Number(l.supplier_id);
+    const weOweThem = totalDue(await loadSupplierBills(db, businessId, supplierId));
+    if (weOweThem <= 0n) continue;
+    const covered = coveredByWhatWeOwe(await loadCustomerBills(db, businessId, customerId), weOweThem);
+    for (const [saleId, amount] of covered) out.set(saleId, { covered: amount, supplierId, weOweThem });
+  }
+  return out;
 }
