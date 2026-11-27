@@ -33,6 +33,9 @@ async function Photos({ searchParams }: Props) {
         Use JPG, PNG or WebP photos (up to 8 MB each). Try 10 to 15 products at a time. Products without photos are listed first.
         For videos, open the product from the Catalogue.
       </p>
+      {done === "toolarge" && (
+        <p role="status" style={{ color: "#b91c1c" }}>Too many photos in one go (over 80 MB together). Nothing was saved. Choose photos for fewer products and press Save again.</p>
+      )}
       {m && (
         <p role="status" style={{ color: Number(m[2]) === 0 ? "#166534" : "#b45309" }}>
           {m[1]} photo(s) saved.{Number(m[2]) > 0 ? ` ${m[2]} skipped (not a photo, or over 8 MB).` : ""}

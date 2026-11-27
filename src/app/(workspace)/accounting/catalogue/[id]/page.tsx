@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { requireAccess } from "@/lib/auth";
 import { setCoverAction, removeMediaAction } from "@/lib/catalogue-actions";
 import CopyTextButton from "@/components/CopyTextButton";
+import MediaUploader from "@/components/MediaUploader";
 import { getBrand } from "@/lib/brand";
 
 type Props = {
@@ -19,6 +20,7 @@ function uploadMessage(code?: string): { ok: boolean; text: string } | null {
   if (!code) return null;
   if (code === "none") return { ok: false, text: "Choose at least one photo or video first." };
   if (code === "toomany") return { ok: false, text: "Please upload up to 12 files at a time." };
+  if (code === "toolarge") return { ok: false, text: "That upload was too large. Nothing was saved. Upload fewer files at a time." };
   const m = /^(\d+)-(\d+)$/.exec(code);
   if (!m) return null;
   const saved = Number(m[1]);
@@ -93,24 +95,7 @@ async function ProductMedia({ params, searchParams }: Props) {
 
       <section style={{ padding: 18, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, marginBottom: 20 }}>
         <h2 style={{ marginTop: 0 }}>Add photos and videos</h2>
-        <form action="/api/catalogue/media" method="post" encType="multipart/form-data" style={{ display: "grid", gap: 12 }}>
-          <input type="hidden" name="product_id" value={String(p.id)} />
-          <input
-            type="file"
-            name="files"
-            multiple
-            required
-            accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"
-            style={{ padding: 10, border: "1px dashed #94a3b8", borderRadius: 10, background: "#f8fafc" }}
-          />
-          <button type="submit" className="btn-link btn-link-primary" style={{ cursor: "pointer", justifySelf: "start" }}>
-            Upload
-          </button>
-          <small style={{ color: "#64748b" }}>
-            Photos: JPG, PNG or WebP up to 8 MB. Videos: MP4, MOV or WebM up to 60 MB. Up to 12 files at a time.
-            The first photo becomes the cover.
-          </small>
-        </form>
+        <MediaUploader productId={Number(p.id)} />
       </section>
 
       <form action={toggleShopAction} style={{ margin: "12px 0", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>

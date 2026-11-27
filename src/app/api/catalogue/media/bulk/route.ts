@@ -12,7 +12,13 @@ export async function POST(request: NextRequest) {
   const user = await getSessionUser();
   if (!user || !canAccess(user.role, "products")) return new NextResponse("Unauthorized", { status: 401 });
 
-  const form = await request.formData();
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch (error) {
+    console.error("Bulk photo upload could not be read (too large or cut off):", error);
+    return seeOther("/accounting/catalogue/photos?done=toolarge");
+  }
   let saved = 0;
   let skipped = 0;
   const perProduct = new Map<number, number>();
@@ -36,8 +42,9 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    const storageKey = await saveMedia(buffer, kind.ext);
+    let storageKey = "";
     try {
+      storageKey = await saveMedia(buffer, kind.ext);
       const [existing] = await db.execute<RowDataPacket[]>(
         `SELECT COALESCE(MAX(sort_order), 0) AS top, SUM(is_cover = 1) AS covers
            FROM acct_product_media WHERE legal_business_id = ? AND product_id = ? AND status = 'ACTIVE'`,
@@ -56,7 +63,7 @@ export async function POST(request: NextRequest) {
       saved += 1;
     } catch (error) {
       console.error("Bulk photo save failed:", error);
-      await deleteMedia(storageKey);
+      if (storageKey) await deleteMedia(storageKey);
       skipped += 1;
     }
   }

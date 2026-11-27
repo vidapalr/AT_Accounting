@@ -21,10 +21,25 @@ export async function POST(request: NextRequest) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const form = await request.formData();
+  // The photo screen sends one file per request and asks for a JSON answer; a plain form gets sent back to the page.
+  const wantsJson = (request.headers.get("accept") ?? "").includes("application/json");
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch (error) {
+    console.error("Media upload could not be read (too large or cut off):", error);
+    const pid = Number(request.nextUrl.searchParams.get("product") ?? 0);
+    if (wantsJson) return NextResponse.json({ saved: 0, skipped: 1, error: "toolarge" }, { status: 413 });
+    return seeOther(pid > 0 ? `/accounting/catalogue/${pid}?upload=toolarge` : "/accounting/catalogue");
+  }
   const productId = Number(form.get("product_id"));
-  const back = (extra: string) =>
-    seeOther(`/accounting/catalogue/${productId}?${extra}`);
+  const back = (extra: string) => {
+    if (wantsJson) {
+      const m = /^upload=(\d+)-(\d+)$/.exec(extra);
+      return NextResponse.json(m ? { saved: Number(m[1]), skipped: Number(m[2]) } : { saved: 0, skipped: 0, error: extra.replace("upload=", "") });
+    }
+    return seeOther(`/accounting/catalogue/${productId}?${extra}`);
+  };
 
   if (!Number.isSafeInteger(productId) || productId <= 0) {
     return new NextResponse("Bad request", { status: 400 });
@@ -53,8 +68,9 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    const key = await saveMedia(buffer, kind.ext);
+    let key = "";
     try {
+      key = await saveMedia(buffer, kind.ext);
       const [existing] = await db.execute<RowDataPacket[]>(
         `SELECT COUNT(*) AS n,
                 COALESCE(MAX(sort_order), 0) AS top,
@@ -78,7 +94,7 @@ export async function POST(request: NextRequest) {
       saved += 1;
     } catch (error) {
       console.error("Media save failed:", error);
-      await deleteMedia(key);
+      if (key) await deleteMedia(key);
       skipped += 1;
     }
   }
