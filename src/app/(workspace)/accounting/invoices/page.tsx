@@ -53,7 +53,7 @@ function paidStatus(
   paid: number
 ): string {
   if (status === "DRAFT") return "DRAFT";
-  if (status === "VOID") return "VOID";
+  if (status === "VOID") return "CANCELLED";
   if (paid <= 0) return "UNPAID";
   if (paid >= total) return "PAID";
   return "PARTIAL";

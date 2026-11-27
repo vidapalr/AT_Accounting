@@ -29,6 +29,7 @@ import { receiveSalePaymentAction, giveBillDiscountAction, correctSalePaymentAct
 import { MONEY_METHODS } from "@/lib/sale-payments";
 import { canGiveBillDiscount } from "@/lib/access";
 import ConfirmButton from "@/components/ConfirmButton";
+import { cancelSaleAction } from "@/lib/sale-cancel-actions";
 import { setInvoiceMobileAction } from "@/lib/customer-merge-actions";
 import ShareBillButton from "@/components/ShareBillButton";
 import { autoSendSettings } from "@/lib/wa-auto";
@@ -48,6 +49,12 @@ const PAY_MESSAGES: Record<string, { ok: boolean; text: string }> = {
   "invalid-date": { ok: false, text: "The payment date cannot be before the invoice date." },
   "too-much": { ok: false, text: "That is more than the amount still due. Add the customer's mobile number to this bill first, then the extra can be kept as credit we owe them." },
   "ok-used": { ok: true, text: "The customer's credit was used on this bill." },
+  cancelled: { ok: true, text: "Bill cancelled. Its entries in the books are reversed and the pieces are back in stock." },
+  "cancel-why": { ok: false, text: "Write why the bill is being cancelled (a few words)." },
+  "cancel-has-returns": { ok: false, text: "Goods were returned on this bill, so it cannot be cancelled. Return the remaining pieces with Returns instead." },
+  "cancel-has-setoff": { ok: false, text: "This bill was set off against a supplier bill. Undo the set-off first, then cancel." },
+  "cancel-period-closed": { ok: false, text: "This bill or a payment on it is in a closed month, so it cannot be cancelled. Open that month first." },
+  "cancel-no-customer": { ok: false, text: "This bill has no customer, so the money cannot be kept as credit. Choose 'Given back' instead." },
   "credit-none": { ok: false, text: "This customer has no credit to use." },
   "ok-return": { ok: true, text: "Return value we owed the customer was used on this bill." },
   "return-none": { ok: false, text: "This customer has no return value left to use." },
@@ -474,7 +481,7 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         </div>
         <div>
           <strong>Status</strong>
-          <p>{isEstimate ? (invoice.status === "VOID" ? "ESTIMATE / VOID" : "ESTIMATE") : `${invoice.status} / ${paymentStatus}`}</p>
+          <p>{isEstimate ? (invoice.status === "VOID" ? "ESTIMATE / VOID" : "ESTIMATE") : invoice.status === "VOID" ? "CANCELLED" : `${invoice.status} / ${paymentStatus}`}</p>
         </div>
       </div>
 
@@ -721,6 +728,12 @@ async function InvoiceDetails({ params, searchParams }: Props) {
         </div>
       )}
 
+      {invoice.status === "VOID" && !isEstimate && (
+        <p className="no-print" role="status" style={{ background: "#fef2f2", color: "#991b1b", padding: 12, borderRadius: 8, fontWeight: 600 }}>
+          This bill is cancelled. It stays on record only; it is not counted in sales, stock or the customer&rsquo;s balance.
+        </p>
+      )}
+
       {invoice.status === "DRAFT" && !isEstimate && (
         <p className="no-print" style={{ background: "#fff7ed", padding: 12, borderRadius: 8 }}>
           This bill is only a draft: stock has not moved and no payment can be taken yet.{" "}
@@ -868,6 +881,52 @@ async function InvoiceDetails({ params, searchParams }: Props) {
           )}
         </section>
       )}
+
+      {user.role === "GROUP_OWNER" && !isEstimate && (invoice.status === "POSTED" || invoice.status === "DRAFT") && (() => {
+        const moneyTaken = payments
+          .filter(p => p.status === "RECORDED" && ["CASH", "UPI", "CARD", "BANK_TRANSFER"].includes(String(p.payment_method)))
+          .reduce((sum, p) => sum + Number(p.amount), 0);
+        const blocked = returnRows.some(r => r.fromThisBill)
+          ? "Goods were returned on this bill, so it cannot be cancelled. Return the remaining pieces with Returns instead."
+          : payments.some(p => p.status === "RECORDED" && String(p.payment_method) === "SET_OFF")
+            ? "This bill was set off against a supplier bill. Undo the set-off first, then it can be cancelled."
+            : "";
+        return (
+          <details className="no-print" style={{ marginTop: 28, border: "1px solid #fecaca", borderRadius: 10, padding: "10px 14px", background: "#fff" }}>
+            <summary style={{ cursor: "pointer", color: "#b91c1c", fontWeight: 600 }}>Cancel this whole bill</summary>
+            {blocked ? <p style={{ color: "#92400e" }}>{blocked}</p> : (
+              <form action={cancelSaleAction} style={{ display: "grid", gap: 10, marginTop: 10, maxWidth: 560 }}>
+                <input type="hidden" name="sale_id" value={invoice.id} />
+                <p style={{ margin: 0, color: "#475569" }}>
+                  Nothing is deleted: the bill stays on record as <strong>Cancelled</strong>.
+                  {invoice.status === "POSTED" ? " Its entries in the books are reversed, the pieces go back into stock, and points or customer credit used on it come back." : ""}
+                </p>
+                <label style={{ display: "grid", gap: 4 }}>
+                  <span style={{ fontWeight: 600 }}>Why is it cancelled?</span>
+                  <input name="why" required minLength={3} maxLength={250} placeholder="Billed by mistake / customer did not take the goods" style={{ padding: 8 }} />
+                </label>
+                {moneyTaken > 0 && (
+                  <fieldset style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
+                    <legend style={{ fontWeight: 600 }}>₹{money(moneyTaken)} was received on this bill</legend>
+                    <label style={{ display: "block", marginBottom: 6 }}>
+                      <input type="radio" name="money" value="refund" defaultChecked /> Given back to the customer (the payment is removed)
+                    </label>
+                    <label style={{ display: "block", opacity: invoice.customer_id ? 1 : 0.5 }}>
+                      <input type="radio" name="money" value="credit" disabled={!invoice.customer_id} /> Keep it as credit for the customer (for the next bill)
+                      {!invoice.customer_id ? " · needs a customer on the bill" : ""}
+                    </label>
+                  </fieldset>
+                )}
+                <ConfirmButton
+                  label="Cancel this bill"
+                  question={`Cancel bill ${docNo}? This cannot be undone. The bill stays on record as cancelled.`}
+                  className="btn-link"
+                />
+              </form>
+            )}
+          </details>
+        );
+      })()}
 
       <nav className="no-print" style={{ marginTop: 24, display: "flex", gap: 12, flexWrap: "wrap" }}>
         <Link href="/accounting/returns">Return or refund</Link>
